@@ -74,3 +74,5 @@ mobile-app/android/*.hprof
 mobile-app/ios/Pods/
 mobile-app/ios/build/
 mobile-app/node_modules/
+*.hprof
+*.7z
