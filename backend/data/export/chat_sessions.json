@@ -1,0 +1,74 @@
+[
+  {
+    "session_id": "9f463e52-95f2-4c33-8fc8-64f6c3adafcb",
+    "conversation_id": "d41481d3-70ed-40db-891a-b178c3693d52",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "sp_identifier": "67d_",
+    "created_at": "2025-09-23 23:04:22",
+    "last_accessed_at": "2025-09-23 23:23:55"
+  },
+  {
+    "session_id": "58bccf09-7edb-42b8-b05a-6aa4a8a69a01",
+    "conversation_id": "e4a4d24f-c3be-4e8e-84a0-219d3ba42065",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "sp_identifier": "67d_",
+    "created_at": "2025-09-24 00:00:13",
+    "last_accessed_at": "2025-09-24 00:26:44"
+  },
+  {
+    "session_id": "76e5c022-21e1-4542-92d9-64383ab57afe",
+    "conversation_id": "afe8d63d-e884-485f-a852-bc66d0c20e79",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "sp_identifier": "67d_",
+    "created_at": "2025-09-24 00:29:32",
+    "last_accessed_at": "2025-09-24 00:29:32"
+  },
+  {
+    "session_id": "dd94fc81-f397-4426-b2ca-52229c7d6693",
+    "conversation_id": "7e5e1219-d511-4efe-a862-ec3501e800fb",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "sp_identifier": "67d_",
+    "created_at": "2025-09-24 00:33:29",
+    "last_accessed_at": "2025-09-24 00:33:29"
+  },
+  {
+    "session_id": "aadd52f7-8767-4bf6-b24f-0621e430ed49",
+    "conversation_id": "66cb7cf9-4d61-43e9-8bc6-4cebaf4b7ec3",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "sp_identifier": "67d_",
+    "created_at": "2025-09-24 00:34:01",
+    "last_accessed_at": "2025-09-24 00:34:01"
+  },
+  {
+    "session_id": "6742de64-0b12-497f-9adc-9ec735e38493",
+    "conversation_id": "82f5d446-3094-4de5-9b3d-043e91d5098b",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "sp_identifier": "67d_",
+    "created_at": "2025-10-09 23:06:51",
+    "last_accessed_at": "2025-10-09 23:06:51"
+  },
+  {
+    "session_id": "4394a14c-450b-4c6c-a83f-d13ef1619cd2",
+    "conversation_id": "c41c0424-2295-47a9-bf98-8b21d6e05190",
+    "user_id": "device_1759955532086_s15hkl2ef",
+    "sp_identifier": "C2I_",
+    "created_at": "2025-10-09 23:11:03",
+    "last_accessed_at": "2025-10-09 23:11:03"
+  },
+  {
+    "session_id": "1cdb59f9-eac2-489c-9b6d-167eccca40c4",
+    "conversation_id": "2618f7a1-d151-48df-8aef-6d22bc948e4d",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "sp_identifier": "C2I_",
+    "created_at": "2025-10-09 23:18:03",
+    "last_accessed_at": "2025-10-09 23:20:41"
+  },
+  {
+    "session_id": "62ca719a-606e-44b6-9c03-b4856378cf65",
+    "conversation_id": "114972a2-1572-4d8e-8038-d2fff97d368c",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "sp_identifier": "ah1_",
+    "created_at": "2025-10-10 19:53:25",
+    "last_accessed_at": "2025-10-10 19:53:25"
+  }
+]

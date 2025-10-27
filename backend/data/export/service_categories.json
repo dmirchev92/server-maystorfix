@@ -1,0 +1,162 @@
+[
+  {
+    "id": "electrician",
+    "name": "Electrician",
+    "name_bg": "Електротехник",
+    "description": "Electrical installation, repair and maintenance",
+    "icon_name": "bolt",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "plumber",
+    "name": "Plumber",
+    "name_bg": "Водопроводчик",
+    "description": "Plumbing installation, repair and maintenance",
+    "icon_name": "wrench",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "hvac",
+    "name": "HVAC Technician",
+    "name_bg": "Климатик",
+    "description": "Heating, ventilation and air conditioning services",
+    "icon_name": "snowflake",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "carpenter",
+    "name": "Carpenter",
+    "name_bg": "Дърводелец",
+    "description": "Woodworking, furniture and construction",
+    "icon_name": "hammer",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "painter",
+    "name": "Painter",
+    "name_bg": "Бояджия",
+    "description": "Interior and exterior painting services",
+    "icon_name": "paint-brush",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "locksmith",
+    "name": "Locksmith",
+    "name_bg": "Ключар",
+    "description": "Lock installation, repair and emergency services",
+    "icon_name": "key",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "cleaner",
+    "name": "Cleaning Service",
+    "name_bg": "Почистване",
+    "description": "House and office cleaning services",
+    "icon_name": "broom",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "gardener",
+    "name": "Gardener",
+    "name_bg": "Градинар",
+    "description": "Garden maintenance and landscaping",
+    "icon_name": "leaf",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "handyman",
+    "name": "Handyman",
+    "name_bg": "Майстор за всичко",
+    "description": "General maintenance and repair services",
+    "icon_name": "tools",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "appliance_repair",
+    "name": "Appliance Repair",
+    "name_bg": "Ремонт на уреди",
+    "description": "Home appliance repair and maintenance",
+    "icon_name": "cog",
+    "created_at": "2025-09-03 22:18:59"
+  },
+  {
+    "id": "577388f0-1ab1-41be-b229-9798cd5913ec",
+    "name": "electrician",
+    "name_bg": "Електротехник",
+    "description": "Електротехнически услуги",
+    "icon_name": "electric",
+    "created_at": "2025-09-16T23:52:14.378Z"
+  },
+  {
+    "id": "530187ba-42cf-45cf-8863-108a0ce0933b",
+    "name": "plumber",
+    "name_bg": "Водопроводчик",
+    "description": "Водопроводни услуги",
+    "icon_name": "plumbing",
+    "created_at": "2025-09-16T23:52:14.381Z"
+  },
+  {
+    "id": "33c786e6-9ce5-4ee2-98b0-a9ac0cedcea5",
+    "name": "hvac",
+    "name_bg": "Климатик",
+    "description": "Климатични системи",
+    "icon_name": "hvac",
+    "created_at": "2025-09-16T23:52:14.382Z"
+  },
+  {
+    "id": "a308d70a-6056-4133-ae23-240f8613b404",
+    "name": "carpenter",
+    "name_bg": "Дърводелец",
+    "description": "Дърводелски услуги",
+    "icon_name": "carpenter",
+    "created_at": "2025-09-16T23:52:14.384Z"
+  },
+  {
+    "id": "7ae215bc-79e7-4f91-a2eb-c2d9e6a81353",
+    "name": "painter",
+    "name_bg": "Бояджия",
+    "description": "Боядисване",
+    "icon_name": "painter",
+    "created_at": "2025-09-16T23:52:14.386Z"
+  },
+  {
+    "id": "d8d83c60-0a1d-47cf-8f45-b94772987cb2",
+    "name": "locksmith",
+    "name_bg": "Ключар",
+    "description": "Ключарски услуги",
+    "icon_name": "locksmith",
+    "created_at": "2025-09-16T23:52:14.387Z"
+  },
+  {
+    "id": "b8285394-9863-4135-8e79-f7339ebf712c",
+    "name": "cleaner",
+    "name_bg": "Почистване",
+    "description": "Почистващи услуги",
+    "icon_name": "cleaner",
+    "created_at": "2025-09-16T23:52:14.389Z"
+  },
+  {
+    "id": "4446896a-c6cc-42ef-a19d-45fab2d9e347",
+    "name": "gardener",
+    "name_bg": "Градинар",
+    "description": "Градинарски услуги",
+    "icon_name": "gardener",
+    "created_at": "2025-09-16T23:52:14.392Z"
+  },
+  {
+    "id": "fe3c42e8-8d94-4c17-a190-42bc6c491911",
+    "name": "handyman",
+    "name_bg": "Майстор за всичко",
+    "description": "Общи ремонти",
+    "icon_name": "handyman",
+    "created_at": "2025-09-16T23:52:14.396Z"
+  },
+  {
+    "id": "1e5a3d75-550b-40ee-b8c3-1bc5a3837184",
+    "name": "appliance_repair",
+    "name_bg": "Ремонт на уреди",
+    "description": "Ремонт на домакински уреди",
+    "icon_name": "appliance",
+    "created_at": "2025-09-16T23:52:14.398Z"
+  }
+]

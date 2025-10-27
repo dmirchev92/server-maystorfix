@@ -1,0 +1,242 @@
+[
+  {
+    "id": "d589f02d-d5de-4dd7-a436-de00cbd9da94",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "Mama Mia прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-09-18T10:42:43.431Z"
+  },
+  {
+    "id": "0b58cfe9-9a4f-4044-8819-7353c3730b60",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_completed",
+    "title": "Заявката е завършена",
+    "message": "Вашата заявка е отбелязана като завършена. Моля оценете услугата.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 1,
+    "created_at": "2025-09-27T21:30:04.755Z"
+  },
+  {
+    "id": "c1da1ac0-4d50-4c11-86b2-bf8a0fb57b95",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_completed",
+    "title": "Заявката е завършена",
+    "message": "Вашата заявка е отбелязана като завършена. Моля оценете услугата.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 1,
+    "created_at": "2025-09-27T21:30:12.416Z"
+  },
+  {
+    "id": "2c5d603c-21ae-4a48-9b7c-07a155c4fc1f",
+    "user_id": "375376ac-003f-4d3d-a8d3-10ee1196a322",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "Mama Mia прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"4ce3bad6-7954-4ed0-83df-9c77ad5813cc\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 1,
+    "created_at": "2025-09-27T22:18:32.899Z"
+  },
+  {
+    "id": "aa7f8425-524f-4fa7-8d13-173c7baabe0e",
+    "user_id": "375376ac-003f-4d3d-a8d3-10ee1196a322",
+    "type": "case_completed",
+    "title": "Заявката е завършена - Оценете услугата",
+    "message": "Вашата заявка е отбелязана като завършена. Моля споделете вашето мнение за получената услуга.",
+    "data": "{\"caseId\":\"4ce3bad6-7954-4ed0-83df-9c77ad5813cc\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\",\"action\":\"review_service\"}",
+    "read": 1,
+    "created_at": "2025-09-27T22:19:16.471Z"
+  },
+  {
+    "id": "b4a8fff3-21ff-4ec1-9b86-5c0111b7e9a4",
+    "user_id": "375376ac-003f-4d3d-a8d3-10ee1196a322",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "Mama Mia прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"9e252df4-089e-4d52-a075-a0cfcc09df4f\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 1,
+    "created_at": "2025-09-27T22:21:48.677Z"
+  },
+  {
+    "id": "ec892a4f-ecc5-4657-bdd6-5b70761f684a",
+    "user_id": "375376ac-003f-4d3d-a8d3-10ee1196a322",
+    "type": "case_completed",
+    "title": "Заявката е завършена - Оценете услугата",
+    "message": "Вашата заявка е отбелязана като завършена. Моля споделете вашето мнение за получената услуга.",
+    "data": "{\"caseId\":\"9e252df4-089e-4d52-a075-a0cfcc09df4f\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\",\"action\":\"review_service\"}",
+    "read": 1,
+    "created_at": "2025-09-27T22:21:58.966Z"
+  },
+  {
+    "id": "e70ad628-0437-45fb-92cd-4e7e80780e2d",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-02T20:32:44.047Z"
+  },
+  {
+    "id": "4aa81dff-dd65-4cc6-8ce6-7d4cdf3d9781",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-02T20:32:52.915Z"
+  },
+  {
+    "id": "78da759c-ca43-4b51-bf36-fa4633501a06",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-02T20:32:58.533Z"
+  },
+  {
+    "id": "48822436-d17e-421a-96cc-720593fe8269",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-02T20:32:58.568Z"
+  },
+  {
+    "id": "36779068-d480-44ee-8aaf-330dd917533e",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"55451cbf-38bb-41f6-9e9a-e5964ae141d0\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-02T20:33:15.896Z"
+  },
+  {
+    "id": "c600dbbd-c11b-4e77-9853-9f335a9ad7fa",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"1b26cda9-82ce-40a8-9f8b-80f9405e57b6\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-08T06:54:01.386Z"
+  },
+  {
+    "id": "2ea10364-30a4-446e-b664-d3f247be023c",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "Danail Mirchev прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"c78f3fee-91e8-417b-a3ee-783c1133d9c2\",\"providerId\":\"8ac388d9-09d7-41ea-b97b-8af0382185eb\"}",
+    "read": 0,
+    "created_at": "2025-10-08T07:11:18.220Z"
+  },
+  {
+    "id": "e4097883-954d-4084-a393-59812caf7bbd",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "type": "case_assigned",
+    "title": "Нова заявка директно възложена",
+    "message": "Клиент ви възложи нова заявка: dasdas...",
+    "data": "{\"caseId\":\"c188f997-f3f8-4cd1-a241-9f585963281b\",\"action\":\"view_case\"}",
+    "read": 1,
+    "created_at": "2025-10-08T07:28:03.825Z"
+  },
+  {
+    "id": "868cb15a-cbcf-44ab-aaa0-065ec0bcf203",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "type": "case_assigned",
+    "title": "Нова заявка директно възложена",
+    "message": "Клиент ви възложи нова заявка: testva...",
+    "data": "{\"caseId\":\"359dab5d-dd56-4cc9-bf40-d08af962a5e2\",\"action\":\"view_case\"}",
+    "read": 1,
+    "created_at": "2025-10-08T07:57:05.925Z"
+  },
+  {
+    "id": "ffbc44e3-957d-499b-b051-043d77975004",
+    "user_id": "375376ac-003f-4d3d-a8d3-10ee1196a322",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "Danail Mirchev прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"c14bc8ed-2ab7-478c-83a0-5c42424fe37a\",\"providerId\":\"8ac388d9-09d7-41ea-b97b-8af0382185eb\"}",
+    "read": 1,
+    "created_at": "2025-10-08T08:09:23.067Z"
+  },
+  {
+    "id": "a2d9c820-6b1f-4b00-bfdb-48df129eb4d0",
+    "user_id": "375376ac-003f-4d3d-a8d3-10ee1196a322",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "Danail Mirchev прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"8630c403-396c-4071-a065-290812cd4393\",\"providerId\":\"8ac388d9-09d7-41ea-b97b-8af0382185eb\"}",
+    "read": 1,
+    "created_at": "2025-10-08T08:13:02.417Z"
+  },
+  {
+    "id": "8bd946d3-266e-419e-93e2-2dee246f6edc",
+    "user_id": "375376ac-003f-4d3d-a8d3-10ee1196a322",
+    "type": "case_completed",
+    "title": "Завършена: TESTER",
+    "message": "Заявката \"TESTER\" от Danail Mirchev е завършена. Моля оценете получената услуга.",
+    "data": "{\"caseId\":\"8630c403-396c-4071-a065-290812cd4393\",\"providerId\":\"8ac388d9-09d7-41ea-b97b-8af0382185eb\",\"action\":\"review_service\"}",
+    "read": 1,
+    "created_at": "2025-10-08T08:13:17.230Z"
+  },
+  {
+    "id": "7d08423e-72ec-4236-a9ec-58b37c6b1142",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"6af9e1ff-488e-42b3-b59d-363e088427f5\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-12T20:29:19.587Z"
+  },
+  {
+    "id": "a75191eb-c8b9-4a60-8ca7-dd561660b321",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "type": "case_assigned",
+    "title": "Заявката ви е приета",
+    "message": "ddas asdasd прие вашата заявка и ще се свърже с вас скоро.",
+    "data": "{\"caseId\":\"01bf0cc0-4148-4351-ba5a-0fb80b33836f\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\"}",
+    "read": 0,
+    "created_at": "2025-10-12T20:29:23.209Z"
+  },
+  {
+    "id": "f934379d-4dc7-4f97-9439-f48ecdb41ceb",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "type": "case_completed",
+    "title": "Завършена: dasad",
+    "message": "Заявката \"dasad\" от ddas asdasd е завършена. Моля оценете получената услуга.",
+    "data": "{\"caseId\":\"6af9e1ff-488e-42b3-b59d-363e088427f5\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\",\"action\":\"review_service\"}",
+    "read": 0,
+    "created_at": "2025-10-12T20:29:38.093Z"
+  },
+  {
+    "id": "d729666f-dea9-4ef6-8ed5-e0c777950662",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "type": "case_completed",
+    "title": "Завършена: dasad",
+    "message": "Заявката \"dasad\" от ddas asdasd е завършена. Моля оценете получената услуга.",
+    "data": "{\"caseId\":\"01bf0cc0-4148-4351-ba5a-0fb80b33836f\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\",\"action\":\"review_service\"}",
+    "read": 0,
+    "created_at": "2025-10-12T20:29:47.088Z"
+  },
+  {
+    "id": "1b767666-010a-4546-92ce-50f45a473416",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "type": "case_completed",
+    "title": "Завършена: Генерално почистване след ремонт. Къща 120кв.м, много прах и строителни отпадъци.",
+    "message": "Заявката \"Генерално почистване след ремонт. Къща 120кв.м, много прах и строителни отпадъци.\" от ddas asdasd е завършена. Моля оценете получената услуга.",
+    "data": "{\"caseId\":\"1b26cda9-82ce-40a8-9f8b-80f9405e57b6\",\"providerId\":\"c9b21cdf-542f-41f3-8f39-9be6cda9b2a6\",\"action\":\"review_service\"}",
+    "read": 0,
+    "created_at": "2025-10-12T20:29:56.278Z"
+  }
+]

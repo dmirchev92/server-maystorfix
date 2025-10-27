@@ -1,0 +1,26 @@
+[
+  {
+    "id": "kwmdsjzstmg8klgxf",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "image_url": "http://192.168.0.129:3000/uploads/c9b21cdf-542f-41f3-8f39-9be6cda9b2a6/1759358445424_gallery-1759358445413.jpg",
+    "created_at": "2025-10-01 22:40:50"
+  },
+  {
+    "id": "2iioxkh72mg8klgxf",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "image_url": "http://192.168.0.129:3000/uploads/c9b21cdf-542f-41f3-8f39-9be6cda9b2a6/1759358448145_gallery-1759358448109.jpg",
+    "created_at": "2025-10-01 22:40:50"
+  },
+  {
+    "id": "j07yj4m9pmgibld4y",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "image_url": "http://192.168.0.129:3000/uploads/8ac388d9-09d7-41ea-b97b-8af0382185eb/1759908835393_gallery-1759908835387.jpg",
+    "created_at": "2025-10-08 18:26:31"
+  },
+  {
+    "id": "yesd3vyfjmgibld4y",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "image_url": "http://192.168.0.129:3000/uploads/8ac388d9-09d7-41ea-b97b-8af0382185eb/1759947984805_gallery-1759947978514.jpg",
+    "created_at": "2025-10-08 18:26:31"
+  }
+]

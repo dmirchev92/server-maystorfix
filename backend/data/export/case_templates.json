@@ -1,0 +1,38 @@
+[
+  {
+    "id": "nwp9a62wpdzqvg8kvng7",
+    "service_category": "hvac",
+    "template_name": "Климатик/Отопление",
+    "template_data": "{\"title\":\"Опишете проблема с климатика/отоплението\",\"description\":\"Моля, попълнете следната информация за да можем да ви помогнем най-добре:\",\"fields\":[{\"id\":\"problem_type\",\"type\":\"select\",\"label\":\"Тип проблем\",\"required\":true,\"options\":[\"Климатик не работи\",\"Климатик не охлажда/затопля\",\"Странни звуци\",\"Теч от климатик\",\"Инсталация на нов климатик\",\"Сервиз/почистване\",\"Проблем с отопление\",\"Друго\"]},{\"id\":\"urgency\",\"type\":\"select\",\"label\":\"Спешност\",\"required\":true,\"options\":[\"Спешно (липса на отопление зимата)\",\"Бързо (до 24 часа)\",\"Нормално (до 3 дни)\"]},{\"id\":\"device_info\",\"type\":\"text\",\"label\":\"Марка и модел на уреда\",\"placeholder\":\"напр. Daikin, Mitsubishi, Gree\",\"required\":false},{\"id\":\"description\",\"type\":\"textarea\",\"label\":\"Подробно описание\",\"placeholder\":\"Опишете проблема възможно най-подробно...\",\"required\":true},{\"id\":\"photos\",\"type\":\"file\",\"label\":\"Снимки (по желание)\",\"accept\":\"image/*\",\"multiple\":true},{\"id\":\"preferred_time\",\"type\":\"select\",\"label\":\"Предпочитано време за посещение\",\"required\":true,\"options\":[\"Сутрин (8:00-12:00)\",\"Следобед (12:00-17:00)\",\"Вечер (17:00-20:00)\",\"Уикенд\"]},{\"id\":\"contact_phone\",\"type\":\"tel\",\"label\":\"Телефон за връзка\",\"required\":true}]}",
+    "is_active": 1,
+    "created_at": "2025-09-15 23:39:35",
+    "updated_at": "2025-09-15 23:39:35"
+  },
+  {
+    "id": "r2ul34aecgaouclcalsux",
+    "service_category": "plumbing",
+    "template_name": "Водопроводен проблем",
+    "template_data": "{\"title\":\"Опишете вашия водопроводен проблем\",\"description\":\"Моля, попълнете следната информация за да можем да ви помогнем най-добре:\",\"fields\":[{\"id\":\"problem_type\",\"type\":\"select\",\"label\":\"Тип проблем\",\"required\":true,\"options\":[\"Теч от тръба\",\"Запушена канализация\",\"Няма топла вода\",\"Ниско налягане\",\"Счупен смесител\",\"Проблем с тоалетна\",\"Друго\"]},{\"id\":\"urgency\",\"type\":\"select\",\"label\":\"Спешност\",\"required\":true,\"options\":[\"Спешно (теч/наводнение)\",\"Бързо (до 24 часа)\",\"Нормално (до 3 дни)\"]},{\"id\":\"location\",\"type\":\"text\",\"label\":\"Къде се намира проблемът?\",\"placeholder\":\"напр. кухня, баня, мазе\",\"required\":true},{\"id\":\"description\",\"type\":\"textarea\",\"label\":\"Подробно описание\",\"placeholder\":\"Опишете проблема възможно най-подробно...\",\"required\":true},{\"id\":\"photos\",\"type\":\"file\",\"label\":\"Снимки (по желание)\",\"accept\":\"image/*\",\"multiple\":true},{\"id\":\"preferred_time\",\"type\":\"select\",\"label\":\"Предпочитано време за посещение\",\"required\":true,\"options\":[\"Сутрин (8:00-12:00)\",\"Следобед (12:00-17:00)\",\"Вечер (17:00-20:00)\",\"Уикенд\"]},{\"id\":\"contact_phone\",\"type\":\"tel\",\"label\":\"Телефон за връзка\",\"required\":true}]}",
+    "is_active": 1,
+    "created_at": "2025-09-15 23:39:35",
+    "updated_at": "2025-09-15 23:39:35"
+  },
+  {
+    "id": "2lfjl1s6wvtacuykpbv94b",
+    "service_category": "electrical",
+    "template_name": "Електрически проблем",
+    "template_data": "{\"title\":\"Опишете вашия електрически проблем\",\"description\":\"Моля, попълнете следната информация за да можем да ви помогнем най-добре:\",\"fields\":[{\"id\":\"problem_type\",\"type\":\"select\",\"label\":\"Тип проблем\",\"required\":true,\"options\":[\"Няма ток в помещението\",\"Прекъсвач се изключва\",\"Искри от контакт\",\"Не работи осветление\",\"Инсталация на нов уред\",\"Друго\"]},{\"id\":\"urgency\",\"type\":\"select\",\"label\":\"Спешност\",\"required\":true,\"options\":[\"Спешно (в рамките на часове)\",\"Бързо (до 24 часа)\",\"Нормално (до 3 дни)\"]},{\"id\":\"location\",\"type\":\"text\",\"label\":\"Къде се намира проблемът?\",\"placeholder\":\"напр. кухня, баня, хол\",\"required\":true},{\"id\":\"description\",\"type\":\"textarea\",\"label\":\"Подробно описание\",\"placeholder\":\"Опишете проблема възможно най-подробно...\",\"required\":true},{\"id\":\"photos\",\"type\":\"file\",\"label\":\"Снимки (по желание)\",\"accept\":\"image/*\",\"multiple\":true},{\"id\":\"preferred_time\",\"type\":\"select\",\"label\":\"Предпочитано време за посещение\",\"required\":true,\"options\":[\"Сутрин (8:00-12:00)\",\"Следобед (12:00-17:00)\",\"Вечер (17:00-20:00)\",\"Уикенд\"]},{\"id\":\"contact_phone\",\"type\":\"tel\",\"label\":\"Телефон за връзка\",\"required\":true}]}",
+    "is_active": 1,
+    "created_at": "2025-09-15 23:39:35",
+    "updated_at": "2025-09-15 23:39:35"
+  },
+  {
+    "id": "402tuyv19xqmif2govy16j",
+    "service_category": "general",
+    "template_name": "Общ ремонт/услуга",
+    "template_data": "{\"title\":\"Опишете необходимата услуга\",\"description\":\"Моля, попълнете следната информация за да можем да ви помогнем най-добре:\",\"fields\":[{\"id\":\"service_type\",\"type\":\"text\",\"label\":\"Тип услуга\",\"placeholder\":\"напр. боядисване, монтаж, ремонт\",\"required\":true},{\"id\":\"urgency\",\"type\":\"select\",\"label\":\"Спешност\",\"required\":true,\"options\":[\"Спешно (до 24 часа)\",\"Бързо (до 3 дни)\",\"Нормално (до седмица)\"]},{\"id\":\"description\",\"type\":\"textarea\",\"label\":\"Подробно описание\",\"placeholder\":\"Опишете необходимата услуга възможно най-подробно...\",\"required\":true},{\"id\":\"photos\",\"type\":\"file\",\"label\":\"Снимки (по желание)\",\"accept\":\"image/*\",\"multiple\":true},{\"id\":\"preferred_time\",\"type\":\"select\",\"label\":\"Предпочитано време за посещение\",\"required\":true,\"options\":[\"Сутрин (8:00-12:00)\",\"Следобед (12:00-17:00)\",\"Вечер (17:00-20:00)\",\"Уикенд\"]},{\"id\":\"contact_phone\",\"type\":\"tel\",\"label\":\"Телефон за връзка\",\"required\":true}]}",
+    "is_active": 1,
+    "created_at": "2025-09-15 23:39:35",
+    "updated_at": "2025-09-15 23:39:35"
+  }
+]

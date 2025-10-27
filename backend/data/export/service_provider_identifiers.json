@@ -1,0 +1,32 @@
+[
+  {
+    "id": "da3a1546-9793-452f-bc28-7ec0202d9baa",
+    "user_id": "device_1757018569006_jv85050rc",
+    "identifier": "NoT_",
+    "created_at": "2025-09-07 21:34:08"
+  },
+  {
+    "id": "a2d2e6df-5bfa-4e2b-80f9-64397a5ec7e8",
+    "user_id": "8ac388d9-09d7-41ea-b97b-8af0382185eb",
+    "identifier": "ah1_",
+    "created_at": "2025-09-23 19:28:24"
+  },
+  {
+    "id": "bd931874-cbec-4658-83c8-88050ced85e1",
+    "user_id": "c9b21cdf-542f-41f3-8f39-9be6cda9b2a6",
+    "identifier": "67d_",
+    "created_at": "2025-09-23 23:01:21"
+  },
+  {
+    "id": "4c1c2868-b082-40d6-af97-b6979398657a",
+    "user_id": "admin-1758836826022",
+    "identifier": "u7r_",
+    "created_at": "2025-09-25 21:50:18"
+  },
+  {
+    "id": "cc0393aa-585c-48bd-a301-7e1a2e79a2d9",
+    "user_id": "device_1759955532086_s15hkl2ef",
+    "identifier": "C2I_",
+    "created_at": "2025-10-08 20:32:18"
+  }
+]
