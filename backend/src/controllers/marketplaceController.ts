@@ -807,7 +807,7 @@ export const addReview = async (req: Request, res: Response): Promise<void> => {
 export const updateConversation = async (req: Request, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
-    const { customerName, customerPhone, customerEmail } = req.body;
+    const { customerName, customerPhone, customerEmail, customerId } = req.body;
 
     if (!conversationId) {
       res.status(400).json({
@@ -823,49 +823,53 @@ export const updateConversation = async (req: Request, res: Response): Promise<v
     logger.info('💬 Updating conversation details:', { 
       conversationId, 
       customerName,
+      customerId,
       customerPhone: customerPhone ? customerPhone.substring(0, 4) + '***' : undefined,
       customerEmail: customerEmail ? customerEmail.substring(0, 3) + '***' : undefined
     });
 
-    // Update conversation details
-    await new Promise<void>((resolve, reject) => {
-      const updates = [];
-      const values = [];
-      
-      if (customerName) {
-        updates.push('customer_name = ?');
-        values.push(customerName);
-      }
-      if (customerPhone) {
-        updates.push('customer_phone = ?');
-        values.push(customerPhone);
-      }
-      if (customerEmail) {
-        updates.push('customer_email = ?');
-        values.push(customerEmail);
-      }
-      
-      if (updates.length === 0) {
-        resolve();
-        return;
-      }
-      
-      values.push(conversationId);
-      
-      db.db.run(
-        `UPDATE marketplace_conversations 
-         SET ${updates.join(', ')}, last_message_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        values,
-        function(err: any) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
+    // Update conversation details using PostgreSQL
+    const updates = [];
+    const values = [];
+    let paramIndex = 1;
+    
+    if (customerName) {
+      updates.push(`customer_name = $${paramIndex++}`);
+      values.push(customerName);
+    }
+    if (customerPhone) {
+      updates.push(`customer_phone = $${paramIndex++}`);
+      values.push(customerPhone);
+    }
+    if (customerEmail) {
+      updates.push(`customer_email = $${paramIndex++}`);
+      values.push(customerEmail);
+    }
+    if (customerId) {
+      updates.push(`customer_id = $${paramIndex++}`);
+      values.push(customerId);
+    }
+    
+    if (updates.length === 0) {
+      res.json({
+        success: true,
+        data: {
+          conversationId,
+          message: 'No updates provided'
         }
-      );
-    });
+      });
+      return;
+    }
+    
+    values.push(conversationId);
+    
+    const pool = (db as any).getPool();
+    await pool.query(
+      `UPDATE marketplace_conversations 
+       SET ${updates.join(', ')}, last_message_at = CURRENT_TIMESTAMP
+       WHERE id = $${paramIndex}`,
+      values
+    );
 
     logger.info('✅ Conversation details updated successfully:', { conversationId });
 

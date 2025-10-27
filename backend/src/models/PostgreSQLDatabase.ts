@@ -60,6 +60,11 @@ export class PostgreSQLDatabase {
     return this.pool.connect();
   }
 
+  // Expose the pool for direct access (needed for ChatTokenService)
+  public getPool(): Pool {
+    return this.pool;
+  }
+
   private async initializeTables(): Promise<void> {
     const createTables = `
       -- Users table

@@ -303,17 +303,14 @@ export class ChatTokenService {
         );
       });
 
-      // Create marketplace conversation record
-      await new Promise<void>((resolve, reject) => {
-        (this.database as any).db.run(
-          'INSERT INTO marketplace_conversations (id, provider_id, customer_name, customer_email, customer_phone, status, created_at, last_message_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-          [conversationId, tokenData.user_id, 'Chat Customer', '', '', 'active'],
-          (err: any) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+      // Create marketplace conversation record in PostgreSQL
+      const pool = (this.database as any).getPool();
+      await pool.query(
+        `INSERT INTO marketplace_conversations 
+         (id, provider_id, customer_name, customer_email, customer_phone, status, created_at, last_message_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [conversationId, tokenData.user_id, 'Chat Customer', '', '', 'active']
+      );
 
       // Create permanent chat session
       await new Promise<void>((resolve, reject) => {

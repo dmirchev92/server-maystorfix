@@ -305,21 +305,16 @@ export const updateConversation = async (req: Request, res: Response, next: Next
       throw new ServiceTextProError('Conversation ID is required', 'BAD_REQUEST', 400);
     }
 
-    // Update conversation in database
-    await new Promise<void>((resolve, reject) => {
-      (db as any)._db.run(
-        `UPDATE marketplace_conversations 
-         SET customer_name = COALESCE(?, customer_name),
-             customer_email = COALESCE(?, customer_email),
-             customer_phone = COALESCE(?, customer_phone)
-         WHERE id = ?`,
-        [customerName, customerEmail, customerPhone, conversationId],
-        (err: any) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    // Update conversation in database using PostgreSQL
+    const pool = (db as any).getPool();
+    await pool.query(
+      `UPDATE marketplace_conversations 
+       SET customer_name = COALESCE($1, customer_name),
+           customer_email = COALESCE($2, customer_email),
+           customer_phone = COALESCE($3, customer_phone)
+       WHERE id = $4`,
+      [customerName, customerEmail, customerPhone, conversationId]
+    );
 
     console.log('✅ Conversation updated successfully');
 

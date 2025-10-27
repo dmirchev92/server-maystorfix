@@ -34,7 +34,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [hasValidated, setHasValidated] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
   const [customerInfo, setCustomerInfo] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     phone: '',
     email: '',
     password: '',
@@ -233,7 +234,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       
       await axios.post(messageUrl, {
         senderType: 'customer',
-        senderName: customerInfo.name || 'Customer',
+        senderName: `${customerInfo.firstName} ${customerInfo.lastName}`.trim() || 'Customer',
         message: currentMessage,
         messageType: 'text'
       });
@@ -269,7 +270,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const handleCustomerFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!customerInfo.name.trim() || !customerInfo.phone.trim()) {
+    if (!customerInfo.firstName.trim() || !customerInfo.phone.trim()) {
       alert('Моля въведете име и телефон');
       return;
     }
@@ -286,13 +287,13 @@ export default function ChatPage({ params }: ChatPageProps) {
       console.log('🔄 Updating conversation with customer details:', {
         url: updateUrl,
         conversationId: validationResult?.conversationId,
-        customerName: customerInfo.name,
+        customerName: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
         customerPhone: customerInfo.phone,
         customerEmail: customerInfo.email
       });
       
       const response = await axios.put(updateUrl, {
-        customerName: customerInfo.name,
+        customerName: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
         customerPhone: customerInfo.phone,
         customerEmail: customerInfo.email
       });
@@ -326,7 +327,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     setAuthError(null);
     
     // Validation
-    if (!customerInfo.name || !customerInfo.email || !customerInfo.phone || !customerInfo.password) {
+    if (!customerInfo.firstName || !customerInfo.email || !customerInfo.phone || !customerInfo.password) {
       setAuthError('Моля попълнете всички полета');
       return;
     }
@@ -336,22 +337,46 @@ export default function ChatPage({ params }: ChatPageProps) {
       return;
     }
     
-    if (customerInfo.password.length < 6) {
-      setAuthError('Паролата трябва да е поне 6 символа');
+    // Validate password strength
+    if (customerInfo.password.length < 8) {
+      setAuthError('Паролата трябва да е поне 8 символа');
+      return;
+    }
+    
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!passwordRegex.test(customerInfo.password)) {
+      setAuthError('Паролата трябва да съдържа главна буква, малка буква, цифра и специален символ (@$!%*?&)');
       return;
     }
     
     try {
       // Register the user
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
-      const registerResponse = await axios.post(`${apiUrl}/auth/register`, {
+      
+      // Format phone number to +359 format
+      let formattedPhone = customerInfo.phone.trim();
+      if (formattedPhone.startsWith('0')) {
+        formattedPhone = '+359' + formattedPhone.substring(1);
+      } else if (!formattedPhone.startsWith('+359')) {
+        formattedPhone = '+359' + formattedPhone;
+      }
+      
+      const registrationPayload = {
         email: customerInfo.email,
         password: customerInfo.password,
-        firstName: customerInfo.name.split(' ')[0] || customerInfo.name,
-        lastName: customerInfo.name.split(' ').slice(1).join(' ') || '',
-        phoneNumber: customerInfo.phone,
-        role: 'customer'
+        firstName: customerInfo.firstName,
+        lastName: customerInfo.lastName,
+        phoneNumber: formattedPhone,
+        role: 'customer',
+        gdprConsents: ['essential_service', 'marketing']
+      };
+      
+      console.log('📤 Sending registration payload:', {
+        ...registrationPayload,
+        password: '***hidden***'
       });
+      
+      const registerResponse = await axios.post(`${apiUrl}/auth/register`, registrationPayload);
       
       if (registerResponse.data?.success) {
         console.log('Registration successful, auto-logging in...');
@@ -387,6 +412,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             });
             
             await axios.put(updateUrl, {
+              customerId: user.id,
               customerName: `${user.firstName} ${user.lastName}`.trim(),
               customerPhone: user.phoneNumber,
               customerEmail: user.email
@@ -409,8 +435,19 @@ export default function ChatPage({ params }: ChatPageProps) {
       }
     } catch (error: any) {
       console.error('Registration error:', error);
-      const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || 'Грешка при регистрация';
-      setAuthError(errorMessage);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error response status:', error.response?.status);
+      console.error('Error response headers:', error.response?.headers);
+      
+      // Try to extract validation errors
+      const validationErrors = error.response?.data?.errors;
+      if (validationErrors && Array.isArray(validationErrors)) {
+        const errorMessages = validationErrors.map((err: any) => err.msg || err.message).join(', ');
+        setAuthError(`Грешка при валидация: ${errorMessages}`);
+      } else {
+        const errorMessage = error.response?.data?.error?.message || error.response?.data?.message || 'Грешка при регистрация';
+        setAuthError(errorMessage);
+      }
     }
   };
   
@@ -461,6 +498,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           });
           
           await axios.put(updateUrl, {
+            customerId: user.id,
             customerName: `${user.firstName} ${user.lastName}`.trim(),
             customerPhone: user.phoneNumber,
             customerEmail: user.email
@@ -592,16 +630,31 @@ export default function ChatPage({ params }: ChatPageProps) {
             {formMode === 'register' && (
               <>
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-white mb-1">
+                  <label htmlFor="firstName" className="block text-sm font-medium text-white mb-1">
                     Име *
                   </label>
                   <input
                     type="text"
-                    id="name"
-                    value={customerInfo.name}
-                    onChange={(e) => handleCustomerInfoChange('name', e.target.value)}
+                    id="firstName"
+                    value={customerInfo.firstName}
+                    onChange={(e) => handleCustomerInfoChange('firstName', e.target.value)}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="Вашето име"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-white mb-1">
+                    Фамилия *
+                  </label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    value={customerInfo.lastName}
+                    onChange={(e) => handleCustomerInfoChange('lastName', e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Вашата фамилия"
                     required
                   />
                 </div>
@@ -646,7 +699,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                     value={customerInfo.password}
                     onChange={(e) => handleCustomerInfoChange('password', e.target.value)}
                     className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Мин. 6 символа"
+                    placeholder="Мин. 8 символа (A-z, 0-9, @$!%*?&)"
                     required
                   />
                 </div>

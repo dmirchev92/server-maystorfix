@@ -15,14 +15,20 @@ const getApiUrl = (): string => {
     return 'https://maystorfix.com/api/v1'
   }
   
-  // Client-side - validate hostname against whitelist
+  // Client-side - always use HTTPS for production domain
   const hostname = window.location.hostname
-  if (ALLOWED_HOSTS.includes(hostname)) {
+  
+  // Production domain - always HTTPS
+  if (hostname === 'maystorfix.com' || hostname === '46.224.11.139') {
+    return 'https://maystorfix.com/api/v1'
+  }
+  
+  // Local development only - HTTP
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '192.168.0.129') {
     return `http://${hostname}:3000/api/v1`
   }
   
-  // Fallback to safe default if hostname not whitelisted
-  console.warn('Hostname not whitelisted, using default API URL')
+  // Fallback to safe default
   return 'https://maystorfix.com/api/v1'
 }
 

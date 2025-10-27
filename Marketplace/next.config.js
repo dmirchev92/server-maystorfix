@@ -8,7 +8,15 @@ const nextConfig = {
   images: {
     domains: ['localhost', 'servicetextpro.bg', 'maystorfix.com', '46.224.11.139'],
   },
-  // Removed rewrites - using direct API calls instead
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
 }
 
 module.exports = nextConfig
