@@ -1,4 +1,0 @@
-{"environment":"development","level":"info","message":"🔧 Initializing POSTGRESQL database...","service":"servicetext-pro-backend","timestamp":"2025-10-22 01:54:00","version":"1.0.0"}
-{"environment":"development","level":"info","message":"✅ Connected to PostgreSQL database","service":"servicetext-pro-backend","timestamp":"2025-10-22 01:54:00","version":"1.0.0"}
-{"environment":"development","level":"info","message":"✅ Notification tables initialized","service":"servicetext-pro-backend","timestamp":"2025-10-22 01:54:00","version":"1.0.0"}
-{"environment":"development","level":"info","message":"✅ PostgreSQL database tables initialized","service":"servicetext-pro-backend","timestamp":"2025-10-22 01:54:00","version":"1.0.0"}

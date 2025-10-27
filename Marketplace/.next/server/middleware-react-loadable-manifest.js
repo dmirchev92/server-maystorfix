@@ -1,1 +1,0 @@
-self.__REACT_LOADABLE_MANIFEST='{"app/search/page.tsx -> @/lib/socket":{"id":4549,"files":["static/chunks/680-0967455562c6df5e.js","static/chunks/549.7a47de9e93af04fd.js"]}}';
