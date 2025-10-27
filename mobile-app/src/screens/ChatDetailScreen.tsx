@@ -47,6 +47,45 @@ function ChatDetailScreen() {
   const socketService = SocketIOService.getInstance();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
+  // Helper to normalize message fields (Chat API V2 uses body/sentAt, old uses message/timestamp)
+  const normalizeMessage = (msg: any): Message => {
+    try {
+      return {
+        ...msg,
+        id: msg.id || msg.messageId || '',
+        conversationId: msg.conversationId || conversationId,
+        senderType: msg.senderType || 'system',
+        senderName: msg.senderName || 'Unknown',
+        body: msg.body || msg.message || '',
+        message: msg.message || msg.body || '',
+        sentAt: msg.sentAt || msg.timestamp || new Date().toISOString(),
+        timestamp: msg.timestamp || msg.sentAt || new Date().toISOString(),
+        type: msg.type || msg.messageType || 'text',
+        messageType: msg.messageType || msg.type || 'text',
+        isRead: msg.isRead ?? false,
+        senderUserId: msg.senderUserId || msg.senderId || null,
+        editedAt: msg.editedAt || null,
+        deletedAt: msg.deletedAt || null,
+      };
+    } catch (error) {
+      console.error('❌ Error normalizing message:', error, msg);
+      // Return a safe default message
+      return {
+        id: msg?.id || 'error',
+        conversationId: conversationId,
+        senderType: 'system',
+        senderName: 'System',
+        body: 'Error loading message',
+        message: 'Error loading message',
+        sentAt: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
+        type: 'text',
+        messageType: 'text',
+        isRead: false,
+      } as Message;
+    }
+  };
+
   useEffect(() => {
     initializeChat();
     return () => {
@@ -63,9 +102,12 @@ function ChatDetailScreen() {
   }, []);
 
   const initializeChat = async () => {
+    console.log('🚀 ChatDetailScreen - Initializing chat for conversation:', conversationId);
     try {
       // Get current user
+      console.log('👤 Getting current user...');
       const userResponse = await ApiService.getInstance().getCurrentUser();
+      console.log('👤 User response:', userResponse);
       const userData: any = userResponse.data;
       setUserId(userData.id);
       setUserName(`${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User');
@@ -82,13 +124,34 @@ function ChatDetailScreen() {
       console.log('🚪 Joining conversation room:', conversationId);
       socketService.joinConversation(conversationId);
 
-      // Listen for new messages
+      // Listen for new messages, updates, and deletions
       console.log('👂 Setting up message listener for conversation:', conversationId);
       const unsubscribe = socketService.onNewMessage((message) => {
         console.log('📨 Received message via Socket.IO:', message);
         if (message.conversationId === conversationId) {
-          console.log('✅ Message matches current conversation, adding to list');
-          addMessage(message);
+          console.log('✅ Message matches current conversation');
+          
+          // Handle deleted messages
+          if (message.deletedAt) {
+            console.log('🗑️ Message deleted, removing from list:', message.id);
+            setMessages(prev => prev.filter(m => m.id !== message.id));
+            return;
+          }
+          
+          // Handle updated messages
+          const normalized = normalizeMessage(message);
+          setMessages(prev => {
+            const existingIndex = prev.findIndex(m => m.id === message.id);
+            if (existingIndex >= 0) {
+              console.log('✏️ Message updated, replacing in list:', message.id);
+              const updated = [...prev];
+              updated[existingIndex] = normalized;
+              return updated;
+            } else {
+              console.log('➕ New message, adding to list:', message.id);
+              return [...prev, normalized];
+            }
+          });
         } else {
           console.log('⚠️ Message for different conversation:', message.conversationId);
         }
@@ -121,8 +184,8 @@ function ChatDetailScreen() {
       if (response.success && response.data) {
         const messagesList = response.data.messages || response.data || [];
         console.log(`✅ Loaded ${messagesList.length} messages`);
-        // Normalize message IDs (backend may return messageId)
-        const normalized = messagesList.map((m: any) => ({
+        // Normalize messages to handle Chat API V2 field names
+        const normalized = messagesList.map((m: any) => normalizeMessage({
           ...m,
           id: m.id || m.messageId,
         }));
@@ -146,11 +209,10 @@ function ChatDetailScreen() {
           const merged = Array.from(map.values());
           console.log('🔄 Total unique messages after merge:', merged.length);
           
-          // Maintain chronological order by timestamp
-          merged.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-          console.log('🔄 Final message order (IDs):', merged.map(m => m.id));
-          console.log('🔄 ========================================');
-          return merged;
+          // Maintain chronological order by sentAt/timestamp
+          return merged.sort((a, b) => 
+            new Date(a.sentAt || a.timestamp || 0).getTime() - new Date(b.sentAt || b.timestamp || 0).getTime()
+          );
         });
 
         // Save to cache
@@ -177,33 +239,8 @@ function ChatDetailScreen() {
     }
   };
 
-  const addMessage = (message: Message) => {
-    console.log('🔵 addMessage called with:', {
-      id: message.id,
-      conversationId: message.conversationId,
-      senderType: message.senderType,
-      message: message.message.substring(0, 50)
-    });
-    
-    setMessages(prev => {
-      console.log('🔵 Current messages count:', prev.length);
-      console.log('🔵 Current message IDs:', prev.map(m => m.id));
-      
-      // Avoid duplicates
-      const exists = prev.some(m => m.id === message.id);
-      console.log('🔵 Message exists?', exists);
-      
-      if (exists) {
-        console.log('⚠️ Duplicate message, skipping');
-        return prev;
-      }
-      
-      const newMessages = [...prev, message];
-      console.log('✅ Adding message, new count:', newMessages.length);
-      return newMessages;
-    });
-    setTimeout(() => scrollToBottom(), 100);
-  };
+  // Note: addMessage function removed - messages are now handled directly in socket listener
+  // This ensures proper handling of new, updated, and deleted messages
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || isSending) return;
@@ -213,32 +250,23 @@ function ChatDetailScreen() {
     setIsSending(true);
 
     try {
-      const token = await AsyncStorage.getItem('auth_token');
-
-      // Use REST API (not Socket.IO emit) - send as provider
-      const response = await fetch('https://maystorfix.com/api/v1/chat/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          conversationId,
-          senderType: 'provider',
-          senderName: userName,
-          message: messageText,
-          messageType: 'text',
-        }),
+      // Send via socket only (matches web app implementation)
+      console.log('📤 Sending message via socket:', {
+        conversationId,
+        messagePreview: messageText.substring(0, 50),
+        type: 'text'
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
+      await socketService.sendMessage(
+        conversationId,
+        messageText,
+        'provider',
+        userName,
+        'text'
+      );
 
-      const result = await response.json();
-      console.log('✅ Message sent:', result.data?.messageId);
-
-      // Message will be received via Socket.IO listener (don't add immediately)
+      console.log('✅ Message sent via socket, waiting for confirmation via message:new');
+      // Message will be received via Socket.IO listener (no optimistic update)
     } catch (error) {
       console.error('❌ Error sending message:', error);
       Alert.alert('Грешка', 'Неуспешно изпращане на съобщението');
@@ -262,7 +290,7 @@ function ChatDetailScreen() {
       return (
         <View style={styles.systemMessageContainer}>
           <View style={styles.systemMessage}>
-            <Text style={styles.systemMessageText}>{item.message}</Text>
+            <Text style={styles.systemMessageText}>{item.body || item.message}</Text>
           </View>
         </View>
       );
@@ -273,7 +301,7 @@ function ChatDetailScreen() {
       return (
         <View style={styles.systemMessageContainer}>
           <View style={styles.surveyMessage}>
-            <Text style={styles.surveyText}>{item.message}</Text>
+            <Text style={styles.surveyText}>{item.body || item.message}</Text>
             <TouchableOpacity
               style={styles.surveyButton}
               onPress={() => {
@@ -302,13 +330,16 @@ function ChatDetailScreen() {
         ]}>
           <Text style={[
             styles.messageText,
-            isOwnMessage ? styles.ownMessageText : styles.otherMessageText
+            isOwnMessage && styles.ownMessageText
           ]}>
-            {item.message}
+            {item.body || item.message}
           </Text>
         </View>
-        <Text style={styles.messageTime}>
-          {new Date(item.timestamp).toLocaleTimeString('bg-BG', {
+        <Text style={[
+          styles.messageTime,
+          isOwnMessage && styles.ownMessageTime
+        ]}>
+          {new Date(item.sentAt || item.timestamp || 0).toLocaleTimeString('bg-BG', {
             hour: '2-digit',
             minute: '2-digit'
           })}

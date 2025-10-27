@@ -26,6 +26,7 @@ function ChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userId, setUserId] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   // Socket.IO is now initialized globally in App.tsx
   // No need to initialize here anymore
@@ -33,6 +34,7 @@ function ChatScreen() {
   // Load conversations when screen is focused
   useFocusEffect(
     React.useCallback(() => {
+      console.log('📱 ChatScreen - Screen focused, loading conversations');
       loadConversations();
     }, [])
   );
@@ -40,16 +42,23 @@ function ChatScreen() {
 
   const loadConversations = async (silent = false) => {
     try {
-      if (!silent) setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+        setError(null);
+      }
+
+      console.log('📱 ChatScreen - Starting to load conversations');
 
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) {
         console.log('⚠️ No auth token');
+        setError('No authentication token found');
         setIsLoading(false);
         return;
       }
 
       // Get current user
+      console.log('📱 ChatScreen - Getting current user');
       const userResponse = await ApiService.getInstance().getCurrentUser();
       console.log('📱 ChatScreen - User response:', userResponse);
       
@@ -58,32 +67,22 @@ function ChatScreen() {
 
       if (!userData || !userData.id) {
         console.error('❌ No user ID found');
+        setError('User data not available');
         setIsLoading(false);
         return;
       }
 
-      // Load conversations from API using ApiService
-      console.log('📱 ChatScreen - Loading conversations for user:', userData.id);
-      const response = await ApiService.getInstance().getConversations(userData.id);
+      // Load conversations from API using Chat API V2 (authenticated user)
+      console.log('📱 ChatScreen - Loading conversations via Chat API V2');
+      const response = await ApiService.getInstance().getConversations();
       
       console.log('📱 ChatScreen - Full API response:', JSON.stringify(response, null, 2));
       
       if (response.success && response.data) {
-        // Try different possible response structures
-        let conversationsList = [];
+        // Chat API V2 returns: { success: true, data: { conversations: [...] } }
+        const conversationsList = response.data.conversations || [];
         
-        if (Array.isArray(response.data)) {
-          // Data is directly an array
-          conversationsList = response.data;
-        } else if (response.data.conversations) {
-          // Data has conversations property
-          conversationsList = response.data.conversations;
-        } else if (response.data.data) {
-          // Data is nested in data.data
-          conversationsList = response.data.data.conversations || response.data.data;
-        }
-        
-        console.log(`✅ Loaded ${conversationsList.length} conversations (before dedup)`);
+        console.log(`✅ Loaded ${conversationsList.length} conversations`);
         
         // Deduplicate conversations by ID
         const uniqueConversations = conversationsList.filter((conv: any, index: number, self: any[]) =>
@@ -176,7 +175,7 @@ function ChatScreen() {
             {(item.customerName || 'C').charAt(0).toUpperCase()}
           </Text>
         </View>
-        {item.unreadCount > 0 && (
+        {(item.unreadCount || 0) > 0 && (
           <View style={styles.unreadBadge}>
             <Text style={styles.unreadText}>{item.unreadCount}</Text>
           </View>
@@ -189,11 +188,13 @@ function ChatScreen() {
             {item.customerName || 'Customer'}
           </Text>
           <Text style={styles.timestamp}>
-            {formatTime(item.lastActivity || item.updatedAt)}
+            {formatTime(item.lastMessageAt)}
           </Text>
         </View>
         <Text style={styles.lastMessage} numberOfLines={2}>
-          {item.lastMessage || 'Няма съобщения'}
+          {typeof item.lastMessage === 'string' 
+            ? item.lastMessage 
+            : item.lastMessage?.body || item.lastMessage?.message || 'Няма съобщения'}
         </Text>
       </View>
     </TouchableOpacity>

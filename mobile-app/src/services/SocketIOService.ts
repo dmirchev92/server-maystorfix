@@ -113,6 +113,19 @@ class SocketIOService {
       this.messageCallbacks.forEach(callback => callback(message));
     });
 
+    // Message updated - backend emits 'message:updated'
+    this.socket.on('message:updated', (data: { message: Message }) => {
+      console.log('✏️ Message updated via message:updated:', data);
+      // Update message in callbacks
+      this.messageCallbacks.forEach(callback => callback(data.message));
+    });
+
+    // Message deleted - backend emits 'message:deleted'
+    this.socket.on('message:deleted', (data: { messageId: string; conversationId: string }) => {
+      console.log('🗑️ Message deleted via message:deleted:', data);
+      // Notify callbacks about deletion (components should handle removal)
+    });
+
     // Conversation updated - backend emits 'conversation:updated'
     this.socket.on('conversation:updated', (data: { conversationId: string; lastMessageAt: string }) => {
       console.log('🔄 Conversation updated:', data);
@@ -182,10 +195,16 @@ class SocketIOService {
       this.smsConfigCallbacks.forEach(callback => callback(data));
     });
 
-    // User typing
-    this.socket.on('user_typing', (data: { userId: string; isTyping: boolean }) => {
-      console.log('⌨️ User typing:', data);
+    // Typing indicator - matches web app event name
+    this.socket.on('typing', (data: { conversationId: string; userId: string; userName: string; isTyping: boolean }) => {
+      console.log('⌨️ Typing indicator:', data);
       this.typingCallbacks.forEach(callback => callback(data));
+    });
+
+    // Presence updates - online/offline status
+    this.socket.on('presence', (data: { userId: string; status: 'online' | 'offline' | 'away' }) => {
+      console.log('👤 Presence update:', data);
+      // Can be used to show online/offline status in UI
     });
 
     // Message read
@@ -217,14 +236,18 @@ class SocketIOService {
 
   leaveConversation(conversationId: string) {
     if (!this.socket) return;
-    console.log('🚪 Leaving conversation:', conversationId);
+    console.log('🚺 Leaving conversation:', conversationId);
     
     // Clear current conversation tracking
     if (this.currentConversationId === conversationId) {
       this.currentConversationId = null;
     }
-    // Note: Server does not expose a leave-conversation event currently.
-    // We rely on switching rooms by joining a different conversation and/or disconnecting the socket on logout.
+    
+    // Emit leave-conversation to match web app
+    if (this.socket.connected) {
+      this.socket.emit('leave-conversation', conversationId);
+      console.log('✅ Emitted leave-conversation for:', conversationId);
+    }
   }
 
   sendMessage(

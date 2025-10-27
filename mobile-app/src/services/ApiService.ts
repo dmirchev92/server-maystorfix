@@ -213,10 +213,12 @@ export class ApiService {
     return this.authToken !== null;
   }
 
-  // Chat Methods - Unified API for both phone and marketplace conversations
-  public async getConversations(userId: string): Promise<APIResponse> {
-    console.log('📱 ApiService - Getting conversations for user:', userId);
-    return this.makeRequest(`/chat/user/${userId}/conversations`);
+  // Chat Methods - Using Chat API V2 (matches web app)
+  public async getConversations(): Promise<APIResponse> {
+    console.log('📱 ApiService - Getting conversations via Chat API V2');
+    // Chat API V2 automatically gets conversations for authenticated user
+    // No need to pass userId - it's extracted from auth token
+    return this.makeRequest(`/chat/conversations`);
   }
 
   public async getConversationMessages(

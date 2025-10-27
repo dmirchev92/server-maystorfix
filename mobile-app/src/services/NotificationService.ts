@@ -90,7 +90,7 @@ class NotificationService {
    */
   private async createNotificationChannels(): Promise<void> {
     try {
-      // Chat messages channel
+      // Chat messages channel with enhanced settings
       await notifee.createChannel({
         id: 'chat_messages',
         name: 'Chat Messages',
@@ -98,9 +98,13 @@ class NotificationService {
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
+        vibrationPattern: [300, 500],
+        lights: true,
+        lightColor: '#4A90E2',
+        badge: true,
       });
 
-      // Case assignments channel
+      // Case assignments channel with enhanced settings
       await notifee.createChannel({
         id: 'case_assignments',
         name: 'Case Assignments',
@@ -108,6 +112,24 @@ class NotificationService {
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
+        vibrationPattern: [500, 500, 500],
+        lights: true,
+        lightColor: '#FF4444',
+        badge: true,
+      });
+
+      // Urgent cases channel with maximum priority
+      await notifee.createChannel({
+        id: 'urgent_cases',
+        name: 'Urgent Cases',
+        description: 'Notifications for urgent case assignments',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+        vibrationPattern: [500, 200, 500, 200, 500],
+        lights: true,
+        lightColor: '#FF0000',
+        badge: true,
       });
 
       console.log('✅ Notification channels created');
@@ -188,6 +210,14 @@ class NotificationService {
           color: '#4A90E2',
           sound: 'default',
           vibrationPattern: [300, 500],
+          // Show as heads-up notification
+          category: 'message',
+          showTimestamp: true,
+          timestamp: Date.now(),
+          // Auto-cancel when tapped
+          autoCancel: true,
+          // Show on lock screen
+          visibility: 1, // PUBLIC
         },
         ios: {
           sound: 'default',
@@ -195,11 +225,16 @@ class NotificationService {
             alert: true,
             badge: true,
             sound: true,
+            banner: true,
+            list: true,
           },
+          categoryId: 'message',
+          interruptionLevel: 'timeSensitive',
         },
         data: {
           type: 'chat_message',
           conversationId: data.conversationId,
+          senderName: data.senderName,
         },
       });
 
@@ -223,11 +258,14 @@ class NotificationService {
         urgent: '🔴',
       };
 
+      // Use urgent channel for urgent cases
+      const channelId = data.priority === 'urgent' ? 'urgent_cases' : 'case_assignments';
+
       await notifee.displayNotification({
         title: `${priorityEmoji[data.priority]} New Case Assignment`,
         body: `${data.customerName} - ${data.serviceType}\n${data.description}`,
         android: {
-          channelId: 'case_assignments',
+          channelId,
           importance: AndroidImportance.HIGH,
           pressAction: {
             id: 'default',
@@ -237,9 +275,19 @@ class NotificationService {
             text: `Customer: ${data.customerName}\nService: ${data.serviceType}\n\n${data.description}`,
           },
           smallIcon: 'ic_notification',
+          largeIcon: 'ic_launcher',
           color: data.priority === 'urgent' ? '#FF4444' : '#4A90E2',
           sound: 'default',
-          vibrationPattern: data.priority === 'urgent' ? [500, 500, 500] : [300, 500],
+          vibrationPattern: data.priority === 'urgent' ? [500, 200, 500, 200, 500] : [300, 500],
+          // Show as heads-up notification
+          category: 'event',
+          showTimestamp: true,
+          timestamp: Date.now(),
+          autoCancel: true,
+          // Show on lock screen
+          visibility: 1, // PUBLIC
+          // Make urgent cases more prominent
+          ongoing: data.priority === 'urgent',
           actions: [
             {
               title: 'View Case',
@@ -261,13 +309,19 @@ class NotificationService {
             alert: true,
             badge: true,
             sound: true,
+            banner: true,
+            list: true,
           },
           categoryId: 'case_assignment',
+          // Make urgent cases critical
+          interruptionLevel: data.priority === 'urgent' ? 'critical' : 'timeSensitive',
         },
         data: {
           type: 'case_assignment',
           caseId: data.caseId,
           priority: data.priority,
+          customerName: data.customerName,
+          serviceType: data.serviceType,
         },
       });
 
