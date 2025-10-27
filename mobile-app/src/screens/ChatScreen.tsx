@@ -36,6 +36,66 @@ function ChatScreen() {
     React.useCallback(() => {
       console.log('📱 ChatScreen - Screen focused, loading conversations');
       loadConversations();
+      
+      // Set up socket listener for conversation updates
+      const socketService = SocketIOService.getInstance();
+      
+      // Listen for new messages
+      const unsubscribeMessage = socketService.onNewMessage((message: any) => {
+        console.log('📱 ChatScreen - New message received, updating conversation preview:', message);
+        // Update the conversation's last message and timestamp
+        setConversations(prev => {
+          const index = prev.findIndex(c => c.id === message.conversationId);
+          if (index >= 0) {
+            const updated = [...prev];
+            const messageText = (message.body || message.message || '').toString();
+            updated[index] = {
+              ...updated[index],
+              lastMessage: messageText,
+              lastMessageAt: message.sentAt || message.timestamp || new Date().toISOString(),
+            };
+            // Move to top
+            const [conversation] = updated.splice(index, 1);
+            console.log('✅ ChatScreen - Conversation updated and moved to top:', conversation.id);
+            return [conversation, ...updated];
+          } else {
+            console.log('⚠️ ChatScreen - Conversation not found in list:', message.conversationId);
+          }
+          return prev;
+        });
+      });
+      
+      // Listen for conversation updates (includes unread count changes)
+      const unsubscribeConversation = socketService.onConversationUpdate((data: any) => {
+        console.log('📱 ChatScreen - Conversation update received:', data);
+        console.log('📱 ChatScreen - lastMessage from socket:', data.lastMessage);
+        // Update conversation preview with socket data (includes unreadCount and lastMessage)
+        setConversations(prev => {
+          const index = prev.findIndex(c => c.id === data.conversationId);
+          if (index >= 0) {
+            const updated = [...prev];
+            updated[index] = {
+              ...updated[index],
+              lastMessage: data.lastMessage || updated[index].lastMessage, // Keep existing if not provided
+              lastMessageAt: data.lastMessageAt,
+              unreadCount: data.unreadCount
+            };
+            // Move to top
+            const [conversation] = updated.splice(index, 1);
+            console.log('✅ ChatScreen - Conversation preview updated via socket:', conversation.id);
+            console.log('✅ ChatScreen - Updated lastMessage:', conversation.lastMessage);
+            return [conversation, ...updated];
+          } else {
+            console.log('⚠️ ChatScreen - Conversation not found in list:', data.conversationId);
+          }
+          return prev;
+        });
+      });
+      
+      return () => {
+        unsubscribeMessage();
+        unsubscribeConversation();
+      };
     }, [])
   );
 

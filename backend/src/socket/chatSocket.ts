@@ -329,20 +329,33 @@ export class ChatSocketHandler {
         console.log(`✅ [MESSAGE EMITTED] Message ${message.id} sent to both users`)
       }
 
-      // Emit conversation update
-      console.log(`📤 Sending conversation update to provider ${participants.providerId}, unread: 0`)
-      this.sendToUser(participants.providerId, 'conversation:updated', {
+      // Emit conversation update with full data including unread count
+      // Get unread count for provider (always 0 for sender)
+      const providerUnreadCount = senderId === participants.providerId ? 0 : 
+        await this.chatService['chatRepo'].getUnreadCount(conversationId, participants.providerId, 'provider')
+      
+      const providerUpdate = {
         conversationId,
-        lastMessageAt: message.sentAt
-      })
+        lastMessageAt: message.sentAt,
+        lastMessage: message.body,
+        unreadCount: providerUnreadCount
+      }
+      console.log(`📤 Sending conversation update to provider ${participants.providerId}:`, JSON.stringify(providerUpdate))
+      this.sendToUser(participants.providerId, 'conversation:updated', providerUpdate)
 
       if (participants.customerId) {
-        const unreadCount = senderId === participants.customerId ? 0 : 1
-        console.log(`📤 Sending conversation update to customer ${participants.customerId}, unread: ${unreadCount}`)
-        this.sendToUser(participants.customerId, 'conversation:updated', {
+        // Get unread count for customer (always 0 for sender)
+        const customerUnreadCount = senderId === participants.customerId ? 0 : 
+          await this.chatService['chatRepo'].getUnreadCount(conversationId, participants.customerId, 'customer')
+        
+        const customerUpdate = {
           conversationId,
-          lastMessageAt: message.sentAt
-        })
+          lastMessageAt: message.sentAt,
+          lastMessage: message.body,
+          unreadCount: customerUnreadCount
+        }
+        console.log(`📤 Sending conversation update to customer ${participants.customerId}:`, JSON.stringify(customerUpdate))
+        this.sendToUser(participants.customerId, 'conversation:updated', customerUpdate)
       }
 
       console.log(`📊 Conversation update emitted for ${conversationId}`)
