@@ -48,3 +48,18 @@ coverage/
 *.pem
 *.key
 *.cert
+
+# Android
+android/.gradle/
+android/.idea/
+android/local.properties
+android/build/
+android/*/build/
+android/.settings/
+android/.classpath
+android/.project
+android/captures/
+android/*.iml
+android/*.apk
+android/*.ap_
+android/*.aab
