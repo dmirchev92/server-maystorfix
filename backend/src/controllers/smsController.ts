@@ -5,6 +5,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { ChatTokenService } from '../services/ChatTokenService';
 import { DatabaseFactory } from '../models/DatabaseFactory';
+import { MobicaService } from '../services/MobicaService';
 import logger from '../utils/logger';
 import { APIResponse, ServiceTextProError } from '../types';
 import config from '../utils/config';
@@ -13,6 +14,15 @@ import { getIO } from '../server';
 const router = Router();
 const chatTokenService = new ChatTokenService();
 const db = DatabaseFactory.getDatabase();
+
+// Initialize Mobica SMS service
+let mobicaService: MobicaService | null = null;
+try {
+  mobicaService = new MobicaService();
+  logger.info('✅ MobicaService initialized successfully');
+} catch (error: any) {
+  logger.warn('⚠️ MobicaService not available - check Mobica configuration', { error: error.message });
+}
 
 /**
  * GET /api/v1/sms/config
@@ -317,5 +327,135 @@ router.post('/test-security',
     }
   }
 );
+
+/**
+ * POST /api/v1/sms/send-missed-call
+ * Send SMS for missed call via Twilio
+ * This is called by the mobile app when a call is missed
+ */
+router.post('/send-missed-call',
+  authenticateToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+      }
+
+      const { phoneNumber, businessName, callId } = req.body;
+
+      if (!phoneNumber) {
+        throw new ServiceTextProError('Phone number is required', 'MISSING_PHONE_NUMBER', 400);
+      }
+
+      // Check if Mobica is configured
+      if (!mobicaService || !mobicaService.isServiceConfigured()) {
+        throw new ServiceTextProError(
+          'Mobica SMS service is not configured. Please check environment variables.',
+          'MOBICA_NOT_CONFIGURED',
+          503
+        );
+      }
+
+      // Check if SMS already sent for this call (prevent duplicates)
+      const smsSettings = await db.getSMSSettings(userId);
+      if (callId && smsSettings?.sentCallIds?.includes(callId)) {
+        logger.info('SMS already sent for this call', { userId, callId });
+        const response: APIResponse = {
+          success: false,
+          error: {
+            code: 'SMS_ALREADY_SENT',
+            message: 'SMS already sent for this call'
+          },
+          metadata: {
+            timestamp: new Date(),
+            requestId: (req as any).requestId,
+            version: config.app.version
+          }
+        };
+        res.json(response);
+        return;
+      }
+
+      // Format phone number to Mobica format (359XXXXXXXXX)
+      const formattedPhone = mobicaService.formatPhoneNumber(phoneNumber, '359'); // Default to Bulgaria
+
+      logger.info('📱 [MOBICA] Sending missed call SMS', {
+        userId,
+        phoneNumber: formattedPhone,
+        businessName,
+        callId
+      });
+
+      // Send SMS via Mobica
+      const result = await mobicaService.sendMissedCallSMS(
+        formattedPhone,
+        userId,
+        businessName
+      );
+
+      if (result.success) {
+        // Update database - mark call as processed
+        if (callId) {
+          const updatedCallIds = [...(smsSettings.sentCallIds || []), callId];
+          await db.updateSMSSettings(userId, {
+            sentCallIds: updatedCallIds.slice(-100), // Keep last 100
+            sentCount: (smsSettings.sentCount || 0) + 1,
+            lastSentTime: Date.now()
+          });
+        }
+
+        logger.info('✅ [MOBICA] Missed call SMS sent successfully', {
+          userId,
+          phoneNumber: formattedPhone,
+          messageId: result.messageId
+        });
+
+        const response: APIResponse = {
+          success: true,
+          data: {
+            message: 'SMS sent successfully via Mobica',
+            messageId: result.messageId,
+            phoneNumber: formattedPhone
+          },
+          metadata: {
+            timestamp: new Date(),
+            requestId: (req as any).requestId,
+            version: config.app.version
+          }
+        };
+
+        res.json(response);
+      } else {
+        logger.error('❌ [MOBICA] Failed to send SMS', {
+          userId,
+          phoneNumber: formattedPhone,
+          error: result.error
+        });
+
+        const response: APIResponse = {
+          success: false,
+          error: {
+            code: 'MOBICA_SEND_FAILED',
+            message: result.error || 'Failed to send SMS via Mobica'
+          },
+          metadata: {
+            timestamp: new Date(),
+            requestId: (req as any).requestId,
+            version: config.app.version
+          }
+        };
+
+        res.status(500).json(response);
+      }
+
+    } catch (error) {
+      logger.error('Error sending missed call SMS:', error);
+      next(error);
+    }
+  }
+);
+
+// Twilio-specific endpoints removed - using Mobica now
 
 export default router;

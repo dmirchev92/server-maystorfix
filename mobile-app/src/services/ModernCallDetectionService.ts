@@ -180,8 +180,10 @@ export class ModernCallDetectionService {
         return; // Don't send SMS if user is not authenticated
       }
 
-      console.log('📱 Sending automatic SMS with chat link for missed call:', event.phoneNumber, 'Call ID:', callId, 'User ID:', userId);
-      await smsService.sendMissedCallSMS(event.phoneNumber, callId, userId);
+      console.log('📱 Sending automatic SMS via backend Twilio service for missed call:', event.phoneNumber, 'Call ID:', callId, 'User ID:', userId);
+      
+      // NEW: Send SMS via backend Twilio API instead of native SMS
+      await smsService.sendMissedCallViaTwilio(event.phoneNumber, callId, userId);
       
       // Sync to backend
       await this.syncMissedCallToBackend(event, callId);

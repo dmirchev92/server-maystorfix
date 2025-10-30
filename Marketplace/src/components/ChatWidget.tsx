@@ -34,6 +34,33 @@ function ChatWidgetContent() {
   const [newMessage, setNewMessage] = useState('')
   const pathname = usePathname()
 
+  // Listen for openChatWidget event from SMS token link
+  useEffect(() => {
+    const handleOpenChat = (event: CustomEvent) => {
+      const { providerId } = event.detail
+      console.log('📱 ChatWidget received openChatWidget event:', providerId)
+      
+      // Open the widget
+      setIsOpen(true)
+      setIsMinimized(false)
+      
+      // Find conversation with this provider
+      const conversation = conversations.find(c => c.providerId === providerId)
+      
+      if (conversation) {
+        console.log('✅ Found existing conversation:', conversation.id)
+        setActiveConversation(conversation.id)
+      } else {
+        console.log('⚠️ No conversation found for provider:', providerId)
+        // Load conversations to check if it exists
+        loadConversations()
+      }
+    }
+
+    window.addEventListener('openChatWidget', handleOpenChat as EventListener)
+    return () => window.removeEventListener('openChatWidget', handleOpenChat as EventListener)
+  }, [conversations, setActiveConversation, loadConversations])
+
   // Load conversations when widget opens (once)
   useEffect(() => {
     if (isOpen && isAuthenticated) {

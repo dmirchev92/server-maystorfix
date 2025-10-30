@@ -589,33 +589,13 @@ export class SMSService {
     }
   }
 
+  /**
+   * DEPRECATED: SMS permissions no longer needed - using Twilio backend
+   * Kept for backward compatibility only
+   */
   public async requestPermissions(): Promise<boolean> {
-    if (Platform.OS !== 'android') return false;
-
-    try {
-      console.log('📋 Requesting SMS permissions...');
-      
-      const smsResult = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.SEND_SMS,
-        {
-          title: 'SMS Permission',
-          message: 'ServiceText Pro needs permission to send SMS messages when you miss calls.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Deny',
-          buttonPositive: 'Allow',
-        }
-      );
-
-      console.log('📱 SEND_SMS result:', smsResult);
-
-      const granted = smsResult === PermissionsAndroid.RESULTS.GRANTED;
-      
-      console.log('📋 SMS Permission result:', granted ? '✅ Granted' : '❌ Denied');
-      return granted;
-    } catch (error) {
-      console.error('❌ Error requesting SMS permissions:', error);
-      return false;
-    }
+    console.log('⚠️ [DEPRECATED] SMS permissions no longer needed - using Twilio backend');
+    return true; // Always return true since we don't need permissions anymore
   }
 
   /**
@@ -712,229 +692,154 @@ export class SMSService {
   }
 
   /**
-   * Check if SMS permissions are granted
+   * DEPRECATED: SMS permissions no longer needed - using Twilio backend
+   * Kept for backward compatibility only
    */
   public async checkPermissions(): Promise<SMSPermissions | null> {
-    if (Platform.OS !== 'android') return null;
-
-    try {
-      // Try native module first
-      const { NativeModules } = require('react-native');
-      const { SMSModule } = NativeModules;
-      
-      if (SMSModule) {
-        try {
-          const nativeResult = await SMSModule.checkSMSPermission();
-          const result: SMSPermissions = {
-            SEND_SMS: nativeResult.hasPermission,
-            hasAllPermissions: nativeResult.hasPermission,
-          };
-          console.log('📋 SMS Permission check (native):', result);
-          return result;
-        } catch (error) {
-          console.log('📋 Native permission check failed, using fallback:', error);
-        }
-      }
-      
-      // Fallback to React Native permission check
-      const sendSmsStatus = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.SEND_SMS);
-      
-      const result: SMSPermissions = {
-        SEND_SMS: sendSmsStatus,
-        hasAllPermissions: sendSmsStatus,
-      };
-      
-      console.log('📋 SMS Permission check (fallback):', result);
-      return result;
-    } catch (error) {
-      console.error('❌ Error checking SMS permissions:', error);
-      return null;
-    }
+    console.log('⚠️ [DEPRECATED] SMS permissions no longer needed - using Twilio backend');
+    // Return mock permissions as granted for backward compatibility
+    return {
+      SEND_SMS: true,
+      hasAllPermissions: true,
+    };
   }
 
+  /**
+   * DEPRECATED: Native SMS sending - use sendMissedCallViaTwilio instead
+   * This method is kept for backward compatibility only
+   */
   public async sendSMS(phoneNumber: string, message?: string): Promise<boolean> {
-    try {
-      if (!this.config.isEnabled) {
-        console.log('📱 SMS sending is disabled');
-        return false;
-      }
+    console.log('⚠️ [DEPRECATED] sendSMS called - use sendMissedCallViaTwilio instead');
+    console.log('❌ Native SMS is no longer supported - please use Twilio backend');
+    return false;
+  }
 
+  /**
+   * NEW: Send missed call SMS via backend Twilio service
+   * This replaces native Android SMS which is restricted by Google Play
+   */
+  public async sendMissedCallViaTwilio(phoneNumber: string, callId: string, userId: string): Promise<boolean> {
+    try {
+      console.log(`📱 [TWILIO] Processing missed call SMS for ${phoneNumber}, Call ID: ${callId}`);
+      
       // 🔒 SECURITY CHECK: Block premium numbers
       const securityCheck = this.validatePhoneNumberSecurity(phoneNumber);
       if (!securityCheck.isAllowed) {
-        console.error('🚨 SMS BLOCKED - Security violation:', securityCheck.reason);
-        Alert.alert(
-          '🚨 SMS Blocked - Security Protection',
-          `Cannot send SMS to ${phoneNumber}\n\nReason: ${securityCheck.reason}\n\nThis protects you from expensive charges.`,
-          [{ text: 'OK' }]
-        );
+        console.error('🚨 MISSED CALL SMS BLOCKED - Security violation:', securityCheck.reason);
+        return false;
+      }
+      
+      // Check if SMS has already been sent for this call
+      if (this.config.sentCallIds.includes(callId)) {
+        console.log(`📱 SMS already sent for call ${callId}, skipping`);
         return false;
       }
 
-      const permissions = await this.checkPermissions();
-      if (!permissions?.hasAllPermissions) {
-        console.log('❌ SMS permissions not granted');
-        Alert.alert('SMS Permission Required', 'Please grant SMS permission to send automatic messages.');
-        return false;
-      }
-
-      const smsMessage = message || this.config.message;
-      
-      console.log(`📤 Sending SMS to ${phoneNumber}: ${smsMessage}`);
-      
-      // Try native Android SMS module first
-      const { NativeModules } = require('react-native');
-      const { SMSModule } = NativeModules;
-      
-      if (SMSModule) {
-        try {
-          // Send SMS using native module
-          const result = await SMSModule.sendSMS(phoneNumber, smsMessage);
-          console.log('📱 SMS sent successfully via native module:', result);
-          
-          // Update sent count
-          this.config.sentCount++;
-          this.config.lastSentTime = Date.now();
-          await this.saveConfig();
-          
-          // Show success message
-          Alert.alert(
-            'SMS Sent! 📱',
-            `Message sent to ${phoneNumber}:\n"${smsMessage}"`,
-            [{ text: 'OK' }]
-          );
-          
-          return true;
-        } catch (error) {
-          console.error('❌ Error sending SMS via native module:', error);
-          // Fall through to send-intent method
+      // Check if we should filter known contacts
+      if (this.config.filterKnownContacts) {
+        console.log(`📱 Contact filtering is ENABLED, checking contacts...`);
+        const contactService = ContactService.getInstance();
+        const contactInfo = await contactService.isPhoneNumberInContacts(phoneNumber);
+        
+        if (contactInfo.isInContacts) {
+          console.log(`🚫 BLOCKING SMS: Phone number ${phoneNumber} is in contacts`);
+          return false;
         }
       }
-      
-      // Use react-native-send-intent for automatic SMS sending
-      console.log('📱 Using react-native-send-intent for SMS');
-      try {
-        await SendIntentAndroid.sendSms(phoneNumber, smsMessage);
-        
-        console.log('📱 SMS sent successfully via send-intent');
-        
-        // Update sent count
-        this.config.sentCount++;
-        this.config.lastSentTime = Date.now();
-        await this.saveConfig();
-        
-        // Show success message
-        Alert.alert(
-          'SMS Sent! 📱',
-          `Message sent to ${phoneNumber}:\n"${smsMessage}"`,
-          [{ text: 'OK' }]
-        );
-        
-        return true;
-      } catch (error) {
-        console.error('❌ Error sending SMS via send-intent:', error);
-        
-        // Last resort: Show manual SMS instructions
-        this.config.sentCount++;
-        this.config.lastSentTime = Date.now();
-        await this.saveConfig();
-        
-        Alert.alert(
-          'Manual SMS Required 📱',
-          `Please send SMS manually to ${phoneNumber}:\n\n"${smsMessage}"\n\nAutomatic SMS failed, but you can send it manually.`,
-          [{ text: 'OK' }]
-        );
-        
-        return true;
+
+      // Get auth token
+      const token = await AsyncStorage.getItem('auth_token');
+      if (!token) {
+        console.error('❌ No auth token available for Twilio SMS');
+        return false;
       }
+
+      // Get user's business name (optional)
+      const userDataStr = await AsyncStorage.getItem('user_data');
+      let businessName = 'ServiceText Pro';
+      if (userDataStr) {
+        try {
+          const userData = JSON.parse(userDataStr);
+          businessName = userData.businessName || userData.firstName || businessName;
+        } catch (e) {
+          console.warn('Could not parse user data for business name');
+        }
+      }
+
+      console.log(`📱 [TWILIO] Sending SMS via backend API...`);
+      
+      // Call backend Twilio API
+      const response = await fetch('https://maystorfix.com/api/v1/sms/send-missed-call', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          phoneNumber,
+          businessName,
+          callId,
+          userId
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log(`✅ [TWILIO] SMS sent successfully via backend`, {
+          messageId: result.data?.messageId,
+          isTrial: result.data?.isTrial
+        });
+
+        // Mark this call as having SMS sent (local tracking)
+        this.config.sentCallIds.push(callId);
+        if (this.config.sentCallIds.length > 100) {
+          this.config.sentCallIds = this.config.sentCallIds.slice(-100);
+        }
+        
+        this.config.sentCount++;
+        this.config.lastSentTime = Date.now();
+        await this.saveConfig();
+
+        // Show trial warning if applicable
+        if (result.data?.isTrial && result.data?.trialWarning) {
+          console.warn(`⚠️ [TWILIO TRIAL]: ${result.data.trialWarning}`);
+        }
+
+        return true;
+      } else {
+        console.error(`❌ [TWILIO] Failed to send SMS:`, result.error?.message);
+        
+        // Show user-friendly error
+        if (result.error?.code === 'SMS_DISABLED') {
+          console.log('📱 SMS is disabled in settings');
+        } else if (result.error?.code === 'TWILIO_SEND_FAILED') {
+          console.error('❌ Twilio service error:', result.error.details);
+        }
+        
+        return false;
+      }
+
     } catch (error) {
-      console.error('❌ Error sending SMS:', error);
-      Alert.alert('SMS Error', `Failed to send SMS: ${error}`);
+      console.error('❌ [TWILIO] Error sending SMS via backend:', error);
       return false;
     }
   }
 
+  /**
+   * DEPRECATED: Old native SMS method - kept for backward compatibility
+   * Use sendMissedCallViaTwilio instead
+   */
   public async sendMissedCallSMS(phoneNumber: string, callId: string, userId?: string): Promise<boolean> {
-    console.log(`📱 Processing missed call SMS for ${phoneNumber}, Call ID: ${callId}`);
-    console.log(`📱 Current sent call IDs:`, this.config.sentCallIds);
+    console.log(`⚠️ [DEPRECATED] sendMissedCallSMS called - redirecting to sendMissedCallViaTwilio`);
     
-    // 🔒 SECURITY CHECK: Block premium numbers
-    const securityCheck = this.validatePhoneNumberSecurity(phoneNumber);
-    if (!securityCheck.isAllowed) {
-      console.error('🚨 MISSED CALL SMS BLOCKED - Security violation:', securityCheck.reason);
-      console.error(`🚨 Attempted to send SMS to premium number: ${phoneNumber}`);
-      return false;
+    // Redirect to new Twilio method if userId is provided
+    if (userId) {
+      return await this.sendMissedCallViaTwilio(phoneNumber, callId, userId);
     }
     
-    // Check if SMS has already been sent for this call
-    if (this.config.sentCallIds.includes(callId)) {
-      console.log(`📱 SMS already sent for call ${callId}, skipping`);
-      return false;
-    }
-
-    // Check if we should filter known contacts
-    if (this.config.filterKnownContacts) {
-      console.log(`📱 Contact filtering is ENABLED, checking contacts...`);
-      const contactService = ContactService.getInstance();
-      const contactInfo = await contactService.isPhoneNumberInContacts(phoneNumber);
-      
-      console.log(`📱 Contact check result:`, contactInfo);
-      
-      if (contactInfo.isInContacts) {
-        console.log(`🚫 BLOCKING SMS: Phone number ${phoneNumber} is in contacts (${contactInfo.contactName || 'Unknown'})`);
-        return false;
-      } else {
-        console.log(`✅ ALLOWING SMS: Phone number ${phoneNumber} is NOT in contacts`);
-      }
-    } else {
-      console.log(`📱 Contact filtering is DISABLED, proceeding with SMS`);
-    }
-
-    // Get the actual user ID for this SMS
-    let actualUserId = userId;
-    if (!actualUserId) {
-      try {
-        const currentUserResponse = await fetch('https://maystorfix.com/api/v1/auth/me', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (currentUserResponse.ok) {
-          const userData: any = await currentUserResponse.json();
-          actualUserId = userData.data?.user?.id || userData.data?.id || '1';
-        }
-      } catch (error) {
-        console.error('❌ Could not get current user for SMS:', error);
-        actualUserId = '1'; // Final fallback
-      }
-    }
-
-    // Ensure we have a current chat link ready for this specific user
-    const finalUserId = actualUserId || '1';
-    await this.ensureUserChatLink(finalUserId);
-    
-    // Use the pre-generated chat link for this user in the template
-    const userChatLink = this.config.userChatLinks?.[finalUserId]?.link || 'Link not available';
-    const chatMessage = this.config.message.replace('[chat_link]', userChatLink);
-    
-    console.log(`📞 Sending missed call SMS for user ${actualUserId} to ${phoneNumber} for call ${callId}`);
-    console.log(`🔗 Using chat link: ${userChatLink}`);
-    const success = await this.sendSMS(phoneNumber, chatMessage);
-    
-    if (success) {
-      // Mark this call as having SMS sent
-      this.config.sentCallIds.push(callId);
-      
-      // Keep only last 100 call IDs to prevent memory issues
-      if (this.config.sentCallIds.length > 100) {
-        this.config.sentCallIds = this.config.sentCallIds.slice(-100);
-      }
-      
-      await this.saveConfig();
-      console.log(`📱 SMS sent and call ${callId} marked as processed`);
-      console.log(`📱 Updated sent call IDs:`, this.config.sentCallIds);
-    }
-    
-    return success;
+    console.log('❌ Native SMS is no longer supported - please use sendMissedCallViaTwilio with userId');
+    return false;
   }
 
   private async generateChatLinkMessage(userId: string): Promise<string> {
