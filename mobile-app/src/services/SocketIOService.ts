@@ -69,11 +69,16 @@ class SocketIOService {
       // Store userId for reference
       if (userId) {
         this.userId = userId;
+        console.log('👤 Stored userId for Socket.IO:', userId);
       }
       
       // Connect to /chat namespace to match backend
+      // Pass userId in auth so backend can join user to their personal room
       this.socket = io(`${this.backendUrl}/chat`, {
-        auth: { token },
+        auth: { 
+          token,
+          userId: userId || this.userId // Pass userId to backend
+        },
         transports: ['websocket', 'polling'],
         path: '/socket.io',
         reconnection: true,

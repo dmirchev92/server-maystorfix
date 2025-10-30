@@ -63,7 +63,7 @@ export class ApiService {
     await this.saveAuthToken(token);
   }
 
-  private async makeRequest<T>(
+  public async makeRequest<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<APIResponse<T>> {

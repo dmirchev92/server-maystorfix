@@ -174,7 +174,7 @@ export class ReferralService {
               // Create new referral
               const referralId = this.generateId();
               this.db.db.run(
-                'INSERT INTO sp_referrals (id, referrer_user_id, referred_user_id, referral_code, status, created_at) VALUES (?, ?, ?, ?, ?, datetime("now"))',
+                'INSERT INTO sp_referrals (id, referrer_user_id, referred_user_id, referral_code, status, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
                 [referralId, referrerUserId, referredUserId, referralCode, 'pending'],
                 (insertErr) => {
                   if (insertErr) {
@@ -228,7 +228,7 @@ export class ReferralService {
 
           // Check monthly click limit (25 clicks per month)
           this.db.db.get(
-            'SELECT COUNT(*) as count FROM referral_clicks WHERE referral_id = ? AND month_year = ? AND is_valid = 1',
+            'SELECT COUNT(*) as count FROM referral_clicks WHERE referral_id = ? AND month_year = ? AND is_valid = TRUE',
             [referral.id, monthYear],
             (countErr, countRow: any) => {
               if (countErr) {
@@ -272,7 +272,7 @@ export class ReferralService {
                   const clickId = this.generateId();
                   this.db.db.run(
                     'INSERT INTO referral_clicks (id, referral_id, customer_user_id, visitor_id, customer_ip, customer_user_agent, is_valid, month_year) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                    [clickId, referral.id, customerUserId, visitorId, customerIp, userAgent, finalIsValid ? 1 : 0, monthYear],
+                    [clickId, referral.id, customerUserId, visitorId, customerIp, userAgent, finalIsValid, monthYear],
                     (insertErr) => {
                       if (insertErr) {
                         reject(insertErr);
@@ -303,7 +303,7 @@ export class ReferralService {
     return new Promise((resolve, reject) => {
       // Get total valid clicks for this referral
       this.db.db.get(
-        'SELECT COUNT(*) as totalClicks FROM referral_clicks WHERE referral_id = ? AND is_valid = 1',
+        'SELECT COUNT(*) as totalClicks FROM referral_clicks WHERE referral_id = ? AND is_valid = TRUE',
         [referralId],
         (err, row: any) => {
           if (err) {
@@ -405,8 +405,8 @@ export class ReferralService {
                 this.db.db.all(
                   `SELECT 
                     COUNT(*) as total_clicks,
-                    SUM(CASE WHEN is_valid = 1 THEN 1 ELSE 0 END) as valid_clicks,
-                    SUM(CASE WHEN is_valid = 1 AND month_year = ? THEN 1 ELSE 0 END) as monthly_clicks
+                    SUM(CASE WHEN is_valid = TRUE THEN 1 ELSE 0 END) as valid_clicks,
+                    SUM(CASE WHEN is_valid = TRUE AND month_year = ? THEN 1 ELSE 0 END) as monthly_clicks
                   FROM referral_clicks 
                   WHERE referral_id = ?`,
                   [currentMonth, referral.referral_id],
@@ -503,7 +503,7 @@ export class ReferralService {
   async getAvailableRewards(userId: string): Promise<ReferralReward[]> {
     return new Promise((resolve, reject) => {
       this.db.db.all(
-        'SELECT * FROM referral_rewards WHERE referrer_user_id = ? AND status = ? AND expires_at > datetime("now") ORDER BY earned_at DESC',
+        'SELECT * FROM referral_rewards WHERE referrer_user_id = ? AND status = ? AND expires_at > NOW() ORDER BY earned_at DESC',
         [userId, 'earned'],
         (err, rows: any[]) => {
           if (err) {

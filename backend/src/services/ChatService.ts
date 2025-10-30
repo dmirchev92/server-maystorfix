@@ -13,12 +13,15 @@ import {
   GetConversationsQuery
 } from '../types/chat.types'
 import { randomUUID } from 'crypto'
+import { FCMService } from './FCMService';
 
 export class ChatService {
   private chatRepo: ChatRepository
+  private fcmService: FCMService
 
   constructor(chatRepo: ChatRepository) {
     this.chatRepo = chatRepo
+    this.fcmService = FCMService.getInstance()
   }
 
   // ==================== CONVERSATIONS ====================
@@ -204,6 +207,33 @@ export class ChatService {
           })
         )
       )
+    }
+
+    // Send FCM push notification to recipient
+    try {
+      const conversation = await this.chatRepo.getConversation(data.conversationId)
+      if (conversation) {
+        // Determine recipient (opposite of sender)
+        const recipientId = senderType === 'customer' ? conversation.providerId : conversation.customerId
+        
+        if (recipientId) {
+          // Send push notification
+          await this.fcmService.sendNotificationToUser(recipientId, {
+            title: `New message from ${senderName}`,
+            body: data.body.length > 100 ? data.body.substring(0, 100) + '...' : data.body,
+            data: {
+              type: 'chat_message',
+              conversationId: data.conversationId,
+              messageId: message.id,
+              senderId: senderUserId,
+              senderName: senderName
+            }
+          })
+          console.log(`📱 FCM notification sent to ${recipientId} for message ${message.id}`)
+        }
+      }
+    } catch (fcmError) {
+      console.warn('⚠️ Failed to send FCM notification (non-critical):', fcmError)
     }
 
     return message

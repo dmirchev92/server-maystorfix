@@ -1,6 +1,8 @@
 import { DatabaseFactory } from '../models/DatabaseFactory';
 import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { Server as SocketIOServer } from 'socket.io';
+import { FCMService } from './FCMService';
 
 interface Notification {
   id: string;
@@ -22,10 +24,24 @@ interface NotificationTemplate {
 export class NotificationService {
   private db: any; // DatabaseFactory returns SQLiteDatabase | PostgreSQLDatabase
   private wsConnections: Map<string, any> = new Map(); // Store WebSocket connections by user ID
+  private io: SocketIOServer | null = null; // Socket.IO instance for real-time notifications
+  private isPostgreSQL: boolean;
+  private fcmService: FCMService;
 
-  constructor() {
+  constructor(io?: SocketIOServer) {
     this.db = DatabaseFactory.getDatabase();
+    this.io = io || null;
+    this.isPostgreSQL = DatabaseFactory.isPostgreSQL();
+    this.fcmService = FCMService.getInstance();
     this.initializeNotificationTables();
+  }
+
+  /**
+   * Set Socket.IO instance for real-time notifications
+   */
+  setSocketIO(io: SocketIOServer): void {
+    this.io = io;
+    logger.info('✅ Socket.IO instance set for NotificationService');
   }
 
   /**
@@ -33,8 +49,9 @@ export class NotificationService {
    */
   private async initializeNotificationTables(): Promise<void> {
     try {
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(`
+      if (this.isPostgreSQL) {
+        // PostgreSQL syntax
+        await this.db.query(`
           CREATE TABLE IF NOT EXISTS notifications (
             id TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
@@ -42,26 +59,49 @@ export class NotificationService {
             title TEXT NOT NULL,
             message TEXT NOT NULL,
             data TEXT,
-            read INTEGER DEFAULT 0,
+            read BOOLEAN DEFAULT false,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id)
           )
-        `, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+        `);
 
-      // Create index for faster queries
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(`
+        // Create index for faster queries
+        await this.db.query(`
           CREATE INDEX IF NOT EXISTS idx_notifications_user_read 
           ON notifications(user_id, read, created_at)
-        `, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
+        `);
+      } else {
+        // SQLite syntax
+        await new Promise<void>((resolve, reject) => {
+          this.db.db.run(`
+            CREATE TABLE IF NOT EXISTS notifications (
+              id TEXT PRIMARY KEY,
+              user_id TEXT NOT NULL,
+              type TEXT NOT NULL,
+              title TEXT NOT NULL,
+              message TEXT NOT NULL,
+              data TEXT,
+              read INTEGER DEFAULT 0,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+          `, (err: Error | null) => {
+            if (err) reject(err);
+            else resolve();
+          });
         });
-      });
+
+        // Create index for faster queries
+        await new Promise<void>((resolve, reject) => {
+          this.db.db.run(`
+            CREATE INDEX IF NOT EXISTS idx_notifications_user_read 
+            ON notifications(user_id, read, created_at)
+          `, (err: Error | null) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
 
       logger.info('✅ Notification tables initialized');
     } catch (error) {
@@ -103,19 +143,57 @@ export class NotificationService {
       const now = new Date().toISOString();
 
       // Store notification in database
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(
+      if (this.isPostgreSQL) {
+        await this.db.query(
           `INSERT INTO notifications (id, user_id, type, title, message, data, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [notificationId, userId, type, title, message, JSON.stringify(data), now],
-          function(err: Error | null) {
-            if (err) reject(err);
-            else resolve();
-          }
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [notificationId, userId, type, title, message, JSON.stringify(data), now]
         );
-      });
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          this.db.db.run(
+            `INSERT INTO notifications (id, user_id, type, title, message, data, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [notificationId, userId, type, title, message, JSON.stringify(data), now],
+            function(err: Error | null) {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+      }
 
-      // Send real-time notification if user is connected
+      // Send real-time notification via Socket.IO (primary method)
+      if (this.io) {
+        const notificationPayload = {
+          id: notificationId,
+          type,
+          title,
+          message,
+          data,
+          created_at: now
+        };
+
+        // Emit to user's personal room in /chat namespace
+        this.io.of('/chat').to(`user:${userId}`).emit('notification', notificationPayload);
+        
+        // For case assignments, also emit specific event for mobile app
+        if (type === 'case_assigned' && data) {
+          this.io.of('/chat').to(`user:${userId}`).emit('case_assigned', {
+            id: data.caseId,
+            customerName: data.customerName || 'New Customer',
+            serviceType: data.serviceType || 'Service Request',
+            description: message,
+            priority: data.priority || 'medium',
+            ...data
+          });
+          logger.info('📱 Emitted case_assigned event via Socket.IO', { userId, caseId: data.caseId });
+        }
+        
+        logger.info('📡 Notification emitted via Socket.IO', { userId, type, event: 'notification' });
+      }
+
+      // Send real-time notification via WebSocket (fallback for legacy)
       const ws = this.wsConnections.get(userId);
       if (ws && ws.readyState === 1) { // WebSocket.OPEN
         ws.send(JSON.stringify({
@@ -133,6 +211,25 @@ export class NotificationService {
 
       // Send updated unread count
       this.sendUnreadCount(userId);
+
+      // Send FCM push notification (for background/killed app)
+      try {
+        await this.fcmService.sendNotificationToUser(userId, {
+          title,
+          body: message,
+          data: {
+            type,
+            notificationId,
+            ...(data && typeof data === 'object' ? 
+              Object.fromEntries(
+                Object.entries(data).map(([k, v]) => [k, String(v)])
+              ) : {}
+            )
+          }
+        });
+      } catch (fcmError) {
+        logger.warn('⚠️ FCM push notification failed (non-critical):', fcmError);
+      }
 
       logger.info('✅ Notification created and sent', { 
         notificationId, 
@@ -172,16 +269,24 @@ export class NotificationService {
    * Get unread notification count for user
    */
   async getUnreadCount(userId: string): Promise<number> {
-    return new Promise((resolve, reject) => {
-      this.db.db.get(
-        'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = FALSE',
-        [userId],
-        (err: Error | null, row: any) => {
-          if (err) reject(err);
-          else resolve(row?.count || 0);
-        }
+    if (this.isPostgreSQL) {
+      const result = await this.db.query(
+        'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read = false',
+        [userId]
       );
-    });
+      return parseInt(result[0]?.count || '0');
+    } else {
+      return new Promise((resolve, reject) => {
+        this.db.db.get(
+          'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0',
+          [userId],
+          (err: Error | null, row: any) => {
+            if (err) reject(err);
+            else resolve(row?.count || 0);
+          }
+        );
+      });
+    }
   }
 
   /**
@@ -195,41 +300,67 @@ export class NotificationService {
     try {
       const offset = (page - 1) * limit;
 
-      // Get total count
-      const total = await new Promise<number>((resolve, reject) => {
-        this.db.db.get(
-          'SELECT COUNT(*) as count FROM notifications WHERE user_id = ?',
-          [userId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row?.count || 0);
-          }
+      if (this.isPostgreSQL) {
+        // Get total count
+        const countResult = await this.db.query(
+          'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1',
+          [userId]
         );
-      });
+        const total = parseInt(countResult[0]?.count || '0');
 
-      // Get notifications
-      const notifications = await new Promise<Notification[]>((resolve, reject) => {
-        this.db.db.all(
+        // Get notifications
+        const rows = await this.db.query(
           `SELECT * FROM notifications 
-           WHERE user_id = ? 
+           WHERE user_id = $1 
            ORDER BY created_at DESC 
-           LIMIT ? OFFSET ?`,
-          [userId, limit, offset],
-          (err: Error | null, rows: any[]) => {
-            if (err) reject(err);
-            else {
-              const parsed = rows.map(row => ({
-                ...row,
-                data: row.data ? (typeof row.data === 'string' ? JSON.parse(row.data) : row.data) : null,
-                read: !!row.read
-              }));
-              resolve(parsed);
-            }
-          }
+           LIMIT $2 OFFSET $3`,
+          [userId, limit, offset]
         );
-      });
 
-      return { notifications, total };
+        const notifications = rows.map((row: any) => ({
+          ...row,
+          data: row.data ? (typeof row.data === 'string' ? JSON.parse(row.data) : row.data) : null,
+          read: !!row.read
+        }));
+
+        return { notifications, total };
+      } else {
+        // Get total count
+        const total = await new Promise<number>((resolve, reject) => {
+          this.db.db.get(
+            'SELECT COUNT(*) as count FROM notifications WHERE user_id = ?',
+            [userId],
+            (err: Error | null, row: any) => {
+              if (err) reject(err);
+              else resolve(row?.count || 0);
+            }
+          );
+        });
+
+        // Get notifications
+        const notifications = await new Promise<Notification[]>((resolve, reject) => {
+          this.db.db.all(
+            `SELECT * FROM notifications 
+             WHERE user_id = ? 
+             ORDER BY created_at DESC 
+             LIMIT ? OFFSET ?`,
+            [userId, limit, offset],
+            (err: Error | null, rows: any[]) => {
+              if (err) reject(err);
+              else {
+                const parsed = rows.map(row => ({
+                  ...row,
+                  data: row.data ? (typeof row.data === 'string' ? JSON.parse(row.data) : row.data) : null,
+                  read: !!row.read
+                }));
+                resolve(parsed);
+              }
+            }
+          );
+        });
+
+        return { notifications, total };
+      }
 
     } catch (error) {
       logger.error('❌ Error getting user notifications:', error);
@@ -242,16 +373,23 @@ export class NotificationService {
    */
   async markAsRead(notificationId: string, userId: string): Promise<void> {
     try {
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(
-          'UPDATE notifications SET read = TRUE WHERE id = ? AND user_id = ?',
-          [notificationId, userId],
-          function(err: Error | null) {
-            if (err) reject(err);
-            else resolve();
-          }
+      if (this.isPostgreSQL) {
+        await this.db.query(
+          'UPDATE notifications SET read = true WHERE id = $1 AND user_id = $2',
+          [notificationId, userId]
         );
-      });
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          this.db.db.run(
+            'UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?',
+            [notificationId, userId],
+            function(err: Error | null) {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+      }
 
       // Send updated unread count
       this.sendUnreadCount(userId);
@@ -269,16 +407,23 @@ export class NotificationService {
    */
   async markAllAsRead(userId: string): Promise<void> {
     try {
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(
-          'UPDATE notifications SET read = TRUE WHERE user_id = ? AND read = FALSE',
-          [userId],
-          function(err: Error | null) {
-            if (err) reject(err);
-            else resolve();
-          }
+      if (this.isPostgreSQL) {
+        await this.db.query(
+          'UPDATE notifications SET read = true WHERE user_id = $1 AND read = false',
+          [userId]
         );
-      });
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          this.db.db.run(
+            'UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0',
+            [userId],
+            function(err: Error | null) {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+      }
 
       // Send updated unread count
       this.sendUnreadCount(userId);
@@ -321,19 +466,31 @@ export class NotificationService {
       console.log('🔔 NotificationService - Case completed notification triggered:', { caseId, customerId, providerId });
       
       // Get case details for more specific notification
-      const caseDetails = await new Promise<any>((resolve, reject) => {
-        this.db.db.get(
+      let caseDetails;
+      if (this.isPostgreSQL) {
+        const result = await this.db.query(
           `SELECT c.*, p.first_name, p.last_name
            FROM marketplace_service_cases c
            LEFT JOIN users p ON c.provider_id = p.id
-           WHERE c.id = ?`,
-          [caseId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
+           WHERE c.id = $1`,
+          [caseId]
         );
-      });
+        caseDetails = result[0];
+      } else {
+        caseDetails = await new Promise<any>((resolve, reject) => {
+          this.db.db.get(
+            `SELECT c.*, p.first_name, p.last_name
+             FROM marketplace_service_cases c
+             LEFT JOIN users p ON c.provider_id = p.id
+             WHERE c.id = ?`,
+            [caseId],
+            (err: Error | null, row: any) => {
+              if (err) reject(err);
+              else resolve(row);
+            }
+          );
+        });
+      }
 
       if (!caseDetails) {
         console.log('🔔 NotificationService - Case not found, using generic notification');
@@ -377,20 +534,33 @@ export class NotificationService {
       console.log('💬 sendSurveyToChat - Getting case details for:', caseId);
       
       // Get case and provider details
-      const caseDetails = await new Promise<any>((resolve, reject) => {
-        this.db.db.get(
+      let caseDetails;
+      if (this.isPostgreSQL) {
+        const result = await this.db.query(
           `SELECT c.*, u.first_name, u.last_name, sp.business_name
            FROM marketplace_service_cases c
            LEFT JOIN users u ON c.provider_id = u.id
            LEFT JOIN service_provider_profiles sp ON u.id = sp.user_id
-           WHERE c.id = ?`,
-          [caseId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
+           WHERE c.id = $1`,
+          [caseId]
         );
-      });
+        caseDetails = result[0];
+      } else {
+        caseDetails = await new Promise<any>((resolve, reject) => {
+          this.db.db.get(
+            `SELECT c.*, u.first_name, u.last_name, sp.business_name
+             FROM marketplace_service_cases c
+             LEFT JOIN users u ON c.provider_id = u.id
+             LEFT JOIN service_provider_profiles sp ON u.id = sp.user_id
+             WHERE c.id = ?`,
+            [caseId],
+            (err: Error | null, row: any) => {
+              if (err) reject(err);
+              else resolve(row);
+            }
+          );
+        });
+      }
 
       console.log('💬 sendSurveyToChat - Case details:', caseDetails);
 
@@ -402,18 +572,29 @@ export class NotificationService {
       // Find existing conversation between customer and provider
       console.log('💬 sendSurveyToChat - Looking for conversation between:', customerId, 'and', providerId);
       
-      const conversation = await new Promise<any>((resolve, reject) => {
-        this.db.db.get(
+      let conversation;
+      if (this.isPostgreSQL) {
+        const result = await this.db.query(
           `SELECT id FROM marketplace_conversations 
-           WHERE customer_id = ? AND provider_id = ?
+           WHERE customer_id = $1 AND provider_id = $2
            ORDER BY created_at DESC LIMIT 1`,
-          [customerId, providerId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
+          [customerId, providerId]
         );
-      });
+        conversation = result[0];
+      } else {
+        conversation = await new Promise<any>((resolve, reject) => {
+          this.db.db.get(
+            `SELECT id FROM marketplace_conversations 
+             WHERE customer_id = ? AND provider_id = ?
+             ORDER BY created_at DESC LIMIT 1`,
+            [customerId, providerId],
+            (err: Error | null, row: any) => {
+              if (err) reject(err);
+              else resolve(row);
+            }
+          );
+        });
+      }
 
       console.log('💬 sendSurveyToChat - Found conversation:', conversation);
 
@@ -430,10 +611,10 @@ export class NotificationService {
         console.log('💬 sendSurveyToChat - Inserting survey message into conversation:', conversation.id);
         
         const messageId = require('uuid').v4();
-        await new Promise<void>((resolve, reject) => {
-          this.db.db.run(
+        if (this.isPostgreSQL) {
+          await this.db.query(
             `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_id, message, message_type, data, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               messageId,
               conversation.id,
@@ -442,18 +623,35 @@ export class NotificationService {
               'survey_request',
               JSON.stringify({ caseId }), // Include caseId in data
               new Date().toISOString()
-            ],
-            (err: Error | null) => {
-              if (err) {
-                console.error('💬 sendSurveyToChat - Error inserting message:', err);
-                reject(err);
-              } else {
-                console.log('💬 sendSurveyToChat - Survey message inserted successfully with ID:', messageId);
-                resolve();
-              }
-            }
+            ]
           );
-        });
+          console.log('💬 sendSurveyToChat - Survey message inserted successfully with ID:', messageId);
+        } else {
+          await new Promise<void>((resolve, reject) => {
+            this.db.db.run(
+              `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_id, message, message_type, data, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                messageId,
+                conversation.id,
+                'system', // System message
+                surveyMessage,
+                'survey_request',
+                JSON.stringify({ caseId }), // Include caseId in data
+                new Date().toISOString()
+              ],
+              (err: Error | null) => {
+                if (err) {
+                  console.error('💬 sendSurveyToChat - Error inserting message:', err);
+                  reject(err);
+                } else {
+                  console.log('💬 sendSurveyToChat - Survey message inserted successfully with ID:', messageId);
+                  resolve();
+                }
+              }
+            );
+          });
+        }
       } else {
         console.log('💬 sendSurveyToChat - No conversation found between customer and provider');
       }

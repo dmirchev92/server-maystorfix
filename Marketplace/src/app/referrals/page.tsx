@@ -93,17 +93,23 @@ export default function ReferralDashboard() {
       if (response.data?.success) {
         console.log('🤝 Setting dashboard data:', response.data.data)
         console.log('🤝 Referred users:', response.data.data?.referredUsers)
+        console.log('🤝 Original referral link from backend:', response.data.data.referralLink)
         
-        // Fix the referral link to use local development URL
+        // Use the app URL from environment settings
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'
+        
+        // Extract the referral code from the link and rebuild it with the correct URL
+        const originalLink = response.data.data.referralLink || ''
+        const refCodeMatch = originalLink.match(/[?&]ref=([^&]+)/)
+        const refCode = refCodeMatch ? refCodeMatch[1] : response.data.data.referralCode
+        const correctedLink = `${appUrl}/signup?ref=${refCode}`
+        
         const dashboardData = {
           ...response.data.data,
-          referralLink: response.data.data.referralLink?.replace(
-            'https://marketplace.servicetextpro.com',
-            'http://192.168.0.129:3002'
-          )
+          referralLink: correctedLink
         }
         
-        console.log('🤝 Fixed dashboard data with local URL:', dashboardData)
+        console.log('🤝 Corrected referral link:', correctedLink)
         setDashboard(dashboardData)
       } else {
         console.error('🤝 Dashboard fetch failed:', response.data?.message)
@@ -129,16 +135,13 @@ export default function ReferralDashboard() {
       return
     }
 
-    // Fix the referral link to use local development URL
-    const localReferralLink = dashboard.referralLink.replace(
-      'https://marketplace.servicetextpro.com',
-      'http://192.168.0.129:3002'
-    )
+    // The referral link is already fixed with the correct app URL in fetchDashboard
+    const referralLink = dashboard.referralLink
 
-    console.log('📋 Copying referral link:', localReferralLink)
+    console.log('📋 Copying referral link:', referralLink)
 
     try {
-      await navigator.clipboard.writeText(localReferralLink)
+      await navigator.clipboard.writeText(referralLink)
       setCopiedLink(true)
       setTimeout(() => setCopiedLink(false), 2000)
       console.log('✅ Referral link copied successfully')
@@ -147,7 +150,7 @@ export default function ReferralDashboard() {
       // Fallback: try to select and copy manually
       try {
         const textArea = document.createElement('textarea')
-        textArea.value = localReferralLink
+        textArea.value = referralLink
         document.body.appendChild(textArea)
         textArea.select()
         document.execCommand('copy')
@@ -157,7 +160,7 @@ export default function ReferralDashboard() {
         console.log('✅ Referral link copied using fallback method')
       } catch (fallbackErr) {
         console.error('❌ Fallback copy method also failed:', fallbackErr)
-        alert('Неуспешно копиране. Моля копирайте ръчно: ' + localReferralLink)
+        alert('Неуспешно копиране. Моля копирайте ръчно: ' + referralLink)
       }
     }
   }

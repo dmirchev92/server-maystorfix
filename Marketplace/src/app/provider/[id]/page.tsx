@@ -128,75 +128,53 @@ export default function ProviderDetailPage() {
 
   // Separate useEffect for click tracking to prevent duplicate calls
   useEffect(() => {
-    if (!provider || !params.id) return
+    if (!provider || !params.id || clickTracked) return
 
     const providerId = params.id as string
     
-    // Use user-based tracking - 1 click per user per profile forever
-    // Get current user ID to create unique tracking key
-    const userData = localStorage.getItem('user_data')
-    let currentUserId = null
+    // Track click - server-side anti-cheat will handle duplicate prevention
+    console.log(`[CLICK TRACKING] Provider: ${providerId}, tracking click...`)
     
-    try {
-      if (userData) {
-        const user = JSON.parse(userData)
-        currentUserId = user.id
-      }
-    } catch (e) {
-      console.error('Error parsing user data:', e)
-    }
-    
-    // Create unique key combining user ID and profile ID
-    const userClickKey = currentUserId ? `user_${currentUserId}_clicked_profile_${providerId}` : `anonymous_clicked_profile_${providerId}`
-    const hasUserClickedBefore = localStorage.getItem(userClickKey)
-    const canTrackClick = !hasUserClickedBefore
-    
-    console.log(`[CLICK TRACKING] Provider: ${providerId}, User: ${currentUserId || 'anonymous'}, Can track: ${canTrackClick}, Click tracked state: ${clickTracked}`)
-    
-    if (canTrackClick && !clickTracked) {
-      const trackClick = async () => {
-        try {
-          // Mark as tracked immediately to prevent duplicate calls
-          setClickTracked(true)
-          localStorage.setItem(userClickKey, 'true')
-          
-          const trackUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/track/${providerId}`;
-          console.log(`[FRONTEND] Tracking profile click: ${trackUrl}`);
-          
-          // Get or generate visitor ID
-          let visitorId = localStorage.getItem('visitor_id');
-          if (!visitorId) {
-            visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('visitor_id', visitorId);
-            console.log(`[FRONTEND] Generated new visitor ID: ${visitorId}`);
-          } else {
-            console.log(`[FRONTEND] Using existing visitor ID: ${visitorId}`);
-          }
-          
-          // Check if user is authenticated and get their user ID
-          const userData = localStorage.getItem('user_data')
-          const customerUserId = userData ? JSON.parse(userData).id : null
-          
-          console.log(`[FRONTEND] Customer user ID: ${customerUserId || 'null (not authenticated)'}`)
-          
-          const trackResponse = await apiClient.trackReferralClick(providerId, {
-            customerUserId,
-            visitorId
-          });
-          
-          console.log(`[FRONTEND] Track response:`, trackResponse.data);
-          
-        } catch (trackErr) {
-          console.error('Error tracking profile click:', trackErr)
-          // Reset tracking state on error so it can be retried
-          setClickTracked(false)
-          localStorage.removeItem(userClickKey)
+    const trackClick = async () => {
+      try {
+        // Mark as tracked immediately to prevent duplicate calls in same session
+        setClickTracked(true)
+        
+        const trackUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/track/${providerId}`;
+        console.log(`[FRONTEND] Tracking profile click: ${trackUrl}`);
+        
+        // Get or generate visitor ID
+        let visitorId = localStorage.getItem('visitor_id');
+        if (!visitorId) {
+          visitorId = 'visitor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          localStorage.setItem('visitor_id', visitorId);
+          console.log(`[FRONTEND] Generated new visitor ID: ${visitorId}`);
+        } else {
+          console.log(`[FRONTEND] Using existing visitor ID: ${visitorId}`);
         }
+        
+        // Check if user is authenticated and get their user ID
+        const userData = localStorage.getItem('user_data')
+        const customerUserId = userData ? JSON.parse(userData).id : null
+        
+        console.log(`[FRONTEND] Customer user ID: ${customerUserId || 'null (not authenticated)'}`)
+        
+        const trackResponse = await apiClient.trackReferralClick(providerId, {
+          customerUserId,
+          visitorId
+        });
+        
+        console.log(`[FRONTEND] Track response:`, trackResponse.data);
+        
+      } catch (trackErr) {
+        console.error('Error tracking profile click:', trackErr)
+        // Don't reset on error - let server-side handle retries
+        // This prevents infinite loops
       }
-
-      trackClick()
     }
-  }, [provider, params.id, clickTracked])
+
+    trackClick()
+  }, [provider, params.id])
 
   const getCategoryDisplayName = (category: string | undefined) => {
     if (!category) return 'Общи';

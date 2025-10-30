@@ -40,20 +40,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [user, setUser] = useState<any>(null);
   const [socketInitialized, setSocketInitialized] = useState(false);
 
-  // Load user and initialize services
+  // Load user (NotificationService is already initialized in App.tsx)
   useEffect(() => {
     loadUser();
-    initializePushNotifications();
   }, []);
-
-  const initializePushNotifications = async () => {
-    try {
-      await PushNotificationService.getInstance().initialize();
-      console.log('✅ Push notifications initialized');
-    } catch (error) {
-      console.error('❌ Error initializing push notifications:', error);
-    }
-  };
 
   // Socket listeners are already set up in SocketIOService
   // No need to set them up again here

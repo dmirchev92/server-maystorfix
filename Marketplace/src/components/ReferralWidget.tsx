@@ -56,16 +56,23 @@ export default function ReferralWidget() {
       if (response.data?.success) {
         const data = response.data.data
         
-        // Calculate next reward progress
+        // Calculate next reward progress based on the best performing individual referral
         const totalClicks = data.referredUsers?.reduce((sum: number, user: any) => sum + user.validClicks, 0) || 0
-        let nextReward = { current: totalClicks, target: 50, rewardType: '10% отстъпка' }
         
-        if (totalClicks >= 500) {
-          nextReward = { current: totalClicks, target: 500, rewardType: 'Постигнато максимално ниво!' }
-        } else if (totalClicks >= 100) {
-          nextReward = { current: totalClicks, target: 500, rewardType: 'Безплатен месец' }
-        } else if (totalClicks >= 50) {
-          nextReward = { current: totalClicks, target: 100, rewardType: '50% отстъпка' }
+        // Find the referral with the most valid clicks (closest to next reward)
+        const bestReferral = data.referredUsers?.reduce((best: any, user: any) => {
+          return (user.validClicks > (best?.validClicks || 0)) ? user : best
+        }, null)
+        
+        const bestReferralClicks = bestReferral?.validClicks || 0
+        let nextReward = { current: bestReferralClicks, target: 50, rewardType: '10% отстъпка' }
+        
+        if (bestReferralClicks >= 500) {
+          nextReward = { current: bestReferralClicks, target: 500, rewardType: 'Постигнато максимално ниво!' }
+        } else if (bestReferralClicks >= 100) {
+          nextReward = { current: bestReferralClicks, target: 500, rewardType: 'Безплатен месец' }
+        } else if (bestReferralClicks >= 50) {
+          nextReward = { current: bestReferralClicks, target: 100, rewardType: '50% отстъпка' }
         }
 
         setStats({
@@ -151,14 +158,10 @@ export default function ReferralWidget() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="text-center p-3 bg-indigo-500/20 border border-indigo-400/30 rounded-lg">
           <div className="text-2xl font-bold text-indigo-400">{stats.totalReferrals}</div>
           <div className="text-xs text-slate-300">Препоръки</div>
-        </div>
-        <div className="text-center p-3 bg-green-500/20 border border-green-400/30 rounded-lg">
-          <div className="text-2xl font-bold text-green-400">{stats.totalClicks}</div>
-          <div className="text-xs text-slate-300">Общо кликове</div>
         </div>
         <div className="text-center p-3 bg-purple-500/20 border border-purple-400/30 rounded-lg">
           <div className="text-2xl font-bold text-purple-400">{stats.monthlyClicks}</div>
@@ -170,22 +173,6 @@ export default function ReferralWidget() {
         </div>
       </div>
 
-      {/* Progress to Next Reward */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-white">Следваща награда</span>
-          <span className="text-sm text-slate-300">
-            {stats.nextRewardProgress.current}/{stats.nextRewardProgress.target} кликове
-          </span>
-        </div>
-        <div className="w-full bg-white/20 rounded-full h-2">
-          <div 
-            className="bg-indigo-500 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${progressPercentage}%` }}
-          ></div>
-        </div>
-        <p className="text-xs text-slate-300 mt-1">{stats.nextRewardProgress.rewardType}</p>
-      </div>
 
       {/* Referred Users Dropdown */}
       {referredUsers.length > 0 && (
@@ -213,43 +200,80 @@ export default function ReferralWidget() {
           </button>
 
           {showReferredUsers && (
-            <div className="mt-3 space-y-3 max-h-64 overflow-y-auto">
-              {referredUsers.map((user, index) => (
-                <div key={index} className="bg-white/5 rounded-lg p-3 border border-white/10">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-indigo-500/20 border border-indigo-400/30 rounded-full flex items-center justify-center">
-                        <span className="text-indigo-300 text-sm font-bold">
-                          {user.referredUser.firstName?.charAt(0)}{user.referredUser.lastName?.charAt(0)}
+            <div className="mt-3 space-y-3 max-h-96 overflow-y-auto">
+              {referredUsers.map((user, index) => {
+                // Calculate progress for this referral
+                const validClicks = user.validClicks
+                let nextTarget = 50
+                let nextRewardLabel = '10% отстъпка'
+                let progressColor = 'bg-green-500'
+                
+                if (validClicks >= 500) {
+                  nextTarget = 500
+                  nextRewardLabel = 'Максимално ниво!'
+                  progressColor = 'bg-purple-500'
+                } else if (validClicks >= 100) {
+                  nextTarget = 500
+                  nextRewardLabel = 'Безплатен месец'
+                  progressColor = 'bg-purple-500'
+                } else if (validClicks >= 50) {
+                  nextTarget = 100
+                  nextRewardLabel = '50% отстъпка'
+                  progressColor = 'bg-yellow-500'
+                }
+                
+                const progressPercentage = Math.min((validClicks / nextTarget) * 100, 100)
+                
+                return (
+                  <div key={index} className="bg-white/5 rounded-lg p-3 border border-white/10">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 bg-indigo-500/20 border border-indigo-400/30 rounded-full flex items-center justify-center">
+                          <span className="text-indigo-300 text-sm font-bold">
+                            {user.referredUser.firstName?.charAt(0)}{user.referredUser.lastName?.charAt(0)}
+                          </span>
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-medium text-white">
+                            {user.referredUser.businessName || `${user.referredUser.firstName} ${user.referredUser.lastName}`}
+                          </h4>
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status)}`}>
+                            {user.status === 'active' ? 'Активен' : user.status === 'pending' ? 'Чакащ' : 'Неактивен'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                      <div className="text-center p-2 bg-green-500/10 rounded">
+                        <div className="font-bold text-green-400">{user.validClicks}</div>
+                        <div className="text-slate-400">Валидни</div>
+                      </div>
+                      <div className="text-center p-2 bg-indigo-500/10 rounded">
+                        <div className="font-bold text-indigo-400">{user.monthlyClicks}</div>
+                        <div className="text-slate-400">Месечни</div>
+                      </div>
+                    </div>
+                    
+                    {/* Individual Progress Bar */}
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-slate-300">Следваща награда</span>
+                        <span className="text-xs text-slate-400">
+                          {validClicks}/{nextTarget} кликове
                         </span>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-medium text-white">
-                          {user.referredUser.businessName || `${user.referredUser.firstName} ${user.referredUser.lastName}`}
-                        </h4>
-                        <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(user.status)}`}>
-                          {user.status === 'active' ? 'Активен' : user.status === 'pending' ? 'Чакащ' : 'Неактивен'}
-                        </span>
+                      <div className="w-full bg-white/20 rounded-full h-2 mb-1">
+                        <div 
+                          className={`${progressColor} h-2 rounded-full transition-all duration-300`}
+                          style={{ width: `${progressPercentage}%` }}
+                        ></div>
                       </div>
+                      <p className="text-xs text-slate-400">{nextRewardLabel}</p>
                     </div>
                   </div>
-                  
-                  <div className="grid grid-cols-3 gap-2 text-xs">
-                    <div className="text-center p-2 bg-white/5 rounded">
-                      <div className="font-bold text-white">{user.totalClicks}</div>
-                      <div className="text-slate-400">Общо</div>
-                    </div>
-                    <div className="text-center p-2 bg-green-500/10 rounded">
-                      <div className="font-bold text-green-400">{user.validClicks}</div>
-                      <div className="text-slate-400">Валидни</div>
-                    </div>
-                    <div className="text-center p-2 bg-indigo-500/10 rounded">
-                      <div className="font-bold text-indigo-400">{user.monthlyClicks}</div>
-                      <div className="text-slate-400">Месечни</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

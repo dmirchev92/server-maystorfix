@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
+import NeighborhoodSelect from '@/components/NeighborhoodSelect'
 
 export default function SignupPage() {
   const searchParams = useSearchParams()
@@ -23,6 +24,7 @@ export default function SignupPage() {
     businessName: '',
     serviceCategory: '',
     city: '',
+    neighborhood: '',
     agreeToTerms: false
   })
 
@@ -116,20 +118,31 @@ export default function SignupPage() {
       }
 
       // Create service provider profile
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/marketplace/providers/profile`, {
+      const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/marketplace/providers/profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${userData.data?.token}`,
         },
         body: JSON.stringify({
-          businessName: formData.businessName,
-          serviceCategory: formData.serviceCategory,
-          city: formData.city,
-          phoneNumber: formData.phoneNumber,
-          email: formData.email,
+          userId: userId,
+          profile: {
+            businessName: formData.businessName,
+            serviceCategory: formData.serviceCategory,
+            city: formData.city,
+            neighborhood: formData.neighborhood,
+            phoneNumber: formData.phoneNumber,
+            email: formData.email,
+          }
         }),
       })
+
+      if (!profileResponse.ok) {
+        console.error('Profile creation failed:', await profileResponse.text())
+        // Continue anyway - user can complete profile later
+      } else {
+        console.log('✅ Profile created successfully with category:', formData.serviceCategory)
+      }
 
       // Create referral relationship if referral code exists
       if (referralCode && referralValid) {
@@ -205,29 +218,29 @@ export default function SignupPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
       
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
           {/* Page Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-white mb-2">
               🚀 Присъединете се към ServiceText Pro
             </h1>
-            <p className="text-gray-600">
+            <p className="text-slate-300">
               Създайте профил и започнете да получавате повече клиенти
             </p>
           </div>
 
           {/* Referral Banner */}
           {referralCode && (
-            <div className={`mb-6 p-4 rounded-lg border ${
+            <div className={`mb-6 p-4 rounded-lg border backdrop-blur-md ${
               referralValid === null 
-                ? 'bg-blue-50 border-blue-200' 
+                ? 'bg-blue-500/20 border-blue-400/30' 
                 : referralValid 
-                  ? 'bg-green-50 border-green-200' 
-                  : 'bg-red-50 border-red-200'
+                  ? 'bg-green-500/20 border-green-400/30' 
+                  : 'bg-red-500/20 border-red-400/30'
             }`}>
               <div className="flex items-center">
                 <span className="text-2xl mr-3">
@@ -236,10 +249,10 @@ export default function SignupPage() {
                 <div>
                   <h3 className={`font-semibold ${
                     referralValid === null 
-                      ? 'text-blue-800' 
+                      ? 'text-blue-300' 
                       : referralValid 
-                        ? 'text-green-800' 
-                        : 'text-red-800'
+                        ? 'text-green-300' 
+                        : 'text-red-300'
                   }`}>
                     {referralValid === null 
                       ? 'Проверяване на препоръчителния код...' 
@@ -250,10 +263,10 @@ export default function SignupPage() {
                   </h3>
                   <p className={`text-sm ${
                     referralValid === null 
-                      ? 'text-blue-600' 
+                      ? 'text-blue-200' 
                       : referralValid 
-                        ? 'text-green-600' 
-                        : 'text-red-600'
+                        ? 'text-green-200' 
+                        : 'text-red-200'
                   }`}>
                     {referralValid === null 
                       ? `Код: ${referralCode}` 
@@ -268,14 +281,14 @@ export default function SignupPage() {
           )}
 
           {/* Signup Form */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8">
+          <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl border border-white/20 p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Personal Information */}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">👤 Лична информация</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">👤 Лична информация</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Име *
                     </label>
                     <input
@@ -284,12 +297,12 @@ export default function SignupPage() {
                       required
                       value={formData.firstName}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Вашето име"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Фамилия *
                     </label>
                     <input
@@ -298,7 +311,7 @@ export default function SignupPage() {
                       required
                       value={formData.lastName}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Вашата фамилия"
                     />
                   </div>
@@ -307,10 +320,10 @@ export default function SignupPage() {
 
               {/* Contact Information */}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">📞 Контактна информация</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">📞 Контактна информация</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Имейл адрес *
                     </label>
                     <input
@@ -319,12 +332,12 @@ export default function SignupPage() {
                       required
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="your@email.com"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Телефонен номер *
                     </label>
                     <input
@@ -333,7 +346,7 @@ export default function SignupPage() {
                       required
                       value={formData.phoneNumber}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="+359..."
                     />
                   </div>
@@ -342,10 +355,10 @@ export default function SignupPage() {
 
               {/* Business Information */}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">🏢 Бизнес информация</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">🏢 Бизнес информация</h2>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Име на бизнеса
                     </label>
                     <input
@@ -353,13 +366,13 @@ export default function SignupPage() {
                       name="businessName"
                       value={formData.businessName}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Име на вашата фирма (по избор)"
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
                         Категория услуга *
                       </label>
                       <select
@@ -367,7 +380,7 @@ export default function SignupPage() {
                         required
                         value={formData.serviceCategory}
                         onChange={handleInputChange}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent [&>option]:bg-slate-800 [&>option]:text-white"
                       >
                         <option value="">Изберете категория</option>
                         {serviceCategories.map(category => (
@@ -378,15 +391,21 @@ export default function SignupPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
                         Град *
                       </label>
                       <select
                         name="city"
                         required
                         value={formData.city}
-                        onChange={handleInputChange}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={(e) => {
+                          handleInputChange(e)
+                          // Clear neighborhood when city changes
+                          if (e.target.value !== 'София') {
+                            setFormData(prev => ({ ...prev, neighborhood: '' }))
+                          }
+                        }}
+                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent [&>option]:bg-slate-800 [&>option]:text-white"
                       >
                         <option value="">Изберете град</option>
                         {cities.map(city => (
@@ -397,15 +416,29 @@ export default function SignupPage() {
                       </select>
                     </div>
                   </div>
+                  {/* Neighborhood field - only for Sofia */}
+                  {formData.city === 'София' && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-1">
+                        Квартал в София
+                      </label>
+                      <NeighborhoodSelect
+                        value={formData.neighborhood}
+                        onChange={(value) => setFormData(prev => ({ ...prev, neighborhood: value }))}
+                        placeholder="Изберете квартал"
+                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent [&>option]:bg-slate-800 [&>option]:text-white"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Password */}
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">🔒 Парола</h2>
+                <h2 className="text-xl font-semibold text-white mb-4">🔒 Парола</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Парола *
                     </label>
                     <input
@@ -414,13 +447,13 @@ export default function SignupPage() {
                       required
                       value={formData.password}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Минимум 8 символа"
                       minLength={8}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-slate-300 mb-1">
                       Потвърдете паролата *
                     </label>
                     <input
@@ -429,7 +462,7 @@ export default function SignupPage() {
                       required
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="Повторете паролата"
                     />
                   </div>
@@ -445,15 +478,15 @@ export default function SignupPage() {
                   required
                   checked={formData.agreeToTerms}
                   onChange={handleInputChange}
-                  className="mt-1 mr-3"
+                  className="mt-1 mr-3 accent-indigo-500"
                 />
-                <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
+                <label htmlFor="agreeToTerms" className="text-sm text-slate-300">
                   Съгласен съм с{' '}
-                  <a href="/terms" className="text-blue-600 hover:underline">
+                  <a href="/terms" className="text-indigo-400 hover:text-indigo-300 hover:underline">
                     условията за ползване
                   </a>{' '}
                   и{' '}
-                  <a href="/privacy" className="text-blue-600 hover:underline">
+                  <a href="/privacy" className="text-indigo-400 hover:text-indigo-300 hover:underline">
                     политиката за поверителност
                   </a>
                   *
@@ -466,9 +499,9 @@ export default function SignupPage() {
                 disabled={loading}
                 className={`w-full py-3 px-4 rounded-lg font-medium text-white ${
                   loading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-blue-600 hover:bg-blue-700'
-                } transition-colors`}
+                    ? 'bg-slate-600 cursor-not-allowed' 
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                } transition-colors shadow-lg`}
               >
                 {loading ? '⏳ Създаване на профил...' : '🚀 Създай профил'}
               </button>
@@ -476,9 +509,9 @@ export default function SignupPage() {
 
             {/* Login Link */}
             <div className="mt-6 text-center">
-              <p className="text-gray-600">
+              <p className="text-slate-300">
                 Вече имате профил?{' '}
-                <a href="/login" className="text-blue-600 hover:underline font-medium">
+                <a href="/login" className="text-indigo-400 hover:text-indigo-300 hover:underline font-medium">
                   Влезте тук
                 </a>
               </p>

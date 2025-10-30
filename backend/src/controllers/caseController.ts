@@ -5,9 +5,21 @@ import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import SmartMatchingService from '../services/SmartMatchingService';
 import NotificationService from '../services/NotificationService';
+import { getIO } from '../server';
 
 const db = DatabaseFactory.getDatabase();
-const notificationService = new NotificationService();
+
+// Get NotificationService instance with Socket.IO
+function getNotificationService(): NotificationService {
+  const notificationService = new NotificationService();
+  try {
+    const io = getIO();
+    notificationService.setSocketIO(io);
+  } catch (error) {
+    logger.warn('⚠️ Socket.IO not available for NotificationService');
+  }
+  return notificationService;
+}
 
 /**
  * Create a new service case
@@ -184,12 +196,13 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
     if (assignmentType === 'specific' && providerId) {
       logger.info('🔔 Creating notification for directly assigned SP', { providerId, caseId });
       try {
+        const notificationService = getNotificationService();
         await notificationService.createNotification(
           providerId,
           'case_assigned',
           'Нова заявка директно възложена',
           `Клиент ви възложи нова заявка: ${description.substring(0, 50)}...`,
-          { caseId, action: 'view_case' }
+          { caseId, action: 'view_case', customerName: 'Direct Assignment', serviceType, description, priority: priority || 'medium' }
         );
         logger.info('✅ Notification sent to SP for direct assignment', { providerId, caseId });
       } catch (notifError) {
@@ -314,6 +327,7 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
     
     if (caseDetails?.customer_id) {
       logger.info('📧 Sending case accepted notification to customer');
+      const notificationService = getNotificationService();
       await notificationService.notifyCaseAssigned(
         caseId,
         caseDetails.customer_id,

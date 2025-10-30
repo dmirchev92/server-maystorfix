@@ -1,6 +1,10 @@
 // ServiceText Pro Backend Server
 // GDPR-compliant Express.js server with comprehensive security and monitoring
 
+// Load environment variables first
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -31,6 +35,7 @@ import { ChatSocketHandler } from './socket/chatSocket';
 import * as caseController from './controllers/caseController';
 import * as notificationController from './controllers/notificationController';
 import * as reviewController from './controllers/reviewController';
+import * as deviceTokenController from './controllers/deviceTokenController';
 import { authenticateToken } from './middleware/auth';
 import { DatabaseFactory } from './models/DatabaseFactory';
 // import businessRoutes from '@/controllers/businessController';
@@ -411,6 +416,14 @@ class ServiceTextProServer {
     // Initialize chat sockets
     const chatSocketHandler = new ChatSocketHandler(this.io, chatService);
     chatSocketHandler.initialize();
+    
+    // Device token routes (for push notifications)
+    logger.info('🔥 ABOUT TO REGISTER DEVICE TOKEN ROUTES');
+    this.app.post('/api/v1/device-tokens/register', authenticateToken, deviceTokenController.registerDeviceToken);
+    this.app.delete('/api/v1/device-tokens/:tokenId', authenticateToken, deviceTokenController.deleteDeviceToken);
+    this.app.get('/api/v1/device-tokens', authenticateToken, deviceTokenController.getUserDeviceTokens);
+    this.app.post('/api/v1/device-tokens/test', authenticateToken, deviceTokenController.testPushNotification);
+    logger.info('✅ Device token routes registered');
     
     // Referral system routes
     this.app.get('/api/v1/referrals/code', authenticateToken, referralController.getReferralCode);

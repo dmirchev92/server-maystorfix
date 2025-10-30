@@ -21,6 +21,7 @@ import { AuthScreen } from './src/screens/AuthScreen';
 import ApiService from './src/services/ApiService';
 import SocketIOService from './src/services/SocketIOService';
 import NotificationService from './src/services/NotificationService';
+import FCMService from './src/services/FCMService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 
@@ -92,8 +93,11 @@ function AppContent() {
         return;
       }
 
-      console.log('🔌 App.tsx - Initializing Socket.IO connection...');
-      await SocketIOService.getInstance().connect(token);
+      // Get userId from currentUser
+      const userId = currentUser?.id;
+      console.log('🔌 App.tsx - Initializing Socket.IO connection with userId:', userId);
+      
+      await SocketIOService.getInstance().connect(token, userId);
       console.log('✅ App.tsx - Socket.IO initialized globally');
       
       // Initialize notification service
@@ -103,6 +107,16 @@ function AppContent() {
         console.log('✅ App.tsx - NotificationService initialized successfully');
       } else {
         console.warn('⚠️ App.tsx - NotificationService initialization failed');
+      }
+      
+      // Initialize FCM for push notifications (background/killed app)
+      console.log('🔥 App.tsx - Initializing FCM Service...');
+      try {
+        const fcmService = FCMService.getInstance();
+        await fcmService.initialize();
+        console.log('✅ App.tsx - FCM Service initialized successfully');
+      } catch (fcmError) {
+        console.error('❌ App.tsx - FCM initialization failed:', fcmError);
       }
       
       // Also initialize call detection service (auto-initializes on getInstance)

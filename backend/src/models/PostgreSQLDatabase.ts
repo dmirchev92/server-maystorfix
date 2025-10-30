@@ -314,6 +314,20 @@ export class PostgreSQLDatabase {
         FOREIGN KEY (provider_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
+      -- Device tokens for push notifications
+      CREATE TABLE IF NOT EXISTS device_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        platform TEXT NOT NULL CHECK (platform IN ('android', 'ios')),
+        device_info JSONB,
+        is_active BOOLEAN DEFAULT TRUE,
+        last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+
       -- Service Provider Identifiers Table
       CREATE TABLE IF NOT EXISTS service_provider_identifiers (
         id TEXT PRIMARY KEY,
@@ -483,6 +497,9 @@ export class PostgreSQLDatabase {
       CREATE INDEX IF NOT EXISTS idx_sms_settings_user_id ON sms_settings(user_id);
       CREATE INDEX IF NOT EXISTS idx_chat_tokens_user_id ON chat_tokens(user_id);
       CREATE INDEX IF NOT EXISTS idx_chat_tokens_token ON chat_tokens(token);
+      CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON device_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_device_tokens_token ON device_tokens(token);
+      CREATE INDEX IF NOT EXISTS idx_device_tokens_active ON device_tokens(user_id, is_active);
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
       CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
       CREATE INDEX IF NOT EXISTS idx_reviews_provider ON provider_reviews(provider_id);
