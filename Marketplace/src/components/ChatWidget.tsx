@@ -332,6 +332,24 @@ function ChatWidgetContent() {
                         </svg>
                       </button>
                     </div>
+                    
+                    {/* Create Case Button - Only show for customers */}
+                    {user?.role === 'customer' && activeConversation && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => {
+                            // Navigate to create case page with provider info
+                            const providerId = activeConversation.providerId
+                            const providerName = activeConversation.providerBusinessName || activeConversation.providerName || 'Майстор'
+                            window.location.href = `/create-case?providerId=${providerId}&providerName=${encodeURIComponent(providerName)}&conversationId=${activeConversation.id}`
+                          }}
+                          className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-green-600 hover:to-blue-600 transition-all duration-200 flex items-center justify-center gap-2"
+                        >
+                          <span>📋</span>
+                          <span>Създай заявка</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </>
               ) : (
