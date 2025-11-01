@@ -5,6 +5,7 @@ import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import SmartMatchingService from '../services/SmartMatchingService';
 import NotificationService from '../services/NotificationService';
+import trialService from '../services/TrialService';
 import { getIO } from '../server';
 
 const db = DatabaseFactory.getDatabase();
@@ -301,6 +302,42 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    // Check trial status BEFORE accepting case
+    const trialStatus = await trialService.checkTrialStatus(providerId);
+    if (trialStatus.isExpired) {
+      logger.warn('Trial expired - blocking case acceptance', { providerId, caseId, reason: trialStatus.reason });
+      
+      // Auto-disable SMS if trial expired (either by cases or time)
+      try {
+        await db.query(
+          `UPDATE sms_settings SET is_enabled = FALSE, updated_at = NOW() WHERE user_id = $1`,
+          [providerId]
+        );
+        logger.info('📵 SMS auto-disabled due to trial expiration', { providerId, reason: trialStatus.reason });
+      } catch (smsError) {
+        logger.error('❌ Error disabling SMS on trial expiration:', smsError);
+      }
+      
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'TRIAL_EXPIRED',
+          message: 'За да приемете повече заявки, моля надстройте вашия план.',
+          details: {
+            casesUsed: trialStatus.casesUsed,
+            reason: trialStatus.reason === 'cases_limit' 
+              ? 'Достигнахте максимума от 5 заявки за безплатния план.'
+              : 'Вашият 14-дневен пробен период приключи.'
+          }
+        },
+        metadata: {
+          timestamp: new Date(),
+          requiresUpgrade: true
+        }
+      });
+      return;
+    }
+
     const now = new Date().toISOString();
 
     await db.query(
@@ -340,6 +377,44 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
     }
 
     logger.info('✅ Case accepted successfully', { caseId, providerId });
+
+    // Increment trial cases for FREE tier service providers
+    if (providerId) {
+      try {
+        await trialService.incrementTrialCases(providerId);
+        logger.info('📊 Trial case acceptance incremented', { providerId, caseId });
+        
+        // Check if this was the 5th case - auto-disable SMS
+        const updatedTrialStatus = await trialService.checkTrialStatus(providerId);
+        if (updatedTrialStatus.casesUsed === 5) {
+          logger.info('📵 5th case accepted - auto-disabling SMS for FREE user', { providerId });
+          try {
+            // Disable SMS in sms_settings table
+            const smsUpdateResult = await db.query(
+              `UPDATE sms_settings SET is_enabled = FALSE, updated_at = NOW() WHERE user_id = $1`,
+              [providerId]
+            );
+            
+            // If no settings exist, create them with is_enabled = false
+            if (smsUpdateResult.length === 0 || (smsUpdateResult as any).rowCount === 0) {
+              await db.query(
+                `INSERT INTO sms_settings (id, user_id, is_enabled, created_at, updated_at) 
+                 VALUES (gen_random_uuid(), $1, FALSE, NOW(), NOW())
+                 ON CONFLICT (user_id) DO UPDATE SET is_enabled = FALSE, updated_at = NOW()`,
+                [providerId]
+              );
+            }
+            
+            logger.info('✅ SMS auto-disabled for user reaching trial limit', { providerId });
+          } catch (smsError) {
+            logger.error('❌ Error disabling SMS:', smsError);
+          }
+        }
+      } catch (trialError) {
+        // Don't fail case acceptance if trial increment fails
+        logger.error('❌ Error incrementing trial cases:', trialError);
+      }
+    }
 
     res.json({
       success: true,

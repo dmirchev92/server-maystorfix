@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import NeighborhoodSelect from '@/components/NeighborhoodSelect'
+import TierSelector from '@/components/TierSelector'
 
 interface RegistrationData {
   email: string
@@ -18,6 +19,7 @@ interface RegistrationData {
   serviceCategory?: string
   city?: string
   neighborhood?: string
+  subscription_tier_id?: 'free' | 'normal' | 'pro'
   acceptTerms: boolean
 }
 
@@ -40,6 +42,7 @@ function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
+  const [showTierSelection, setShowTierSelection] = useState(false)
   const [formData, setFormData] = useState<RegistrationData>({
     email: '',
     password: '',
@@ -52,6 +55,7 @@ function RegisterForm() {
     serviceCategory: '',
     city: '',
     neighborhood: '',
+    subscription_tier_id: 'free',
     acceptTerms: false
   })
 
@@ -144,7 +148,8 @@ function RegisterForm() {
           companyName: formData.companyName,
           // Ensure city is sent; default to 'София' if a neighborhood is chosen but city not explicitly set
           city: formData.city || (formData.neighborhood ? 'София' : ''),
-          neighborhood: formData.neighborhood
+          neighborhood: formData.neighborhood,
+          subscription_tier_id: formData.subscription_tier_id || 'free'
         }),
         gdprConsents: ['essential_service']
       }
@@ -193,7 +198,7 @@ function RegisterForm() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-slate-500/5 to-indigo-500/5 rounded-full blur-3xl"></div>
       </div>
       
-      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="relative z-10 mx-auto w-full max-w-5xl px-4">
         <div className="flex justify-between items-center mb-4">
           <button
             onClick={() => router.back()}
@@ -221,7 +226,7 @@ function RegisterForm() {
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-20">
+      <div className="mt-8 mx-auto w-full max-w-5xl relative z-20 px-4">
         <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl py-8 px-4 sm:px-10">
           <form className="space-y-6" onSubmit={handleSubmit}>
             {/* User Type Selection */}
@@ -260,37 +265,37 @@ function RegisterForm() {
             </div>
 
             {/* Personal Information */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-slate-200">
-                  Име *
-                </label>
-                <input
-                  id="firstName"
-                  name="firstName"
-                  type="text"
-                  required
-                  value={formData.firstName}
-                  onChange={(e) => handleInputChange('firstName', e.target.value)}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Иван"
-                />
-              </div>
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-slate-200">
-                  Фамилия *
-                </label>
-                <input
-                  id="lastName"
-                  name="lastName"
-                  type="text"
-                  required
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange('lastName', e.target.value)}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Петров"
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-slate-200">
+                    Име *
+                  </label>
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    required
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    className="mt-1 appearance-none relative block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                    placeholder="Иван"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-slate-200">
+                    Фамилия *
+                  </label>
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    required
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    className="mt-1 appearance-none relative block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                    placeholder="Петров"
+                  />
+                </div>
             </div>
 
             <div>
@@ -404,6 +409,27 @@ function RegisterForm() {
                     />
                   </div>
                 )}
+
+                {/* Tier Selection Button */}
+                <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">Избран план</h3>
+                      <p className="text-sm text-indigo-400 mt-1">
+                        {formData.subscription_tier_id === 'free' && 'Безплатен - 0 лв'}
+                        {formData.subscription_tier_id === 'normal' && 'Нормален - 250 лв/месец'}
+                        {formData.subscription_tier_id === 'pro' && 'Професионален - 350 лв/месец'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowTierSelection(true)}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                      Промени
+                    </button>
+                  </div>
+                </div>
               </>
             )}
 
@@ -511,6 +537,33 @@ function RegisterForm() {
           </form>
         </div>
       </div>
+
+      {/* Tier Selection Modal */}
+      {showTierSelection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="relative w-full max-w-2xl bg-slate-800 rounded-2xl shadow-2xl border border-white/10 p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">Изберете вашия план</h2>
+              <button
+                onClick={() => setShowTierSelection(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <TierSelector
+              selectedTier={formData.subscription_tier_id}
+              onSelectTier={(tier) => {
+                handleInputChange('subscription_tier_id', tier)
+                setShowTierSelection(false)
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

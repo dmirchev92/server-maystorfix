@@ -52,7 +52,8 @@ export function Header() {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
-        avatar: (user as any).profileImageUrl || undefined
+        avatar: (user as any).profileImageUrl || undefined,
+        subscription_tier_id: (user as any).subscription_tier_id
       } : undefined}
       unreadCount={unreadCount}
       onLogout={handleLogout}

@@ -24,6 +24,7 @@ import authRoutes from './controllers/authController';
 import gdprRoutes from './controllers/gdprController';
 import messagingRoutes from './controllers/messagingController';
 import adminRoutes from './controllers/adminController';
+import subscriptionController from './controllers/subscriptionController';
 import * as marketplaceController from './controllers/marketplaceController';
 import * as chatTokenController from './controllers/chatTokenController';
 import * as referralController from './controllers/referralController';
@@ -37,6 +38,8 @@ import * as notificationController from './controllers/notificationController';
 import * as reviewController from './controllers/reviewController';
 import * as deviceTokenController from './controllers/deviceTokenController';
 import { authenticateToken } from './middleware/auth';
+import { checkTrialStatus, addTrialInfo } from './middleware/trialCheck';
+import trialCleanupService from './services/TrialCleanupService';
 import { DatabaseFactory } from './models/DatabaseFactory';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
@@ -367,11 +370,15 @@ class ServiceTextProServer {
       next();
     });
 
-    // Mount route controllers
+    // Mount route controllers FIRST (before global middleware)
     this.app.use('/api/v1/auth', authRoutes);
     this.app.use('/api/v1/gdpr', gdprRoutes);
     this.app.use('/api/v1/messaging', messagingRoutes);
     this.app.use('/api/v1/admin', adminRoutes);
+    this.app.use('/api/v1/subscriptions', subscriptionController);
+    
+    // NOTE: Trial check is now done at specific endpoints (like acceptCase)
+    // Not globally, so users can still access their existing cases
     
     // Marketplace routes
     this.app.get('/api/v1/marketplace/providers/search', marketplaceController.searchProviders);
@@ -749,6 +756,10 @@ public start(): void {
 
     // Start automatic cleanup of expired tokens
     this.initializeTokenCleanup();
+
+    // Start trial cleanup service (checks expired trials every hour)
+    trialCleanupService.start();
+    logger.info('✅ Trial cleanup service started');
 
   } catch (error) {
     logger.error('Failed to start server', { error: error instanceof Error ? error.message : 'Unknown error' });

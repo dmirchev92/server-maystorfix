@@ -39,6 +39,7 @@ export interface RegisterData {
   neighborhood?: string;
   role: UserRole;
   businessId?: string;
+  subscription_tier_id?: string;
   gdprConsents: ConsentType[];
   ipAddress?: string;
   userAgent?: string;
@@ -108,6 +109,10 @@ export class AuthService {
       // Calculate data retention period
       const dataRetentionUntil = this.calculateDataRetentionDate(userData.role);
 
+      // Determine subscription tier
+      const subscriptionTier = userData.role === UserRole.TRADESPERSON ? (userData.subscription_tier_id || 'free') : undefined;
+      const isFreeTrialUser = userData.role === UserRole.TRADESPERSON && subscriptionTier === 'free';
+
       // Create user object
       const user: User = {
         id: uuidv4(),
@@ -119,6 +124,11 @@ export class AuthService {
         lastName: userData.lastName,
         phoneNumber: userData.phoneNumber,
         businessId: userData.businessId,
+        subscription_tier_id: subscriptionTier,
+        subscription_status: userData.role === UserRole.TRADESPERSON ? 'active' : undefined,
+        trial_started_at: isFreeTrialUser ? new Date() : undefined,
+        trial_cases_used: isFreeTrialUser ? 0 : undefined,
+        trial_expired: isFreeTrialUser ? false : undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
         gdprConsents: gdprConsents.map(consent => ({ ...consent, userId: '' })), // Will be updated
@@ -357,6 +367,34 @@ export class AuthService {
       // Check data retention
       if (user.dataRetentionUntil < new Date()) {
         throw new ServiceTextProError('Account data expired', 'DATA_EXPIRED', 410);
+      }
+
+      // Check trial status for FREE tier users and auto-disable SMS if expired
+      if (user.role === UserRole.TRADESPERSON && user.subscription_tier_id === 'free') {
+        try {
+          const trialService = require('./TrialService').default;
+          const trialStatus = await trialService.checkTrialStatus(user.id);
+          
+          if (trialStatus.isExpired) {
+            logger.info('📵 Trial expired on login - auto-disabling SMS', { 
+              userId: user.id, 
+              reason: trialStatus.reason 
+            });
+            
+            // Auto-disable SMS
+            const db = require('../models/DatabaseFactory').DatabaseFactory.getDatabase();
+            await db.query(
+              `UPDATE sms_settings SET is_enabled = FALSE, updated_at = NOW() WHERE user_id = $1`,
+              [user.id]
+            );
+            
+            logger.info('✅ SMS auto-disabled on login due to trial expiration', { 
+              userId: user.id 
+            });
+          }
+        } catch (trialError) {
+          logger.error('❌ Error checking trial on login:', trialError);
+        }
       }
 
       // Update last login

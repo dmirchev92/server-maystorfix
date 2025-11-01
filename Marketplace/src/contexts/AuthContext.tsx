@@ -1,6 +1,8 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { redirectIfTrialExpired } from '@/lib/trialCheck'
 
 interface User {
   id: string
@@ -30,11 +32,16 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const pathname = usePathname()
 
   useEffect(() => {
     // Check for existing auth token on app load
     checkAuthStatus()
   }, [])
+
+  // NOTE: Removed auto-redirect on route change
+  // Trial limits are now enforced at API level (case acceptance)
+  // Users can still access their existing cases and dashboard
 
   const checkAuthStatus = async () => {
     try {

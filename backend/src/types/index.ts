@@ -64,6 +64,12 @@ export interface User {
   phoneNumber: string;
   profilePictureUrl?: string;
   businessId?: string;
+  subscription_tier_id?: string;
+  subscription_status?: string;
+  subscription_expires_at?: Date;
+  trial_started_at?: Date;
+  trial_cases_used?: number;
+  trial_expired?: boolean;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
@@ -434,3 +440,6 @@ export class DataRetentionError extends ServiceTextProError {
     this.name = 'DataRetentionError';
   }
 }
+
+// Export subscription types
+export * from './subscription';

@@ -96,7 +96,12 @@ const validateRegistration = [
   body('businessId')
     .optional()
     .isUUID()
-    .withMessage('Valid business ID is required if provided')
+    .withMessage('Valid business ID is required if provided'),
+  
+  body('subscription_tier_id')
+    .optional()
+    .isIn(['free', 'normal', 'pro'])
+    .withMessage('Valid subscription tier is required (free, normal, or pro)')
 ];
 
 /**
@@ -206,7 +211,8 @@ router.post('/register',
         gdprConsents,
         serviceCategory,
         companyName,
-        neighborhood
+        neighborhood,
+        subscription_tier_id
       } = req.body;
 
       console.log('🔍 Backend received registration data:', {
@@ -215,6 +221,7 @@ router.post('/register',
         serviceCategory,
         companyName,
         neighborhood,
+        subscription_tier_id,
         hasNeighborhood: !!neighborhood
       });
 
@@ -235,6 +242,7 @@ router.post('/register',
         serviceCategory,
         companyName,
         neighborhood,
+        subscription_tier_id: subscription_tier_id || 'free',
         ipAddress: req.ip,
         userAgent: req.get('User-Agent')
       });

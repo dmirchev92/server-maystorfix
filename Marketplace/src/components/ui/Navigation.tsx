@@ -14,6 +14,7 @@ interface NavigationProps {
     email: string;
     role: string;
     avatar?: string;
+    subscription_tier_id?: 'free' | 'normal' | 'pro';
   };
   unreadCount?: number;
   onLogout?: () => void;
@@ -23,6 +24,22 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const router = useRouter();
+
+  const getTierBadge = (tier?: 'free' | 'normal' | 'pro') => {
+    if (!tier || tier === 'free') return null;
+    
+    const tierConfig = {
+      normal: { label: 'NORMAL', color: 'bg-green-500/20 text-green-300 border-green-400/30' },
+      pro: { label: 'PRO', color: 'bg-purple-500/20 text-purple-300 border-purple-400/30' }
+    };
+    
+    const config = tierConfig[tier];
+    return (
+      <span className={cn("text-xs px-2 py-0.5 rounded-full font-bold border", config.color)}>
+        {config.label}
+      </span>
+    );
+  };
 
   const navigationItems = [
     { href: '/', label: 'Начало', icon: '🏠' },
@@ -99,9 +116,12 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
                     )}
                   </div>
                   <div className="hidden sm:block text-left">
-                    <p className="text-sm font-medium text-white">
-                      {user.firstName} {user.lastName}
-                    </p>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-white">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      {(user.role === 'tradesperson' || user.role === 'service_provider') && getTierBadge(user.subscription_tier_id)}
+                    </div>
                     <div className="flex items-center space-x-2">
                       <span className={cn(
                         "text-xs px-2 py-0.5 rounded-full font-medium",

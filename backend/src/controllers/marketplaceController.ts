@@ -226,38 +226,38 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
         spp.profile_image_url, spp.rating, spp.total_reviews, spp.is_active
       FROM users u
       LEFT JOIN service_provider_profiles spp ON u.id = spp.user_id
-      WHERE u.role = 'tradesperson' AND (spp.is_active = TRUE OR spp.is_active IS NULL)
+      WHERE u.role = 'tradesperson' 
+        AND (spp.is_active = TRUE OR spp.is_active IS NULL)
+        AND (
+          u.subscription_tier_id != 'free' 
+          OR u.trial_expired = FALSE 
+          OR u.trial_expired IS NULL
+        )
     `;
 
     const params: any[] = [];
+    let paramIndex = 1;
 
     if (city) {
-      query += ' AND spp.city = ?';
+      query += ` AND spp.city = $${paramIndex++}`;
       params.push(city);
     }
 
     if (neighborhood) {
-      query += ' AND spp.neighborhood = ?';
+      query += ` AND spp.neighborhood = $${paramIndex++}`;
       params.push(neighborhood);
     }
 
     if (category) {
-      query += ' AND spp.service_category = ?';
+      query += ` AND spp.service_category = $${paramIndex++}`;
       params.push(category);
     }
 
-    query += ' ORDER BY spp.created_at DESC LIMIT ? OFFSET ?';
+    query += ` ORDER BY spp.created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     params.push(Number(limit), Number(offset));
 
-    const providers = await new Promise<any[]>((resolve, reject) => {
-      db.db.all(query, params, (err: any, rows: any) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows || []);
-        }
-      });
-    });
+    // Use PostgreSQL query
+    const providers = await (db as any).query(query, params);
 
     // Transform the data
     const transformedProviders = providers.map(provider => ({

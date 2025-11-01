@@ -461,6 +461,43 @@ export class ApiService {
     console.log('💳 ApiService - Getting income transactions by method:', paymentMethod);
     return this.makeRequest(`/income/provider/${providerId}/method/${encodeURIComponent(paymentMethod)}`);
   }
+
+  // Subscription methods
+  public async getSubscriptionTiers(): Promise<APIResponse> {
+    console.log('🎯 ApiService - Getting subscription tiers');
+    return this.makeRequest('/subscriptions/tiers');
+  }
+
+  public async getTierComparison(): Promise<APIResponse> {
+    console.log('📊 ApiService - Getting tier comparison');
+    return this.makeRequest('/subscriptions/tiers/comparison');
+  }
+
+  public async getMySubscription(): Promise<APIResponse> {
+    console.log('💎 ApiService - Getting my subscription');
+    return this.makeRequest('/subscriptions/my-subscription');
+  }
+
+  public async upgradeSubscription(tierId: string, paymentMethod?: string, autoRenew?: boolean): Promise<APIResponse> {
+    console.log('⬆️ ApiService - Upgrading subscription to:', tierId);
+    return this.makeRequest('/subscriptions/upgrade', {
+      method: 'POST',
+      body: JSON.stringify({ tier_id: tierId, payment_method: paymentMethod, auto_renew: autoRenew }),
+    });
+  }
+
+  public async cancelSubscription(subscriptionId: string, reason?: string, immediate?: boolean): Promise<APIResponse> {
+    console.log('❌ ApiService - Cancelling subscription:', subscriptionId);
+    return this.makeRequest('/subscriptions/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ subscription_id: subscriptionId, reason, immediate }),
+    });
+  }
+
+  public async checkFeatureAccess(feature: string): Promise<APIResponse> {
+    console.log('🔍 ApiService - Checking feature access:', feature);
+    return this.makeRequest(`/subscriptions/feature-access/${feature}`);
+  }
 }
 
 export default ApiService;
