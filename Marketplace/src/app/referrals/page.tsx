@@ -26,7 +26,7 @@ interface ReferredUser {
 interface ReferralReward {
   id: string
   referralId?: string
-  rewardType: 'sms_30' | 'free_normal_month' | 'free_pro_month'
+  rewardType: 'sms_30' | 'signup_bonus_15' | 'free_normal_month' | 'free_pro_month'
   rewardValue: number
   clicksRequired: number
   clicksAchieved: number
@@ -64,6 +64,7 @@ export default function ReferralDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
+  const [claimingReward, setClaimingReward] = useState<string | null>(null)
 
   useEffect(() => {
     console.log('🔍 Referrals page - Auth state:', { 
@@ -212,6 +213,7 @@ export default function ReferralDashboard() {
   const getRewardTypeLabel = (type: string) => {
     switch (type) {
       case 'sms_30': return '30 SMS'
+      case 'signup_bonus_15': return '15 SMS (Signup Bonus)'
       case 'free_normal_month': return 'Безплатен Normal месец'
       case 'free_pro_month': return 'Безплатен Pro месец'
       case 'discount_10': return '10% отстъпка'
@@ -354,22 +356,54 @@ export default function ReferralDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {dashboard.totalRewards.map((reward) => (
-                  <div key={reward.id} className="border border-white/20 rounded-lg p-3 bg-white/5">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-white">
-                        {getRewardTypeLabel(reward.rewardType)}
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRewardStatusColor(reward.status)}`}>
-                        {reward.status === 'earned' ? 'Спечелена' : reward.status === 'applied' ? 'Приложена' : 'Изтекла'}
-                      </span>
+                {dashboard.totalRewards.map((reward) => {
+                  // Find the referred user for signup bonuses
+                  const referredUser = reward.referralId 
+                    ? dashboard.referredUsers.find(u => u.referralId === reward.referralId)
+                    : null;
+                  
+                  const isSignupBonus = reward.rewardType === 'signup_bonus_15';
+                  
+                  // Determine reason and reward text
+                  let reasonText = '';
+                  let rewardText = '';
+                  
+                  if (isSignupBonus && referredUser) {
+                    reasonText = `Препоръка ${referredUser.referredUser.businessName || `${referredUser.referredUser.firstName} ${referredUser.referredUser.lastName}`}`;
+                    rewardText = '15 SMS';
+                  } else if (reward.rewardType === 'sms_30' && referredUser) {
+                    reasonText = `50 кликове на профил ${referredUser.referredUser.businessName || `${referredUser.referredUser.firstName} ${referredUser.referredUser.lastName}`}`;
+                    rewardText = '30 SMS';
+                  } else if (reward.rewardType === 'free_normal_month') {
+                    reasonText = '250 кликове общо';
+                    rewardText = 'Безплатен Normal месец';
+                  } else if (reward.rewardType === 'free_pro_month') {
+                    reasonText = '500 кликове общо';
+                    rewardText = 'Безплатен Pro месец';
+                  } else {
+                    reasonText = getRewardTypeLabel(reward.rewardType);
+                    rewardText = '';
+                  }
+                  
+                  return (
+                    <div key={reward.id} className="border border-white/20 rounded-lg p-3 bg-white/5">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="font-medium text-white">{reasonText}</div>
+                          {rewardText && (
+                            <div className="text-sm text-green-400 mt-1">Награда: {rewardText}</div>
+                          )}
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRewardStatusColor(reward.status)}`}>
+                          {reward.status === 'earned' ? 'Спечелена' : reward.status === 'applied' ? 'Приложена' : 'Изтекла'}
+                        </span>
+                      </div>
+                      <div className="text-sm text-slate-300">
+                        <p>Спечелена: {new Date(reward.earnedAt).toLocaleDateString('bg-BG')}</p>
+                      </div>
                     </div>
-                    <div className="text-sm text-slate-300">
-                      <p>{reward.clicksAchieved} от {reward.clicksRequired} кликове</p>
-                      <p>Спечелена: {new Date(reward.earnedAt).toLocaleDateString('bg-BG')}</p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

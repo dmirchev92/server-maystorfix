@@ -525,9 +525,9 @@ export class ReferralService {
                         lastName: referral.last_name,
                         businessName: referral.business_name
                       },
-                      totalClicks: stats.total_clicks || 0,
-                      validClicks: stats.valid_clicks || 0,
-                      monthlyClicks: stats.monthly_clicks || 0,
+                      totalClicks: parseInt(stats.total_clicks) || 0,
+                      validClicks: parseInt(stats.valid_clicks) || 0,
+                      monthlyClicks: parseInt(stats.monthly_clicks) || 0,
                       status: referral.status,
                       profileUrl: referral.profile_id ? `/provider/${referral.profile_id}` : '#'
                     });
@@ -919,6 +919,149 @@ export class ReferralService {
                 message: '30 SMS successfully added to your account!',
                 smsAdded: 30
               });
+            }
+          );
+        }
+      );
+    });
+  }
+
+  /**
+   * Award signup bonus when someone registers via referral with NORMAL or PRO tier
+   * Both referrer and referee get 15 SMS
+   */
+  async awardSignupBonus(referralCode: string, referredUserId: string, subscriptionTier: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Only award for NORMAL or PRO tiers
+      if (subscriptionTier !== 'normal' && subscriptionTier !== 'pro') {
+        console.log(`ℹ️ No signup bonus for tier: ${subscriptionTier}`);
+        resolve();
+        return;
+      }
+
+      // Find the referrer by referral code
+      this.db.db.get(
+        'SELECT user_id FROM sp_referral_codes WHERE referral_code = ?',
+        [referralCode],
+        (err, row: any) => {
+          if (err) {
+            console.error('Error finding referrer:', err);
+            reject(err);
+            return;
+          }
+
+          if (!row) {
+            console.log('❌ Invalid referral code for signup bonus');
+            resolve(); // Don't fail, just skip bonus
+            return;
+          }
+
+          const referrerUserId = row.user_id;
+
+          console.log(`🎁 Awarding signup bonus: ${subscriptionTier} tier registration`);
+          console.log(`   Referrer: ${referrerUserId}`);
+          console.log(`   Referee: ${referredUserId}`);
+
+          // Find the referral ID
+          this.db.db.get(
+            'SELECT id FROM sp_referrals WHERE referrer_user_id = ? AND referred_user_id = ?',
+            [referrerUserId, referredUserId],
+            (refErr, referralRow: any) => {
+              const referralId = referralRow?.id;
+
+              // Award 15 SMS to referrer
+              this.db.db.run(
+                `INSERT INTO sp_sms_packages (id, user_id, package_type, sms_count, price, currency, purchased_at, sms_used, sms_remaining, status, expires_at)
+                 VALUES (?, ?, ?, ?, ?, ?, NOW(), 0, ?, ?, NOW() + INTERVAL '1 year')`,
+                [
+                  'signup_bonus_referrer_' + this.generateId(),
+                  referrerUserId,
+                  'signup_bonus',
+                  15,
+                  0,
+                  'BGN',
+                  15,
+                  'active'
+                ],
+                (referrerErr) => {
+                  if (referrerErr) {
+                    console.error('❌ Error awarding SMS to referrer:', referrerErr);
+                  } else {
+                    console.log(`✅ Awarded 15 SMS to referrer: ${referrerUserId}`);
+                    
+                    // Create reward record for referrer
+                    if (referralId) {
+                      this.db.db.run(
+                        `INSERT INTO referral_rewards (id, referral_id, referrer_user_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, status, is_aggregate)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+                        [
+                          'reward_signup_referrer_' + this.generateId(),
+                          referralId,
+                          referrerUserId,
+                          'signup_bonus_15',
+                          15,
+                          0,
+                          0,
+                          'applied',
+                          false
+                        ],
+                        (rewardErr) => {
+                          if (rewardErr) console.error('Error creating referrer reward record:', rewardErr);
+                        }
+                      );
+                    }
+                  }
+
+                  // Award 15 SMS to referee
+                  this.db.db.run(
+                    `INSERT INTO sp_sms_packages (id, user_id, package_type, sms_count, price, currency, purchased_at, sms_used, sms_remaining, status, expires_at)
+                     VALUES (?, ?, ?, ?, ?, ?, NOW(), 0, ?, ?, NOW() + INTERVAL '1 year')`,
+                    [
+                      'signup_bonus_referee_' + this.generateId(),
+                      referredUserId,
+                      'signup_bonus',
+                      15,
+                      0,
+                      'BGN',
+                      15,
+                      'active'
+                    ],
+                    (refereeErr) => {
+                      if (refereeErr) {
+                        console.error('❌ Error awarding SMS to referee:', refereeErr);
+                        reject(refereeErr);
+                      } else {
+                        console.log(`✅ Awarded 15 SMS to referee: ${referredUserId}`);
+                        
+                        // Create reward record for referee
+                        if (referralId) {
+                          this.db.db.run(
+                            `INSERT INTO referral_rewards (id, referral_id, referrer_user_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, status, is_aggregate)
+                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
+                            [
+                              'reward_signup_referee_' + this.generateId(),
+                              referralId,
+                              referredUserId,
+                              'signup_bonus_15',
+                              15,
+                              0,
+                              0,
+                              'applied',
+                              false
+                            ],
+                            (rewardErr) => {
+                              if (rewardErr) console.error('Error creating referee reward record:', rewardErr);
+                            }
+                          );
+                        }
+                        
+                        console.log(`🎉 Signup bonus complete! Both users received 15 SMS`);
+                        resolve();
+                      }
+                    }
+                  );
+                }
+              );
             }
           );
         }

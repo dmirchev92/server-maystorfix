@@ -134,6 +134,8 @@ export class AuthService {
       */
 
       // Check IP and Phone-based abuse prevention for FREE tier
+      // TEMPORARILY DISABLED FOR TESTING
+      /*
       if (isFreeTrialUser) {
         // Check by IP address
         if (userData.ipAddress) {
@@ -183,6 +185,7 @@ export class AuthService {
           }
         }
       }
+      */
 
       // Create user object
       const user: User = {

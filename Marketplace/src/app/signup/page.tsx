@@ -25,6 +25,7 @@ export default function SignupPage() {
     serviceCategory: '',
     city: '',
     neighborhood: '',
+    subscriptionTier: 'free' as 'free' | 'normal' | 'pro',
     agreeToTerms: false
   })
 
@@ -90,6 +91,7 @@ export default function SignupPage() {
         password: formData.password,
         phoneNumber: formData.phoneNumber.startsWith('+359') ? formData.phoneNumber : `+359${formData.phoneNumber.replace(/^0/, '')}`,
         role: 'tradesperson',
+        subscription_tier_id: formData.subscriptionTier,
         gdprConsents: ['essential_service']
       }
       
@@ -160,7 +162,8 @@ export default function SignupPage() {
             },
             body: JSON.stringify({
               referralCode,
-              referredUserId: userId
+              referredUserId: userId,
+              subscriptionTier: formData.subscriptionTier
             }),
           })
           
@@ -431,6 +434,91 @@ export default function SignupPage() {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Subscription Tier */}
+              <div>
+                <h2 className="text-xl font-semibold text-white mb-4">💎 Изберете план</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* FREE Tier */}
+                  <div 
+                    onClick={() => setFormData(prev => ({ ...prev, subscriptionTier: 'free' }))}
+                    className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                      formData.subscriptionTier === 'free' 
+                        ? 'border-indigo-500 bg-indigo-500/20' 
+                        : 'border-white/20 bg-white/5 hover:border-white/40'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <h3 className="text-lg font-bold text-white mb-1">FREE</h3>
+                      <p className="text-2xl font-bold text-white mb-2">0 лв</p>
+                      <p className="text-xs text-slate-300 mb-3">на месец</p>
+                      <ul className="text-xs text-slate-300 space-y-1 text-left">
+                        <li>✓ 5 SMS месечно</li>
+                        <li>✓ До 5 снимки</li>
+                        <li>✓ Основна видимост</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* NORMAL Tier */}
+                  <div 
+                    onClick={() => setFormData(prev => ({ ...prev, subscriptionTier: 'normal' }))}
+                    className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                      formData.subscriptionTier === 'normal' 
+                        ? 'border-green-500 bg-green-500/20' 
+                        : 'border-white/20 bg-white/5 hover:border-white/40'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="inline-block bg-green-500 text-white text-xs px-2 py-1 rounded mb-1">
+                        🎁 +15 SMS бонус
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-1">NORMAL</h3>
+                      <p className="text-2xl font-bold text-white mb-2">20 лв</p>
+                      <p className="text-xs text-slate-300 mb-3">на месец</p>
+                      <ul className="text-xs text-slate-300 space-y-1 text-left">
+                        <li>✓ 25 SMS месечно</li>
+                        <li>✓ До 20 снимки</li>
+                        <li>✓ Подобрена видимост</li>
+                        <li>✓ Премиум значка</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* PRO Tier */}
+                  <div 
+                    onClick={() => setFormData(prev => ({ ...prev, subscriptionTier: 'pro' }))}
+                    className={`cursor-pointer p-4 rounded-lg border-2 transition-all ${
+                      formData.subscriptionTier === 'pro' 
+                        ? 'border-purple-500 bg-purple-500/20' 
+                        : 'border-white/20 bg-white/5 hover:border-white/40'
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="inline-block bg-purple-500 text-white text-xs px-2 py-1 rounded mb-1">
+                        🎁 +15 SMS бонус
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-1">PRO</h3>
+                      <p className="text-2xl font-bold text-white mb-2">50 лв</p>
+                      <p className="text-xs text-slate-300 mb-3">на месец</p>
+                      <ul className="text-xs text-slate-300 space-y-1 text-left">
+                        <li>✓ 100 SMS месечно</li>
+                        <li>✓ До 50 снимки</li>
+                        <li>✓ Максимална видимост</li>
+                        <li>✓ PRO значка</li>
+                        <li>✓ Приоритетна поддръжка</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                {referralCode && referralValid && (formData.subscriptionTier === 'normal' || formData.subscriptionTier === 'pro') && (
+                  <div className="mt-4 p-3 bg-green-500/20 border border-green-400/30 rounded-lg">
+                    <p className="text-sm text-green-300 text-center">
+                      🎉 Вие и {referrerName} ще получите по 15 безплатни SMS при регистрация!
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Password */}

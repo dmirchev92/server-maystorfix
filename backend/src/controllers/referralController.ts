@@ -127,7 +127,7 @@ export const trackProfileClick = async (req: Request, res: Response): Promise<vo
  */
 export const createReferral = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { referralCode, referredUserId } = req.body;
+    const { referralCode, referredUserId, subscriptionTier } = req.body;
 
     if (!referralCode || !referredUserId) {
       res.status(400).json({ error: 'Referral code and referred user ID are required' });
@@ -135,6 +135,17 @@ export const createReferral = async (req: Request, res: Response): Promise<void>
     }
 
     const referralId = await referralService.createReferral(referralCode, referredUserId);
+
+    // Award signup bonus if user registered with NORMAL or PRO tier
+    if (subscriptionTier && (subscriptionTier === 'normal' || subscriptionTier === 'pro')) {
+      try {
+        await referralService.awardSignupBonus(referralCode, referredUserId, subscriptionTier);
+        console.log(`🎁 Signup bonus awarded for ${subscriptionTier} tier registration`);
+      } catch (bonusError) {
+        console.error('❌ Error awarding signup bonus:', bonusError);
+        // Don't fail the referral creation if bonus fails
+      }
+    }
 
     res.json({
       success: true,
