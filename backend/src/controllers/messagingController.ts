@@ -354,7 +354,7 @@ router.post('/sms/send',
     }
 
     // For now, we'll simulate SMS sending
-    // In production, integrate with SMS provider like Twilio, Nexmo, etc.
+    // In production, use Mobica SMS service
     const success = true; // Simulate successful SMS sending
 
     if (success) {

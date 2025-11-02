@@ -18,6 +18,7 @@ export type MainTabParamList = {
   Settings: undefined;
   EditProfile: undefined;
   ChangePassword: undefined;
+  Subscription: undefined;
 };
 
 export type SettingsStackParamList = {

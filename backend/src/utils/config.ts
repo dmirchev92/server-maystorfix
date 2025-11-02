@@ -191,10 +191,10 @@ export const config = {
       }
     },
     sms: {
-      twilio: {
-        accountSid: process.env.TWILIO_ACCOUNT_SID,
-        authToken: process.env.TWILIO_AUTH_TOKEN,
-        phoneNumber: process.env.TWILIO_PHONE_NUMBER
+      mobica: {
+        username: process.env.MOBICA_USERNAME,
+        password: process.env.MOBICA_PASSWORD,
+        senderId: process.env.MOBICA_SENDER_ID || 'MaystorFix'
       }
     },
     push: {

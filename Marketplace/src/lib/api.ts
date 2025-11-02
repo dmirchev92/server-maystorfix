@@ -657,6 +657,26 @@ class ApiClient {
     console.log('⏳ API Client - Getting pending reviews')
     return this.client.get('/reviews/pending')
   }
+
+  // Subscription Methods
+  async upgradeSubscription(tier: 'normal' | 'pro') {
+    console.log('💳 API Client - Upgrading subscription to:', tier)
+    return this.client.post('/subscriptions/upgrade', {
+      tier_id: tier,
+      payment_method: 'pending',
+      auto_renew: false
+    })
+  }
+
+  async getSubscriptionTiers() {
+    console.log('📋 API Client - Getting subscription tiers')
+    return this.client.get('/subscriptions/tiers')
+  }
+
+  async getMySubscription() {
+    console.log('📋 API Client - Getting my subscription')
+    return this.client.get('/subscriptions/my-subscription')
+  }
 }
 
 // Export singleton instance

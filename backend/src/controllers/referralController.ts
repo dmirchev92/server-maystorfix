@@ -236,6 +236,98 @@ export const applyReward = async (req: Request, res: Response): Promise<void> =>
 };
 
 /**
+ * Get aggregate referral progress
+ */
+export const getAggregateProgress = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    const progress = await referralService.getAggregateProgress(userId);
+
+    res.json({
+      success: true,
+      data: progress
+    });
+  } catch (error) {
+    console.error('Error getting aggregate progress:', error);
+    res.status(500).json({ error: 'Failed to get aggregate progress' });
+  }
+};
+
+/**
+ * Generate claim token for reward (no SMS)
+ */
+export const generateClaimToken = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+    const { rewardId } = req.body;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
+
+    if (!rewardId) {
+      res.status(400).json({ error: 'Reward ID is required' });
+      return;
+    }
+
+    const result = await referralService.generateClaimToken(userId, rewardId);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        token: result.token
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.message
+      });
+    }
+  } catch (error) {
+    console.error('Error generating claim token:', error);
+    res.status(500).json({ error: 'Failed to generate claim token' });
+  }
+};
+
+/**
+ * Claim SMS reward using token
+ */
+export const claimSMSReward = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token } = req.params;
+
+    if (!token) {
+      res.status(400).json({ error: 'Token is required' });
+      return;
+    }
+
+    const result = await referralService.claimSMSReward(token);
+
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        smsAdded: result.smsAdded
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.message
+      });
+    }
+  } catch (error) {
+    console.error('Error claiming SMS reward:', error);
+    res.status(500).json({ error: 'Failed to claim SMS reward' });
+  }
+};
+
+/**
  * Validate referral code (for signup page)
  */
 export const validateReferralCode = async (req: Request, res: Response): Promise<void> => {

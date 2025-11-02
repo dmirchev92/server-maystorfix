@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { apiClient } from '@/lib/api'
 
 export default function UpgradeRequiredPage() {
   const router = useRouter()
   const [trialInfo, setTrialInfo] = useState<any>(null)
+  const [upgrading, setUpgrading] = useState(false)
+  const [upgradingTier, setUpgradingTier] = useState<string | null>(null)
 
   useEffect(() => {
     // Get user data from localStorage
@@ -25,6 +28,43 @@ export default function UpgradeRequiredPage() {
       }
     }
   }, [])
+
+  const handleUpgrade = async (tier: 'normal' | 'pro') => {
+    try {
+      setUpgrading(true)
+      setUpgradingTier(tier)
+      
+      console.log('🚀 Upgrading to tier:', tier)
+      
+      const response = await apiClient.upgradeSubscription(tier)
+      
+      console.log('✅ Upgrade response:', response)
+      
+      if (response.data?.success) {
+        // Update local user data
+        const userData = localStorage.getItem('user_data')
+        if (userData) {
+          const user = JSON.parse(userData)
+          user.subscription_tier_id = tier
+          user.trial_expired = false
+          localStorage.setItem('user_data', JSON.stringify(user))
+        }
+        
+        alert(`🎉 Успешно надстроихте до ${tier === 'normal' ? 'Нормален' : 'Професионален'} план!\n\nНашият екип ще се свърже с вас за финализиране на плащането.`)
+        
+        // Redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        alert('❌ Грешка при надстройване: ' + (response.data?.error?.message || 'Неизвестна грешка'))
+      }
+    } catch (error: any) {
+      console.error('❌ Upgrade error:', error)
+      alert('❌ Грешка при надстройване: ' + (error.response?.data?.error?.message || error.message || 'Неизвестна грешка'))
+    } finally {
+      setUpgrading(false)
+      setUpgradingTier(null)
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token')
@@ -73,11 +113,17 @@ export default function UpgradeRequiredPage() {
 
         {/* Tier Options */}
         <div className="space-y-3 mb-6">
-          <Link href="/subscriptions/upgrade?tier=normal" className="block">
-            <div className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-lg p-4 transition-all cursor-pointer">
+          <button 
+            onClick={() => handleUpgrade('normal')}
+            disabled={upgrading}
+            className="block w-full text-left"
+          >
+            <div className={`bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 rounded-lg p-4 transition-all cursor-pointer ${upgrading && upgradingTier === 'normal' ? 'opacity-50 cursor-wait' : ''}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-white">Нормален План</h3>
+                  <h3 className="text-lg font-bold text-white">
+                    {upgrading && upgradingTier === 'normal' ? '⏳ Надстройване...' : 'Нормален План'}
+                  </h3>
                   <p className="text-sm text-green-100">5 категории • 20 снимки • 50 приемания/месец</p>
                 </div>
                 <div className="text-right">
@@ -86,13 +132,19 @@ export default function UpgradeRequiredPage() {
                 </div>
               </div>
             </div>
-          </Link>
+          </button>
 
-          <Link href="/subscriptions/upgrade?tier=pro" className="block">
-            <div className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg p-4 transition-all cursor-pointer">
+          <button 
+            onClick={() => handleUpgrade('pro')}
+            disabled={upgrading}
+            className="block w-full text-left"
+          >
+            <div className={`bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 rounded-lg p-4 transition-all cursor-pointer ${upgrading && upgradingTier === 'pro' ? 'opacity-50 cursor-wait' : ''}`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-white">Професионален План</h3>
+                  <h3 className="text-lg font-bold text-white">
+                    {upgrading && upgradingTier === 'pro' ? '⏳ Надстройване...' : 'Професионален План'}
+                  </h3>
                   <p className="text-sm text-purple-100">Неограничено • Наддаване • Приоритет</p>
                 </div>
                 <div className="text-right">
@@ -101,7 +153,7 @@ export default function UpgradeRequiredPage() {
                 </div>
               </div>
             </div>
-          </Link>
+          </button>
         </div>
 
         {/* Actions */}

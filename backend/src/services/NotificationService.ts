@@ -7,7 +7,7 @@ import { FCMService } from './FCMService';
 interface Notification {
   id: string;
   user_id: string;
-  type: 'case_assigned' | 'case_accepted' | 'case_completed' | 'case_declined' | 'new_case_available' | 'review_request';
+  type: 'case_assigned' | 'case_accepted' | 'case_completed' | 'case_declined' | 'new_case_available' | 'review_request' | 'trial_expiring_soon' | 'trial_expired' | 'subscription_upgrade_required';
   title: string;
   message: string;
   data?: any;
@@ -685,6 +685,81 @@ export class NotificationService {
       'Оценете услугата',
       `Моля оценете работата на ${providerName}. Вашето мнение е важно за нас.`,
       { caseId }
+    );
+  }
+
+  /**
+   * Notify user that their trial is expiring soon
+   */
+  async notifyTrialExpiringSoon(userId: string, casesRemaining: number, daysRemaining: number): Promise<void> {
+    const title = '⚠️ Безплатният период скоро изтича';
+    let message = '';
+    
+    if (casesRemaining <= 2 && casesRemaining > 0) {
+      message = `Имате още ${casesRemaining} ${casesRemaining === 1 ? 'заявка' : 'заявки'} в безплатния период. Надстройте сега за неограничен достъп!`;
+    } else if (daysRemaining <= 3 && daysRemaining > 0) {
+      message = `Безплатният ви период изтича след ${daysRemaining} ${daysRemaining === 1 ? 'ден' : 'дни'}. Надстройте сега за да продължите да използвате платформата!`;
+    } else {
+      message = 'Вашият безплатен период скоро изтича. Надстройте сега за неограничен достъп!';
+    }
+
+    await this.createNotification(
+      userId,
+      'trial_expiring_soon',
+      title,
+      message,
+      { 
+        casesRemaining, 
+        daysRemaining,
+        action: 'upgrade',
+        upgradeUrl: '/upgrade-required'
+      }
+    );
+  }
+
+  /**
+   * Notify user that their trial has expired
+   */
+  async notifyTrialExpired(userId: string, reason: 'cases_limit' | 'time_limit'): Promise<void> {
+    const title = '🔒 Безплатният период изтече';
+    let message = '';
+    
+    if (reason === 'cases_limit') {
+      message = 'Достигнахте максимума от 5 заявки за безплатния план. Надстройте сега за да продължите да приемате заявки!';
+    } else {
+      message = 'Вашият 14-дневен пробен период приключи. Надстройте сега за да продължите да използвате платформата!';
+    }
+
+    await this.createNotification(
+      userId,
+      'trial_expired',
+      title,
+      message,
+      { 
+        reason,
+        action: 'upgrade_required',
+        upgradeUrl: '/upgrade-required'
+      }
+    );
+  }
+
+  /**
+   * Notify user that they need to upgrade to continue
+   */
+  async notifySubscriptionUpgradeRequired(userId: string, feature: string): Promise<void> {
+    const title = '💳 Надстройване необходимо';
+    const message = `За да използвате "${feature}", моля надстройте вашия абонамент.`;
+
+    await this.createNotification(
+      userId,
+      'subscription_upgrade_required',
+      title,
+      message,
+      { 
+        feature,
+        action: 'upgrade',
+        upgradeUrl: '/upgrade-required'
+      }
     );
   }
 }

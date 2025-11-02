@@ -62,6 +62,7 @@ export interface TierLimits {
   max_gallery_photos: number;
   max_certificates: number;
   monthly_case_responses: number;
+  monthly_sms_limit: number;
   search_ranking: 'standard' | 'enhanced' | 'premium';
   analytics_access: boolean;
   priority_support: boolean;
@@ -141,6 +142,25 @@ export interface SPFeatureUsage {
   usage_count: number;
   period_start: Date;
   period_end: Date;
+  metadata?: Record<string, any>;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface SPSMSPackage {
+  id: string;
+  user_id: string;
+  package_type: string;
+  sms_count: number;
+  price: number;
+  currency: string;
+  purchased_at: Date;
+  expires_at?: Date;
+  sms_used: number;
+  sms_remaining: number;
+  status: 'active' | 'expired' | 'depleted';
+  payment_method?: string;
+  payment_reference?: string;
   metadata?: Record<string, any>;
   created_at: Date;
   updated_at: Date;

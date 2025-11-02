@@ -237,8 +237,20 @@ export default function DashboardPage() {
     } catch (error: any) {
       console.error('❌ Error updating case status:', error)
       console.error('❌ Error details:', error.response?.data || error.message)
-      const errorMsg = error.response?.data?.error?.message || error.message || 'Възникна грешка при обновяването на статуса'
-      alert(`Грешка: ${errorMsg}`)
+      
+      // Check if trial expired
+      if (error.response?.data?.error?.code === 'TRIAL_EXPIRED') {
+        const errorData = error.response.data.error
+        const details = errorData.details || {}
+        const message = `${errorData.message}\n\n${details.reason || ''}`
+        
+        if (confirm(`${message}\n\nИскате ли да видите абонаментните планове?`)) {
+          router.push('/upgrade-required')
+        }
+      } else {
+        const errorMsg = error.response?.data?.error?.message || error.message || 'Възникна грешка при обновяването на статуса'
+        alert(`Грешка: ${errorMsg}`)
+      }
     }
   }
 

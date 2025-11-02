@@ -19,6 +19,7 @@ import EditProfileScreen from '../screens/EditProfileScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import CasesScreen from '../screens/CasesScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import SubscriptionScreen from '../screens/SubscriptionScreen';
 
 
 // Import components
@@ -144,6 +145,19 @@ function MainTabNavigator() {
         component={ChangePasswordScreen}
         options={{
           tabBarButton: () => null, // Hide from tab bar
+        }}
+      />
+      <Tab.Screen
+        name="Subscription"
+        component={SubscriptionScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+          headerShown: true,
+          headerTitle: 'Абонаментни Планове',
+          headerStyle: {
+            backgroundColor: '#007AFF',
+          },
+          headerTintColor: '#fff',
         }}
       />
     </Tab.Navigator>

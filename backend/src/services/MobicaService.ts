@@ -122,6 +122,12 @@ export class MobicaService {
       };
 
       // Send request
+      logger.info('📤 [MOBICA] Sending request', {
+        url: this.apiUrl,
+        username: this.username,
+        phone: formattedPhone
+      });
+
       const response = await axios.post<MobicaResponse>(
         this.apiUrl,
         request,
@@ -133,6 +139,11 @@ export class MobicaService {
           timeout: 10000
         }
       );
+
+      logger.info('📥 [MOBICA] Response received', {
+        status: response.status,
+        data: response.data
+      });
 
       // Check response
       if (response.data.code === '1004') {
@@ -161,12 +172,14 @@ export class MobicaService {
     } catch (error: any) {
       logger.error('❌ [MOBICA] SMS send error', {
         error: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
         phone: phoneNumber
       });
 
       return {
         success: false,
-        error: error.message || 'Failed to send SMS'
+        error: error.response?.data?.description || error.message || 'Failed to send SMS'
       };
     }
   }

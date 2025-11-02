@@ -274,6 +274,14 @@ const SettingsScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>💳 Абонамент</Text>
+          <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Subscription')}>
+            <Text style={styles.settingItemText}>Абонаментни планове</Text>
+            <Text style={styles.settingItemArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔔 Известия</Text>
           <TouchableOpacity style={styles.settingItem}>
             <Text style={styles.settingItemText}>Push известия</Text>

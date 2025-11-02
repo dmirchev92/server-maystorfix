@@ -11,6 +11,7 @@ interface APIResponse<T = any> {
   error?: {
     code: string;
     message: string;
+    details?: any;
   };
 }
 

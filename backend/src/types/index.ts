@@ -70,6 +70,8 @@ export interface User {
   trial_started_at?: Date;
   trial_cases_used?: number;
   trial_expired?: boolean;
+  registration_ip?: string;
+  phone_verified?: boolean;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;

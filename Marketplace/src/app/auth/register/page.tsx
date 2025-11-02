@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import NeighborhoodSelect from '@/components/NeighborhoodSelect'
 import TierSelector from '@/components/TierSelector'
+import SMSVerification from '@/components/SMSVerification'
 
 interface RegistrationData {
   email: string
@@ -43,6 +44,8 @@ function RegisterForm() {
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
   const [showTierSelection, setShowTierSelection] = useState(false)
+  const [showVerificationModal, setShowVerificationModal] = useState(false)
+  const [phoneVerified, setPhoneVerified] = useState(false)
   const [formData, setFormData] = useState<RegistrationData>({
     email: '',
     password: '',
@@ -125,6 +128,14 @@ function RegisterForm() {
       return
     }
 
+    // Phone verification temporarily disabled - Mobica account needs activation
+    // For service providers, show verification modal first
+    // if (formData.userType === 'service_provider' && !phoneVerified) {
+    //   setShowVerificationModal(true)
+    //   return
+    // }
+
+    // Proceed with registration
     setLoading(true)
     try {
       // Format phone number to Bulgarian format if needed
@@ -327,7 +338,7 @@ function RegisterForm() {
                 value={formData.phoneNumber}
                 onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
                 className="mt-1 appearance-none relative block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="+359xxxxxxxxx"
+                placeholder="0889 123 456"
               />
             </div>
 
@@ -560,6 +571,41 @@ function RegisterForm() {
                 handleInputChange('subscription_tier_id', tier)
                 setShowTierSelection(false)
               }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* SMS Verification Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-lg max-w-md w-full p-6 relative">
+            <button
+              onClick={() => setShowVerificationModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            
+            <h3 className="text-xl font-bold text-white mb-4">Потвърждение на телефон</h3>
+            <p className="text-slate-300 text-sm mb-6">
+              За да завършите регистрацията, моля потвърдете телефонния си номер
+            </p>
+            
+            <SMSVerification
+              phoneNumber={formData.phoneNumber}
+              onVerified={() => {
+                setPhoneVerified(true)
+                setShowVerificationModal(false)
+                // Auto-submit after verification
+                setTimeout(() => {
+                  const form = document.querySelector('form') as HTMLFormElement
+                  if (form) form.requestSubmit()
+                }, 500)
+              }}
+              onPhoneChange={(phone: string) => handleInputChange('phoneNumber', phone)}
             />
           </div>
         </div>

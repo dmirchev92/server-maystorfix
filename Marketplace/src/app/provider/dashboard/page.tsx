@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import ChatWidget from '@/components/ChatWidget'
+import SMSLimitWidget from '@/components/SMSLimitWidget'
 import { apiClient } from '@/lib/api'
 
 interface DashboardStats {
@@ -70,12 +71,24 @@ export default function ProviderDashboard() {
 
   const handleAcceptCase = async (caseId: string) => {
     try {
-      await apiClient.acceptCase(caseId, user!.id, `${user!.firstName} ${user!.lastName}`)
+      const response = await apiClient.acceptCase(caseId, user!.id, `${user!.firstName} ${user!.lastName}`)
       alert('Заявката беше приета успешно!')
       loadDashboardData() // Reload data
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accepting case:', error)
-      alert('Грешка при приемане на заявката')
+      
+      // Check if trial expired
+      if (error.response?.data?.error?.code === 'TRIAL_EXPIRED') {
+        const errorData = error.response.data.error
+        const details = errorData.details || {}
+        const message = `${errorData.message}\n\n${details.reason || ''}`
+        
+        if (confirm(`${message}\n\nИскате ли да видите абонаментните планове?`)) {
+          router.push('/upgrade-required')
+        }
+      } else {
+        alert(error.response?.data?.error?.message || 'Грешка при приемане на заявката')
+      }
     }
   }
 
@@ -387,6 +400,11 @@ export default function ProviderDashboard() {
 
           {/* Quick Actions Sidebar */}
           <div className="lg:col-span-1">
+            {/* SMS Limit Widget */}
+            <div className="mb-6">
+              <SMSLimitWidget compact={true} showPurchaseButton={true} />
+            </div>
+
             <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6 mb-6">
               <h2 className="text-xl font-semibold text-white mb-4">Бързи действия</h2>
               

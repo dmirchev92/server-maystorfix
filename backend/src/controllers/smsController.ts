@@ -6,6 +6,7 @@ import { authenticateToken } from '../middleware/auth';
 import { ChatTokenService } from '../services/ChatTokenService';
 import { DatabaseFactory } from '../models/DatabaseFactory';
 import { MobicaService } from '../services/MobicaService';
+import SMSLimitService from '../services/SMSLimitService';
 import logger from '../utils/logger';
 import { APIResponse, ServiceTextProError } from '../types';
 import config from '../utils/config';
@@ -330,7 +331,7 @@ router.post('/test-security',
 
 /**
  * POST /api/v1/sms/send-missed-call
- * Send SMS for missed call via Twilio
+ * Send SMS for missed call via Mobica
  * This is called by the mobile app when a call is missed
  */
 router.post('/send-missed-call',
@@ -346,6 +347,33 @@ router.post('/send-missed-call',
 
       if (!phoneNumber) {
         throw new ServiceTextProError('Phone number is required', 'MISSING_PHONE_NUMBER', 400);
+      }
+
+      // Check SMS limit before sending
+      const smsLimitStatus = await SMSLimitService.checkSMSLimit(userId);
+      if (!smsLimitStatus.canSend) {
+        logger.warn('SMS limit exceeded', { userId, reason: smsLimitStatus.reason });
+        const response: APIResponse = {
+          success: false,
+          error: {
+            code: 'SMS_LIMIT_EXCEEDED',
+            message: smsLimitStatus.reason || 'SMS limit exceeded',
+            details: {
+              monthlyLimit: smsLimitStatus.monthlyLimit,
+              monthlyUsed: smsLimitStatus.monthlyUsed,
+              addonRemaining: smsLimitStatus.addonRemaining,
+              totalRemaining: smsLimitStatus.totalRemaining,
+              tier: smsLimitStatus.tier
+            }
+          },
+          metadata: {
+            timestamp: new Date(),
+            requestId: (req as any).requestId,
+            version: config.app.version
+          }
+        };
+        res.status(403).json(response);
+        return;
       }
 
       // Check if Mobica is configured
@@ -395,6 +423,14 @@ router.post('/send-missed-call',
       );
 
       if (result.success) {
+        // Increment SMS usage counter
+        try {
+          await SMSLimitService.incrementSMSUsage(userId);
+          logger.info('SMS usage counter incremented', { userId });
+        } catch (limitError) {
+          logger.error('Failed to increment SMS usage', { userId, error: limitError });
+        }
+
         // Update database - mark call as processed
         if (callId) {
           const updatedCallIds = [...(smsSettings.sentCallIds || []), callId];
@@ -456,6 +492,154 @@ router.post('/send-missed-call',
   }
 );
 
-// Twilio-specific endpoints removed - using Mobica now
+/**
+ * GET /api/v1/sms/limit-status
+ * Get SMS limit status for current user
+ */
+router.get('/limit-status',
+  authenticateToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+      }
+
+      const limitStatus = await SMSLimitService.checkSMSLimit(userId);
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          canSend: limitStatus.canSend,
+          monthlyLimit: limitStatus.monthlyLimit,
+          monthlyUsed: limitStatus.monthlyUsed,
+          monthlyRemaining: limitStatus.monthlyRemaining,
+          addonRemaining: limitStatus.addonRemaining,
+          totalRemaining: limitStatus.totalRemaining,
+          tier: limitStatus.tier,
+          periodStart: limitStatus.periodStart,
+          periodEnd: limitStatus.periodEnd,
+          reason: limitStatus.reason
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      logger.error('Error getting SMS limit status:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/v1/sms/purchase-package
+ * Purchase SMS addon package (15 SMS for 40 BGN)
+ */
+router.post('/purchase-package',
+  authenticateToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+      }
+
+      const { payment_method, payment_reference } = req.body;
+
+      const smsPackage = await SMSLimitService.purchaseSMSPackage({
+        user_id: userId,
+        payment_method,
+        payment_reference
+      });
+
+      logger.info('SMS package purchased successfully', {
+        userId,
+        packageId: smsPackage.id,
+        smsCount: smsPackage.sms_count,
+        price: smsPackage.price
+      });
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          message: 'SMS package purchased successfully',
+          package: {
+            id: smsPackage.id,
+            smsCount: smsPackage.sms_count,
+            price: smsPackage.price,
+            currency: smsPackage.currency,
+            smsRemaining: smsPackage.sms_remaining,
+            purchasedAt: smsPackage.purchased_at
+          }
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      logger.error('Error purchasing SMS package:', error);
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/v1/sms/packages
+ * Get user's SMS package purchase history
+ */
+router.get('/packages',
+  authenticateToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+      }
+
+      const packages = await SMSLimitService.getSMSPackages(userId);
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          packages: packages.map(pkg => ({
+            id: pkg.id,
+            packageType: pkg.package_type,
+            smsCount: pkg.sms_count,
+            price: pkg.price,
+            currency: pkg.currency,
+            purchasedAt: pkg.purchased_at,
+            smsUsed: pkg.sms_used,
+            smsRemaining: pkg.sms_remaining,
+            status: pkg.status
+          }))
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      logger.error('Error getting SMS packages:', error);
+      next(error);
+    }
+  }
+);
+
+// Using Mobica SMS service for Bulgarian market
 
 export default router;

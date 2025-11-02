@@ -169,9 +169,14 @@ export class SubscriptionService {
         auto_renew ? expiresAt : null
       ]);
 
-      // Update users table
+      // Update users table and reset trial status
       await this.database.query(
-        `UPDATE users SET subscription_tier_id = $1, subscription_status = $2, subscription_expires_at = $3 WHERE id = $4`,
+        `UPDATE users SET 
+          subscription_tier_id = $1, 
+          subscription_status = $2, 
+          subscription_expires_at = $3,
+          trial_expired = false
+        WHERE id = $4`,
         [target_tier_id, SubscriptionStatus.ACTIVE, expiresAt, user_id]
       );
 

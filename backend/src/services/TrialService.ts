@@ -7,6 +7,7 @@
 import { DatabaseFactory } from '../models/DatabaseFactory';
 import { PostgreSQLDatabase } from '../models/PostgreSQLDatabase';
 import logger from '../utils/logger';
+import NotificationService from './NotificationService';
 
 const TRIAL_MAX_CASES = 5;
 const TRIAL_MAX_DAYS = 14;
@@ -23,6 +24,11 @@ export interface TrialStatus {
 
 export class TrialService {
   private database = DatabaseFactory.getDatabase() as PostgreSQLDatabase;
+  private notificationService: NotificationService;
+
+  constructor() {
+    this.notificationService = new NotificationService();
+  }
 
   /**
    * Check if user's trial is still active
@@ -99,6 +105,12 @@ export class TrialService {
       // Check if trial expired by cases
       if (casesUsed >= TRIAL_MAX_CASES) {
         await this.markTrialAsExpired(userId);
+        // Send expiration notification
+        try {
+          await this.notificationService.notifyTrialExpired(userId, 'cases_limit');
+        } catch (notifError) {
+          logger.warn('Failed to send trial expiration notification', { userId, error: notifError });
+        }
         return {
           isActive: false,
           isExpired: true,
@@ -113,6 +125,12 @@ export class TrialService {
       // Check if trial expired by time
       if (daysElapsed >= TRIAL_MAX_DAYS) {
         await this.markTrialAsExpired(userId);
+        // Send expiration notification
+        try {
+          await this.notificationService.notifyTrialExpired(userId, 'time_limit');
+        } catch (notifError) {
+          logger.warn('Failed to send trial expiration notification', { userId, error: notifError });
+        }
         return {
           isActive: false,
           isExpired: true,
@@ -124,12 +142,22 @@ export class TrialService {
         };
       }
 
+      // Send warning notification if trial is expiring soon
+      const casesRemaining = TRIAL_MAX_CASES - casesUsed;
+      if (casesRemaining <= 2 || daysRemaining <= 3) {
+        try {
+          await this.notificationService.notifyTrialExpiringSoon(userId, casesRemaining, daysRemaining);
+        } catch (notifError) {
+          logger.warn('Failed to send trial expiring soon notification', { userId, error: notifError });
+        }
+      }
+
       // Trial still active
       return {
         isActive: true,
         isExpired: false,
         casesUsed,
-        casesRemaining: TRIAL_MAX_CASES - casesUsed,
+        casesRemaining,
         daysRemaining,
         expiresAt
       };

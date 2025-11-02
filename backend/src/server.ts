@@ -40,6 +40,7 @@ import * as deviceTokenController from './controllers/deviceTokenController';
 import { authenticateToken } from './middleware/auth';
 import { checkTrialStatus, addTrialInfo } from './middleware/trialCheck';
 import trialCleanupService from './services/TrialCleanupService';
+import smsVerificationRoutes from './controllers/smsVerificationController';
 import { DatabaseFactory } from './models/DatabaseFactory';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
@@ -372,6 +373,7 @@ class ServiceTextProServer {
 
     // Mount route controllers FIRST (before global middleware)
     this.app.use('/api/v1/auth', authRoutes);
+    this.app.use('/api/v1/verification', smsVerificationRoutes);
     this.app.use('/api/v1/gdpr', gdprRoutes);
     this.app.use('/api/v1/messaging', messagingRoutes);
     this.app.use('/api/v1/admin', adminRoutes);
@@ -435,11 +437,14 @@ class ServiceTextProServer {
     // Referral system routes
     this.app.get('/api/v1/referrals/code', authenticateToken, referralController.getReferralCode);
     this.app.get('/api/v1/referrals/dashboard', authenticateToken, referralController.getReferralDashboard);
+    this.app.get('/api/v1/referrals/aggregate-progress', authenticateToken, referralController.getAggregateProgress);
     this.app.post('/api/v1/referrals/track/:profileId', referralController.trackProfileClick);
     this.app.post('/api/v1/referrals/create', referralController.createReferral);
     this.app.post('/api/v1/referrals/activate', referralController.activateReferral);
     this.app.get('/api/v1/referrals/rewards', authenticateToken, referralController.getAvailableRewards);
     this.app.post('/api/v1/referrals/rewards/:rewardId/apply', authenticateToken, referralController.applyReward);
+    this.app.post('/api/v1/referrals/generate-claim-token', authenticateToken, referralController.generateClaimToken);
+    this.app.get('/api/v1/referrals/claim-sms/:token', referralController.claimSMSReward);
     this.app.get('/api/v1/referrals/validate/:code', referralController.validateReferralCode);
     
     // Case management routes

@@ -569,15 +569,15 @@ export class PostgreSQLDatabase {
         `INSERT INTO users (
           id, email, password_hash, role, status, public_id, first_name, last_name,
           phone_number, business_id, subscription_tier_id, subscription_status, 
-          trial_started_at, trial_cases_used, trial_expired,
+          trial_started_at, trial_cases_used, trial_expired, registration_ip,
           data_retention_until, is_gdpr_compliant,
           created_at, last_login_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
         [
           userId, user.email, user.passwordHash, user.role, user.status, publicId,
           user.firstName, user.lastName, user.phoneNumber, user.businessId,
           user.subscription_tier_id, user.subscription_status,
-          user.trial_started_at, user.trial_cases_used, user.trial_expired,
+          user.trial_started_at, user.trial_cases_used, user.trial_expired, user.registration_ip,
           user.dataRetentionUntil, user.isGdprCompliant, user.createdAt,
           user.lastLoginAt, user.updatedAt
         ]

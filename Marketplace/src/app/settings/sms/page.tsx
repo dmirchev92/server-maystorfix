@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Header } from '@/components/Header'
+import SMSLimitWidget from '@/components/SMSLimitWidget'
 
 interface SMSConfig {
   isEnabled: boolean
@@ -433,6 +434,9 @@ export default function SMSSettingsPage() {
 
           {/* Statistics & Actions */}
           <div className="space-y-6">
+            {/* SMS Limit Widget */}
+            <SMSLimitWidget compact={false} showPurchaseButton={true} />
+
             {/* Statistics */}
             <Card>
               <CardHeader>

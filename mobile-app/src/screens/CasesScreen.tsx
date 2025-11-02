@@ -203,7 +203,27 @@ export default function CasesScreen() {
                 await fetchCases();
                 await fetchStats();
               } else {
-                Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+                // Check if trial expired
+                if (response.error?.code === 'TRIAL_EXPIRED') {
+                  const details = response.error?.details || {};
+                  const message = `${response.error?.message}\n\n${details.reason || ''}`;
+                  
+                  Alert.alert(
+                    'Безплатният период изтече',
+                    message,
+                    [
+                      { text: 'По-късно', style: 'cancel' },
+                      {
+                        text: 'Надстрой сега',
+                        onPress: () => {
+                          navigation.navigate('Subscription');
+                        }
+                      }
+                    ]
+                  );
+                } else {
+                  Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+                }
               }
             } catch (error) {
               console.error('Error accepting case:', error);

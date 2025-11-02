@@ -19,6 +19,7 @@ interface ReferralStats {
 }
 
 interface ReferredUser {
+  referralId: string
   referredUser: {
     id: string
     firstName: string
@@ -32,6 +33,14 @@ interface ReferredUser {
   profileUrl: string
 }
 
+interface ReferralReward {
+  id: string
+  referralId?: string
+  rewardType: string
+  status: string
+  smsSent?: boolean
+}
+
 export default function ReferralWidget() {
   const { user, isAuthenticated } = useAuth()
   const [stats, setStats] = useState<ReferralStats | null>(null)
@@ -39,6 +48,8 @@ export default function ReferralWidget() {
   const [copiedLink, setCopiedLink] = useState(false)
   const [showReferredUsers, setShowReferredUsers] = useState(false)
   const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([])
+  const [rewards, setRewards] = useState<ReferralReward[]>([])
+  const [sendingSMS, setSendingSMS] = useState<string | null>(null)
 
   useEffect(() => {
     if (isAuthenticated && user && (user.role === 'service_provider' || user.role === 'tradesperson')) {
@@ -87,11 +98,47 @@ export default function ReferralWidget() {
         
         // Store referred users for dropdown
         setReferredUsers(data.referredUsers || [])
+        
+        // Store rewards
+        setRewards(data.totalRewards || [])
       }
     } catch (error) {
       console.error('Error fetching referral stats:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const claimReward = async (rewardId: string) => {
+    try {
+      setSendingSMS(rewardId)
+      
+      // Generate claim token
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/generate-claim-token`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ rewardId })
+        }
+      )
+      
+      const result = await response.json()
+      
+      if (result.success && result.token) {
+        // Redirect to claim page
+        window.location.href = `/claim-sms/${result.token}`
+      } else {
+        alert('❌ Грешка: ' + result.error)
+        setSendingSMS(null)
+      }
+    } catch (error) {
+      console.error('Error generating claim token:', error)
+      alert('❌ Неуспешно генериране на линк')
+      setSendingSMS(null)
     }
   }
 
@@ -271,6 +318,54 @@ export default function ReferralWidget() {
                       </div>
                       <p className="text-xs text-slate-400">{nextRewardLabel}</p>
                     </div>
+
+                    {/* SMS Reward Button (if 50+ clicks) */}
+                    {(() => {
+                      if (validClicks >= 50) {
+                        // Debug logging
+                        console.log('🔍 Checking reward for referral:', user.referralId, 'validClicks:', validClicks)
+                        console.log('🔍 Available rewards:', rewards)
+                        
+                        // Find the reward for this referral
+                        const reward = rewards.find(r => 
+                          r.referralId === user.referralId && 
+                          r.rewardType === 'sms_30' && 
+                          r.status === 'earned' &&
+                          !r.smsSent
+                        )
+                        
+                        console.log('🔍 Found reward:', reward)
+                        
+                        if (reward) {
+                          return (
+                            <button
+                              onClick={() => claimReward(reward.id)}
+                              disabled={sendingSMS === reward.id}
+                              className="mt-3 w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                              {sendingSMS === reward.id ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  <span>Зареждане...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span>🎁</span>
+                                  <span>Получи 30 SMS</span>
+                                </>
+                              )}
+                            </button>
+                          )
+                        } else if (rewards.some(r => r.referralId === user.referralId && r.rewardType === 'sms_30' && (r.status === 'applied' || r.smsSent))) {
+                          return (
+                            <div className="mt-3 w-full bg-blue-600/20 border border-blue-400/30 text-blue-300 px-3 py-2 rounded-lg text-sm text-center">
+                              ✅ Наградата е получена
+                            </div>
+                          )
+                        }
+                      }
+                      return null
+                    })()}
                   </div>
                 )
               })}

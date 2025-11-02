@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api'
 import ReferralWidget from '@/components/ReferralWidget'
 
 interface ReferredUser {
+  referralId: string
   referredUser: {
     id: string
     firstName: string
@@ -24,12 +25,27 @@ interface ReferredUser {
 
 interface ReferralReward {
   id: string
-  rewardType: 'discount_10' | 'discount_50' | 'free_month'
+  referralId?: string
+  rewardType: 'sms_30' | 'free_normal_month' | 'free_pro_month'
   rewardValue: number
   clicksRequired: number
   clicksAchieved: number
   earnedAt: string
   status: 'earned' | 'applied' | 'expired'
+  isAggregate: boolean
+  smsSent?: boolean
+}
+
+interface AggregateProgress {
+  totalValidClicks: number
+  referralsAt50Plus: number
+  nextMilestone: 250 | 500 | null
+  progressToNext: number
+  earnedRewards: {
+    sms30Count: number
+    freeNormalMonth: boolean
+    freeProMonth: boolean
+  }
 }
 
 interface ReferralDashboard {
@@ -37,12 +53,14 @@ interface ReferralDashboard {
   referralLink: string
   referredUsers: ReferredUser[]
   totalRewards: ReferralReward[]
+  aggregateProgress?: AggregateProgress
 }
 
 export default function ReferralDashboard() {
   const { user, isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
   const [dashboard, setDashboard] = useState<ReferralDashboard | null>(null)
+  const [aggregateProgress, setAggregateProgress] = useState<AggregateProgress | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
@@ -111,6 +129,9 @@ export default function ReferralDashboard() {
         
         console.log('🤝 Corrected referral link:', correctedLink)
         setDashboard(dashboardData)
+        
+        // Fetch aggregate progress
+        fetchAggregateProgress()
       } else {
         console.error('🤝 Dashboard fetch failed:', response.data?.message)
         throw new Error(response.data?.message || 'Failed to fetch referral dashboard')
@@ -165,8 +186,34 @@ export default function ReferralDashboard() {
     }
   }
 
+  const fetchAggregateProgress = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/aggregate-progress`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setAggregateProgress(result.data)
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching aggregate progress:', err)
+    }
+  }
+
   const getRewardTypeLabel = (type: string) => {
     switch (type) {
+      case 'sms_30': return '30 SMS'
+      case 'free_normal_month': return 'Безплатен Normal месец'
+      case 'free_pro_month': return 'Безплатен Pro месец'
       case 'discount_10': return '10% отстъпка'
       case 'discount_50': return '50% отстъпка'
       case 'free_month': return 'Безплатен месец'
@@ -327,33 +374,102 @@ export default function ReferralDashboard() {
             )}
           </div>
 
-          {/* Reward Tiers Info */}
+          {/* Aggregate Progress */}
           <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl border border-white/20 p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">🏆 Нива на награди</h3>
-            <div className="space-y-3 text-sm mb-4">
+            <h3 className="text-lg font-semibold text-white mb-4">🎯 Обща прогрес</h3>
+            
+            {aggregateProgress ? (
+              <div className="space-y-4">
+                {/* Progress Bar */}
+                <div className="bg-white/5 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-2xl font-bold text-indigo-400">{aggregateProgress.totalValidClicks}</span>
+                    <span className="text-sm text-slate-300">|</span>
+                    <span className="text-xl font-semibold text-blue-400">250</span>
+                    <span className="text-sm text-slate-300">|</span>
+                    <span className="text-xl font-semibold text-purple-400">500</span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-3 mb-2">
+                    <div
+                      className="h-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all"
+                      style={{ width: `${Math.min((aggregateProgress.totalValidClicks / 500) * 100, 100)}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-slate-400 text-center">
+                    {aggregateProgress.totalValidClicks} кликове от {aggregateProgress.referralsAt50Plus} препоръки (50+ всяка)
+                  </p>
+                </div>
+
+                {/* Earned Rewards Summary */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-sm text-slate-300">30 SMS награди:</span>
+                    <span className="font-bold text-green-400">{aggregateProgress.earnedRewards.sms30Count}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-sm text-slate-300">Normal месец:</span>
+                    <span className="font-bold">{aggregateProgress.earnedRewards.freeNormalMonth ? '✅' : '⏳'}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-white/5 rounded">
+                    <span className="text-sm text-slate-300">Pro месец:</span>
+                    <span className="font-bold">{aggregateProgress.earnedRewards.freeProMonth ? '✅' : '⏳'}</span>
+                  </div>
+                </div>
+
+                {/* Next Milestone */}
+                {aggregateProgress.nextMilestone && (
+                  <div className="p-3 bg-indigo-500/10 rounded-lg border border-indigo-400/30">
+                    <p className="text-sm text-indigo-300">
+                      🎯 Още <strong>{aggregateProgress.progressToNext}</strong> кликове за {aggregateProgress.nextMilestone === 250 ? 'Normal' : 'Pro'} месец
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-400 mx-auto mb-2"></div>
+                <p className="text-sm text-slate-400">Зареждане...</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Reward Tiers Info */}
+        <div className="bg-white/10 backdrop-blur-md rounded-lg shadow-xl border border-white/20 p-6 mt-6">
+          <h3 className="text-lg font-semibold text-white mb-4">🏆 Нива на награди</h3>
+          
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold text-indigo-300 mb-2">📊 Индивидуални награди (на препоръка):</h4>
+            <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between p-2 bg-white/10 rounded-lg">
                 <span className="text-slate-200">50 кликове</span>
-                <span className="font-semibold text-green-400">10% отстъпка</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-white/10 rounded-lg">
-                <span className="text-slate-200">100 кликове</span>
-                <span className="font-semibold text-indigo-400">50% отстъпка</span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-white/10 rounded-lg">
-                <span className="text-slate-200">500 кликове</span>
-                <span className="font-semibold text-purple-400">Безплатен месец</span>
+                <span className="font-semibold text-green-400">30 SMS</span>
               </div>
             </div>
-            
-            <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-400/30">
-              <h4 className="font-semibold text-yellow-300 mb-2">⚠️ Важни правила</h4>
-              <ul className="text-xs text-yellow-200 space-y-1">
-                <li>• Максимум 25 валидни кликове на месец</li>
-                <li>• Препоръчаният трябва да остане активен</li>
-                <li>• Самокликванията не се броят</li>
-                <li>• Наградите изтичат след 6 месеца</li>
-              </ul>
+          </div>
+
+          <div className="mb-4">
+            <h4 className="text-sm font-semibold text-purple-300 mb-2">🎁 Агрегатни награди (общо):</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between p-2 bg-white/10 rounded-lg">
+                <span className="text-slate-200">5 препоръки × 50 кликове (250)</span>
+                <span className="font-semibold text-blue-400">Normal месец</span>
+              </div>
+              <div className="flex items-center justify-between p-2 bg-white/10 rounded-lg">
+                <span className="text-slate-200">10 препоръки × 50 кликове (500)</span>
+                <span className="font-semibold text-purple-400">Pro месец</span>
+              </div>
             </div>
+          </div>
+          
+          <div className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-400/30">
+            <h4 className="font-semibold text-yellow-300 mb-2">⚠️ Важни правила</h4>
+            <ul className="text-xs text-yellow-200 space-y-1">
+              <li>• Максимум 25 валидни кликове на месец</li>
+              <li>• Само препоръки с 50+ кликове се броят за агрегатни награди</li>
+              <li>• Самокликванията не се броят</li>
+              <li>• Наградите изтичат след 6 месеца</li>
+            </ul>
           </div>
         </div>
       </main>

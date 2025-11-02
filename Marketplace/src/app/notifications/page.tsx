@@ -121,13 +121,19 @@ export default function NotificationsPage() {
   }
 
   const handleNotificationClick = async (notification: Notification) => {
+    console.log('🔔 Notification clicked:', notification.type, notification)
+    
     // Mark as read if not already read
     if (!notification.read) {
       await markAsRead(notification.id)
     }
 
     // Handle different notification types
-    if (notification.type === 'case_completed' && notification.data?.action === 'review_service') {
+    if (notification.type === 'trial_expired' || notification.type === 'trial_expiring_soon' || notification.type === 'subscription_upgrade_required') {
+      // Navigate to upgrade page
+      console.log('🚀 Navigating to upgrade page...')
+      router.push('/upgrade-required')
+    } else if (notification.type === 'case_completed' && notification.data?.action === 'review_service') {
       const caseId = notification.data?.caseId
       if (caseId) {
         router.push(`/survey/${caseId}`)
@@ -152,6 +158,12 @@ export default function NotificationsPage() {
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
+      case 'trial_expired':
+        return '🔒'
+      case 'trial_expiring_soon':
+        return '⚠️'
+      case 'subscription_upgrade_required':
+        return '💳'
       case 'case_completed':
         return '🌟'
       case 'case_assigned':
@@ -170,6 +182,12 @@ export default function NotificationsPage() {
 
   const getNotificationGradient = (type: string) => {
     switch (type) {
+      case 'trial_expired':
+        return 'from-red-500/10 to-orange-500/10 border-red-400/30'
+      case 'trial_expiring_soon':
+        return 'from-yellow-500/10 to-amber-500/10 border-yellow-400/30'
+      case 'subscription_upgrade_required':
+        return 'from-purple-500/10 to-pink-500/10 border-purple-400/30'
       case 'case_completed':
         return 'from-yellow-500/10 to-orange-500/10 border-yellow-400/30'
       case 'case_assigned':
@@ -259,8 +277,21 @@ export default function NotificationsPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
 
+      {/* Test button to verify React is working */}
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        <button 
+          onClick={() => {
+            console.log('✅ TEST BUTTON CLICKED - React is working!')
+            alert('React is working!')
+          }}
+          className="bg-green-600 text-white px-4 py-2 rounded"
+        >
+          TEST: Click me to verify React works
+        </button>
+      </div>
+
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -288,7 +319,11 @@ export default function NotificationsPage() {
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
+                onClick={() => {
+                  console.log('🔔 Card clicked!')
+                  handleNotificationClick(notification)
+                }}
+                style={{ position: 'relative', zIndex: 1, pointerEvents: 'auto', cursor: 'pointer' }}
                 className={`
                   bg-gradient-to-r ${getNotificationGradient(notification.type)} 
                   backdrop-blur-md border rounded-lg p-4 cursor-pointer transition-all duration-200 
@@ -325,6 +360,21 @@ export default function NotificationsPage() {
                           <span className="mr-1">⭐</span>
                           Натиснете за оценка
                         </span>
+                      </div>
+                    )}
+                    {(notification.type === 'trial_expired' || notification.type === 'trial_expiring_soon' || notification.type === 'subscription_upgrade_required') && (
+                      <div className="mt-3">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            console.log('🚀 Upgrade button clicked')
+                            router.push('/upgrade-required')
+                          }}
+                          className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white border border-indigo-500 transition-colors shadow-lg hover:shadow-xl"
+                        >
+                          <span className="mr-2">🚀</span>
+                          Надстрой сега
+                        </button>
                       </div>
                     )}
                   </div>

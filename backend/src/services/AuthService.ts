@@ -113,6 +113,77 @@ export class AuthService {
       const subscriptionTier = userData.role === UserRole.TRADESPERSON ? (userData.subscription_tier_id || 'free') : undefined;
       const isFreeTrialUser = userData.role === UserRole.TRADESPERSON && subscriptionTier === 'free';
 
+      // Check phone verification for tradespeople
+      // TEMPORARILY DISABLED - Mobica API credentials need to be configured
+      /*
+      if (userData.role === UserRole.TRADESPERSON && userData.phoneNumber) {
+        const smsVerificationService = require('./SMSVerificationService').default;
+        const isVerified = await smsVerificationService.isPhoneVerified(userData.phoneNumber);
+        
+        if (!isVerified) {
+          logger.warn('🚫 Phone number not verified', {
+            phone: userData.phoneNumber?.substring(0, 4) + '***'
+          });
+          throw new ServiceTextProError(
+            'Моля, потвърдете телефонния си номер преди регистрация.',
+            'PHONE_NOT_VERIFIED',
+            403
+          );
+        }
+      }
+      */
+
+      // Check IP and Phone-based abuse prevention for FREE tier
+      if (isFreeTrialUser) {
+        // Check by IP address
+        if (userData.ipAddress) {
+          const existingByIP = await this.database.query(
+            `SELECT id, email, phone_number FROM users 
+             WHERE registration_ip = $1 
+             AND subscription_tier_id = 'free' 
+             AND role = 'tradesperson'
+             LIMIT 1`,
+            [userData.ipAddress]
+          );
+
+          if (existingByIP && existingByIP.length > 0) {
+            logger.warn('🚫 FREE account already exists from this IP', {
+              ip: userData.ipAddress?.substring(0, 8) + '***',
+              existingEmail: existingByIP[0].email?.substring(0, 3) + '***'
+            });
+            throw new ServiceTextProError(
+              'Вече има безплатен акаунт регистриран от този IP адрес. Моля, надстройте съществуващия си акаунт или изберете платен план.',
+              'FREE_ACCOUNT_IP_LIMIT',
+              403
+            );
+          }
+        }
+
+        // Check by phone number
+        if (userData.phoneNumber) {
+          const existingByPhone = await this.database.query(
+            `SELECT id, email, registration_ip FROM users 
+             WHERE phone_number = $1 
+             AND subscription_tier_id = 'free' 
+             AND role = 'tradesperson'
+             LIMIT 1`,
+            [userData.phoneNumber]
+          );
+
+          if (existingByPhone && existingByPhone.length > 0) {
+            logger.warn('🚫 FREE account already exists with this phone number', {
+              phone: userData.phoneNumber?.substring(0, 4) + '***',
+              existingEmail: existingByPhone[0].email?.substring(0, 3) + '***'
+            });
+            throw new ServiceTextProError(
+              'Този телефонен номер вече е използван за безплатен акаунт. Моля, надстройте съществуващия си акаунт или изберете платен план.',
+              'FREE_ACCOUNT_PHONE_LIMIT',
+              403
+            );
+          }
+        }
+      }
+
       // Create user object
       const user: User = {
         id: uuidv4(),
@@ -129,6 +200,7 @@ export class AuthService {
         trial_started_at: isFreeTrialUser ? new Date() : undefined,
         trial_cases_used: isFreeTrialUser ? 0 : undefined,
         trial_expired: isFreeTrialUser ? false : undefined,
+        registration_ip: userData.ipAddress,
         createdAt: new Date(),
         updatedAt: new Date(),
         gdprConsents: gdprConsents.map(consent => ({ ...consent, userId: '' })), // Will be updated
