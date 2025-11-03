@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -88,6 +89,24 @@ function ChatDetailScreen() {
 
   useEffect(() => {
     initializeChat();
+
+    // Keyboard listeners to scroll messages when keyboard appears
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        // Scroll to bottom when keyboard appears
+        setTimeout(() => scrollToBottom(), 100);
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        // Optional: scroll to bottom when keyboard hides
+        setTimeout(() => scrollToBottom(), 100);
+      }
+    );
+
     return () => {
       // Clean up socket listener
       if (unsubscribeRef.current) {
@@ -98,6 +117,10 @@ function ChatDetailScreen() {
       // Leave conversation room on unmount
       console.log('🚪 Leaving conversation room:', conversationId);
       socketService.leaveConversation(conversationId);
+      
+      // Clean up keyboard listeners
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
     };
   }, []);
 
@@ -363,8 +386,8 @@ function ChatDetailScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -385,7 +408,7 @@ function ChatDetailScreen() {
           data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.messagesList, { paddingBottom: 150 }]}
+          contentContainerStyle={[styles.messagesList, { paddingBottom: 80 }]}
           onContentSizeChange={() => scrollToBottom()}
           style={{ flex: 1 }}
         />
@@ -398,6 +421,10 @@ function ChatDetailScreen() {
             placeholderTextColor="#94A3B8"
             value={newMessage}
             onChangeText={setNewMessage}
+            onSubmitEditing={handleSendMessage}
+            onFocus={() => setTimeout(() => scrollToBottom(), 300)}
+            returnKeyType="send"
+            blurOnSubmit={false}
             multiline
             maxLength={1000}
             editable={true}
@@ -588,17 +615,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   inputContainer: {
-    position: 'absolute',
-    bottom: 65,  // Position ABOVE the navigation bar (65px tall)
-    left: 0,
-    right: 0,
     flexDirection: 'row',
     padding: 16,
-    backgroundColor: '#1E293B',  // Back to normal dark background
+    paddingBottom: 16,
+    backgroundColor: '#1E293B',
     borderTopWidth: 2,
-    borderTopColor: '#6366F1',  // Blue border
+    borderTopColor: '#6366F1',
     alignItems: 'flex-end',
-    zIndex: 999,
+    marginBottom: 65,  // Space for tab bar
   },
   messageInput: {
     flex: 1,
@@ -630,7 +654,7 @@ const styles = StyleSheet.create({
   },
   createCaseButton: {
     position: 'absolute',
-    bottom: 150,  // Above input (which is at 65) + input height (~85)
+    bottom: 165,  // Above input area + tab bar
     right: 20,
     backgroundColor: '#6366F1',
     flexDirection: 'row',
