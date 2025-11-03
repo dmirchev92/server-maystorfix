@@ -60,9 +60,23 @@ export class ChatSocketHandler {
 
       const decoded = verify(token as string, process.env.JWT_SECRET || 'your-secret-key') as any
       
+      // Debug: Log what's in the JWT token
+      console.log('🔍 JWT Token decoded:', {
+        userId: decoded.userId || decoded.id,
+        email: decoded.email,
+        firstName: decoded.firstName,
+        lastName: decoded.lastName,
+        role: decoded.role
+      })
+      
       socket.userId = decoded.userId || decoded.id
       socket.userRole = decoded.role
-      socket.userName = decoded.firstName + ' ' + decoded.lastName
+      // Build userName with fallback for undefined firstName/lastName
+      const firstName = decoded.firstName || decoded.first_name || ''
+      const lastName = decoded.lastName || decoded.last_name || ''
+      socket.userName = (firstName + ' ' + lastName).trim() || decoded.email || decoded.phoneNumber || 'User'
+      
+      console.log('🔍 Built userName:', socket.userName)
 
       next()
     } catch (error) {

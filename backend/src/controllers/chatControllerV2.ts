@@ -140,8 +140,26 @@ export class ChatController {
   sendMessage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const userId = (req as any).user?.id
-      const userName = (req as any).user?.firstName + ' ' + (req as any).user?.lastName
-      const userRole = (req as any).user?.role
+      const user = (req as any).user
+      
+      // Debug: Log what's in req.user
+      console.log('🔍 req.user from auth middleware:', {
+        id: user?.id,
+        email: user?.email,
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        first_name: user?.first_name,
+        last_name: user?.last_name
+      })
+      
+      // Build userName with fallback for undefined firstName/lastName
+      const firstName = user?.firstName || user?.first_name || ''
+      const lastName = user?.lastName || user?.last_name || ''
+      const userName = (firstName + ' ' + lastName).trim() || user?.email || user?.phoneNumber || 'User'
+      
+      console.log('🔍 Built userName for message:', userName)
+      
+      const userRole = user?.role
 
       if (!userId) {
         res.status(401).json({ success: false, error: 'Unauthorized' })

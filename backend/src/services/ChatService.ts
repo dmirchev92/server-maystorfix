@@ -217,6 +217,9 @@ export class ChatService {
         const recipientId = senderType === 'customer' ? conversation.providerId : conversation.customerId
         
         if (recipientId) {
+          // Debug: Log what senderName we're using
+          console.log(`📱 Preparing FCM notification - senderName: "${senderName}", senderUserId: ${senderUserId}, senderType: ${senderType}`)
+          
           // Send push notification
           await this.fcmService.sendNotificationToUser(recipientId, {
             title: `New message from ${senderName}`,
