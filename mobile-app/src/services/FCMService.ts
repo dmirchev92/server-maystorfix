@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 class FCMService {
   private static instance: FCMService;
   private initialized: boolean = false;
+  private navigationRef: any = null;
 
   private constructor() {}
 
@@ -15,6 +16,14 @@ class FCMService {
       FCMService.instance = new FCMService();
     }
     return FCMService.instance;
+  }
+
+  /**
+   * Set navigation reference for deep linking
+   */
+  setNavigationRef(navigationRef: any): void {
+    this.navigationRef = navigationRef;
+    console.log('✅ Navigation reference set for FCM');
   }
 
   /**
@@ -280,14 +289,30 @@ class FCMService {
   private handleNotificationOpen(data: any): void {
     console.log('👆 Handling notification tap:', data);
 
-    // TODO: Navigate to appropriate screen based on data.type
-    // This will be implemented in the navigation service
+    if (!this.navigationRef) {
+      console.warn('⚠️ Navigation ref not set, cannot navigate');
+      return;
+    }
+
+    // Navigate to appropriate screen based on data.type
     if (data?.type === 'case_assigned' && data?.caseId) {
       // Navigate to case details
-      console.log('Navigate to case:', data.caseId);
+      console.log('📍 Navigating to case:', data.caseId);
+      // TODO: Implement case navigation when case screen is ready
     } else if (data?.type === 'chat_message' && data?.conversationId) {
-      // Navigate to chat
-      console.log('Navigate to conversation:', data.conversationId);
+      // Navigate to chat detail screen
+      console.log('📍 Navigating to conversation:', data.conversationId);
+      
+      try {
+        this.navigationRef.navigate('ChatDetail', {
+          conversationId: data.conversationId,
+          providerId: data.senderId || '',
+          providerName: data.senderName || 'User',
+        });
+        console.log('✅ Navigation to chat successful');
+      } catch (error) {
+        console.error('❌ Error navigating to chat:', error);
+      }
     }
   }
 

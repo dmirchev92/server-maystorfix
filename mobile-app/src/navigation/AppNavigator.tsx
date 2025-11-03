@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import FCMService from '../services/FCMService';
 
 // Import all screens
 import ModernDashboardScreen from '../screens/ModernDashboardScreen';
@@ -272,8 +273,17 @@ function SettingsMainScreen({ navigation }: any) {
 
 // Main app navigator
 export default function AppNavigator() {
+  const navigationRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Set navigation reference for FCM deep linking
+    if (navigationRef.current) {
+      FCMService.getInstance().setNavigationRef(navigationRef.current);
+    }
+  }, []);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
