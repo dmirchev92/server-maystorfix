@@ -65,6 +65,7 @@ export default function UnifiedCaseModal({
         preferredDate: today, // Pre-fill with today's date
         preferredTime: 'morning',
         priority: 'normal',
+        budget: '',
         city: '',
         neighborhood: '',
         phone: customerPhone || '',
@@ -140,8 +141,13 @@ export default function UnifiedCaseModal({
     
     if (mode === 'direct') {
       // Validate required fields for direct mode
-      if (!formData.description || !formData.preferredDate || !formData.phone || !formData.city) {
+      if (!formData.description || !formData.preferredDate || !formData.phone || !formData.city || !formData.budget) {
         alert('Моля, попълнете всички задължителни полета')
+        return
+      }
+      // Validate budget is a positive number
+      if (formData.budget && (isNaN(formData.budget) || parseFloat(formData.budget) < 1)) {
+        alert('Моля, въведете валиден бюджет (минимум 1 лев)')
         return
       }
       // Neighborhood required only when city is Sofia
@@ -435,6 +441,26 @@ export default function UnifiedCaseModal({
                   <option value="normal">Нормален</option>
                   <option value="urgent">Спешен</option>
                 </select>
+              </div>
+
+              {/* Budget */}
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-2">
+                  Бюджет (BGN) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={formData.budget || ''}
+                  onChange={(e) => handleInputChange('budget', e.target.value)}
+                  placeholder="Въведете бюджет в лева"
+                  required
+                  min="1"
+                  step="1"
+                  className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400"
+                />
+                <p className="text-xs text-slate-400 mt-1">
+                  💡 Бюджетът определя колко точки ще струва заявката за специалистите
+                </p>
               </div>
 
               {/* Phone */}

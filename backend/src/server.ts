@@ -25,6 +25,8 @@ import gdprRoutes from './controllers/gdprController';
 import messagingRoutes from './controllers/messagingController';
 import adminRoutes from './controllers/adminController';
 import subscriptionController from './controllers/subscriptionController';
+import pointsController from './controllers/pointsController';
+import { initializeBiddingController } from './controllers/biddingController';
 import * as marketplaceController from './controllers/marketplaceController';
 import * as chatTokenController from './controllers/chatTokenController';
 import * as referralController from './controllers/referralController';
@@ -378,6 +380,12 @@ class ServiceTextProServer {
     this.app.use('/api/v1/messaging', messagingRoutes);
     this.app.use('/api/v1/admin', adminRoutes);
     this.app.use('/api/v1/subscriptions', subscriptionController);
+    this.app.use('/api/v1/points', pointsController);
+    
+    // Initialize and mount bidding controller
+    const dbInstance = DatabaseFactory.getDatabase() as any;
+    const biddingController = initializeBiddingController(dbInstance.pool);
+    this.app.use('/api/v1/bidding', biddingController);
     
     // NOTE: Trial check is now done at specific endpoints (like acceptCase)
     // Not globally, so users can still access their existing cases
@@ -505,6 +513,17 @@ class ServiceTextProServer {
     // SMS configuration routes
     const smsController = require('./controllers/smsController').default;
     this.app.use('/api/v1/sms', smsController);
+
+    // Provider category management routes
+    const { getProviderCategories, addProviderCategory, removeProviderCategory, setProviderCategories } = require('./controllers/providerCategoryController');
+    this.app.get('/api/v1/provider/categories', authenticateToken, getProviderCategories);
+    this.app.post('/api/v1/provider/categories', authenticateToken, addProviderCategory);
+    this.app.put('/api/v1/provider/categories', authenticateToken, setProviderCategories);
+    this.app.delete('/api/v1/provider/categories/:categoryId', authenticateToken, removeProviderCategory);
+
+    // App version check routes
+    const { getAppVersion } = require('./controllers/appVersionController');
+    this.app.get('/api/v1/app/version', getAppVersion);
 
     // Simple base64 image upload (for mobile without multipart libs)
     this.app.post('/api/v1/uploads/image', async (req: Request, res: Response) => {

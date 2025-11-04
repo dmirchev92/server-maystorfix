@@ -140,12 +140,26 @@ function ChatDetailScreen() {
       const token = await AsyncStorage.getItem('auth_token');
       if (token && !socketService.isConnected()) {
         console.log('🔌 Socket.IO not connected, connecting now...');
-        await socketService.connect(token, userData.id);
+        try {
+          // Add timeout to prevent hanging
+          await Promise.race([
+            socketService.connect(token, userData.id),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Socket connection timeout')), 5000))
+          ]);
+          console.log('✅ Socket connected successfully');
+        } catch (error) {
+          console.warn('⚠️ Socket connection failed, continuing without real-time updates:', error);
+          // Continue anyway - API calls will still work
+        }
       }
 
-      // Join conversation room
-      console.log('🚪 Joining conversation room:', conversationId);
-      socketService.joinConversation(conversationId);
+      // Join conversation room (only if socket is connected)
+      if (socketService.isConnected()) {
+        console.log('🚪 Joining conversation room:', conversationId);
+        socketService.joinConversation(conversationId);
+      } else {
+        console.warn('⚠️ Socket not connected, skipping conversation join');
+      }
 
       // Listen for new messages, updates, and deletions
       console.log('👂 Setting up message listener for conversation:', conversationId);

@@ -49,12 +49,20 @@ export default function CreateCasePage() {
         // Close modal and show success message
         setCaseModalOpen(false)
         
-        const successMessage = 'Заявката е създадена и е достъпна за всички специалисти! Ще получите потвърждение скоро.'
+        const caseId = response.data.data?.id || response.data.caseId
+        const hasBudget = formData.budget && parseFloat(formData.budget) > 0
         
-        alert(successMessage)
+        if (hasBudget && caseId) {
+          const successMessage = `✅ Заявката е създадена успешно!\n\n📋 Специалистите ще наддават за вашата заявка.\n\n🔗 Линк за преглед на оферти:\nhttps://maystorfix.com/dashboard/cases/${caseId}/bids\n\n💡 Запазете този линк за да видите офертите!`
+          alert(successMessage)
+          // Copy link to clipboard
+          navigator.clipboard.writeText(`https://maystorfix.com/dashboard/cases/${caseId}/bids`)
+        } else {
+          alert('Заявката е създадена и е достъпна за всички специалисти! Ще получите потвърждение скоро.')
+        }
         
-        // Redirect to dashboard or home
-        router.push('/dashboard')
+        // Redirect to home
+        router.push('/')
       } else {
         throw new Error(response.data?.message || 'Failed to create case')
       }

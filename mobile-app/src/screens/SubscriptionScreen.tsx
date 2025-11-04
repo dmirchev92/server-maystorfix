@@ -31,10 +31,19 @@ interface UserSubscription {
   expires_at: string;
 }
 
+interface PointsBalance {
+  current_balance: number;
+  total_earned: number;
+  total_spent: number;
+  last_reset?: string;
+  monthly_allowance: number;
+}
+
 export default function SubscriptionScreen() {
   const navigation = useNavigation<any>();
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
+  const [pointsBalance, setPointsBalance] = useState<PointsBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
 
@@ -56,6 +65,12 @@ export default function SubscriptionScreen() {
       const subResponse = await ApiService.getInstance().getMySubscription();
       if (subResponse.success && subResponse.data?.subscription) {
         setCurrentSubscription(subResponse.data.subscription);
+      }
+
+      // Load points balance
+      const pointsResponse = await ApiService.getInstance().getPointsBalance();
+      if (pointsResponse.success && pointsResponse.data) {
+        setPointsBalance(pointsResponse.data);
       }
     } catch (error) {
       console.error('Error loading subscription data:', error);
@@ -146,21 +161,36 @@ export default function SubscriptionScreen() {
 
   const renderTierFeatures = (tier: SubscriptionTier) => {
     const features = [];
+    const limits = tier.limits;
     
     if (tier.id === 'free') {
+      features.push(`💰 ${limits?.points_monthly || 40} точки месечно`);
+      features.push(`💵 Заявки до ${limits?.max_case_budget || 500} лв`);
+      features.push('📊 1-500 лв: 8 точки/заявка');
       features.push('5 заявки или 14 дни пробен период');
       features.push('Базова видимост');
       features.push('Чат съобщения');
     } else if (tier.id === 'normal') {
+      features.push(`💰 ${limits?.points_monthly || 150} точки месечно`);
+      features.push(`💵 Заявки до ${limits?.max_case_budget || 1500} лв`);
+      features.push('📊 1-500 лв: 8 точки');
+      features.push('📊 500-1000 лв: 15 точки');
+      features.push('📊 1000-1500 лв: 20 точки');
       features.push('До 5 категории услуги');
       features.push('До 20 снимки в галерията');
-      features.push('50 приемания на заявки месечно');
       features.push('Подобрена видимост в търсенето');
       features.push('Приоритетни известия');
     } else if (tier.id === 'pro') {
+      features.push(`💰 ${limits?.points_monthly || 250} точки месечно`);
+      features.push('💵 Всички бюджети на заявки');
+      features.push('📊 1-500 лв: 5 точки');
+      features.push('📊 500-1000 лв: 10 точки');
+      features.push('📊 1000-1500 лв: 15 точки');
+      features.push('📊 1500-2000 лв: 20 точки');
+      features.push('📊 2000-3000 лв: 30 точки');
+      features.push('📊 3000-5000 лв: 40-50 точки');
       features.push('Неограничени категории');
       features.push('Неограничени снимки');
-      features.push('Неограничени заявки');
       features.push('Система за наддаване');
       features.push('Приоритетна поддръжка');
       features.push('Премиум значка');
@@ -195,6 +225,16 @@ export default function SubscriptionScreen() {
               {tiers.find(t => t.id === currentSubscription.tier_id)?.name_bg || 'Безплатен'}
             </Text>
           </Text>
+          {pointsBalance && (
+            <View style={styles.pointsContainer}>
+              <Text style={styles.pointsText}>
+                💰 Налични точки: <Text style={styles.pointsValue}>{pointsBalance.current_balance}</Text> / {pointsBalance.monthly_allowance}
+              </Text>
+              <Text style={styles.pointsSubtext}>
+                Използвани: {pointsBalance.total_spent} | Общо получени: {pointsBalance.total_earned}
+              </Text>
+            </View>
+          )}
         </View>
       )}
 
@@ -327,6 +367,27 @@ const styles = StyleSheet.create({
   },
   currentPlanTier: {
     fontWeight: 'bold',
+  },
+  pointsContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  pointsText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  pointsValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  pointsSubtext: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   tiersContainer: {
     padding: 16,

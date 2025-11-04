@@ -33,6 +33,7 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       preferredDate,
       preferredTime,
       priority,
+      budget,
       city,
       neighborhood,
       address,
@@ -92,10 +93,10 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       await (db as any).query(
         `INSERT INTO marketplace_service_cases (
           id, service_type, description, preferred_date, preferred_time,
-          priority, city, neighborhood, phone, additional_details, provider_id,
+          priority, budget, bidding_enabled, max_bidders, city, neighborhood, phone, additional_details, provider_id,
           provider_name, is_open_case, assignment_type, status,
           customer_id, category, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
         [
           caseId,
           serviceType,
@@ -103,6 +104,9 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           preferredDate,
           preferredTime || 'morning',
           priority || 'normal',
+          budget ? parseFloat(budget) : null,
+          budget && parseFloat(budget) > 0 ? true : false, // Enable bidding if budget is provided
+          budget && parseFloat(budget) > 0 ? 3 : null, // Max 3 bidders if bidding enabled
           city,
           neighborhood,
           phone,
@@ -753,6 +757,7 @@ export const completeCase = async (req: Request, res: Response): Promise<void> =
         providerId: caseDetails.provider_id 
       });
       try {
+        const notificationService = getNotificationService();
         await notificationService.notifyCaseCompleted(
           caseId,
           caseDetails.customer_id,

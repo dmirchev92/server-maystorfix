@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { apiClient } from '@/lib/api'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Header } from '@/components/Header'
+import { PointsBalance } from '@/components/PointsBalance'
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading, logout } = useAuth()
@@ -216,6 +217,12 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* Points Balance Card */}
+        <div className="mb-6">
+          <PointsBalance />
+        </div>
+
         {/* Income Statistics Card - Moved to Top */}
         {incomeStats && (
           <Card className="mb-6 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border-2 border-green-500/30 shadow-xl">

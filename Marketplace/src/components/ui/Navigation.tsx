@@ -49,6 +49,10 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
     ...(user?.role === 'tradesperson' || user?.role === 'service_provider' ? [
       { href: '/dashboard', label: 'Табло', icon: '📊' },
     ] : []),
+    // My Cases for customers
+    ...(user && user.role !== 'tradesperson' && user.role !== 'service_provider' ? [
+      { href: '/my-cases', label: 'Моите заявки', icon: '📋' },
+    ] : []),
   ];
 
   const userMenuItems = [

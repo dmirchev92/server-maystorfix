@@ -70,6 +70,16 @@ export interface TierLimits {
   premium_badge: boolean;
   bidding_enabled?: boolean;
   max_active_bids?: number;
+  // Points system for case access
+  points_monthly: number;
+  max_case_budget: number;
+  points_cost_1_500: number;
+  points_cost_500_1000: number;
+  points_cost_1000_1500: number;
+  points_cost_1500_2000: number;
+  points_cost_2000_3000: number;
+  points_cost_3000_4000: number;
+  points_cost_4000_5000: number;
 }
 
 export interface SubscriptionTierData {
@@ -253,4 +263,48 @@ export class TierRequirementError extends SubscriptionError {
     super(message, 'TIER_REQUIREMENT_NOT_MET', 403);
     this.name = 'TierRequirementError';
   }
+}
+
+// Points System Types
+export interface SPPointsTransaction {
+  id: string;
+  user_id: string;
+  transaction_type: 'earned' | 'spent' | 'refund' | 'reset' | 'bonus';
+  points_amount: number;
+  balance_after: number;
+  reason: string;
+  case_id?: string;
+  metadata?: Record<string, any>;
+  created_at: Date;
+}
+
+export interface SPCaseAccess {
+  id: string;
+  user_id: string;
+  case_id: string;
+  points_spent: number;
+  case_budget: number;
+  accessed_at: Date;
+}
+
+export interface PointsBalance {
+  current_balance: number;
+  total_earned: number;
+  total_spent: number;
+  last_reset?: Date;
+  monthly_allowance: number;
+}
+
+export interface CaseAccessRequest {
+  user_id: string;
+  case_id: string;
+  case_budget: number;
+}
+
+export interface CaseAccessResult {
+  allowed: boolean;
+  points_required: number;
+  points_balance: number;
+  message?: string;
+  case_budget_range?: string;
 }

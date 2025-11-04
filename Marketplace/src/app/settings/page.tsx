@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/Header'
 import apiClient from '@/lib/api'
 import { sofiaNeighborhoods } from '@/components/NeighborhoodSelect'
+import ServiceCategoryManager from '@/components/ServiceCategoryManager'
 
 interface ProfileData {
   firstName: string
@@ -321,6 +322,11 @@ export default function SettingsPage() {
                   <span className="text-slate-400 text-xl">›</span>
                 </button>
               </div>
+            </div>
+
+            {/* Service Categories Section */}
+            <div className="mb-6">
+              <ServiceCategoryManager onUpdate={loadProfileData} />
             </div>
 
             {/* Information Section */}

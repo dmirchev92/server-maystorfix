@@ -217,33 +217,23 @@ export class ReviewService {
       const offset = (page - 1) * limit;
 
       // Get total count
-      const total = await new Promise<number>((resolve, reject) => {
-        this.db.db.get(
-          'SELECT COUNT(*) as count FROM case_reviews WHERE provider_id = ?',
-          [providerId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row?.count || 0);
-          }
-        );
-      });
+      const countResult = await this.db.query(
+        'SELECT COUNT(*) as count FROM case_reviews WHERE provider_id = $1',
+        [providerId]
+      );
+      const total = parseInt(countResult[0]?.count || '0');
 
       // Get reviews with customer info
-      const reviews = await new Promise<Review[]>((resolve, reject) => {
-        this.db.db.all(
-          `SELECT r.*, u.first_name, u.last_name 
-           FROM case_reviews r
-           JOIN users u ON r.customer_id = u.id
-           WHERE r.provider_id = ?
-           ORDER BY r.created_at DESC
-           LIMIT ? OFFSET ?`,
-          [providerId, limit, offset],
-          (err: Error | null, rows: any[]) => {
-            if (err) reject(err);
-            else resolve(rows || []);
-          }
-        );
-      });
+      const reviews = await this.db.query(
+        `SELECT r.*, u.first_name, u.last_name,
+                CONCAT(u.first_name, ' ', u.last_name) as customer_name
+         FROM case_reviews r
+         JOIN users u ON r.customer_id = u.id
+         WHERE r.provider_id = $1
+         ORDER BY r.created_at DESC
+         LIMIT $2 OFFSET $3`,
+        [providerId, limit, offset]
+      );
 
       return { reviews, total };
 
@@ -259,58 +249,46 @@ export class ReviewService {
   async getProviderReviewStats(providerId: string): Promise<ReviewStats> {
     try {
       // Get basic stats
-      const basicStats = await new Promise<any>((resolve, reject) => {
-        this.db.db.get(
-          `SELECT 
-            COUNT(*) as total_reviews,
-            AVG(rating) as average_rating,
-            AVG(service_quality) as avg_service_quality,
-            AVG(communication) as avg_communication,
-            AVG(timeliness) as avg_timeliness,
-            AVG(value_for_money) as avg_value_for_money,
-            AVG(CASE WHEN would_recommend THEN 1 ELSE 0 END) as recommendation_rate
-           FROM case_reviews 
-           WHERE provider_id = ?`,
-          [providerId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
-        );
-      });
+      const basicStatsResult = await this.db.query(
+        `SELECT 
+          COUNT(*) as total_reviews,
+          AVG(rating) as average_rating,
+          AVG(service_quality) as avg_service_quality,
+          AVG(communication) as avg_communication,
+          AVG(timeliness) as avg_timeliness,
+          AVG(value_for_money) as avg_value_for_money,
+          AVG(CASE WHEN would_recommend = 1 THEN 1 ELSE 0 END) as recommendation_rate
+         FROM case_reviews 
+         WHERE provider_id = $1`,
+        [providerId]
+      );
+      const basicStats = basicStatsResult[0] || {};
 
       // Get rating distribution
-      const ratingDistribution = await new Promise<{ [key: number]: number }>((resolve, reject) => {
-        this.db.db.all(
-          `SELECT rating, COUNT(*) as count 
-           FROM case_reviews 
-           WHERE provider_id = ? 
-           GROUP BY rating`,
-          [providerId],
-          (err: Error | null, rows: any[]) => {
-            if (err) reject(err);
-            else {
-              const distribution: { [key: number]: number } = {};
-              rows.forEach(row => {
-                distribution[row.rating] = row.count;
-              });
-              resolve(distribution);
-            }
-          }
-        );
+      const distributionResult = await this.db.query(
+        `SELECT rating, COUNT(*) as count 
+         FROM case_reviews 
+         WHERE provider_id = $1
+         GROUP BY rating`,
+        [providerId]
+      );
+      
+      const ratingDistribution: { [key: number]: number } = {};
+      distributionResult.forEach((row: any) => {
+        ratingDistribution[row.rating] = parseInt(row.count);
       });
 
       return {
-        averageRating: Number((basicStats?.average_rating || 0).toFixed(2)),
-        totalReviews: basicStats?.total_reviews || 0,
+        averageRating: Number(parseFloat(basicStats?.average_rating || '0').toFixed(2)),
+        totalReviews: parseInt(basicStats?.total_reviews || '0'),
         ratingDistribution,
         categoryAverages: {
-          serviceQuality: Number((basicStats?.avg_service_quality || 0).toFixed(2)),
-          communication: Number((basicStats?.avg_communication || 0).toFixed(2)),
-          timeliness: Number((basicStats?.avg_timeliness || 0).toFixed(2)),
-          valueForMoney: Number((basicStats?.avg_value_for_money || 0).toFixed(2))
+          serviceQuality: Number(parseFloat(basicStats?.avg_service_quality || '0').toFixed(2)),
+          communication: Number(parseFloat(basicStats?.avg_communication || '0').toFixed(2)),
+          timeliness: Number(parseFloat(basicStats?.avg_timeliness || '0').toFixed(2)),
+          valueForMoney: Number(parseFloat(basicStats?.avg_value_for_money || '0').toFixed(2))
         },
-        recommendationRate: Number((basicStats?.recommendation_rate || 0).toFixed(2))
+        recommendationRate: Number(parseFloat(basicStats?.recommendation_rate || '0').toFixed(2))
       };
 
     } catch (error) {
@@ -395,21 +373,19 @@ export class ReviewService {
    */
   async updateProviderRating(providerId: string): Promise<void> {
     try {
+      console.log('🔄 Getting stats for provider:', providerId);
       const stats = await this.getProviderReviewStats(providerId);
+      console.log('📊 Stats retrieved:', stats);
       
       // Update service_provider_profiles table with latest rating
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(
-          `UPDATE service_provider_profiles 
-           SET rating = ?, total_reviews = ?, updated_at = datetime('now')
-           WHERE user_id = ?`,
-          [stats.averageRating, stats.totalReviews, providerId],
-          function(err: Error | null) {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+      console.log('💾 Updating profile with:', { rating: stats.averageRating, totalReviews: stats.totalReviews, providerId });
+      const result = await this.db.query(
+        `UPDATE service_provider_profiles 
+         SET rating = $1, total_reviews = $2, updated_at = NOW()
+         WHERE user_id = $3`,
+        [stats.averageRating, stats.totalReviews, providerId]
+      );
+      console.log('✅ Update result:', result);
 
       logger.info('✅ Provider rating updated', { 
         providerId, 
@@ -418,7 +394,9 @@ export class ReviewService {
       });
 
     } catch (error) {
+      console.error('❌ FULL Error updating provider rating:', error);
       logger.error('❌ Error updating provider rating:', error);
+      throw error;
     }
   }
 }

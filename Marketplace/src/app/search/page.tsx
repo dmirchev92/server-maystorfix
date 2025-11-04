@@ -15,6 +15,7 @@ interface ServiceProvider {
   id: string
   business_name: string
   service_category: string
+  service_categories?: string[]
   description: string
   experience_years: number
   hourly_rate: number
@@ -586,9 +587,19 @@ export default function SearchPage() {
                             </div>
                           </div>
                         </div>
-                        <span className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-400/30">
-                          {getCategoryDisplayName((provider as any).serviceCategory || (provider as any).service_category)}
-                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {((provider as any).serviceCategories && (provider as any).serviceCategories.length > 0) ? (
+                            (provider as any).serviceCategories.map((cat: string, idx: number) => (
+                              <span key={idx} className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-400/30">
+                                {getCategoryDisplayName(cat)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-300 text-xs px-3 py-1 rounded-full font-semibold border border-indigo-400/30">
+                              {getCategoryDisplayName((provider as any).serviceCategory || (provider as any).service_category)}
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Rating */}

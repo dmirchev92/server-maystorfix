@@ -677,6 +677,72 @@ class ApiClient {
     console.log('📋 API Client - Getting my subscription')
     return this.client.get('/subscriptions/my-subscription')
   }
+
+  // Points Methods
+  async getPointsBalance() {
+    console.log('💰 API Client - Getting points balance')
+    return this.client.get('/points/balance')
+  }
+
+  async checkCaseAccess(caseId: string, caseBudget: number) {
+    console.log('🔍 API Client - Checking case access:', caseId)
+    return this.client.post('/points/check-access', { case_id: caseId, case_budget: caseBudget })
+  }
+
+  async spendPointsForCase(caseId: string, caseBudget: number) {
+    console.log('💸 API Client - Spending points for case:', caseId)
+    return this.client.post('/points/spend', { case_id: caseId, case_budget: caseBudget })
+  }
+
+  async getPointsTransactions(limit?: number, offset?: number) {
+    console.log('📜 API Client - Getting points transactions')
+    const params: any = {}
+    if (limit) params.limit = limit
+    if (offset) params.offset = offset
+    return this.client.get('/points/transactions', { params })
+  }
+
+  async getAccessedCases() {
+    console.log('📋 API Client - Getting accessed cases')
+    return this.client.get('/points/accessed-cases')
+  }
+
+  // Bidding Methods
+  async canBidOnCase(caseId: string) {
+    console.log('🔍 API Client - Checking if can bid on case:', caseId)
+    return this.client.get(`/bidding/case/${caseId}/can-bid`)
+  }
+
+  async placeBid(caseId: string) {
+    console.log('💸 API Client - Placing bid on case:', caseId)
+    return this.client.post(`/bidding/case/${caseId}/bid`)
+  }
+
+  async getCaseBids(caseId: string, includeProviderInfo: boolean = false) {
+    console.log('📋 API Client - Getting bids for case:', caseId)
+    return this.client.get(`/bidding/case/${caseId}/bids`, { 
+      params: { includeProviderInfo } 
+    })
+  }
+
+  async selectWinningBid(caseId: string, winningBidId: string) {
+    console.log('🏆 API Client - Selecting winning bid:', winningBidId)
+    return this.client.post(`/bidding/case/${caseId}/select-winner`, { 
+      winning_bid_id: winningBidId 
+    })
+  }
+
+  async getMyBids(status?: string) {
+    console.log('📜 API Client - Getting my bids')
+    const params: any = {}
+    if (status) params.status = status
+    return this.client.get('/bidding/my-bids', { params })
+  }
+
+  async cancelBid(bidId: string) {
+    console.log('❌ API Client - Cancelling bid:', bidId)
+    return this.client.delete(`/bidding/bid/${bidId}`)
+  }
 }
 
 // Export singleton instance

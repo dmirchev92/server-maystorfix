@@ -2,10 +2,12 @@ package com.servicetextpro;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.IBinder;
 import android.telephony.PhoneStateListener;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import androidx.core.content.ContextCompat;
 import androidx.annotation.Nullable;
 
 public class CallDetectionService extends Service {
@@ -41,7 +43,14 @@ public class CallDetectionService extends Service {
             }
         };
         
-        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+        // Check if we have permission before listening
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_PHONE_STATE) 
+                == PackageManager.PERMISSION_GRANTED) {
+            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE);
+            Log.d(TAG, "Phone state listener registered");
+        } else {
+            Log.w(TAG, "READ_PHONE_STATE permission not granted, cannot listen to phone state");
+        }
     }
 
     private void sendBroadcastToReactNative() {

@@ -223,7 +223,13 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
         spp.experience_years, spp.hourly_rate, spp.city, spp.neighborhood, 
         spp.address, spp.phone_number as profile_phone, 
         spp.email as profile_email, spp.website_url as website, 
-        spp.profile_image_url, spp.rating, spp.total_reviews, spp.is_active
+        spp.profile_image_url, spp.rating, spp.total_reviews, spp.is_active,
+        COALESCE(
+          (SELECT json_agg(psc.category_id) 
+           FROM provider_service_categories psc 
+           WHERE psc.provider_id = u.id),
+          '[]'::json
+        ) as service_categories
       FROM users u
       LEFT JOIN service_provider_profiles spp ON u.id = spp.user_id
       WHERE u.role = 'tradesperson' 
@@ -249,7 +255,10 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
     }
 
     if (category) {
-      query += ` AND spp.service_category = $${paramIndex++}`;
+      query += ` AND EXISTS (
+        SELECT 1 FROM provider_service_categories psc 
+        WHERE psc.provider_id = u.id AND psc.category_id = $${paramIndex++}
+      )`;
       params.push(category);
     }
 
@@ -268,6 +277,7 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       phoneNumber: provider.phone_number,
       businessName: provider.business_name || `${provider.first_name} ${provider.last_name}`,
       serviceCategory: provider.service_category || 'general',
+      serviceCategories: Array.isArray(provider.service_categories) ? provider.service_categories : [],
       description: provider.description || 'Professional service provider',
       experienceYears: provider.experience_years || 0,
       hourlyRate: provider.hourly_rate || 0,

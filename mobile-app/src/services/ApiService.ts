@@ -499,6 +499,41 @@ export class ApiService {
     console.log('🔍 ApiService - Checking feature access:', feature);
     return this.makeRequest(`/subscriptions/feature-access/${feature}`);
   }
+
+  // Points methods
+  public async getPointsBalance(): Promise<APIResponse> {
+    console.log('💰 ApiService - Getting points balance');
+    return this.makeRequest('/points/balance');
+  }
+
+  public async checkCaseAccess(caseId: string, caseBudget: number): Promise<APIResponse> {
+    console.log('🔍 ApiService - Checking case access:', caseId);
+    return this.makeRequest('/points/check-access', {
+      method: 'POST',
+      body: JSON.stringify({ case_id: caseId, case_budget: caseBudget }),
+    });
+  }
+
+  public async spendPointsForCase(caseId: string, caseBudget: number): Promise<APIResponse> {
+    console.log('💸 ApiService - Spending points for case:', caseId);
+    return this.makeRequest('/points/spend', {
+      method: 'POST',
+      body: JSON.stringify({ case_id: caseId, case_budget: caseBudget }),
+    });
+  }
+
+  public async getPointsTransactions(limit?: number, offset?: number): Promise<APIResponse> {
+    console.log('📜 ApiService - Getting points transactions');
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+    return this.makeRequest(`/points/transactions?${params.toString()}`);
+  }
+
+  public async getAccessedCases(): Promise<APIResponse> {
+    console.log('📋 ApiService - Getting accessed cases');
+    return this.makeRequest('/points/accessed-cases');
+  }
 }
 
 export default ApiService;

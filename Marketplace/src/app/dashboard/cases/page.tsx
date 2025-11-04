@@ -20,6 +20,7 @@ interface Case {
   status: 'pending' | 'accepted' | 'declined' | 'completed' | 'cancelled' | 'wip' | 'closed'
   category: string
   priority: string
+  budget?: number
   city?: string
   neighborhood?: string
   address?: string
@@ -30,8 +31,13 @@ interface Case {
   provider_name?: string
   customer_id?: string
   assignment_type?: 'open' | 'specific'
+  bidding_enabled?: boolean
+  current_bidders?: number
+  max_bidders?: number
+  bidding_closed?: boolean
   created_at: string
   updated_at: string
+  winning_bid_id?: string
 }
 
 export default function DashboardPage() {
@@ -51,6 +57,8 @@ export default function DashboardPage() {
     limit: 10
   })
   const [completionModal, setCompletionModal] = useState<{ isOpen: boolean; caseId: string; caseTitle: string }>({ isOpen: false, caseId: '', caseTitle: '' })
+  const [biddingCases, setBiddingCases] = useState<Set<string>>(new Set()) // Cases currently being bid on
+  const [pointsBalance, setPointsBalance] = useState<number>(0)
   
   // Prevent duplicate requests
   const fetchingRef = useRef(false)
@@ -73,6 +81,7 @@ export default function DashboardPage() {
     if (isAuthenticated && user) {
       fetchCases()
       fetchStats()
+      fetchPointsBalance()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id, filters.status, filters.category, filters.city, filters.neighborhood, filters.viewMode, filters.page])
@@ -254,6 +263,78 @@ export default function DashboardPage() {
     }
   }
 
+  const handlePlaceBid = async (caseId: string, caseBudget: number) => {
+    try {
+      setBiddingCases(prev => new Set(prev).add(caseId))
+      
+      // First check if can bid
+      const canBidResponse = await apiClient.canBidOnCase(caseId)
+      
+      if (!canBidResponse.data?.data?.allowed) {
+        const reason = canBidResponse.data?.data?.reason || 'Cannot place bid'
+        const requiredPoints = canBidResponse.data?.data?.required_points
+        
+        if (requiredPoints) {
+          alert(`${reason}\n\nНеобходими точки: ${requiredPoints}\nВашите точки: ${pointsBalance}`)
+        } else {
+          alert(reason)
+        }
+        setBiddingCases(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(caseId)
+          return newSet
+        })
+        return
+      }
+      
+      const requiredPoints = canBidResponse.data.data.required_points
+      
+      // Confirm bid
+      if (!confirm(`Искате ли да наддавате за тази заявка?\n\nБюджет: ${caseBudget} BGN\nНеобходими точки: ${requiredPoints}\nВашите точки: ${pointsBalance}\n\nТочките ще бъдат временно резервирани.`)) {
+        setBiddingCases(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(caseId)
+          return newSet
+        })
+        return
+      }
+      
+      // Place bid
+      const bidResponse = await apiClient.placeBid(caseId)
+      
+      if (bidResponse.data?.success) {
+        const bidData = bidResponse.data.data
+        alert(`✅ ${bidResponse.data.message}\n\nВие сте наддавач #${bidData.bid_order}\nИзползвани точки: ${bidData.points_spent}`)
+        
+        // Refresh cases and points
+        fetchCases()
+        fetchPointsBalance()
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error placing bid:', error)
+      const errorMsg = error.response?.data?.error?.message || error.message || 'Възникна грешка при наддаването'
+      alert(`Грешка: ${errorMsg}`)
+    } finally {
+      setBiddingCases(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(caseId)
+        return newSet
+      })
+    }
+  }
+
+  const fetchPointsBalance = async () => {
+    try {
+      const response = await apiClient.getPointsBalance()
+      if (response.data?.success) {
+        setPointsBalance(response.data.data.current_balance)
+      }
+    } catch (error) {
+      console.error('Error fetching points balance:', error)
+    }
+  }
+
   const toggleCaseExpansion = (caseId: string) => {
     setExpandedCases(prev => {
       const newSet = new Set(prev)
@@ -302,6 +383,20 @@ export default function DashboardPage() {
     return categoryNames[category] || category
   }
 
+  // Calculate estimated points cost based on budget (approximation)
+  const estimatePointsCost = (budget: number): string => {
+    // This is an approximation - actual cost depends on user's tier
+    // Free tier costs more, Pro tier costs less
+    if (budget <= 500) return '10-20'
+    if (budget <= 1000) return '20-40'
+    if (budget <= 1500) return '30-60'
+    if (budget <= 2000) return '40-80'
+    if (budget <= 3000) return '60-120'
+    if (budget <= 4000) return '80-160'
+    if (budget <= 5000) return '100-200'
+    return '100+'
+  }
+
   // Check if case is "new" (created within last 24 hours)
   const isNewCase = (createdAt: string) => {
     const created = new Date(createdAt)
@@ -332,13 +427,23 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Управление на заявки
-          </h1>
-          <p className="text-slate-300">
-            {user.role === 'customer' ? 'Вашите заявки за услуги' : 'Заявки за вашите услуги'}
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-white mb-2">
+              Управление на заявки
+            </h1>
+            <p className="text-slate-300 text-lg">
+              {user.role === 'customer' ? 'Вашите заявки за услуги' : 'Заявки за вашите услуги'}
+            </p>
+          </div>
+          {/* Points Balance Display */}
+          <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-400/40 rounded-xl px-6 py-4">
+            <div className="text-center">
+              <p className="text-sm text-slate-300 mb-1">Налични точки</p>
+              <p className="text-3xl font-bold text-white">{pointsBalance}</p>
+              <p className="text-xs text-slate-400 mt-1">за наддаване</p>
+            </div>
+          </div>
         </div>
 
         {/* View Mode Toggle - Prominent for Service Providers */}
@@ -652,6 +757,16 @@ export default function DashboardPage() {
                                 <span className="flex items-center gap-1">
                                   📅 {new Date(case_.created_at).toLocaleDateString('bg-BG')}
                                 </span>
+                                {case_.budget && (
+                                  <span className="flex items-center gap-1 font-semibold text-green-400">
+                                    💰 {case_.budget} BGN
+                                  </span>
+                                )}
+                                {case_.bidding_enabled && (
+                                  <span className="flex items-center gap-1 text-blue-400">
+                                    👥 {case_.current_bidders || 0}/{case_.max_bidders || 3} оферти
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-3">
                                 <StatusBadge status={case_.status as any} />
@@ -702,8 +817,31 @@ export default function DashboardPage() {
                         <div className="flex-shrink-0 ml-4">
                           {user?.role === 'tradesperson' || user?.role === 'service_provider' ? (
                             <div className="flex gap-2">
+                              {/* Show bid button for pending cases with bidding enabled */}
+                              {case_.status === 'pending' && case_.bidding_enabled && !case_.bidding_closed && case_.budget && (
+                                <div className="flex flex-col gap-1">
+                                  <Button
+                                    variant="construction"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handlePlaceBid(case_.id, case_.budget!)
+                                    }}
+                                    disabled={biddingCases.has(case_.id) || (case_.current_bidders || 0) >= (case_.max_bidders || 3)}
+                                    leftIcon={<span>💰</span>}
+                                  >
+                                    {biddingCases.has(case_.id) ? 'Наддаване...' : 
+                                     (case_.current_bidders || 0) >= (case_.max_bidders || 3) ? 'Пълно' : 
+                                     'Наддай'}
+                                  </Button>
+                                  <span className="text-xs text-slate-400 text-center">
+                                    ~{estimatePointsCost(case_.budget)} точки
+                                  </span>
+                                </div>
+                              )}
+                              
                               {/* Show accept button for pending cases (in all views including declined) */}
-                              {case_.status === 'pending' && (
+                              {case_.status === 'pending' && !case_.bidding_enabled && (
                                 <>
                                   <Button
                                     variant="construction"
@@ -754,19 +892,35 @@ export default function DashboardPage() {
                               )}
                             </div>
                           ) : (
-                            <div className="text-right">
-                              <p className="text-sm text-slate-300 mb-1">Изпълнител:</p>
-                              <div className="flex items-center gap-2">
-                                {case_.provider_name ? (
-                                  <>
-                                    <Avatar name={case_.provider_name} size="sm" />
-                                    <span className="text-sm font-medium text-white">
-                                      {case_.provider_name}
-                                    </span>
-                                  </>
-                                ) : (
-                                  <Badge variant="outline">Изчаква</Badge>
-                                )}
+                            <div className="flex flex-col gap-2">
+                              {/* Show View Bids button for cases with bidding enabled */}
+                              {case_.bidding_enabled && (case_.current_bidders || 0) > 0 && !case_.winning_bid_id && (
+                                <Button
+                                  variant="construction"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/dashboard/cases/${case_.id}/bids`)
+                                  }}
+                                  leftIcon={<span>👥</span>}
+                                >
+                                  Виж оферти ({case_.current_bidders})
+                                </Button>
+                              )}
+                              <div className="text-right">
+                                <p className="text-sm text-slate-300 mb-1">Изпълнител:</p>
+                                <div className="flex items-center gap-2">
+                                  {case_.provider_name ? (
+                                    <>
+                                      <Avatar name={case_.provider_name} size="sm" />
+                                      <span className="text-sm font-medium text-white">
+                                        {case_.provider_name}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    <Badge variant="outline">Изчаква</Badge>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           )}
