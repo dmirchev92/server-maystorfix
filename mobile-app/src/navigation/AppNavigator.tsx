@@ -45,16 +45,7 @@ function MainTabNavigator() {
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
         tabBarStyle: {
-          backgroundColor: '#ffffff',
-          borderTopWidth: 1,
-          borderTopColor: '#e0e0e0',
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 65,
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
+          display: 'none',
         },
         headerShown: false,
       }}
@@ -140,10 +131,7 @@ function MainTabNavigator() {
         name="ReferralDashboard"
         component={ReferralDashboardScreen}
         options={{
-          tabBarLabel: 'Препоръки',
-          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-            <Text style={{ color, fontSize: size }}>🎯</Text>
-          ),
+          tabBarButton: () => null,
         }}
       />
       <Tab.Screen

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Switch,
   Dimensions,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -18,6 +19,8 @@ import ApiService from '../services/ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthBus } from '../utils/AuthBus';
 import theme from '../styles/theme';
+
+const USE_NEW_DASHBOARD_UI = true;
 
 interface User {
   id: string;
@@ -74,6 +77,7 @@ function ModernDashboardScreen() {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isTogglingDetection, setIsTogglingDetection] = useState(false);
 
   const callDetectionService = ModernCallDetectionService.getInstance();
 
@@ -462,6 +466,21 @@ function ModernDashboardScreen() {
   };
 
 
+  const handleToggleDetectionSwitch = async (value: boolean) => {
+    if (isTogglingDetection) return;
+    setIsTogglingDetection(true);
+    try {
+      if (value) {
+        await handleStartCallDetection();
+      } else {
+        await handleStopCallDetection();
+      }
+    } finally {
+      setIsTogglingDetection(false);
+    }
+  };
+
+
 
 
 
@@ -500,6 +519,156 @@ function ModernDashboardScreen() {
       <View style={styles.container}>
         <Text style={styles.errorText}>Грешка: Няма данни за потребителя</Text>
       </View>
+    );
+  }
+
+  if (USE_NEW_DASHBOARD_UI) {
+    return (
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+        }
+      >
+        <View style={styles.header}>
+          <View style={styles.userInfo}>
+            <Text style={styles.welcomeText}>Добре дошли,</Text>
+            <Text style={styles.userName}>
+              {user ? `${user.firstName} ${user.lastName}` : 'Зареждане...'}
+            </Text>
+            <Text style={styles.userRole}>
+              {user ? (user.role === 'tradesperson' ? 'Занаятчия' : user.role) : 'Зареждане...'}
+            </Text>
+          </View>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity style={styles.settingsIconButton} onPress={() => navigation.navigate('Settings')}>
+              <Text style={styles.settingsIcon}>⚙️</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogoutPress}>
+              <Text style={styles.logoutButtonText}>Излизане</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.statusContainer}>
+          <View style={styles.statusCard}>
+            <View style={styles.statusHeaderRow}>
+              <Text style={styles.sectionTitle}>Детекция на обаждания</Text>
+              <Switch
+                value={!!callDetectionStatus.isListening}
+                onValueChange={handleToggleDetectionSwitch}
+                disabled={isTogglingDetection}
+              />
+            </View>
+            <View style={styles.chipsRow}>
+              <View style={[styles.chip, callDetectionStatus.isListening ? styles.chipSuccess : styles.chipDanger]}>
+                <Text style={styles.chipText}>
+                  {callDetectionStatus.isListening ? 'Активна' : 'Неактивна'}
+                </Text>
+              </View>
+              <View style={[styles.chip, callDetectionStatus.hasPermissions ? styles.chipSuccess : styles.chipWarning]}>
+                <Text style={styles.chipText}>
+                  {callDetectionStatus.hasPermissions ? 'Дадени' : 'Нужни'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.kpiRowNew}>
+          <View style={[styles.kpiCard, styles.kpiWarning]}>
+            <Text style={styles.kpiValue}>{stats.missedCalls}</Text>
+            <Text style={styles.kpiLabel}>Пропуснати</Text>
+          </View>
+          <View style={[styles.kpiCard, styles.kpiPrimary]}>
+            <Text style={styles.kpiValue}>{stats.activeConversations}</Text>
+            <Text style={styles.kpiLabel}>Активни разговори</Text>
+          </View>
+          <View style={[styles.kpiCard, styles.kpiSuccess]}>
+            <Text style={styles.kpiValue}>{stats.responseRate}%</Text>
+            <Text style={styles.kpiLabel}>Отговорени</Text>
+          </View>
+        </View>
+
+        <View style={styles.navigationGrid}>
+          <Text style={styles.navigationTitle}>Бързи действия</Text>
+          <View style={styles.navigationRow}>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Cases')}>
+              <Text style={styles.navIcon}>📋</Text>
+              <Text style={styles.navLabel}>Заявки</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={handleChatPress}>
+              <Text style={styles.navIcon}>💬</Text>
+              <Text style={styles.navLabel}>Чат</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('SMS')}>
+              <Text style={styles.navIcon}>📱</Text>
+              <Text style={styles.navLabel}>SMS</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.navigationRow}>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('MyBids')}>
+              <Text style={styles.navIcon}>💰</Text>
+              <Text style={styles.navLabel}>Оферти</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Points')}>
+              <Text style={styles.navIcon}>💎</Text>
+              <Text style={styles.navLabel}>Точки</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('ReferralDashboard')}>
+              <Text style={styles.navIcon}>🎯</Text>
+              <Text style={styles.navLabel}>Препоръки</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.navigationRow}>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('IncomeDashboard')}>
+              <Text style={styles.navIcon}>📊</Text>
+              <Text style={styles.navLabel}>Табло</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Subscription')}>
+              <Text style={styles.navIcon}>💳</Text>
+              <Text style={styles.navLabel}>Абонамент</Text>
+            </TouchableOpacity>
+            <View style={styles.navCardEmpty} />
+          </View>
+        </View>
+
+        <View style={styles.activityContainer}>
+          <Text style={styles.sectionTitle}>Последна активност</Text>
+          {recentActivity.length > 0 ? (
+            recentActivity.map((activity) => (
+              <View key={activity.id} style={styles.activityItem}>
+                <Text style={styles.activityIcon}>{activity.icon}</Text>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>{activity.title}</Text>
+                  <Text style={styles.activitySubtitle}>{activity.subtitle}</Text>
+                </View>
+                <Text style={[
+                  styles.activityStatus,
+                  activity.status === 'Завършен' ? styles.completedStatus : 
+                  activity.status === 'Активен' ? styles.activeStatus : styles.processingStatus
+                ]}>
+                  {activity.status}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.activityItem}>
+              <Text style={styles.activityIcon}>ℹ️</Text>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Няма последна активност</Text>
+                <Text style={styles.activitySubtitle}>Стартирайте детекцията за да видите обаждания</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            Последна актуализация: {lastUpdated.toLocaleTimeString('bg-BG')}
+          </Text>
+        </View>
+      </ScrollView>
     );
   }
 
@@ -727,6 +896,18 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
+  },
+  settingsIconButton: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  settingsIcon: {
+    fontSize: 20,
   },
   testButton: {
     backgroundColor: theme.colors.success.solid,
@@ -800,6 +981,44 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textAlign: 'center',
   },
+  kpiRowNew: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+  },
+  kpiCard: {
+    flex: 1,
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.md,
+    alignItems: 'center',
+    ...theme.shadows.md,
+  },
+  kpiPrimary: {
+    borderTopWidth: 3,
+    borderTopColor: theme.colors.primary.solid,
+  },
+  kpiWarning: {
+    borderTopWidth: 3,
+    borderTopColor: theme.colors.warning.solid,
+  },
+  kpiSuccess: {
+    borderTopWidth: 3,
+    borderTopColor: theme.colors.success.solid,
+  },
+  kpiValue: {
+    fontSize: theme.typography.h2.fontSize,
+    fontWeight: theme.typography.h2.fontWeight,
+    color: theme.colors.text.primary,
+  },
+  kpiLabel: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.bodySmall.fontSize,
+    color: theme.colors.text.secondary,
+  },
   statusContainer: {
     padding: theme.spacing.lg,
     paddingTop: 0,
@@ -815,6 +1034,35 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     ...theme.shadows.md,
+  },
+  statusHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.sm,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  chip: {
+    borderRadius: theme.borderRadius.xl,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  chipSuccess: {
+    backgroundColor: theme.colors.success.light,
+  },
+  chipDanger: {
+    backgroundColor: theme.colors.danger.light,
+  },
+  chipWarning: {
+    backgroundColor: theme.colors.warning.light,
+  },
+  chipText: {
+    color: theme.colors.text.inverse,
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: '600',
   },
   statusRow: {
     flexDirection: 'row',
@@ -877,6 +1125,66 @@ const styles = StyleSheet.create({
   actionsContainer: {
     padding: theme.spacing.lg,
     paddingTop: 0,
+  },
+  navigationGrid: {
+    padding: theme.spacing.lg,
+    paddingTop: 0,
+  },
+  navigationTitle: {
+    fontSize: theme.typography.h4.fontSize,
+    fontWeight: theme.typography.h4.fontWeight,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
+  },
+  navigationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  navCard: {
+    flex: 1,
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...theme.shadows.md,
+    minHeight: 90,
+  },
+  navCardEmpty: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  navIcon: {
+    fontSize: 32,
+    marginBottom: theme.spacing.xs,
+  },
+  navLabel: {
+    fontSize: theme.typography.bodySmall.fontSize,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+  },
+  quickChipsContainer: {
+    padding: theme.spacing.lg,
+    paddingTop: 0,
+  },
+  quickChipsScroll: {
+    paddingRight: theme.spacing.lg,
+  },
+  quickChip: {
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: theme.borderRadius.xl,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginRight: theme.spacing.sm,
+    ...theme.shadows.md,
+  },
+  quickChipText: {
+    color: theme.colors.text.primary,
+    fontSize: theme.typography.bodySmall.fontSize,
+    fontWeight: '600',
   },
   actionButton: {
     backgroundColor: theme.colors.background.secondary,
