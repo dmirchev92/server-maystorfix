@@ -13,6 +13,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
 import IncomeCompletionModal from '../components/IncomeCompletionModal';
+import BidButton from '../components/BidButton';
+import PointsBalanceWidget from '../components/PointsBalanceWidget';
 
 interface Case {
   id: string;
@@ -33,6 +35,11 @@ interface Case {
   assignment_type?: 'open' | 'specific';
   created_at: string;
   updated_at: string;
+  budget?: number;
+  bidding_enabled?: boolean;
+  current_bidders?: number;
+  max_bidders?: number;
+  winning_bid_id?: string;
 }
 
 interface CaseStats {
@@ -449,6 +456,14 @@ export default function CasesScreen() {
         <Text style={styles.headerTitle}>Заявки</Text>
       </View>
 
+      {/* Points Balance Widget */}
+      <View style={styles.pointsWidgetContainer}>
+        <PointsBalanceWidget 
+          onPress={() => navigation.navigate('Points' as never)}
+          compact={false}
+        />
+      </View>
+
       {/* Stats Cards */}
       {stats && (
         <View style={styles.statsContainer}>
@@ -584,6 +599,19 @@ export default function CasesScreen() {
                     {caseItem.description}
                   </Text>
                   
+                  {/* Budget and Bidding Info */}
+                  {caseItem.budget && (
+                    <View style={styles.budgetContainer}>
+                      <Text style={styles.budgetLabel}>💰 Бюджет:</Text>
+                      <Text style={styles.budgetValue}>{caseItem.budget} BGN</Text>
+                      {caseItem.bidding_enabled && (
+                        <Text style={styles.biddingInfo}>
+                          👥 {caseItem.current_bidders || 0}/{caseItem.max_bidders || 3} оферти
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                  
                   {isExpanded && (
                     <View style={styles.caseDetails}>
                       {caseItem.address && (
@@ -626,27 +654,42 @@ export default function CasesScreen() {
                     </Text>
                   )}
                   
-                  {/* Available tab: Show Accept/Decline for pending cases */}
+                  {/* Available tab: Show Bid button OR Accept/Decline */}
                   {viewMode === 'available' && caseItem.status === 'pending' && (
                     <>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.acceptButton]}
-                        onPress={() => {
-                          console.log('✅ Accept button pressed for case:', caseItem.id, 'status:', caseItem.status);
-                          handleAcceptCase(caseItem.id);
-                        }}
-                      >
-                        <Text style={styles.actionButtonText}>✅ Приеми</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionButton, styles.declineButton]}
-                        onPress={() => {
-                          console.log('❌ Decline button pressed for case:', caseItem.id, 'status:', caseItem.status);
-                          handleDeclineCase(caseItem.id);
-                        }}
-                      >
-                        <Text style={styles.actionButtonText}>❌ Откажи</Text>
-                      </TouchableOpacity>
+                      {caseItem.bidding_enabled && caseItem.budget ? (
+                        <BidButton
+                          caseId={caseItem.id}
+                          budget={caseItem.budget}
+                          currentBidders={caseItem.current_bidders}
+                          maxBidders={caseItem.max_bidders}
+                          onBidPlaced={() => {
+                            fetchCases();
+                            fetchStats();
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.acceptButton]}
+                            onPress={() => {
+                              console.log('✅ Accept button pressed for case:', caseItem.id, 'status:', caseItem.status);
+                              handleAcceptCase(caseItem.id);
+                            }}
+                          >
+                            <Text style={styles.actionButtonText}>✅ Приеми</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionButton, styles.declineButton]}
+                            onPress={() => {
+                              console.log('❌ Decline button pressed for case:', caseItem.id, 'status:', caseItem.status);
+                              handleDeclineCase(caseItem.id);
+                            }}
+                          >
+                            <Text style={styles.actionButtonText}>❌ Откажи</Text>
+                          </TouchableOpacity>
+                        </>
+                      )}
                     </>
                   )}
                   
@@ -718,6 +761,10 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.h2.fontSize,
     fontWeight: theme.typography.h2.fontWeight,
     color: theme.colors.text.inverse,
+  },
+  pointsWidgetContainer: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
   },
   statsContainer: {
     padding: theme.spacing.md,
@@ -946,5 +993,30 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
+  },
+  budgetContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border.light,
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  budgetLabel: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    fontWeight: theme.fontWeight.medium,
+  },
+  budgetValue: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.success.solid,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  biddingInfo: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginLeft: 'auto',
   },
 });

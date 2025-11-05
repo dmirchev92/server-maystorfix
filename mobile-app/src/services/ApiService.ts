@@ -534,6 +534,38 @@ export class ApiService {
     console.log('📋 ApiService - Getting accessed cases');
     return this.makeRequest('/points/accessed-cases');
   }
+
+  // Bidding methods
+  public async canBidOnCase(caseId: string): Promise<APIResponse> {
+    console.log('🎯 ApiService - Checking if can bid on case:', caseId);
+    return this.makeRequest(`/bidding/case/${caseId}/can-bid`);
+  }
+
+  public async placeBid(caseId: string): Promise<APIResponse> {
+    console.log('💰 ApiService - Placing bid on case:', caseId);
+    return this.makeRequest(`/bidding/case/${caseId}/bid`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  }
+
+  public async getCaseBids(caseId: string, includeProviderInfo: boolean = false): Promise<APIResponse> {
+    console.log('👥 ApiService - Getting bids for case:', caseId);
+    return this.makeRequest(`/bidding/case/${caseId}/bids?includeProviderInfo=${includeProviderInfo}`);
+  }
+
+  public async selectWinningBid(caseId: string, bidId: string): Promise<APIResponse> {
+    console.log('✅ ApiService - Selecting winning bid:', bidId);
+    return this.makeRequest(`/bidding/case/${caseId}/select-winner`, {
+      method: 'POST',
+      body: JSON.stringify({ bidId }),
+    });
+  }
+
+  public async getMyBids(): Promise<APIResponse> {
+    console.log('📋 ApiService - Getting my bids');
+    return this.makeRequest('/bidding/my-bids');
+  }
 }
 
 export default ApiService;
