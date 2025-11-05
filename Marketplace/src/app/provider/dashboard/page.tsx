@@ -240,12 +240,23 @@ export default function ProviderDashboard() {
       <main className="relative z-10 container mx-auto px-4 py-8">
         {/* Welcome Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Добре дошли, {user?.firstName}! 👋
-          </h1>
-          <p className="text-slate-300">
-            Управлявайте вашите заявки и следете статистиките си
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">
+                Добре дошли, {user?.firstName}! 👋
+              </h1>
+              <p className="text-slate-300">
+                Управлявайте вашите заявки и следете статистиките си
+              </p>
+            </div>
+            <button
+              onClick={() => router.push('/provider/my-bids')}
+              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2"
+            >
+              <span className="text-xl">💰</span>
+              <span>Моите оферти</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}

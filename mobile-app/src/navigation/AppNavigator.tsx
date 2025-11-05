@@ -21,6 +21,8 @@ import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import CasesScreen from '../screens/CasesScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import PointsScreen from '../screens/PointsScreen';
+import MyBidsScreen from '../screens/MyBidsScreen';
 
 
 // Import components
@@ -74,6 +76,26 @@ function MainTabNavigator() {
           tabBarLabel: 'Заявки',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Text style={{ color, fontSize: size }}>📋</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="MyBids"
+        component={MyBidsScreen}
+        options={{
+          tabBarLabel: 'Оферти',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>💰</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Points"
+        component={PointsScreen}
+        options={{
+          tabBarLabel: 'Точки',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>💎</Text>
           ),
         }}
       />

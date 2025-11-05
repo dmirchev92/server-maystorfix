@@ -207,13 +207,19 @@ export default function DashboardPage() {
               href="/dashboard"
               className="px-6 py-3 font-medium text-white border-b-2 border-green-500 bg-slate-800/50"
             >
-               Преглед
+               📊 Преглед
             </Link>
             <Link
               href="/dashboard/cases"
               className="px-6 py-3 font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
             >
-               Заявки
+               📋 Заявки
+            </Link>
+            <Link
+              href="/provider/my-bids"
+              className="px-6 py-3 font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
+            >
+              💰 Моите оферти
             </Link>
           </div>
         </div>

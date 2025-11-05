@@ -59,6 +59,7 @@ export default function DashboardPage() {
   const [completionModal, setCompletionModal] = useState<{ isOpen: boolean; caseId: string; caseTitle: string }>({ isOpen: false, caseId: '', caseTitle: '' })
   const [biddingCases, setBiddingCases] = useState<Set<string>>(new Set()) // Cases currently being bid on
   const [pointsBalance, setPointsBalance] = useState<number>(0)
+  const [myBids, setMyBids] = useState<Map<string, any>>(new Map()) // Map of caseId -> bid data
   
   // Prevent duplicate requests
   const fetchingRef = useRef(false)
@@ -82,6 +83,7 @@ export default function DashboardPage() {
       fetchCases()
       fetchStats()
       fetchPointsBalance()
+      fetchMyBids()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id, filters.status, filters.category, filters.city, filters.neighborhood, filters.viewMode, filters.page])
@@ -306,9 +308,10 @@ export default function DashboardPage() {
         const bidData = bidResponse.data.data
         alert(`✅ ${bidResponse.data.message}\n\nВие сте наддавач #${bidData.bid_order}\nИзползвани точки: ${bidData.points_spent}`)
         
-        // Refresh cases and points
+        // Refresh cases, points, and bids
         fetchCases()
         fetchPointsBalance()
+        fetchMyBids()
       }
       
     } catch (error: any) {
@@ -332,6 +335,31 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error('Error fetching points balance:', error)
+    }
+  }
+
+  const fetchMyBids = async () => {
+    try {
+      const response = await apiClient.getMyBids()
+      console.log('🎯 My Bids Response:', response)
+      
+      if (response.data?.success) {
+        const bids = response.data.data?.bids || []
+        console.log('🎯 Bids array:', bids)
+        
+        // Create a map of caseId -> bid
+        const bidsMap = new Map()
+        bids.forEach((bid: any) => {
+          console.log('🎯 Adding bid to map:', bid.case_id, bid)
+          bidsMap.set(bid.case_id, bid)
+        })
+        console.log('🎯 Final bidsMap size:', bidsMap.size)
+        setMyBids(bidsMap)
+      } else {
+        console.error('🎯 Failed to fetch bids:', response.data?.error)
+      }
+    } catch (error) {
+      console.error('Error fetching my bids:', error)
     }
   }
 
@@ -820,23 +848,46 @@ export default function DashboardPage() {
                               {/* Show bid button for pending cases with bidding enabled */}
                               {case_.status === 'pending' && case_.bidding_enabled && !case_.bidding_closed && case_.budget && (
                                 <div className="flex flex-col gap-1">
-                                  <Button
-                                    variant="construction"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handlePlaceBid(case_.id, case_.budget!)
-                                    }}
-                                    disabled={biddingCases.has(case_.id) || (case_.current_bidders || 0) >= (case_.max_bidders || 3)}
-                                    leftIcon={<span>💰</span>}
-                                  >
-                                    {biddingCases.has(case_.id) ? 'Наддаване...' : 
-                                     (case_.current_bidders || 0) >= (case_.max_bidders || 3) ? 'Пълно' : 
-                                     'Наддай'}
-                                  </Button>
-                                  <span className="text-xs text-slate-400 text-center">
-                                    ~{estimatePointsCost(case_.budget)} точки
-                                  </span>
+                                  {(() => {
+                                    const hasBid = myBids.has(case_.id)
+                                    console.log(`🎯 Case ${case_.id}: hasBid=${hasBid}, myBids.size=${myBids.size}`)
+                                    return hasBid
+                                  })() ? (
+                                    // Show "View My Bid" if user has already bid
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        router.push('/provider/my-bids')
+                                      }}
+                                      leftIcon={<span>👁️</span>}
+                                      className="bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                                    >
+                                      Виж моята оферта
+                                    </Button>
+                                  ) : (
+                                    // Show "Bid" button if user hasn't bid yet
+                                    <>
+                                      <Button
+                                        variant="construction"
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handlePlaceBid(case_.id, case_.budget!)
+                                        }}
+                                        disabled={biddingCases.has(case_.id) || (case_.current_bidders || 0) >= (case_.max_bidders || 3)}
+                                        leftIcon={<span>💰</span>}
+                                      >
+                                        {biddingCases.has(case_.id) ? 'Наддаване...' : 
+                                         (case_.current_bidders || 0) >= (case_.max_bidders || 3) ? 'Пълно' : 
+                                         'Наддай'}
+                                      </Button>
+                                      <span className="text-xs text-slate-400 text-center">
+                                        ~{estimatePointsCost(case_.budget)} точки
+                                      </span>
+                                    </>
+                                  )}
                                 </div>
                               )}
                               

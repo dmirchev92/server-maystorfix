@@ -6,6 +6,8 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Dashboard: undefined;
   Cases: undefined;
+  MyBids: undefined;
+  Points: undefined;
   IncomeDashboard: undefined;
   Chat: undefined;
   ChatDetail: {
