@@ -623,7 +623,27 @@ export default function CasesScreen() {
                       {caseItem.phone && (
                         <View style={styles.detailRow}>
                           <Text style={styles.detailLabel}>📞 Телефон:</Text>
-                          <Text style={styles.detailValue}>{caseItem.phone}</Text>
+                          <View style={{flex: 1}}>
+                            <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: (caseItem as any).phone_masked ? 8 : 0}}>
+                              <Text style={[styles.detailValue, (caseItem as any).phone_masked && {color: '#94a3b8'}]}>
+                                {caseItem.phone}
+                              </Text>
+                              {(caseItem as any).phone_masked && (
+                                <View style={{backgroundColor: 'rgba(251, 191, 36, 0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4}}>
+                                  <Text style={{fontSize: 10, color: '#fbbf24'}}>
+                                    🔒 Скрит
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                            {(caseItem as any).phone_masked && (
+                              <View style={{backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(96, 165, 250, 0.2)'}}>
+                                <Text style={{fontSize: 11, color: '#93c5fd'}}>
+                                  💡 <Text style={{fontWeight: '600'}}>Спечелете наддаването</Text>, за да получите достъп до телефонния номер
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
                       )}
                       {caseItem.preferred_date && (

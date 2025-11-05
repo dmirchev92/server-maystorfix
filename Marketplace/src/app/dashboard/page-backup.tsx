@@ -857,9 +857,23 @@ export default function DashboardPage() {
                               {expandedCases.has(case_.id) && (
                                 <div className="mt-4 p-4 bg-white/5 rounded-lg border-l-4 border-blue-400/60 backdrop-blur-sm">
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div>
+                                    <div className="md:col-span-2">
                                       <span className="font-semibold text-slate-200">Телефон:</span>
-                                      <span className="ml-2 text-slate-300">{case_.phone}</span>
+                                      {(case_ as any).phone_masked ? (
+                                        <div className="ml-2 space-y-2">
+                                          <div className="inline-flex items-center gap-2">
+                                            <span className="text-slate-400">{case_.phone}</span>
+                                            <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
+                                              🔒 Скрит
+                                            </span>
+                                          </div>
+                                          <div className="text-xs text-blue-300 bg-blue-500/10 px-3 py-2 rounded border border-blue-400/20">
+                                            💡 <span className="font-medium">Спечелете наддаването</span>, за да получите достъп до телефонния номер на клиента
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="ml-2 text-slate-300">{case_.phone}</span>
+                                      )}
                                     </div>
                                     <div>
                                       <span className="font-semibold text-slate-200">Приоритет:</span>

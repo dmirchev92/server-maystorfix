@@ -872,6 +872,9 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
 
     console.log('🔍 Backend - getCasesWithFilters query params:', req.query);
 
+    // Determine the requesting user ID for phone number masking
+    const requestingUserId = excludeDeclinedBy || providerId || customerId || createdByUserId;
+
     // Build WHERE clause dynamically
     const conditions: string[] = [];
     const params: any[] = [];
@@ -964,9 +967,11 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
     const cases = await db.query(
       `SELECT 
          c.*,
-         CONCAT(u.first_name, ' ', u.last_name) as customer_name
+         CONCAT(u.first_name, ' ', u.last_name) as customer_name,
+         b.provider_id as winning_provider_id
        FROM marketplace_service_cases c
        LEFT JOIN users u ON c.customer_id = u.id
+       LEFT JOIN sp_case_bids b ON c.winning_bid_id = b.id
        ${whereClause}
        ${orderClause}
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
@@ -984,10 +989,40 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       });
     }
 
+    // Mask phone numbers for service providers who haven't won the bid
+    const processedCases = cases.map((caseItem: any) => {
+      // If bidding is enabled, protect phone number
+      if (caseItem.bidding_enabled) {
+        const isCustomer = caseItem.customer_id === requestingUserId;
+        const isAssignedProvider = caseItem.provider_id === requestingUserId;
+        
+        // If there's a winning bid, check if user is the winner
+        let isWinner = false;
+        if (caseItem.winning_bid_id && caseItem.winning_provider_id) {
+          isWinner = caseItem.winning_provider_id === requestingUserId;
+        }
+        
+        // Only show phone number to customer, winner, or assigned provider
+        if (!isCustomer && !isWinner && !isAssignedProvider) {
+          console.log(`📞 Backend - Masking phone for case ${caseItem.id} - User ${requestingUserId} is not authorized (bidding enabled)`);
+          return {
+            ...caseItem,
+            phone: '***-***-****',
+            phone_masked: true
+          };
+        }
+      }
+      
+      return {
+        ...caseItem,
+        phone_masked: false
+      };
+    });
+
     res.json({
       success: true,
       data: {
-        cases,
+        cases: processedCases,
         pagination: {
           page: Number(page),
           limit: Number(limit),
