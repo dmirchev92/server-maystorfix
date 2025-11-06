@@ -25,6 +25,7 @@ interface ServiceProvider {
   email: string
   rating: number
   total_reviews: number
+  completed_projects?: number
   first_name: string
   last_name: string
 }
@@ -159,7 +160,8 @@ export default function SearchPage() {
             first_name: data.provider.first_name,
             last_name: data.provider.last_name,
             rating: data.provider.rating || 0,
-            total_reviews: data.provider.total_reviews || 0
+            total_reviews: data.provider.total_reviews || 0,
+            completed_projects: data.provider.completed_projects || 0
           }
           
           updatedProviders[existingIndex] = updatedProvider
@@ -188,7 +190,8 @@ export default function SearchPage() {
               first_name: data.provider.first_name,
               last_name: data.provider.last_name,
               rating: data.provider.rating || 0,
-              total_reviews: data.provider.total_reviews || 0
+              total_reviews: data.provider.total_reviews || 0,
+              completed_projects: data.provider.completed_projects || 0
             }
             
             updatedProviders.unshift(newProvider) // Add to beginning of list
@@ -625,6 +628,12 @@ export default function SearchPage() {
                           <span className="mr-2">⭐</span>
                           <span>{(provider as any).experienceYears} години опит</span>
                         </div>
+                        {((provider as any).completedProjects || 0) > 0 && (
+                          <div className="flex items-center text-sm text-green-300 font-semibold">
+                            <span className="mr-2">✅</span>
+                            <span>{(provider as any).completedProjects} завършени проекта</span>
+                          </div>
+                        )}
                         <div className="flex items-center text-sm text-slate-300">
                           <span className="mr-2">📞</span>
                           <span>{(provider as any).phoneNumber}</span>

@@ -229,7 +229,13 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
            FROM provider_service_categories psc 
            WHERE psc.provider_id = u.id),
           '[]'::json
-        ) as service_categories
+        ) as service_categories,
+        COALESCE(
+          (SELECT COUNT(*) 
+           FROM marketplace_service_cases msc 
+           WHERE msc.provider_id = u.id AND msc.status = 'completed'),
+          0
+        ) as completed_projects
       FROM users u
       LEFT JOIN service_provider_profiles spp ON u.id = spp.user_id
       WHERE u.role = 'tradesperson' 
@@ -290,6 +296,7 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       profileImageUrl: provider.profile_image_url,
       rating: provider.rating || 0,
       totalReviews: provider.total_reviews || 0,
+      completedProjects: parseInt(provider.completed_projects) || 0,
       isActive: Boolean(provider.is_active)
     }));
 
