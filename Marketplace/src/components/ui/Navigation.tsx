@@ -42,25 +42,21 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
   };
 
   const navigationItems = [
-    { href: '/', label: 'Начало', icon: '🏠' },
     { href: '/search', label: 'Търсене', icon: '🔍' },
-    { href: '/create-case', label: 'Нова заявка', icon: '➕' },
-    // Dashboard only for service providers
+    // Service provider items
     ...(user?.role === 'tradesperson' || user?.role === 'service_provider' ? [
+      { href: '/dashboard/cases', label: 'Заявки', icon: '📋' },
       { href: '/dashboard', label: 'Табло', icon: '📊' },
+      { href: '/referrals', label: 'Препоръки', icon: '🎯' },
     ] : []),
-    // My Cases for customers
+    // Customer items
     ...(user && user.role !== 'tradesperson' && user.role !== 'service_provider' ? [
+      { href: '/create-case', label: 'Нова заявка', icon: '➕' },
       { href: '/my-cases', label: 'Моите заявки', icon: '📋' },
     ] : []),
   ];
 
   const userMenuItems = [
-    // Dashboard and referrals only for service providers
-    ...(user?.role === 'tradesperson' || user?.role === 'service_provider' ? [
-      { href: '/dashboard', label: 'Моето табло', icon: '📊' },
-      { href: '/referrals', label: 'Препоръки', icon: '🎯' },
-    ] : []),
     { href: '/notifications', label: 'Известия', icon: '🔔', badge: unreadCount },
     ...(user?.role === 'tradesperson' || user?.role === 'service_provider' ? [
       { href: '/settings/sms', label: 'SMS Настройки', icon: '📱' }
@@ -73,12 +69,16 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 bg-white/10 border border-white/20 rounded-lg flex items-center justify-center transform group-hover:scale-110 transition-transform duration-200">
-              <span className="text-white font-bold text-sm">🔧</span>
+          <Link href="/" className="flex items-center space-x-3 group">
+            <div className="w-10 h-10 transform group-hover:scale-110 transition-transform duration-200">
+              <img 
+                src="/icon2.png" 
+                alt="MaystorFix" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <span className="text-xl font-bold text-white">
-              ServiceText Pro
+              MaystorFix
             </span>
           </Link>
 

@@ -45,7 +45,8 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       assignmentType,
       screenshots,
       customerId,
-      category
+      category,
+      squareMeters
     } = req.body;
 
     // Log case creation details for debugging
@@ -95,8 +96,8 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           id, service_type, description, preferred_date, preferred_time,
           priority, budget, bidding_enabled, max_bidders, city, neighborhood, phone, additional_details, provider_id,
           provider_name, is_open_case, assignment_type, status,
-          customer_id, category, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+          customer_id, category, square_meters, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
         [
           caseId,
           serviceType,
@@ -118,6 +119,7 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           'pending',
           customerId,
           category || serviceType || 'general',
+          squareMeters ? parseFloat(squareMeters) : null,
           now,
           now
         ]
@@ -130,8 +132,8 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
             id, service_type, description, preferred_date, preferred_time,
             priority, city, neighborhood, phone, additional_details, provider_id,
             provider_name, is_open_case, assignment_type, status,
-            customer_id, category, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            customer_id, category, square_meters, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             caseId,
             serviceType,
@@ -150,6 +152,7 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
             'pending',
             customerId,
             category || serviceType || 'general',
+            squareMeters ? parseFloat(squareMeters) : null,
             now,
             now
           ],

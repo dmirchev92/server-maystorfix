@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { sofiaNeighborhoods } from './NeighborhoodSelect'
+import { requiresSquareMeters } from '@/constants/serviceMetrics'
 
 interface UnifiedCaseModalProps {
   isOpen: boolean
@@ -70,7 +71,8 @@ export default function UnifiedCaseModal({
         neighborhood: '',
         phone: customerPhone || '',
         additionalDetails: '',
-        assignmentType: providerId ? 'specific' : 'open'
+        assignmentType: providerId ? 'specific' : 'open',
+        squareMeters: ''
       })
     } else if (mode === 'template' && templateData?.fields) {
       const initialData: Record<string, any> = {}
@@ -442,6 +444,27 @@ export default function UnifiedCaseModal({
                   <option value="urgent">Спешен</option>
                 </select>
               </div>
+
+              {/* Square Meters (conditional) */}
+              {requiresSquareMeters(formData.serviceType) && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-200 mb-2">
+                    Квадратни метри (кв.м)
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.squareMeters || ''}
+                    onChange={(e) => handleInputChange('squareMeters', e.target.value)}
+                    placeholder="Въведете площ в кв.м"
+                    min="1"
+                    step="0.1"
+                    className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    📏 Площта помага на специалистите да оценят обема на работата
+                  </p>
+                </div>
+              )}
 
               {/* Budget */}
               <div>

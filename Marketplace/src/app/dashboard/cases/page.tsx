@@ -35,6 +35,7 @@ interface Case {
   current_bidders?: number
   max_bidders?: number
   bidding_closed?: boolean
+  square_meters?: number
   created_at: string
   updated_at: string
   winning_bid_id?: string
@@ -52,10 +53,12 @@ export default function DashboardPage() {
     category: '',
     city: '',
     neighborhood: '',
-    viewMode: 'available', // 'available', 'assigned', or 'declined'
+    viewMode: 'available', // 'available', 'assigned', 'declined', or 'bids'
     page: 1,
     limit: 10
   })
+  const [allBids, setAllBids] = useState<any[]>([]) // All user's bids for the 'bids' view
+  const [bidsFilter, setBidsFilter] = useState<'all' | 'pending' | 'won' | 'lost'>('all')
   const [completionModal, setCompletionModal] = useState<{ isOpen: boolean; caseId: string; caseTitle: string }>({ isOpen: false, caseId: '', caseTitle: '' })
   const [biddingCases, setBiddingCases] = useState<Set<string>>(new Set()) // Cases currently being bid on
   const [pointsBalance, setPointsBalance] = useState<number>(0)
@@ -363,6 +366,19 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchAllBids = async () => {
+    try {
+      const response = await apiClient.getMyBids()
+      
+      if (response.data?.success) {
+        const bids = response.data.data?.bids || []
+        setAllBids(bids)
+      }
+    } catch (error) {
+      console.error('Error fetching all bids:', error)
+    }
+  }
+
   const toggleCaseExpansion = (caseId: string) => {
     setExpandedCases(prev => {
       const newSet = new Set(prev)
@@ -496,6 +512,16 @@ export default function DashboardPage() {
               }`}
             >
               ✅ Моите заявки
+            </button>
+            <button
+              onClick={() => { setFilters({...filters, viewMode: 'bids', status: '', page: 1}); fetchAllBids(); }}
+              className={`px-6 py-4 rounded-xl font-semibold text-base transition-all duration-300 transform hover:scale-105 ${
+                filters.viewMode === 'bids'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
+                  : 'bg-white/10 text-slate-300 hover:bg-white/20 border border-white/20'
+              }`}
+            >
+              💰 Моите кандидатури
             </button>
           </div>
         )}
@@ -709,16 +735,152 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Cases List */}
-        <Card variant="elevated">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span>📋</span>
-              Заявки за услуги
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
+        {/* Bids View */}
+        {filters.viewMode === 'bids' ? (
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <span>💰</span>
+                Моите кандидатури
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Bids Filter Tabs */}
+              <div className="flex gap-2 mb-6 border-b border-white/10 pb-4">
+                <button
+                  onClick={() => setBidsFilter('all')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    bidsFilter === 'all'
+                      ? 'bg-green-500/20 text-green-300 border border-green-400/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  Всички ({allBids.length})
+                </button>
+                <button
+                  onClick={() => setBidsFilter('pending')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    bidsFilter === 'pending'
+                      ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-400/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  Чакащи ({allBids.filter(b => b.bid_status === 'pending').length})
+                </button>
+                <button
+                  onClick={() => setBidsFilter('won')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    bidsFilter === 'won'
+                      ? 'bg-green-500/20 text-green-300 border border-green-400/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  Спечелени ({allBids.filter(b => b.bid_status === 'won').length})
+                </button>
+                <button
+                  onClick={() => setBidsFilter('lost')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                    bidsFilter === 'lost'
+                      ? 'bg-red-500/20 text-red-300 border border-red-400/30'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  Загубени ({allBids.filter(b => b.bid_status === 'lost').length})
+                </button>
+              </div>
+
+              {/* Bids List */}
+              {allBids.filter(bid => bidsFilter === 'all' || bid.bid_status === bidsFilter).length === 0 ? (
+                <div className="p-12 text-center">
+                  <div className="text-6xl mb-4">📭</div>
+                  <p className="text-slate-300 text-lg mb-2">Няма кандидатури</p>
+                  <p className="text-slate-400 text-sm">
+                    {bidsFilter === 'all' 
+                      ? 'Все още не сте подали кандидатури за заявки'
+                      : `Няма ${bidsFilter === 'pending' ? 'чакащи' : bidsFilter === 'won' ? 'спечелени' : 'загубени'} кандидатури`}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {allBids.filter(bid => bidsFilter === 'all' || bid.bid_status === bidsFilter).map((bid) => (
+                    <Card key={bid.id} variant="outline" hover padding="lg">
+                      <CardContent>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span className="text-sm font-medium text-green-400">#{bid.bid_order}</span>
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
+                                bid.bid_status === 'pending' ? 'bg-yellow-500/20 text-yellow-300 border-yellow-400/30' :
+                                bid.bid_status === 'won' ? 'bg-green-500/20 text-green-300 border-green-400/30' :
+                                bid.bid_status === 'lost' ? 'bg-red-500/20 text-red-300 border-red-400/30' :
+                                'bg-slate-500/20 text-slate-300 border-slate-400/30'
+                              }`}>
+                                {bid.bid_status === 'pending' ? '⏳ Чакаща' :
+                                 bid.bid_status === 'won' ? '🎉 Спечелена' :
+                                 bid.bid_status === 'lost' ? '❌ Загубена' :
+                                 '↩️ Възстановена'}
+                              </span>
+                            </div>
+                            <h3 className="text-lg font-medium text-white mb-2">
+                              {bid.case_description || 'Заявка'}
+                            </h3>
+                            <div className="flex flex-wrap gap-4 text-sm text-slate-400 mb-3">
+                              {bid.case_budget && (
+                                <span className="flex items-center gap-1">
+                                  💰 Бюджет: <span className="font-medium text-green-400">{bid.case_budget} BGN</span>
+                                </span>
+                              )}
+                              {bid.case_city && (
+                                <span className="flex items-center gap-1">
+                                  📍 {bid.case_city}
+                                </span>
+                              )}
+                              <span className="flex items-center gap-1">
+                                📅 {new Date(bid.created_at).toLocaleDateString('bg-BG')}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <span className={`text-sm font-medium ${
+                                bid.bid_status === 'won' ? 'text-red-400' :
+                                bid.bid_status === 'lost' ? 'text-yellow-400' :
+                                'text-slate-300'
+                              }`}>
+                                💎 Точки: {
+                                  bid.bid_status === 'won' ? `-${bid.points_bid}` :
+                                  bid.bid_status === 'lost' ? `-${bid.points_deducted} (${Math.round((bid.points_bid - bid.points_deducted) / bid.points_bid * 100)}% възстановени)` :
+                                  `-${bid.points_bid} (резервирани)`
+                                }
+                              </span>
+                            </div>
+                          </div>
+                          {bid.case_id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/dashboard/cases`)}
+                            >
+                              Виж заявка →
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          /* Cases List */
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <span>📋</span>
+                Заявки за услуги
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
               <div className="p-12 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-white/20 border-t-white/60 mx-auto mb-4"></div>
                 <p className="text-slate-300 font-medium">Зареждане на заявки...</p>
@@ -846,6 +1008,12 @@ export default function DashboardPage() {
                                       <span className="font-semibold text-slate-200">Предпочитано време:</span>
                                       <span className="ml-2 text-slate-300">{case_.preferred_time}</span>
                                     </div>
+                                    {case_.square_meters && (
+                                      <div>
+                                        <span className="font-semibold text-slate-200">Площ:</span>
+                                        <span className="ml-2 text-slate-300">{case_.square_meters} кв.м</span>
+                                      </div>
+                                    )}
                                     <div className="md:col-span-2">
                                       <span className="font-semibold text-slate-200">Пълно описание:</span>
                                       <p className="mt-1 text-slate-300">{case_.description}</p>
@@ -998,6 +1166,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* Income Completion Modal */}

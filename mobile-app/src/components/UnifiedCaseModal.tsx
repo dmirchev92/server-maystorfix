@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requiresSquareMeters } from '../constants/serviceMetrics';
 
 interface UnifiedCaseModalProps {
   visible: boolean;
@@ -58,6 +59,7 @@ export default function UnifiedCaseModal({
     preferredDate: '',
     preferredTime: '',
     priority: 'medium',
+    squareMeters: '',
   });
 
   const handleSubmit = async () => {
@@ -105,6 +107,7 @@ export default function UnifiedCaseModal({
         customerName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
         customerEmail: user.email,
         customerPhone: formData.phone,
+        squareMeters: formData.squareMeters || null,
       };
 
       console.log('📤 Creating case:', payload);
@@ -141,6 +144,7 @@ export default function UnifiedCaseModal({
           preferredDate: '',
           preferredTime: '',
           priority: 'medium',
+          squareMeters: '',
         });
       } else {
         throw new Error(result.error?.message || 'Failed to create case');
@@ -306,6 +310,24 @@ export default function UnifiedCaseModal({
                 ))}
               </View>
             </View>
+
+            {/* Square Meters (conditional) */}
+            {requiresSquareMeters(formData.serviceType) && (
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Квадратни метри (кв.м)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.squareMeters}
+                  onChangeText={(text) => setFormData({ ...formData, squareMeters: text })}
+                  placeholder="Въведете площ в кв.м"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.helperText}>
+                  📏 Площта помага на специалистите да оценят обема на работата
+                </Text>
+              </View>
+            )}
 
             {/* Submit Button */}
             <TouchableOpacity
@@ -474,6 +496,11 @@ const styles = StyleSheet.create({
   priorityButtonSelected: {
     backgroundColor: '#6366F1',
     borderColor: '#6366F1',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 6,
   },
   priorityButtonText: {
     fontSize: 14,

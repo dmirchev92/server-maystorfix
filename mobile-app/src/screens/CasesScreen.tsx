@@ -40,6 +40,7 @@ interface Case {
   current_bidders?: number;
   max_bidders?: number;
   winning_bid_id?: string;
+  square_meters?: number;
 }
 
 interface CaseStats {
@@ -653,6 +654,12 @@ export default function CasesScreen() {
                             {new Date(caseItem.preferred_date).toLocaleDateString('bg-BG')}
                             {caseItem.preferred_time && ` в ${caseItem.preferred_time}`}
                           </Text>
+                        </View>
+                      )}
+                      {caseItem.square_meters && (
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>📏 Площ:</Text>
+                          <Text style={styles.detailValue}>{caseItem.square_meters} кв.м</Text>
                         </View>
                       )}
                       {caseItem.priority && (

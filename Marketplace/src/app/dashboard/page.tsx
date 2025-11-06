@@ -195,33 +195,11 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header with Navigation */}
+        {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-4">
-            Табло
+            📊 Табло
           </h1>
-          
-          {/* Navigation Tabs */}
-          <div className="flex gap-2 border-b border-slate-700">
-            <Link
-              href="/dashboard"
-              className="px-6 py-3 font-medium text-white border-b-2 border-green-500 bg-slate-800/50"
-            >
-               📊 Преглед
-            </Link>
-            <Link
-              href="/dashboard/cases"
-              className="px-6 py-3 font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
-            >
-               📋 Заявки
-            </Link>
-            <Link
-              href="/provider/my-bids"
-              className="px-6 py-3 font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/30"
-            >
-              💰 Моите оферти
-            </Link>
-          </div>
         </div>
 
         {/* Points Balance Card */}
