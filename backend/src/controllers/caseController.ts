@@ -105,9 +105,9 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           preferredDate,
           preferredTime || 'morning',
           priority || 'normal',
-          budget ? parseFloat(budget) : null,
-          budget && parseFloat(budget) > 0 ? true : false, // Enable bidding if budget is provided
-          budget && parseFloat(budget) > 0 ? 3 : null, // Max 3 bidders if bidding enabled
+          budget || null, // Budget is now a range string (e.g., "250-500")
+          budget ? true : false, // Enable bidding if budget is provided
+          budget ? 3 : null, // Max 3 bidders if bidding enabled
           city,
           neighborhood,
           phone,

@@ -377,6 +377,10 @@ class ApiClient {
     return this.client.get(`/cases/${caseId}`)
   }
 
+  async getCaseById(caseId: string) {
+    return this.getCase(caseId)
+  }
+
   async assignCase(caseId: string, action: 'accept' | 'decline', message?: string) {
     console.log('📋 API Client - Assigning case:', caseId, action)
     if (action === 'accept') {
@@ -713,9 +717,12 @@ class ApiClient {
     return this.client.get(`/bidding/case/${caseId}/can-bid`)
   }
 
-  async placeBid(caseId: string) {
-    console.log('💸 API Client - Placing bid on case:', caseId)
-    return this.client.post(`/bidding/case/${caseId}/bid`)
+  async placeBid(caseId: string, proposedBudgetRange: string, bidComment?: string) {
+    console.log('💸 API Client - Placing bid on case:', caseId, 'with budget range:', proposedBudgetRange)
+    return this.client.post(`/bidding/case/${caseId}/bid`, {
+      proposed_budget_range: proposedBudgetRange,
+      bid_comment: bidComment
+    })
   }
 
   async getCaseBids(caseId: string, includeProviderInfo: boolean = false) {

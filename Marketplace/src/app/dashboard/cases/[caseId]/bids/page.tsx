@@ -16,6 +16,8 @@ interface Bid {
   points_bid: number
   bid_status: string
   bid_order: number
+  proposed_budget_range?: string
+  bid_comment?: string
   created_at: string
   provider_name?: string
   provider_email?: string
@@ -187,7 +189,7 @@ export default function CaseBidsPage() {
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-4 text-sm mb-3">
                               {bid.provider_rating !== undefined && (
                                 <div className="flex items-center gap-1">
                                   <span className="text-yellow-400">⭐</span>
@@ -211,6 +213,27 @@ export default function CaseBidsPage() {
                                 </span>
                               </div>
                             </div>
+                            
+                            {/* Proposed Budget Range */}
+                            {bid.proposed_budget_range && (
+                              <div className="bg-indigo-600/20 border border-indigo-400/30 rounded-lg p-3 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-2xl">💰</span>
+                                  <div>
+                                    <p className="text-xs text-indigo-300 font-medium">Предложена цена</p>
+                                    <p className="text-lg font-bold text-white">{bid.proposed_budget_range} лв</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Bid Comment */}
+                            {bid.bid_comment && (
+                              <div className="bg-slate-700/50 border border-slate-600 rounded-lg p-3">
+                                <p className="text-xs text-slate-400 font-medium mb-1">💬 Коментар</p>
+                                <p className="text-sm text-slate-200">{bid.bid_comment}</p>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">

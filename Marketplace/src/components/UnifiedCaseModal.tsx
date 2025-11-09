@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { sofiaNeighborhoods } from './NeighborhoodSelect'
 import { requiresSquareMeters } from '@/constants/serviceMetrics'
 import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
+import { BUDGET_RANGES } from '@/constants/budgetRanges'
 
 interface UnifiedCaseModalProps {
   isOpen: boolean
@@ -148,9 +149,9 @@ export default function UnifiedCaseModal({
         alert('Моля, попълнете всички задължителни полета')
         return
       }
-      // Validate budget is a positive number
-      if (formData.budget && (isNaN(formData.budget) || parseFloat(formData.budget) < 1)) {
-        alert('Моля, въведете валиден бюджет (минимум 1 лев)')
+      // Budget is now a range string (e.g., "250-500"), no numeric validation needed
+      if (!formData.budget) {
+        alert('Моля, изберете бюджет')
         return
       }
       // Neighborhood required only when city is Sofia
@@ -463,21 +464,24 @@ export default function UnifiedCaseModal({
                 </select>
               </div>
 
-              {/* Budget */}
+              {/* Budget Range */}
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-2">
-                  Бюджет (BGN) <span className="text-red-500">*</span>
+                  Бюджет <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
+                <select
                   value={formData.budget || ''}
                   onChange={(e) => handleInputChange('budget', e.target.value)}
-                  placeholder="Въведете бюджет в лева"
                   required
-                  min="1"
-                  step="1"
-                  className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400"
-                />
+                  className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Изберете бюджет...</option>
+                  {BUDGET_RANGES.map((range) => (
+                    <option key={range.value} value={range.value}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
                 <p className="text-xs text-slate-400 mt-1">
                   💡 Бюджетът определя колко точки ще струва заявката за специалистите
                 </p>

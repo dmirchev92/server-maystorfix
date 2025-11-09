@@ -295,28 +295,8 @@ export default function DashboardPage() {
       
       const requiredPoints = canBidResponse.data.data.required_points
       
-      // Confirm bid
-      if (!confirm(`Искате ли да наддавате за тази заявка?\n\nБюджет: ${caseBudget} BGN\nНеобходими точки: ${requiredPoints}\nВашите точки: ${pointsBalance}\n\nТочките ще бъдат временно резервирани.`)) {
-        setBiddingCases(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(caseId)
-          return newSet
-        })
-        return
-      }
-      
-      // Place bid
-      const bidResponse = await apiClient.placeBid(caseId)
-      
-      if (bidResponse.data?.success) {
-        const bidData = bidResponse.data.data
-        alert(`✅ ${bidResponse.data.message}\n\nВие сте наддавач #${bidData.bid_order}\nИзползвани точки: ${bidData.points_spent}`)
-        
-        // Refresh cases, points, and bids
-        fetchCases()
-        fetchPointsBalance()
-        fetchMyBids()
-      }
+      // Redirect to bid placement page
+      router.push(`/dashboard/cases/${caseId}/place-bid`)
       
     } catch (error: any) {
       console.error('❌ Error placing bid:', error)

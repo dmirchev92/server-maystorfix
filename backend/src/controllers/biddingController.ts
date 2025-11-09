@@ -54,10 +54,12 @@ router.get('/case/:caseId/can-bid', authenticateToken, async (req: Request, res:
  * @route   POST /api/v1/bidding/case/:caseId/bid
  * @desc    Place a bid on a case
  * @access  Private (Service Provider)
+ * @body    { proposed_budget_range: string, bid_comment?: string }
  */
 router.post('/case/:caseId/bid', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { caseId } = req.params;
+    const { proposed_budget_range, bid_comment } = req.body;
     const userId = (req as any).user?.id;
 
     if (!userId) {
@@ -70,7 +72,17 @@ router.post('/case/:caseId/bid', authenticateToken, async (req: Request, res: Re
       });
     }
 
-    const result = await biddingService.placeBid(caseId, userId);
+    if (!proposed_budget_range) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_BUDGET_RANGE',
+          message: 'Proposed budget range is required'
+        }
+      });
+    }
+
+    const result = await biddingService.placeBid(caseId, userId, proposed_budget_range, bid_comment);
 
     if (!result.success) {
       return res.status(400).json({

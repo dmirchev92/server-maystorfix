@@ -13,6 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requiresSquareMeters } from '../constants/serviceMetrics';
 import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
+import { BUDGET_RANGES } from '../constants/budgetRanges';
 
 interface UnifiedCaseModalProps {
   visible: boolean;
@@ -53,6 +54,7 @@ export default function UnifiedCaseModal({
     preferredTime: '',
     priority: 'medium',
     squareMeters: '',
+    budget: '',
   });
 
   const handleSubmit = async () => {
@@ -71,6 +73,10 @@ export default function UnifiedCaseModal({
     }
     if (!formData.phone.trim()) {
       Alert.alert('Грешка', 'Моля въведете телефон');
+      return;
+    }
+    if (!formData.budget) {
+      Alert.alert('Грешка', 'Моля изберете бюджет');
       return;
     }
 
@@ -138,6 +144,7 @@ export default function UnifiedCaseModal({
           preferredTime: '',
           priority: 'medium',
           squareMeters: '',
+          budget: '',
         });
       } else {
         throw new Error(result.error?.message || 'Failed to create case');
@@ -320,6 +327,19 @@ export default function UnifiedCaseModal({
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+
+            {/* Budget Range */}
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Бюджет *</Text>
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerText}>
+                  {BUDGET_RANGES.find(r => r.value === formData.budget)?.label || 'Изберете бюджет...'}
+                </Text>
+              </View>
+              <Text style={styles.helperText}>
+                💡 Бюджетът определя колко точки ще струва заявката
+              </Text>
             </View>
 
             {/* Submit Button */}
