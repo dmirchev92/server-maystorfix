@@ -17,6 +17,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { ApiService } from '../services/ApiService';
 import theme from '../styles/theme';
+import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
 
 const { width } = Dimensions.get('window');
 
@@ -173,18 +174,10 @@ const sofiaNeighborhoods = [
 
 const cities = ['София', 'Пловдив', 'Варна', 'Бургас'];
 
-const serviceCategories = [
-  { value: 'electrician', label: 'Електротехник' },
-  { value: 'plumber', label: 'Водопроводчик' },
-  { value: 'hvac', label: 'Климатик' },
-  { value: 'carpenter', label: 'Дърводелец' },
-  { value: 'painter', label: 'Бояджия' },
-  { value: 'locksmith', label: 'Ключар' },
-  { value: 'cleaner', label: 'Почистване' },
-  { value: 'gardener', label: 'Градинар' },
-  { value: 'handyman', label: 'Майстор за всичко' },
-  { value: 'general', label: 'Друго' },
-];
+const serviceCategories = SERVICE_CATEGORIES.map(cat => ({
+  value: cat.value,
+  label: cat.label
+}));
 
 interface ProfileData {
   firstName: string;

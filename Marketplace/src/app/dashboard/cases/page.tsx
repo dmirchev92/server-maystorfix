@@ -12,6 +12,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Header } from '@/components/Header'
 import IncomeCompletionModal from '@/components/IncomeCompletionModal'
 import { sofiaNeighborhoods } from '@/components/NeighborhoodSelect'
+import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
 
 interface Case {
   id: string
@@ -411,20 +412,8 @@ export default function DashboardPage() {
   }
 
   const getCategoryDisplayName = (category: string) => {
-    const categoryNames: { [key: string]: string } = {
-      'electrician': 'Електричество',
-      'plumber': 'Водопровод',
-      'hvac': 'Климатик',
-      'carpenter': 'Дърводелство',
-      'painter': 'Боядисване',
-      'locksmith': 'Ключарство',
-      'cleaner': 'Почистване',
-      'gardener': 'Градинарство',
-      'handyman': 'Многопрофилен',
-      'appliance_repair': 'Ремонти',
-      'general': 'Общи'
-    }
-    return categoryNames[category] || category
+    const found = SERVICE_CATEGORIES.find(cat => cat.value === category)
+    return found ? found.label : category
   }
 
   // Calculate estimated points cost based on budget (approximation)
@@ -668,16 +657,11 @@ export default function DashboardPage() {
                   className="w-full px-4 py-3 border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/30 focus:border-transparent transition-all duration-200 bg-white/10 text-white hover:border-white/30 backdrop-blur-sm [&>option]:bg-slate-800 [&>option]:text-white"
                 >
                   <option value="" className="bg-slate-800 text-white">Всички категории</option>
-                  <option value="electrician" className="bg-slate-800 text-white">⚡ Електротехник</option>
-                  <option value="plumber" className="bg-slate-800 text-white">🔧 Водопроводчик</option>
-                  <option value="hvac" className="bg-slate-800 text-white">❄️ Климатик</option>
-                  <option value="carpenter" className="bg-slate-800 text-white">🪚 Дърводелец</option>
-                  <option value="painter" className="bg-slate-800 text-white">🎨 Бояджия</option>
-                  <option value="locksmith" className="bg-slate-800 text-white">🔐 Ключар</option>
-                  <option value="cleaner" className="bg-slate-800 text-white">🧹 Почистване</option>
-                  <option value="gardener" className="bg-slate-800 text-white">🌱 Градинар</option>
-                  <option value="handyman" className="bg-slate-800 text-white">🔨 Майстор за всичко</option>
-                  <option value="appliance_repair" className="bg-slate-800 text-white">🔧 Ремонт на уреди</option>
+                  {SERVICE_CATEGORIES.map((category) => (
+                    <option key={category.value} value={category.value} className="bg-slate-800 text-white">
+                      {category.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

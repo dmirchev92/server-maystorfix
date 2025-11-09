@@ -4,13 +4,10 @@
  */
 
 export const SERVICES_WITH_SQUARE_METERS = [
-  'painter',        // Бояджия - painting is measured by area
-  'cleaner',        // Почистване - cleaning is measured by area
-  'flooring',       // Подови настилки - flooring is measured by area
-  'tiler',          // Фаянсаджия - tiling is measured by area
-  'plasterer',      // Мазач - plastering is measured by area
-  'roofer',         // Покривджия - roofing is measured by area
-  'gardener',       // Градинар - gardening can be measured by area
+  'painter',        // Боядисване - painting is measured by area
+  'gardener',       // Озеленяване - gardening is measured by area
+  'roofer',         // Ремонти на покрив - roofing is measured by area
+  'tiler',          // Плочки и теракот - tiling is measured by area
 ] as const;
 
 /**

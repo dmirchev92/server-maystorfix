@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requiresSquareMeters } from '../constants/serviceMetrics';
+import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
 
 interface UnifiedCaseModalProps {
   visible: boolean;
@@ -22,18 +23,10 @@ interface UnifiedCaseModalProps {
   customerPhone: string;
 }
 
-const serviceTypes = [
-  { value: 'electrician', label: 'Електротехник' },
-  { value: 'plumber', label: 'Водопроводчик' },
-  { value: 'hvac', label: 'Климатик' },
-  { value: 'carpenter', label: 'Дърводелец' },
-  { value: 'painter', label: 'Бояджия' },
-  { value: 'locksmith', label: 'Ключар' },
-  { value: 'cleaner', label: 'Почистване' },
-  { value: 'gardener', label: 'Градинар' },
-  { value: 'handyman', label: 'Майстор за всичко' },
-  { value: 'general', label: 'Друго' },
-];
+const serviceTypes = SERVICE_CATEGORIES.map(cat => ({
+  value: cat.value,
+  label: cat.label
+}));
 
 const priorities = [
   { value: 'low', label: 'Ниска' },
@@ -223,6 +216,24 @@ export default function UnifiedCaseModal({
               </View>
             </View>
 
+            {/* Square Meters (conditional) - Moved right after Service Type */}
+            {requiresSquareMeters(formData.serviceType) && (
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Квадратни метри (кв.м)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={formData.squareMeters}
+                  onChangeText={(text) => setFormData({ ...formData, squareMeters: text })}
+                  placeholder="Въведете площ в кв.м"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  keyboardType="decimal-pad"
+                />
+                <Text style={styles.helperText}>
+                  📏 Площта помага на специалистите да оценят обема на работата
+                </Text>
+              </View>
+            )}
+
             {/* Description */}
             <View style={styles.formGroup}>
               <Text style={styles.label}>Описание на проблема *</Text>
@@ -310,24 +321,6 @@ export default function UnifiedCaseModal({
                 ))}
               </View>
             </View>
-
-            {/* Square Meters (conditional) */}
-            {requiresSquareMeters(formData.serviceType) && (
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Квадратни метри (кв.м)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={formData.squareMeters}
-                  onChangeText={(text) => setFormData({ ...formData, squareMeters: text })}
-                  placeholder="Въведете площ в кв.м"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
-                  keyboardType="decimal-pad"
-                />
-                <Text style={styles.helperText}>
-                  📏 Площта помага на специалистите да оценят обема на работата
-                </Text>
-              </View>
-            )}
 
             {/* Submit Button */}
             <TouchableOpacity

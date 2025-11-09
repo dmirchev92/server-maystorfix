@@ -71,17 +71,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         }
       } catch (error) {
         console.log('Failed to load service categories:', error);
-        // Fallback categories
-        setServiceCategories([
-          { id: 'electrician', name: 'Електротехник' },
-          { id: 'plumber', name: 'Водопроводчик' },
-          { id: 'painter', name: 'Бояджия' },
-          { id: 'carpenter', name: 'Дърводелец' },
-          { id: 'locksmith', name: 'Ключар' },
-          { id: 'cleaner', name: 'Почистване' },
-          { id: 'handyman', name: 'Майстор за всичко' },
-          { id: 'general', name: 'Общи услуги' }
-        ]);
+        // Fallback categories - import from constants
+        const { SERVICE_CATEGORIES } = require('../constants/serviceCategories');
+        setServiceCategories(
+          SERVICE_CATEGORIES.map((cat: any) => ({
+            id: cat.value,
+            name: cat.label
+          }))
+        );
       }
     };
     

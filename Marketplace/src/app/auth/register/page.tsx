@@ -6,6 +6,7 @@ import Link from 'next/link'
 import NeighborhoodSelect from '@/components/NeighborhoodSelect'
 import TierSelector from '@/components/TierSelector'
 import SMSVerification from '@/components/SMSVerification'
+import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
 
 interface RegistrationData {
   email: string
@@ -24,18 +25,7 @@ interface RegistrationData {
   acceptTerms: boolean
 }
 
-const serviceCategories = [
-  'Електротехник',
-  'Водопроводчик', 
-  'Климатик',
-  'Строител',
-  'Мебелист',
-  'Боядисване',
-  'Почистване',
-  'Градинарство',
-  'Автосервиз',
-  'Друго'
-]
+const serviceCategories = SERVICE_CATEGORIES.map(cat => cat.label)
 
 const cities = ['София', 'Пловдив', 'Варна', 'Бургас']
 

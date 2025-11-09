@@ -654,17 +654,26 @@ const getUpdatedProviderData = async (userId: string): Promise<any> => {
 };
 
 /**
- * Get service categories (placeholder)
+ * Get service categories
  */
 export const getServiceCategories = async (req: Request, res: Response): Promise<void> => {
   res.json({
     success: true,
     data: [
-      { id: 'electrician', name: 'Electrician', nameEn: 'Electrician' },
-      { id: 'plumber', name: 'Plumber', nameEn: 'Plumber' },
-      { id: 'carpenter', name: 'Carpenter', nameEn: 'Carpenter' },
-      { id: 'painter', name: 'Painter', nameEn: 'Painter' },
-      { id: 'general', name: 'General Services', nameEn: 'General Services' }
+      { id: 'electrician', name: 'Електроуслуги', nameEn: 'Electrical Services' },
+      { id: 'plumber', name: 'ВиК Услуги', nameEn: 'Plumbing Services' },
+      { id: 'hvac', name: 'Отопление и климатизация', nameEn: 'HVAC' },
+      { id: 'carpenter', name: 'Дърводелски услуги', nameEn: 'Carpentry' },
+      { id: 'painter', name: 'Боядисване', nameEn: 'Painting' },
+      { id: 'locksmith', name: 'Ключар', nameEn: 'Locksmith' },
+      { id: 'cleaner', name: 'Почистване', nameEn: 'Cleaning' },
+      { id: 'gardener', name: 'Озеленяване', nameEn: 'Gardening' },
+      { id: 'handyman', name: 'Цялостни ремонти', nameEn: 'General Repairs' },
+      { id: 'roofer', name: 'Ремонти на покрив', nameEn: 'Roofing' },
+      { id: 'moving', name: 'Хамалски Услуги', nameEn: 'Moving Services' },
+      { id: 'tiler', name: 'Плочки и теракот', nameEn: 'Tiling' },
+      { id: 'welder', name: 'Железарски услуги', nameEn: 'Welding' },
+      { id: 'design', name: 'Дизайн', nameEn: 'Design' }
     ]
   });
 };

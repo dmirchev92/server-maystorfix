@@ -15,6 +15,7 @@ import theme from '../styles/theme';
 import IncomeCompletionModal from '../components/IncomeCompletionModal';
 import BidButton from '../components/BidButton';
 import PointsBalanceWidget from '../components/PointsBalanceWidget';
+import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
 
 interface Case {
   id: string;
@@ -425,20 +426,8 @@ export default function CasesScreen() {
   };
 
   const getCategoryDisplayName = (category: string) => {
-    const categoryNames: { [key: string]: string } = {
-      'electrician': 'Електричество',
-      'plumber': 'Водопровод',
-      'hvac': 'Климатик',
-      'carpenter': 'Дърводелство',
-      'painter': 'Боядисване',
-      'locksmith': 'Ключарство',
-      'cleaner': 'Почистване',
-      'gardener': 'Градинарство',
-      'handyman': 'Многопрофилен',
-      'appliance_repair': 'Ремонти',
-      'general': 'Общи'
-    };
-    return categoryNames[category] || category;
+    const found = SERVICE_CATEGORIES.find(cat => cat.value === category);
+    return found ? found.label : category;
   };
 
   if (loading) {
