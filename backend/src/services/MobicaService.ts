@@ -10,7 +10,7 @@ interface MobicaSMSRequest {
   pass: string;
   sms: Array<{
     idd: string;
-    phone: string;
+    phone: number;
     message: string;
     from?: string;
   }>;
@@ -108,13 +108,16 @@ export class MobicaService {
       });
 
       // Prepare request
+      // Convert phone to integer as required by Mobica API
+      const phoneAsInteger = parseInt(formattedPhone, 10);
+      
       const request: MobicaSMSRequest = {
         user: this.username,
         pass: this.password,
         sms: [
           {
             idd: messageId || `msg_${Date.now()}`,
-            phone: formattedPhone,
+            phone: phoneAsInteger,
             message: message,
             from: this.senderId
           }

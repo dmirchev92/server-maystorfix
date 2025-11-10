@@ -935,6 +935,33 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       console.log('🚫 Backend - Excluding cases declined by provider:', excludeDeclinedBy);
     }
 
+    // Apply budget range restrictions based on subscription tier
+    if (requestingUserId) {
+      const userTierQuery = await db.query(
+        `SELECT subscription_tier_id FROM users WHERE id = $1`,
+        [requestingUserId]
+      );
+      
+      if (userTierQuery.length > 0) {
+        const userTier = userTierQuery[0].subscription_tier_id;
+        
+        // Free tier users can only see cases in the 1-500 BGN range
+        if (userTier === 'free') {
+          conditions.push(`(c.budget >= $${paramIndex++} AND c.budget <= $${paramIndex++})`);
+          params.push(1, 500);
+          console.log('💰 Backend - Applying Free tier budget restriction: 1-500 BGN');
+        }
+        // Normal tier users can only see cases in the 1-1500 BGN range
+        else if (userTier === 'normal') {
+          conditions.push(`(c.budget >= $${paramIndex++} AND c.budget <= $${paramIndex++})`);
+          params.push(1, 1500);
+          console.log('💰 Backend - Applying Normal tier budget restriction: 1-1500 BGN');
+        }
+        // Pro tier users can see all cases (no restriction)
+        // No additional conditions needed for 'pro' tier
+      }
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const offset = (Number(page) - 1) * Number(limit);
 
