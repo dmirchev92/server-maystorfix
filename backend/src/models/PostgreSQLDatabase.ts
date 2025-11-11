@@ -561,32 +561,68 @@ export class PostgreSQLDatabase {
   }
 
   async createUser(user: User): Promise<string> {
+    const client = await this.pool.connect();
+    
     try {
+      await client.query('BEGIN');
+      
       const userId = user.id || this.generateId();
       const publicId = await this.generateUniquePublicId();
       
-      await this.pool.query(
+      // Get monthly points allocation for the user's tier
+      let monthlyPoints = 0;
+      if (user.role === 'tradesperson' && user.subscription_tier_id) {
+        const tierResult = await client.query(
+          `SELECT limits->>'points_monthly' as monthly_points 
+           FROM subscription_tiers 
+           WHERE id = $1`,
+          [user.subscription_tier_id]
+        );
+        
+        if (tierResult.rows.length > 0) {
+          monthlyPoints = parseInt(tierResult.rows[0].monthly_points) || 0;
+        }
+      }
+      
+      await client.query(
         `INSERT INTO users (
           id, email, password_hash, role, status, public_id, first_name, last_name,
           phone_number, business_id, subscription_tier_id, subscription_status, 
           trial_started_at, trial_cases_used, trial_expired, registration_ip,
-          data_retention_until, is_gdpr_compliant,
-          created_at, last_login_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+          data_retention_until, is_gdpr_compliant, points_balance, points_total_earned,
+          points_last_reset, created_at, last_login_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
         [
           userId, user.email, user.passwordHash, user.role, user.status, publicId,
           user.firstName, user.lastName, user.phoneNumber, user.businessId,
           user.subscription_tier_id, user.subscription_status,
           user.trial_started_at, user.trial_cases_used, user.trial_expired, user.registration_ip,
-          user.dataRetentionUntil, user.isGdprCompliant, user.createdAt,
-          user.lastLoginAt, user.updatedAt
+          user.dataRetentionUntil, user.isGdprCompliant, monthlyPoints, monthlyPoints,
+          new Date(), user.createdAt, user.lastLoginAt, user.updatedAt
         ]
       );
       
+      // Record initial points transaction for tradespeople
+      if (user.role === 'tradesperson' && monthlyPoints > 0) {
+        await client.query(
+          `INSERT INTO sp_points_transactions (
+            id, user_id, transaction_type, points_amount, balance_after, reason
+          ) VALUES (gen_random_uuid(), $1, 'reset', $2, $2, 'Initial monthly points allocation')`,
+          [userId, monthlyPoints]
+        );
+        
+        logger.info(`Allocated ${monthlyPoints} initial points to new user ${user.email}`);
+      }
+      
+      await client.query('COMMIT');
+      
       return userId;
     } catch (error) {
+      await client.query('ROLLBACK');
       logger.error('Error creating user:', error);
       throw error;
+    } finally {
+      client.release();
     }
   }
 

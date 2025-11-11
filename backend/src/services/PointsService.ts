@@ -23,12 +23,17 @@ export class PointsService {
 
   /**
    * Calculate points cost for a case based on budget and tier
+   * Uses granular budget ranges for fair point allocation
    */
   calculatePointsCost(budget: number, tierLimits: TierLimits): number {
-    if (budget <= 500) {
-      return tierLimits.points_cost_1_500;
+    if (budget <= 250) {
+      return tierLimits.points_cost_1_250;
+    } else if (budget <= 500) {
+      return tierLimits.points_cost_250_500;
+    } else if (budget <= 750) {
+      return tierLimits.points_cost_500_750;
     } else if (budget <= 1000) {
-      return tierLimits.points_cost_500_1000;
+      return tierLimits.points_cost_750_1000;
     } else if (budget <= 1500) {
       return tierLimits.points_cost_1000_1500;
     } else if (budget <= 2000) {
@@ -49,8 +54,10 @@ export class PointsService {
    * Get budget range string for display
    */
   getBudgetRange(budget: number): string {
-    if (budget <= 500) return '1-500 BGN';
-    if (budget <= 1000) return '500-1000 BGN';
+    if (budget <= 250) return '1-250 BGN';
+    if (budget <= 500) return '250-500 BGN';
+    if (budget <= 750) return '500-750 BGN';
+    if (budget <= 1000) return '750-1000 BGN';
     if (budget <= 1500) return '1000-1500 BGN';
     if (budget <= 2000) return '1500-2000 BGN';
     if (budget <= 3000) return '2000-3000 BGN';

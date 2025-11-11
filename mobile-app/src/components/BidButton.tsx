@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import ApiService from '../services/ApiService';
+import BidModal from './BidModal';
 
 interface BidButtonProps {
   caseId: string;
-  budget: number;
+  budget: string; // Changed to string for budget range
   currentBidders?: number;
   maxBidders?: number;
   onBidPlaced?: () => void;
@@ -19,13 +20,11 @@ const BidButton: React.FC<BidButtonProps> = ({
   onBidPlaced,
   disabled = false,
 }) => {
-  const [loading, setLoading] = useState(false);
   const [canBid, setCanBid] = useState(true);
-  const [pointsCost, setPointsCost] = useState<string>('');
+  const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
     checkCanBid();
-    estimatePointsCost();
   }, [caseId]);
 
   const checkCanBid = async () => {
@@ -41,77 +40,40 @@ const BidButton: React.FC<BidButtonProps> = ({
     }
   };
 
-  const estimatePointsCost = () => {
-    // Estimate based on budget (matches web logic)
-    if (budget <= 500) setPointsCost('10-20');
-    else if (budget <= 1000) setPointsCost('20-40');
-    else if (budget <= 1500) setPointsCost('30-60');
-    else if (budget <= 2000) setPointsCost('40-80');
-    else if (budget <= 3000) setPointsCost('60-120');
-    else if (budget <= 4000) setPointsCost('80-160');
-    else if (budget <= 5000) setPointsCost('100-200');
-    else setPointsCost('100+');
+  const handlePress = () => {
+    console.log('🔵 BidButton: Opening modal for case:', caseId);
+    setModalVisible(true);
+    console.log('🔵 BidButton: Modal state set to true');
   };
 
-  const handleBid = async () => {
-    Alert.alert(
-      'Потвърждение',
-      `Искате ли да наддавате за тази заявка?\n\nБюджет: ${budget} BGN\nПриблизителни точки: ${pointsCost}\n\nТочките ще бъдат временно резервирани.`,
-      [
-        { text: 'Отказ', style: 'cancel' },
-        {
-          text: 'Наддай',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const apiService = ApiService.getInstance();
-              const response = await apiService.placeBid(caseId);
-              
-              if (response.success) {
-                Alert.alert('Успех', 'Офертата е подадена успешно!');
-                onBidPlaced?.();
-              } else {
-                Alert.alert('Грешка', response.error?.message || 'Неуспешно наддаване');
-              }
-            } catch (error: any) {
-              Alert.alert('Грешка', error.message || 'Възникна грешка');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleBidPlaced = () => {
+    setModalVisible(false);
+    onBidPlaced?.();
   };
 
-  const isDisabled = disabled || !canBid || currentBidders >= maxBidders || loading;
-  const buttonText = loading
-    ? 'Наддаване...'
-    : currentBidders >= maxBidders
-    ? 'Пълно'
-    : 'Наддай';
+  const isDisabled = disabled || !canBid || currentBidders >= maxBidders;
+  const buttonText = currentBidders >= maxBidders ? 'Пълно' : 'Наддай';
 
   return (
-    <>
+    <View>
       <TouchableOpacity
         style={[styles.button, isDisabled && styles.buttonDisabled]}
-        onPress={handleBid}
+        onPress={handlePress}
         disabled={isDisabled}
         activeOpacity={0.7}
       >
-        {loading ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <>
-            <Text style={styles.icon}>💰</Text>
-            <Text style={styles.buttonText}>{buttonText}</Text>
-          </>
-        )}
+        <Text style={styles.icon}>💰</Text>
+        <Text style={styles.buttonText}>{buttonText}</Text>
       </TouchableOpacity>
-      {!loading && canBid && currentBidders < maxBidders && (
-        <Text style={styles.pointsEstimate}>~{pointsCost} точки</Text>
-      )}
-    </>
+      
+      <BidModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        caseId={caseId}
+        caseBudget={budget}
+        onBidPlaced={handleBidPlaced}
+      />
+    </View>
   );
 };
 
@@ -138,12 +100,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  pointsEstimate: {
-    fontSize: 11,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 4,
   },
 });
 

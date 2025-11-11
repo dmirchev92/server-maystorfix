@@ -6,8 +6,8 @@
  * @format
  */
 
-import React, { useState, useEffect } from 'react';
-import { StatusBar, StyleSheet, useColorScheme, View, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StatusBar, StyleSheet, useColorScheme, View, Alert, AppState, AppStateStatus } from 'react-native';
 import { Provider } from 'react-redux';
 import {
   SafeAreaProvider,
@@ -50,6 +50,8 @@ function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const appState = useRef(AppState.currentState);
+  const [appStateVisible, setAppStateVisible] = useState(appState.current);
 
   useEffect(() => {
     checkExistingSession();
@@ -71,8 +73,49 @@ function AppContent() {
       // Disconnect Socket.IO on logout
       SocketIOService.getInstance().disconnect();
     });
-    return () => unsubscribe();
+    
+    // Monitor app state changes (background/foreground)
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      unsubscribe();
+      subscription.remove();
+    };
   }, []);
+
+  // Handle app state changes to maintain session and services
+  const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+    console.log('🔄 App state changed:', appState.current, '->', nextAppState);
+    
+    if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+      // App has come to the foreground
+      console.log('✅ App came to foreground - maintaining session');
+      
+      // Verify session is still valid
+      const isAuthenticated = ApiService.getInstance().isAuthenticated();
+      if (isAuthenticated && !currentUser) {
+        console.log('🔐 Restoring user session from token');
+        await checkExistingSession();
+      }
+      
+      // Reconnect Socket.IO if needed
+      if (currentUser) {
+        const token = await AsyncStorage.getItem('auth_token');
+        if (token) {
+          console.log('🔌 Reconnecting Socket.IO after foreground');
+          await SocketIOService.getInstance().connect(token, currentUser.id);
+        }
+      }
+    } else if (nextAppState === 'background') {
+      // App is going to background
+      console.log('📱 App going to background - keeping services alive');
+      // DO NOT logout - keep session and call detection active
+      // Services will continue running in background
+    }
+    
+    appState.current = nextAppState;
+    setAppStateVisible(nextAppState);
+  };
 
   // Initialize Socket.IO when user is authenticated
   useEffect(() => {
@@ -134,28 +177,50 @@ function AppContent() {
       console.log('🔐 App.tsx - isAuthenticated:', isAuthenticated);
       
       if (isAuthenticated) {
-        // Fast-path: render app immediately when token exists
-        console.log('🔐 App.tsx - Token present, rendering app immediately and verifying user in background');
-        const localUser = { id: 'local', email: '', firstName: '', lastName: '', role: 'tradesperson' };
-        console.log('🔐 App.tsx - Setting currentUser to:', localUser);
-        setCurrentUser(localUser);
-
-        // Verify in background without blocking UI
-        ApiService.getInstance().getCurrentUser()
-          .then((response) => {
-            console.log('App.tsx - getCurrentUser response (bg):', response);
-            if (response.success && response.data) {
-              setCurrentUser(response.data);
-            } else {
-              console.log('App.tsx - Background user fetch failed; staying in app with local session');
-            }
-          })
-          .catch((err) => {
-            console.log('App.tsx - Background user fetch error:', err);
-          });
+        // Try to get cached user data first
+        const cachedUserStr = await AsyncStorage.getItem('user');
+        if (cachedUserStr) {
+          try {
+            const cachedUser = JSON.parse(cachedUserStr);
+            console.log('✅ Restored user from cache:', cachedUser.id);
+            setCurrentUser(cachedUser);
+            setIsLoading(false);
+            
+            // Verify in background and update if needed
+            ApiService.getInstance().getCurrentUser()
+              .then((response) => {
+                if (response.success && response.data) {
+                  console.log('✅ User verified from API');
+                  setCurrentUser(response.data);
+                  AsyncStorage.setItem('user', JSON.stringify(response.data));
+                }
+              })
+              .catch((err) => {
+                console.log('⚠️ Background verification failed, keeping cached user:', err);
+              });
+            return;
+          } catch (parseError) {
+            console.log('⚠️ Failed to parse cached user, fetching from API');
+          }
+        }
+        
+        // No cache, fetch from API
+        console.log('🔐 App.tsx - Token present, fetching user from API');
+        const response = await ApiService.getInstance().getCurrentUser();
+        
+        if (response.success && response.data) {
+          console.log('✅ User fetched successfully:', response.data.id);
+          setCurrentUser(response.data);
+          // Cache user data for faster startup
+          await AsyncStorage.setItem('user', JSON.stringify(response.data));
+        } else {
+          console.log('⚠️ Failed to fetch user, token may be expired');
+          // Don't logout automatically - token might be temporarily unavailable
+        }
       }
     } catch (error) {
-      console.log('App.tsx - No existing session found:', error);
+      console.log('App.tsx - Error checking session:', error);
+      // Don't logout on error - network might be temporarily unavailable
     } finally {
       setIsLoading(false);
     }

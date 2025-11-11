@@ -56,6 +56,47 @@ export default function PlaceBidPage() {
     }
   }
 
+  // Calculate point cost based on proposed budget and user tier
+  const calculatePointCost = (budgetRange: string): number => {
+    const userTier = (user as any)?.subscription_tier_id || 'free'
+    
+    // Budget range to midpoint mapping
+    const budgetMidpoints: { [key: string]: number } = {
+      '1-250': 125,
+      '250-500': 375,
+      '500-750': 625,
+      '750-1000': 875,
+      '1000-1250': 1125,
+      '1250-1500': 1375,
+      '1500-1750': 1625,
+      '1750-2000': 1875,
+      '2000+': 2500
+    }
+    
+    const midpoint = budgetMidpoints[budgetRange] || 500
+    
+    // Point costs by tier and budget
+    if (midpoint <= 250) {
+      return userTier === 'free' ? 6 : userTier === 'normal' ? 4 : 3
+    } else if (midpoint <= 500) {
+      return userTier === 'free' ? 10 : userTier === 'normal' ? 7 : 5
+    } else if (midpoint <= 750) {
+      return userTier === 'normal' ? 12 : 8
+    } else if (midpoint <= 1000) {
+      return userTier === 'normal' ? 18 : 12
+    } else if (midpoint <= 1500) {
+      return userTier === 'normal' ? 25 : 18
+    } else if (midpoint <= 2000) {
+      return 25
+    } else if (midpoint <= 3000) {
+      return 35
+    } else if (midpoint <= 4000) {
+      return 45
+    } else {
+      return 55
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -64,7 +105,13 @@ export default function PlaceBidPage() {
       return
     }
     
-    if (!confirm('Сигурни ли сте, че искате да наддавате за тази заявка?')) {
+    // Calculate point cost for the proposed budget
+    const pointCost = calculatePointCost(formData.proposedBudgetRange)
+    
+    // Show confirmation with point cost
+    const confirmMessage = `Сигурни ли сте, че искате да наддавате за тази заявка?\n\n💰 Предлагана цена: ${formData.proposedBudgetRange} лв\n⭐ Ако спечелите, ще платите: ${pointCost} точки\n\nПродължавате ли?`
+    
+    if (!confirm(confirmMessage)) {
       return
     }
     
@@ -189,10 +236,17 @@ export default function PlaceBidPage() {
             {/* Points Info */}
             <div className="bg-indigo-600/20 border border-indigo-400/30 rounded-lg p-4 mb-6">
               <p className="text-indigo-200 text-sm">
-                💡 <strong>Участие:</strong> 5 точки (веднага)<br/>
-                💰 <strong>При печалба:</strong> Пълната цена според вашата оферта<br/>
-                ❌ <strong>При загуба:</strong> Само 5 точки
+                💡 <strong>Участие:</strong> Безплатно (0 точки)<br/>
+                💰 <strong>При печалба:</strong> Плащате според вашата оферта и абонамент<br/>
+                ❌ <strong>При загуба:</strong> Не плащате нищо (0 точки)
               </p>
+              {formData.proposedBudgetRange && (
+                <div className="mt-3 pt-3 border-t border-indigo-400/30">
+                  <p className="text-indigo-100 font-semibold">
+                    ⭐ Ако спечелите с оферта {formData.proposedBudgetRange} лв: <span className="text-yellow-300">{calculatePointCost(formData.proposedBudgetRange)} точки</span>
+                  </p>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">

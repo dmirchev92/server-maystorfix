@@ -113,7 +113,9 @@ export class BiddingService {
       }
 
       const tierLimits = tierQuery.rows[0].limits;
-      const requiredPoints = this.pointsService.calculatePointsCost(caseData.budget, tierLimits);
+      // Convert budget range string to numeric midpoint for points calculation
+      const budgetMidpoint = this.getBudgetRangeMidpoint(caseData.budget);
+      const requiredPoints = this.pointsService.calculatePointsCost(budgetMidpoint, tierLimits);
 
       // Check if provider has enough points
       const pointsBalance = await this.pointsService.getPointsBalance(providerId);
@@ -130,7 +132,7 @@ export class BiddingService {
       const accessCheck = await this.pointsService.checkCaseAccess({
         user_id: providerId,
         case_id: caseId,
-        case_budget: caseData.budget
+        case_budget: budgetMidpoint
       });
       
       if (!accessCheck.allowed) {
@@ -150,7 +152,7 @@ export class BiddingService {
 
   /**
    * Place a bid on a case
-   * New flow: SP pays 5 points to participate, proposes budget range
+   * Flow: No upfront cost, only winner pays full tier-based cost
    */
   async placeBid(
     caseId: string, 
@@ -206,23 +208,43 @@ export class BiddingService {
         };
       }
 
-      // New bidding flow: charge 5 points to participate
-      const participationFee = 5;
+      // No participation fee - winner pays full tier-based cost only
+      // const participationFee = 3;
+      const participationFee = 0;
       
-      // Check if provider has at least 5 points to participate
-      if (caseData.points_balance < participationFee) {
+      // Calculate full tier-based points cost based on SP's PROPOSED budget (not case budget)
+      // This is fair: SP pays for what they proposed, not what customer originally requested
+      const tierLimits = caseData.limits;
+      const proposedBudgetMidpoint = this.getBudgetRangeMidpoint(proposedBudgetRange);
+      const fullPointsCost = this.pointsService.calculatePointsCost(proposedBudgetMidpoint, tierLimits);
+      
+      // Validate that the proposed budget is within tier limits
+      const maxBudget = tierLimits.max_case_budget;
+      if (proposedBudgetMidpoint > maxBudget) {
         await client.query('ROLLBACK');
         return {
           success: false,
-          message: `Insufficient points. Required: ${participationFee}, Available: ${caseData.points_balance}`
+          message: `Your proposed budget (${proposedBudgetRange}) exceeds your tier limit (${maxBudget} BGN). Please upgrade or propose a lower budget.`
         };
       }
-
-      // Calculate full points cost based on proposed budget range
-      // This will be charged only if SP wins
-      const tierLimits = caseData.limits;
-      const proposedRangeMidpoint = this.getBudgetRangeMidpoint(proposedBudgetRange);
-      const fullPointsCost = this.pointsService.calculatePointsCost(proposedRangeMidpoint, tierLimits);
+      
+      // Check if tier supports this budget range (point cost should not be 0)
+      if (fullPointsCost === 0) {
+        await client.query('ROLLBACK');
+        return {
+          success: false,
+          message: `Your tier does not support the proposed budget range (${proposedBudgetRange}). Please upgrade or propose a different budget.`
+        };
+      }
+      
+      // No upfront points check needed - winner pays later
+      // if (caseData.points_balance < participationFee) {
+      //   await client.query('ROLLBACK');
+      //   return {
+      //     success: false,
+      //     message: `Insufficient points. Required: ${participationFee}, Available: ${caseData.points_balance}`
+      //   };
+      // }
 
       // Get current bidder count to determine bid order
       const caseResult = await client.query(
@@ -250,30 +272,30 @@ export class BiddingService {
 
       const bidId = bidResult.rows[0].id;
 
-      // Deduct only participation fee (5 points)
-      const balanceResult = await client.query(`
-        UPDATE users 
-        SET points_balance = points_balance - $1,
-            points_total_spent = points_total_spent + $1
-        WHERE id = $2
-        RETURNING points_balance
-      `, [participationFee, providerId]);
+      // No upfront payment - winner pays later
+      // const balanceResult = await client.query(`
+      //   UPDATE users 
+      //   SET points_balance = points_balance - $1,
+      //       points_total_spent = points_total_spent + $1
+      //   WHERE id = $2
+      //   RETURNING points_balance
+      // `, [participationFee, providerId]);
 
-      const newBalance = balanceResult.rows[0].points_balance;
+      // const newBalance = balanceResult.rows[0].points_balance;
 
       // Record points transaction for participation fee
-      await client.query(`
-        INSERT INTO sp_points_transactions (
-          id, user_id, transaction_type, points_amount, balance_after, reason, case_id
-        ) VALUES ($1, $2, 'spent', $3, $4, $5, $6)
-      `, [
-        uuidv4(),
-        providerId,
-        participationFee,
-        newBalance,
-        `Participation fee for bidding (${participationFee} points)`,
-        caseId
-      ]);
+      // await client.query(`
+      //   INSERT INTO sp_points_transactions (
+      //     id, user_id, transaction_type, points_amount, balance_after, reason, case_id
+      //   ) VALUES ($1, $2, 'spent', $3, $4, $5, $6)
+      // `, [
+      //   uuidv4(),
+      //   providerId,
+      //   participationFee,
+      //   newBalance,
+      //   `Participation fee for bidding (${participationFee} points)`,
+      //   caseId
+      // ]);
 
       // Update case bidder count
       await client.query(`
@@ -289,8 +311,8 @@ export class BiddingService {
         success: true,
         bid_id: bidId,
         bid_order: bidOrder,
-        points_spent: participationFee,
-        message: `Bid placed successfully. You are bidder #${bidOrder}. Participation fee: ${participationFee} points. If you win, you'll pay ${fullPointsCost} points total.`
+        points_spent: 0,
+        message: `Bid placed successfully. You are bidder #${bidOrder}. No upfront cost. If you win, you'll pay ${fullPointsCost} points (tier-based).`
       };
 
     } catch (error: any) {
@@ -387,10 +409,8 @@ export class BiddingService {
         return { success: false, message: 'Winning bid not found' };
       }
 
-      // New flow: Winner pays full amount (points_bid), losers keep only 5 points deducted
-      
-      // Charge winner the remaining points (they already paid 5 for participation)
-      const remainingPoints = winningBid.points_bid - (winningBid.participation_points || 5);
+      // Winner pays full tier-based cost (no participation fee was charged)
+      const remainingPoints = winningBid.points_bid - (winningBid.participation_points || 0);
       
       if (remainingPoints > 0) {
         // Deduct remaining points from winner
@@ -420,7 +440,7 @@ export class BiddingService {
           winningBid.provider_id,
           remainingPoints,
           newBalance,
-          `Winning bid - remaining points (${remainingPoints} points)`,
+          `Winning bid - full tier-based cost (${remainingPoints} points)`,
           caseId
         ]);
       }
@@ -434,10 +454,10 @@ export class BiddingService {
         WHERE id = $1
       `, [winningBidId]);
 
-      // Process losing bids - they keep only 5 points deducted (participation fee)
+      // Process losing bids - they keep only participation fee deducted (3 points)
       for (const bid of bids) {
         if (bid.id !== winningBidId) {
-          // Losers keep only participation fee (5 points), no additional charges
+          // Losers keep only participation fee, no additional charges
           // Update bid status to lost
           await client.query(`
             UPDATE sp_case_bids
@@ -445,7 +465,7 @@ export class BiddingService {
                 points_deducted = $1,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $2
-          `, [bid.participation_points || 5, bid.id]);
+          `, [bid.participation_points || 3, bid.id]);
         }
       }
 

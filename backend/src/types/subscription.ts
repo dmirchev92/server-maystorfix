@@ -70,16 +70,18 @@ export interface TierLimits {
   premium_badge: boolean;
   bidding_enabled?: boolean;
   max_active_bids?: number;
-  // Points system for case access
+  // Points system for case access - Granular budget ranges
   points_monthly: number;
   max_case_budget: number;
-  points_cost_1_500: number;
-  points_cost_500_1000: number;
-  points_cost_1000_1500: number;
-  points_cost_1500_2000: number;
-  points_cost_2000_3000: number;
-  points_cost_3000_4000: number;
-  points_cost_4000_5000: number;
+  points_cost_1_250: number;      // 1-250 BGN
+  points_cost_250_500: number;    // 250-500 BGN
+  points_cost_500_750: number;    // 500-750 BGN
+  points_cost_750_1000: number;   // 750-1000 BGN
+  points_cost_1000_1500: number;  // 1000-1500 BGN
+  points_cost_1500_2000: number;  // 1500-2000 BGN
+  points_cost_2000_3000: number;  // 2000-3000 BGN
+  points_cost_3000_4000: number;  // 3000-4000 BGN
+  points_cost_4000_5000: number;  // 4000-5000 BGN
 }
 
 export interface SubscriptionTierData {

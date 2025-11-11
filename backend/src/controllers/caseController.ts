@@ -945,17 +945,15 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       if (userTierQuery.length > 0) {
         const userTier = userTierQuery[0].subscription_tier_id;
         
-        // Free tier users can only see cases in the 1-500 BGN range
+        // Free tier users can only see cases up to 500 BGN
         if (userTier === 'free') {
-          conditions.push(`(c.budget >= $${paramIndex++} AND c.budget <= $${paramIndex++})`);
-          params.push(1, 500);
-          console.log('💰 Backend - Applying Free tier budget restriction: 1-500 BGN');
+          conditions.push(`c.budget IN ('1-250', '250-500')`);
+          console.log('💰 Backend - Applying Free tier budget restriction: 1-250, 250-500');
         }
-        // Normal tier users can only see cases in the 1-1500 BGN range
+        // Normal tier users can only see cases up to 1500 BGN
         else if (userTier === 'normal') {
-          conditions.push(`(c.budget >= $${paramIndex++} AND c.budget <= $${paramIndex++})`);
-          params.push(1, 1500);
-          console.log('💰 Backend - Applying Normal tier budget restriction: 1-1500 BGN');
+          conditions.push(`c.budget IN ('1-250', '250-500', '500-750', '750-1000', '1000-1250', '1250-1500')`);
+          console.log('💰 Backend - Applying Normal tier budget restriction: up to 1500 BGN');
         }
         // Pro tier users can see all cases (no restriction)
         // No additional conditions needed for 'pro' tier

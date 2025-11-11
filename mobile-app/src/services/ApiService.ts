@@ -148,9 +148,10 @@ export class ApiService {
       method: 'POST',
     });
     
-    // Clear the auth token regardless of response
+    // Clear the auth token and cached user data
     this.authToken = null;
     await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('user'); // Clear cached user data
     
     return response;
   }
@@ -541,11 +542,18 @@ export class ApiService {
     return this.makeRequest(`/bidding/case/${caseId}/can-bid`);
   }
 
-  public async placeBid(caseId: string): Promise<APIResponse> {
-    console.log('💰 ApiService - Placing bid on case:', caseId);
+  public async placeBid(
+    caseId: string, 
+    proposedBudgetRange: string, 
+    bidComment?: string
+  ): Promise<APIResponse> {
+    console.log('💰 ApiService - Placing bid on case:', caseId, 'with budget:', proposedBudgetRange);
     return this.makeRequest(`/bidding/case/${caseId}/bid`, {
       method: 'POST',
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        proposedBudgetRange,
+        bidComment
+      }),
     });
   }
 
