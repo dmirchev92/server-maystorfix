@@ -81,20 +81,23 @@ export class BidSelectionReminderJob {
           c.city,
           c.neighborhood,
           c.category,
+          c.budget,
+          c.priority,
           u.id as provider_id,
-          sp.service_category,
+          psc.category_id as service_category,
           sp.city as provider_city,
           sp.neighborhood as provider_neighborhood
         FROM marketplace_service_cases c
         CROSS JOIN users u
         INNER JOIN service_provider_profiles sp ON u.id = sp.user_id
+        INNER JOIN provider_service_categories psc ON sp.user_id = psc.provider_id
         WHERE c.status = 'pending'
           AND c.bidding_enabled = true
           AND c.bidding_closed = false
           AND c.created_at >= NOW() - INTERVAL '6 hours'
           AND c.customer_id != u.id
           AND sp.is_active = true
-          AND sp.service_category = c.category
+          AND psc.category_id = c.category
           AND sp.city = c.city
           -- Require exact match for both city AND neighborhood
           AND c.neighborhood IS NOT NULL
@@ -121,7 +124,9 @@ export class BidSelectionReminderJob {
               service_type: row.service_type,
               description: row.description,
               city: row.city,
-              category: row.category
+              category: row.category,
+              budget: row.budget,
+              priority: row.priority
             },
             providers: []
           };
@@ -135,7 +140,9 @@ export class BidSelectionReminderJob {
             caseId,
             data.caseDetails.service_type,
             data.caseDetails.city,
-            data.providers
+            data.providers,
+            data.caseDetails.budget,
+            data.caseDetails.priority
           );
 
           logger.info(`🔔 Sent new case notification for case ${caseId} to ${data.providers.length} providers`);
@@ -193,6 +200,79 @@ export class BidSelectionReminderJob {
       logger.info(`🔔 Points low warning job completed. Sent ${result.rows.length} warnings.`);
     } catch (error) {
       logger.error('❌ Error in points low warning job:', error);
+    }
+  }
+
+  /**
+   * Notify matching providers for a specific case (event-driven)
+   */
+  async notifyMatchingProvidersForCase(caseId: string): Promise<void> {
+    try {
+      logger.info(`🔔 Finding matching providers for case ${caseId}...`);
+
+      const query = `
+        SELECT 
+          c.id as case_id,
+          c.service_type,
+          c.description,
+          c.city,
+          c.neighborhood,
+          c.category,
+          c.budget,
+          c.priority,
+          u.id as provider_id,
+          psc.category_id as service_category,
+          sp.city as provider_city,
+          sp.neighborhood as provider_neighborhood
+        FROM marketplace_service_cases c
+        CROSS JOIN users u
+        INNER JOIN service_provider_profiles sp ON u.id = sp.user_id
+        INNER JOIN provider_service_categories psc ON sp.user_id = psc.provider_id
+        WHERE c.id = $1
+          AND c.status = 'pending'
+          AND c.bidding_enabled = true
+          AND c.bidding_closed = false
+          AND c.customer_id != u.id
+          AND sp.is_active = true
+          AND psc.category_id = c.category
+          AND sp.city = c.city
+          AND c.neighborhood IS NOT NULL
+          AND sp.neighborhood IS NOT NULL
+          AND c.neighborhood = sp.neighborhood
+          AND NOT EXISTS (
+            SELECT 1 FROM notifications n 
+            WHERE n.user_id = u.id 
+            AND n.type = 'new_case_available' 
+            AND n.data->>'caseId' = c.id
+          )
+      `;
+
+      const result = await this.pool.query(query, [caseId]);
+
+      if (result.rows.length === 0) {
+        logger.info(`🔔 No matching providers found for case ${caseId}`);
+        return;
+      }
+
+      const providers: string[] = [];
+      const caseDetails = result.rows[0];
+
+      for (const row of result.rows) {
+        providers.push(row.provider_id);
+      }
+
+      await this.notificationService.notifyNewCaseAvailable(
+        caseId,
+        caseDetails.service_type,
+        caseDetails.city,
+        providers,
+        caseDetails.budget,
+        caseDetails.priority
+      );
+
+      logger.info(`🔔 Sent new case notification for case ${caseId} to ${providers.length} providers`);
+    } catch (error) {
+      logger.error(`❌ Error notifying providers for case ${caseId}:`, error);
     }
   }
 }

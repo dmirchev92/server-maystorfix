@@ -362,6 +362,41 @@ export default function NotificationsPage() {
                         </span>
                       </div>
                     )}
+                    {notification.type === 'new_case_available' && (
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            const caseId = notification.data?.caseId
+                            if (caseId) {
+                              await markAsRead(notification.id)
+                              router.push(`/dashboard/cases/${caseId}/place-bid`)
+                            }
+                          }}
+                          className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-green-600 hover:bg-green-700 text-white border border-green-500 transition-colors shadow-lg hover:shadow-xl"
+                        >
+                          <span className="mr-2">👁️</span>
+                          Виж и наддавай
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation()
+                            console.log('🔔 Ignore button clicked for notification:', notification.id)
+                            try {
+                              await markAsRead(notification.id)
+                              // Remove from list immediately
+                              setNotifications(prev => prev.filter(n => n.id !== notification.id))
+                            } catch (error) {
+                              console.error('Error dismissing notification:', error)
+                            }
+                          }}
+                          className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-slate-600 hover:bg-slate-700 text-white border border-slate-500 transition-colors shadow-lg hover:shadow-xl"
+                        >
+                          <span className="mr-2">✖️</span>
+                          Игнорирай
+                        </button>
+                      </div>
+                    )}
                     {(notification.type === 'trial_expired' || notification.type === 'trial_expiring_soon' || notification.type === 'subscription_upgrade_required') && (
                       <div className="mt-3">
                         <button

@@ -913,14 +913,15 @@ private async initializeNotificationJobs(): Promise<void> {
     logger.info('🔔 Database pool obtained, creating notification job instance...');
     const notificationJob = new BidSelectionReminderJob(pool);
 
-    // Run new case notifications every 5 seconds (for testing)
+    // Run new case notifications every 5 minutes (backup for event-driven system)
+    // Primary notifications are now event-driven (triggered on case creation)
     setInterval(async () => {
       try {
         await notificationJob.runNewCaseNotifications();
       } catch (error) {
         logger.error('❌ Error in new case notification job:', error);
       }
-    }, 5000); // 5 seconds
+    }, 300000); // 5 minutes (backup only)
 
     // Run bid selection reminders every hour
     setInterval(async () => {

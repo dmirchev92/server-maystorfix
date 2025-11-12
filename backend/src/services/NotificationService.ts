@@ -21,6 +21,24 @@ interface NotificationTemplate {
   message: string;
 }
 
+// Category translations from English to Bulgarian
+const CATEGORY_TRANSLATIONS: { [key: string]: string } = {
+  'electrician': 'Електроуслуги',
+  'plumber': 'ВиК Услуги',
+  'painter': 'Боядисване',
+  'carpenter': 'Дърводелски услуги',
+  'hvac': 'Отопление и климатизация',
+  'locksmith': 'Ключар',
+  'cleaner': 'Почистване',
+  'gardener': 'Озеленяване',
+  'handyman': 'Цялостни ремонти',
+  'roofer': 'Ремонти на покриви',
+  'tiler': 'Плочки и теракот',
+  'appliance_repair': 'Хамалски Услуги',
+  'pest_control': 'Железарски услуги',
+  'moving': 'Дизайн'
+};
+
 export class NotificationService {
   private db: any; // DatabaseFactory returns SQLiteDatabase | PostgreSQLDatabase
   private wsConnections: Map<string, any> = new Map(); // Store WebSocket connections by user ID
@@ -662,9 +680,32 @@ export class NotificationService {
   }
 
 
-  async notifyNewCaseAvailable(caseId: string, category: string, location: string, providerIds: string[]): Promise<void> {
+  async notifyNewCaseAvailable(caseId: string, category: string, location: string, providerIds: string[], budget?: string, priority?: string): Promise<void> {
     const title = 'Нова заявка в района ви';
-    const message = `Нова заявка за ${category} в ${location}. Проверете дали можете да я приемете.`;
+    const categoryBg = CATEGORY_TRANSLATIONS[category] || category;
+    
+    // Priority translations
+    const priorityBg: { [key: string]: string } = {
+      'urgent': '🔴 СПЕШНО',
+      'high': '🟠 Висок приоритет',
+      'normal': '🟢 Нормален',
+      'low': '⚪ Нисък приоритет'
+    };
+    
+    let message = `Нова заявка за ${categoryBg} в ${location}.`;
+    
+    // Add priority (always show with emoji)
+    if (priority) {
+      message += ` ${priorityBg[priority] || priority}.`;
+    }
+    
+    // Then add budget
+    if (budget) {
+      message += ` Бюджет: ${budget} лв.`;
+    }
+    
+    // Finally add call to action
+    message += ' Проверете дали можете да я приемете.';
 
     // Send to all relevant providers
     for (const providerId of providerIds) {
@@ -673,7 +714,22 @@ export class NotificationService {
         'new_case_available',
         title,
         message,
-        { caseId, category, location }
+        { 
+          caseId, 
+          category, 
+          location,
+          actions: [
+            {
+              type: 'view_and_bid',
+              label: 'Виж и наддавай',
+              url: `/cases/${caseId}/bid`
+            },
+            {
+              type: 'dismiss',
+              label: 'Игнорирай'
+            }
+          ]
+        }
       );
     }
   }

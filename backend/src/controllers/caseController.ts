@@ -220,6 +220,7 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
 
     logger.info('✅ Service case created successfully', { caseId, serviceType, assignmentType });
 
+    // Send response immediately
     res.status(201).json({
       success: true,
       data: {
@@ -229,6 +230,25 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           : 'Case created and available to all providers'
       }
     });
+
+    // Trigger notifications asynchronously (don't wait for it)
+    if (assignmentType === 'open') {
+      logger.info('🔔 Triggering notifications for open case', { caseId, category, city, neighborhood, assignmentType });
+      // Fire and forget - don't await
+      (async () => {
+        try {
+          if (DatabaseFactory.isPostgreSQL()) {
+            const { BidSelectionReminderJob } = await import('../jobs/BidSelectionReminderJob');
+            const pool = (db as any).pool;
+            const bidJob = new BidSelectionReminderJob(pool);
+            await bidJob.notifyMatchingProvidersForCase(caseId);
+            logger.info('✅ Notifications triggered for matching SPs', { caseId });
+          }
+        } catch (notifError) {
+          logger.error('❌ Error triggering notifications for open case:', notifError);
+        }
+      })();
+    }
 
   } catch (error) {
     logger.error('❌ Error creating service case:', error);
