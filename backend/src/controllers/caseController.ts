@@ -46,8 +46,35 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       screenshots,
       customerId,
       category,
-      squareMeters
+      squareMeters,
+      conversationId,
+      chatSource: directChatSource // Direct chat source from request (e.g., 'searchchat')
     } = req.body;
+    
+    // Determine chat_source: use direct source if provided, otherwise inherit from conversation
+    let chatSource = 'direct'; // Default
+    
+    if (directChatSource) {
+      // Direct chat source provided (e.g., from search page)
+      chatSource = directChatSource;
+      console.log('✅ Using direct chat_source:', chatSource);
+    } else if (conversationId) {
+      // Inherit from conversation (e.g., SMS token chat)
+      try {
+        const convResult = await (db as any).query(
+          'SELECT chat_source FROM marketplace_conversations WHERE id = $1',
+          [conversationId]
+        );
+        
+        // Database query returns array directly
+        if (convResult && convResult.length > 0) {
+          chatSource = convResult[0].chat_source || 'direct';
+          console.log('✅ Inherited chat_source from conversation:', conversationId, '→', chatSource);
+        }
+      } catch (error) {
+        console.log('❌ Error fetching chat_source from conversation:', error);
+      }
+    }
 
     // Log case creation details for debugging
     logger.info('📝 Creating case with data:', {
@@ -96,8 +123,8 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           id, service_type, description, preferred_date, preferred_time,
           priority, budget, bidding_enabled, max_bidders, city, neighborhood, phone, additional_details, provider_id,
           provider_name, is_open_case, assignment_type, status,
-          customer_id, category, square_meters, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
+          customer_id, category, square_meters, chat_source, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
         [
           caseId,
           serviceType,
@@ -120,6 +147,7 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           customerId,
           category || serviceType || 'general',
           squareMeters ? parseFloat(squareMeters) : null,
+          chatSource,
           now,
           now
         ]
@@ -1896,6 +1924,68 @@ export const updateCaseStatus = async (req: Request, res: Response): Promise<voi
       error: {
         code: 'INTERNAL_ERROR',
         message: 'Failed to update case status'
+      }
+    });
+  }
+};
+
+/**
+ * Get case statistics by chat source
+ * GET /api/v1/cases/stats/chat-source
+ */
+export const getCaseStatsByChatSource = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { providerId } = req.query;
+
+    let query = `
+      SELECT 
+        chat_source,
+        COUNT(*) as count,
+        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count
+      FROM marketplace_service_cases
+      WHERE chat_source IS NOT NULL
+    `;
+    
+    const params: any[] = [];
+    
+    // Filter by provider if specified
+    if (providerId) {
+      query += ` AND provider_id = $1`;
+      params.push(providerId);
+    }
+    
+    query += ` GROUP BY chat_source ORDER BY count DESC`;
+
+    const result = await (db as any).query(query, params);
+    
+    const stats = result.rows || [];
+    
+    // Calculate totals
+    const totals = {
+      smschat: stats.find((s: any) => s.chat_source === 'smschat')?.count || 0,
+      searchchat: stats.find((s: any) => s.chat_source === 'searchchat')?.count || 0,
+      direct: stats.find((s: any) => s.chat_source === 'direct')?.count || 0,
+      total: stats.reduce((sum: number, s: any) => sum + parseInt(s.count), 0)
+    };
+
+    logger.info('📊 Chat source stats retrieved', { providerId, totals });
+
+    res.json({
+      success: true,
+      data: {
+        stats,
+        totals
+      }
+    });
+
+  } catch (error) {
+    logger.error('❌ Error getting chat source stats:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to get chat source statistics'
       }
     });
   }

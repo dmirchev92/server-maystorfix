@@ -101,7 +101,8 @@ export class ChatService {
       customerId: creatorUserId,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
-      customerPhone: data.customerPhone
+      customerPhone: data.customerPhone,
+      chatSource: data.chatSource || 'direct'
     })
 
     // Create initial message if provided

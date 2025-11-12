@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
@@ -11,8 +11,15 @@ import { apiClient } from '@/lib/api'
 
 export default function CreateCasePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, isAuthenticated } = useAuth()
   const [caseModalOpen, setCaseModalOpen] = useState(false)
+  
+  // Get URL parameters
+  const providerId = searchParams.get('providerId')
+  const providerName = searchParams.get('providerName')
+  const conversationId = searchParams.get('conversationId')
+  const chatSource = searchParams.get('chatSource') // Direct chat source (e.g., 'searchchat')
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -30,17 +37,24 @@ export default function CreateCasePage() {
 
   const handleCaseSubmit = async (formData: any) => {
     try {
-      // Prepare case data for open case (no specific provider)
+      // Prepare case data based on assignment type
+      const isSpecificAssignment = formData.assignmentType === 'specific' && providerId
       const caseData = {
         ...formData,
-        providerId: null, // No specific provider
-        providerName: null,
-        isOpenCase: true, // This is an open case for all providers
+        providerId: isSpecificAssignment ? providerId : null,
+        providerName: isSpecificAssignment ? providerName : null,
+        isOpenCase: !isSpecificAssignment,
         customerId: user?.id, // Add customer ID
-        category: formData.serviceType || 'general' // Map service type to category
+        category: formData.serviceType || 'general', // Map service type to category
+        conversationId: conversationId || undefined, // Include conversation ID if available
+        chatSource: chatSource || undefined // Include direct chat source if provided
       }
 
-      console.log('Creating open case with data:', caseData)
+      console.log('🔍 Creating case with data:', caseData)
+      console.log('🔍 ConversationId from URL:', conversationId)
+      console.log('🔍 ChatSource from URL:', chatSource)
+      console.log('🔍 Assignment type:', formData.assignmentType)
+      console.log('🔍 Is specific assignment:', isSpecificAssignment)
       
       // Submit the case using the API client
       const response = await apiClient.createCase(caseData)
@@ -51,14 +65,18 @@ export default function CreateCasePage() {
         
         const caseId = response.data.data?.id || response.data.caseId
         const hasBudget = formData.budget && parseFloat(formData.budget) > 0
+        const isSpecific = formData.assignmentType === 'specific' && providerId
         
         if (hasBudget && caseId) {
-          const successMessage = `✅ Заявката е създадена успешно!\n\n📋 Специалистите ще наддават за вашата заявка.\n\n🔗 Линк за преглед на оферти:\nhttps://maystorfix.com/dashboard/cases/${caseId}/bids\n\n💡 Запазете този линк за да видите офертите!`
+          const successMessage = `✅ Заявката е създадена успешно!\n\n📋 ${isSpecific ? `Заявката е изпратена директно към ${providerName}` : 'Специалистите ще наддават за вашата заявка'}.\n\n🔗 Линк за преглед на оферти:\nhttps://maystorfix.com/dashboard/cases/${caseId}/bids\n\n💡 Запазете този линк за да видите офертите!`
           alert(successMessage)
           // Copy link to clipboard
           navigator.clipboard.writeText(`https://maystorfix.com/dashboard/cases/${caseId}/bids`)
         } else {
-          alert('Заявката е създадена и е достъпна за всички специалисти! Ще получите потвърждение скоро.')
+          const message = isSpecific 
+            ? `Заявката е създадена и изпратена директно към ${providerName}! Ще получите потвърждение скоро.`
+            : 'Заявката е създадена и е достъпна за всички специалисти! Ще получите потвърждение скоро.'
+          alert(message)
         }
         
         // Redirect to home
@@ -159,9 +177,9 @@ export default function CreateCasePage() {
         isOpen={caseModalOpen}
         onClose={handleModalClose}
         onSubmit={handleCaseSubmit}
-        providerName="Всички специалисти" // For open cases
-        providerId={undefined} // No specific provider
-        providerCategory="general" // General category for open cases
+        providerName={providerName || "Всички специалисти"}
+        providerId={providerId || undefined}
+        providerCategory="general"
         customerPhone={user?.phoneNumber || ''}
         mode="direct"
       />

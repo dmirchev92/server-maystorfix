@@ -303,13 +303,13 @@ export class ChatTokenService {
         );
       });
 
-      // Create marketplace conversation record in PostgreSQL
+      // Create marketplace conversation record in PostgreSQL with 'smschat' source
       const pool = (this.database as any).getPool();
       await pool.query(
         `INSERT INTO marketplace_conversations 
-         (id, provider_id, customer_name, customer_email, customer_phone, status, created_at, last_message_at) 
-         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [conversationId, tokenData.user_id, 'Chat Customer', '', '', 'active']
+         (id, provider_id, customer_name, customer_email, customer_phone, status, chat_source, created_at, last_message_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [conversationId, tokenData.user_id, 'Chat Customer', '', '', 'active', 'smschat']
       );
 
       // Create permanent chat session

@@ -461,6 +461,7 @@ class ServiceTextProServer {
     this.app.post('/api/v1/cases', caseController.createCase);
     this.app.get('/api/v1/cases', caseController.getCasesWithFilters);
     this.app.get('/api/v1/cases/stats', caseController.getCaseStats);
+    this.app.get('/api/v1/cases/stats/chat-source', caseController.getCaseStatsByChatSource);
     this.app.get('/api/v1/cases/provider/:providerId', caseController.getProviderCases);
     this.app.get('/api/v1/cases/queue/:providerId', caseController.getAvailableCases);
     this.app.get('/api/v1/cases/:caseId', caseController.getCase);

@@ -269,36 +269,40 @@ export default function SearchPage() {
       const lastName = provider.last_name || (provider as any).lastName
       const providerName = businessName || `${firstName || ''} ${lastName || ''}`.trim() || 'Специалист'
       
-      // Create or get conversation with this provider
+      console.log('🔗 Creating/getting conversation for provider:', provider.id)
+      
+      // Create or get conversation with this provider (tagged as 'searchchat')
       const response = await apiClient.createOrGetConversation({
         providerId: provider.id,
         customerId: user?.id,
         customerName: user?.firstName + ' ' + user?.lastName || 'Customer',
         customerEmail: user?.email || '',
-        customerPhone: user?.phoneNumber || ''
+        customerPhone: user?.phoneNumber || '',
+        chatSource: 'searchchat'
       })
       
       console.log('🔗 Conversation response:', response.data)
       
       if (response.data?.success) {
-        // Handle different response structures
-        const conversationId = response.data.data?.conversation?.id || response.data.data?.conversationId
+        // Conversation created/retrieved, now open chat widget
+        console.log('🔗 Opening chat widget for provider:', provider.id)
         
-        if (conversationId) {
-          // Redirect to chat page with conversation ID
-          router.push(`/chat?conversation=${conversationId}`)
-        } else {
-          console.error('No conversation ID in response:', response.data)
-          router.push('/chat')
-        }
+        // Dispatch event to open chat widget with this provider
+        const event = new CustomEvent('openChatWidget', {
+          detail: { 
+            providerId: provider.id,
+            source: 'search'
+          }
+        })
+        window.dispatchEvent(event)
       } else {
-        // Fallback to chat page
-        router.push('/chat')
+        console.error('Failed to create conversation:', response.data)
+        alert('Не можа да се отвори чат. Моля, опитайте отново.')
       }
+      
     } catch (error) {
-      console.error('Error creating conversation:', error)
-      // Fallback to chat page
-      router.push('/chat')
+      console.error('Error opening chat:', error)
+      alert('Възникна грешка. Моля, опитайте отново.')
     }
   }
 

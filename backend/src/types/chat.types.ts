@@ -137,6 +137,7 @@ export interface CreateConversationRequest {
   customerEmail: string
   customerPhone?: string
   initialMessage?: string
+  chatSource?: string  // Source of chat: 'smschat', 'searchchat', 'direct', etc.
 }
 
 export interface SendMessageRequest {

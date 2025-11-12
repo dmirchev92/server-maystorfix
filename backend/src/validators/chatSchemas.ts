@@ -12,7 +12,8 @@ export const createConversationSchema = z.object({
   customerName: z.string().min(1, 'Customer name is required').max(255),
   customerEmail: z.string().email('Invalid email address'),
   customerPhone: z.string().optional(),
-  initialMessage: z.string().max(10000, 'Message too long').optional()
+  initialMessage: z.string().max(10000, 'Message too long').optional(),
+  chatSource: z.string().optional() // 'smschat', 'searchchat', 'direct', etc.
 })
 
 export const getConversationsQuerySchema = z.object({

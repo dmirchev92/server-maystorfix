@@ -7,7 +7,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { useChat } from '@/contexts/ChatContext'
 import { Message } from '@/lib/chatApi'
@@ -32,13 +32,25 @@ function ChatWidgetContent() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [newMessage, setNewMessage] = useState('')
+  const [chatSource, setChatSource] = useState<string | null>(null) // Track where chat was opened from
   const pathname = usePathname()
+  const router = useRouter()
 
-  // Listen for openChatWidget event from SMS token link
+  // Reset chatSource when widget is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setChatSource(null)
+    }
+  }, [isOpen])
+
+  // Listen for openChatWidget event from SMS token link or search page
   useEffect(() => {
     const handleOpenChat = (event: CustomEvent) => {
-      const { providerId } = event.detail
-      console.log('📱 ChatWidget received openChatWidget event:', providerId)
+      const { providerId, source } = event.detail
+      console.log('📱 ChatWidget received openChatWidget event:', providerId, 'source:', source)
+      
+      // Store the source (e.g., 'search' or null for normal widget/SMS)
+      setChatSource(source || null)
       
       // Open the widget
       setIsOpen(true)
@@ -341,7 +353,14 @@ function ChatWidgetContent() {
                             // Navigate to create case page with provider info
                             const providerId = activeConversation.providerId
                             const providerName = activeConversation.providerBusinessName || activeConversation.providerName || 'Майстор'
-                            window.location.href = `/create-case?providerId=${providerId}&providerName=${encodeURIComponent(providerName)}&conversationId=${activeConversation.id}`
+                            
+                            // If opened from search page, don't pass conversationId (will be tagged as 'searchchat')
+                            // Otherwise pass conversationId (will inherit conversation's chat_source, e.g., 'smschat')
+                            if (chatSource === 'search') {
+                              router.push(`/create-case?providerId=${providerId}&providerName=${encodeURIComponent(providerName)}&chatSource=searchchat`)
+                            } else {
+                              router.push(`/create-case?providerId=${providerId}&providerName=${encodeURIComponent(providerName)}&conversationId=${activeConversation.id}`)
+                            }
                           }}
                           className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-green-600 hover:to-blue-600 transition-all duration-200 flex items-center justify-center gap-2"
                         >

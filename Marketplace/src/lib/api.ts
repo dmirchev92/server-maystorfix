@@ -179,6 +179,7 @@ class ApiClient {
     customerName: string
     customerEmail: string
     customerPhone?: string
+    chatSource?: string
   }) {
     console.log('🔗 API Client - Starting marketplace conversation:', data)
     
@@ -187,7 +188,8 @@ class ApiClient {
       customerId: data.customerId,
       customerName: data.customerName,
       customerEmail: data.customerEmail,
-      customerPhone: data.customerPhone || ''
+      customerPhone: data.customerPhone || '',
+      chatSource: data.chatSource || 'direct'
     }
     
     console.log('🔗 API Client - Request payload:', JSON.stringify(payload, null, 2))
@@ -209,6 +211,7 @@ class ApiClient {
     customerName: string
     customerEmail: string
     customerPhone?: string
+    chatSource?: string
   }) {
     return this.startMarketplaceConversation(data)
   }
@@ -220,6 +223,7 @@ class ApiClient {
     customerName: string
     customerEmail: string
     customerPhone?: string
+    chatSource?: string
   }) {
     return this.startMarketplaceConversation(data)
   }

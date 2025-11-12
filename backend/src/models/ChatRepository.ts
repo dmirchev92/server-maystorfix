@@ -185,11 +185,12 @@ export class ChatRepository {
     customerName: string
     customerEmail: string
     customerPhone?: string
+    chatSource?: string
   }): Promise<Conversation> {
     const result = await this.pool.query<ConversationRow>(
       `INSERT INTO marketplace_conversations 
-       (id, provider_id, customer_id, customer_name, customer_email, customer_phone, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'active')
+       (id, provider_id, customer_id, customer_name, customer_email, customer_phone, status, chat_source)
+       VALUES ($1, $2, $3, $4, $5, $6, 'active', $7)
        RETURNING *`,
       [
         data.id,
@@ -197,7 +198,8 @@ export class ChatRepository {
         data.customerId || null,
         data.customerName,
         data.customerEmail,
-        data.customerPhone || null
+        data.customerPhone || null,
+        data.chatSource || 'direct'
       ]
     )
     return this.mapConversationRow(result.rows[0])
