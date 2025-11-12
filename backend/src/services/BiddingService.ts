@@ -1,6 +1,7 @@
 import { Pool, PoolClient } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import { PointsService } from './PointsService';
+import { NotificationService } from './NotificationService';
 
 export interface CaseBid {
   id: string;
@@ -43,10 +44,12 @@ export interface BidSelectionResult {
 export class BiddingService {
   private pool: Pool;
   private pointsService: PointsService;
+  private notificationService: NotificationService;
 
   constructor(pool: Pool) {
     this.pool = pool;
     this.pointsService = new PointsService();
+    this.notificationService = new NotificationService();
   }
 
   /**
@@ -307,6 +310,35 @@ export class BiddingService {
 
       await client.query('COMMIT');
 
+      // Send notification to customer about new bid
+      try {
+        const customerQuery = await client.query(
+          'SELECT customer_id FROM marketplace_service_cases WHERE id = $1',
+          [caseId]
+        );
+        const customerId = customerQuery.rows[0]?.customer_id;
+        
+        if (customerId) {
+          const providerQuery = await client.query(
+            'SELECT first_name, last_name FROM users WHERE id = $1',
+            [providerId]
+          );
+          const providerName = providerQuery.rows[0] ? 
+            `${providerQuery.rows[0].first_name} ${providerQuery.rows[0].last_name}`.trim() : 
+            'Service Provider';
+          
+          await this.notificationService.notifyNewBidPlaced(
+            caseId,
+            customerId,
+            providerName,
+            fullPointsCost
+          );
+        }
+      } catch (notificationError) {
+        console.error('Error sending new bid notification:', notificationError);
+        // Non-critical error, don't fail the bid
+      }
+
       return {
         success: true,
         bid_id: bidId,
@@ -482,6 +514,48 @@ export class BiddingService {
       `, [winningBid.provider_id, winningBidId, caseId]);
 
       await client.query('COMMIT');
+
+      // Send notifications to all providers
+      try {
+        // Get case details for notifications
+        const caseDetails = await client.query(
+          'SELECT description, service_type FROM marketplace_service_cases WHERE id = $1',
+          [caseId]
+        );
+        const caseDescription = caseDetails.rows[0]?.description || caseDetails.rows[0]?.service_type || 'услугата';
+
+        // Get customer name
+        const customerQuery = await client.query(
+          'SELECT first_name, last_name FROM users WHERE id = $1',
+          [customerId]
+        );
+        const customerName = customerQuery.rows[0] ? 
+          `${customerQuery.rows[0].first_name} ${customerQuery.rows[0].last_name}`.trim() : 
+          'Клиента';
+
+        // Send win notification to winner
+        await this.notificationService.notifyBidWon(
+          caseId,
+          winningBid.provider_id,
+          customerName,
+          caseDescription
+        );
+
+        // Send lose notifications to all other bidders
+        for (const bid of bids) {
+          if (bid.id !== winningBidId) {
+            await this.notificationService.notifyBidLost(
+              caseId,
+              bid.provider_id,
+              customerName,
+              caseDescription
+            );
+          }
+        }
+      } catch (notificationError) {
+        console.error('Error sending bid result notifications:', notificationError);
+        // Non-critical error
+      }
 
       return {
         success: true,

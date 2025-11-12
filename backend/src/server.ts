@@ -44,6 +44,7 @@ import { checkTrialStatus, addTrialInfo } from './middleware/trialCheck';
 import trialCleanupService from './services/TrialCleanupService';
 import smsVerificationRoutes from './controllers/smsVerificationController';
 import { DatabaseFactory } from './models/DatabaseFactory';
+import { BidSelectionReminderJob } from './jobs/BidSelectionReminderJob';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
 
@@ -471,6 +472,7 @@ class ServiceTextProServer {
     this.app.put('/api/v1/cases/:caseId/complete', caseController.completeCase); // REST convention
     this.app.put('/api/v1/cases/:caseId/status', caseController.updateCaseStatus);
     this.app.post('/api/v1/cases/:caseId/auto-assign', caseController.autoAssignCase);
+    this.app.post('/api/v1/cases/:caseId/cancel', authenticateToken, caseController.cancelCase);
 
     // Declined cases routes
     this.app.get('/api/v1/cases/declined/:providerId', authenticateToken, caseController.getDeclinedCases);
@@ -745,10 +747,23 @@ private initializeGracefulShutdown(): void {
 /**
  * Start the server
  */
-public start(): void {
+public async start(): Promise<void> {
   try {
     // Initialize configuration
     initializeConfig();
+
+    // Initialize WebSocket for real-time features
+    this.initializeWebSocket();
+
+    // Start automatic cleanup of expired tokens
+    this.initializeTokenCleanup();
+
+    // Start trial cleanup service (checks expired trials every hour)
+    trialCleanupService.start();
+    logger.info('✅ Trial cleanup service started');
+
+    // Start notification job scheduler
+    await this.initializeNotificationJobs();
 
     // Start server - bind to all interfaces for mobile app access
     this.httpServer.listen(config.app.port, config.app.host, () => {
@@ -774,16 +789,6 @@ public start(): void {
         'system_operation'
       );
     });
-
-    // Initialize WebSocket for real-time features
-    this.initializeWebSocket();
-
-    // Start automatic cleanup of expired tokens
-    this.initializeTokenCleanup();
-
-    // Start trial cleanup service (checks expired trials every hour)
-    trialCleanupService.start();
-    logger.info('✅ Trial cleanup service started');
 
   } catch (error) {
     logger.error('Failed to start server', { error: error instanceof Error ? error.message : 'Unknown error' });
@@ -889,11 +894,68 @@ private initializeTokenCleanup(): void {
   // Use new TokenCleanupJob instead of old cleanup methods
   logger.info('🧹 Token cleanup will be handled by new ChatTokenService');
 }
+
+/**
+ * Initialize notification jobs for automated reminders and alerts
+ */
+private async initializeNotificationJobs(): Promise<void> {
+  try {
+    logger.info('🔔 Initializing notification jobs...');
+    
+    const db = DatabaseFactory.getDatabase();
+    const pool = (db as any).pool; // Access the pg pool
+    
+    if (!pool) {
+      logger.error('❌ Cannot initialize notification jobs: Database pool not available');
+      return;
+    }
+
+    logger.info('🔔 Database pool obtained, creating notification job instance...');
+    const notificationJob = new BidSelectionReminderJob(pool);
+
+    // Run new case notifications every 5 seconds (for testing)
+    setInterval(async () => {
+      try {
+        await notificationJob.runNewCaseNotifications();
+      } catch (error) {
+        logger.error('❌ Error in new case notification job:', error);
+      }
+    }, 5000); // 5 seconds
+
+    // Run bid selection reminders every hour
+    setInterval(async () => {
+      try {
+        await notificationJob.runBidSelectionReminders();
+      } catch (error) {
+        logger.error('❌ Error in bid selection reminder job:', error);
+      }
+    }, 60 * 60 * 1000); // 1 hour
+
+    // Run points low warnings every hour
+    setInterval(async () => {
+      try {
+        await notificationJob.runPointsLowWarnings();
+      } catch (error) {
+        logger.error('❌ Error in points low warning job:', error);
+      }
+    }, 60 * 60 * 1000); // 1 hour
+
+    // Run initial notifications immediately
+    await notificationJob.runNewCaseNotifications();
+    logger.info('🔔 Initial new case notification check completed');
+
+  } catch (error) {
+    logger.error('❌ Failed to initialize notification jobs:', error);
+  }
+}
 }
 
 // Create and start server
 const server = new ServiceTextProServer();
-server.start();
+server.start().catch((error) => {
+  logger.error('Failed to start server:', error);
+  process.exit(1);
+});
 
 // Export getIO function for other controllers to access Socket.IO
 export function getIO(): SocketIOServer {

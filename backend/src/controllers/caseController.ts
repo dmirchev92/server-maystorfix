@@ -801,6 +801,187 @@ export const completeCase = async (req: Request, res: Response): Promise<void> =
 };
 
 /**
+ * Cancel a case (customer only)
+ */
+export const cancelCase = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { caseId } = req.params;
+    const { reason } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'User not authenticated'
+        }
+      });
+      return;
+    }
+
+    if (!caseId) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_CASE_ID',
+          message: 'Case ID is required'
+        }
+      });
+      return;
+    }
+
+    // Get case details
+    let caseDetails;
+    if (DatabaseFactory.isPostgreSQL()) {
+      const result = await db.query(
+        'SELECT * FROM marketplace_service_cases WHERE id = $1',
+        [caseId]
+      );
+      caseDetails = result[0];
+    } else {
+      caseDetails = await new Promise<any>((resolve, reject) => {
+        (db as any).db.get(
+          'SELECT * FROM marketplace_service_cases WHERE id = ?',
+          [caseId],
+          (err: Error | null, row: any) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      });
+    }
+
+    if (!caseDetails) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'CASE_NOT_FOUND',
+          message: 'Case not found'
+        }
+      });
+      return;
+    }
+
+    // Verify user owns this case
+    if (caseDetails.customer_id !== userId) {
+      res.status(403).json({
+        success: false,
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only cancel your own cases'
+        }
+      });
+      return;
+    }
+
+    // Check if case can be cancelled (only pending cases)
+    if (caseDetails.status !== 'pending') {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'CANNOT_CANCEL',
+          message: 'Only pending cases can be cancelled'
+        }
+      });
+      return;
+    }
+
+    // Check if bidding is closed (winner already selected)
+    if (caseDetails.bidding_closed) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'BIDDING_CLOSED',
+          message: 'Cannot cancel case after winner has been selected'
+        }
+      });
+      return;
+    }
+
+    // Update case status to cancelled
+    const now = new Date().toISOString();
+    
+    if (DatabaseFactory.isPostgreSQL()) {
+      await db.query(
+        'UPDATE marketplace_service_cases SET status = $1, updated_at = $2 WHERE id = $3',
+        ['cancelled', now, caseId]
+      );
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        (db as any).db.run(
+          'UPDATE marketplace_service_cases SET status = ?, updated_at = ? WHERE id = ?',
+          ['cancelled', now, caseId],
+          function(err: Error | null) {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+    }
+
+    // Get all providers who placed bids on this case
+    let biddingProviders;
+    if (DatabaseFactory.isPostgreSQL()) {
+      const result = await db.query(
+        'SELECT DISTINCT provider_id FROM sp_case_bids WHERE case_id = $1',
+        [caseId]
+      );
+      biddingProviders = result;
+    } else {
+      biddingProviders = await new Promise<any[]>((resolve, reject) => {
+        (db as any).db.all(
+          'SELECT DISTINCT provider_id FROM sp_case_bids WHERE case_id = ?',
+          [caseId],
+          (err: Error | null, rows: any[]) => {
+            if (err) reject(err);
+            else resolve(rows);
+          }
+        );
+      });
+    }
+
+    // Notify all bidding providers about case cancellation
+    const notificationService = getNotificationService();
+    
+    for (const bid of biddingProviders) {
+      await notificationService.createNotification(
+        bid.provider_id,
+        'case_cancelled',
+        'Заявката е отменена',
+        `Заявка "${caseDetails.description.substring(0, 50)}..." е отменена от клиента.`,
+        { 
+          caseId, 
+          reason: reason || 'Отменена от клиента',
+          serviceType: caseDetails.service_type
+        }
+      );
+    }
+
+    res.json({
+      success: true,
+      message: 'Case cancelled successfully',
+      data: {
+        caseId,
+        status: 'cancelled',
+        affectedProviders: biddingProviders.length
+      }
+    });
+
+  } catch (error) {
+    logger.error('❌ Error cancelling case:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to cancel case',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }
+    });
+  }
+};
+
+/**
  * Get a single case by ID
  */
 export const getCase = async (req: Request, res: Response): Promise<void> => {

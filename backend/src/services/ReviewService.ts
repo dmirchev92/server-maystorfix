@@ -43,67 +43,19 @@ export class ReviewService {
   }
 
   /**
-   * Initialize review tables if they don't exist
+   * Initialize review tables if they don't exist (PostgreSQL)
    */
   private async initializeReviewTables(): Promise<void> {
     try {
-      // Create case_reviews table
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(`
-          CREATE TABLE IF NOT EXISTS case_reviews (
-            id TEXT PRIMARY KEY,
-            case_id TEXT NOT NULL,
-            customer_id TEXT NOT NULL,
-            provider_id TEXT NOT NULL,
-            rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-            comment TEXT,
-            service_quality INTEGER CHECK (service_quality >= 1 AND service_quality <= 5),
-            communication INTEGER CHECK (communication >= 1 AND communication <= 5),
-            timeliness INTEGER CHECK (timeliness >= 1 AND timeliness <= 5),
-            value_for_money INTEGER CHECK (value_for_money >= 1 AND value_for_money <= 5),
-            would_recommend INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (case_id) REFERENCES marketplace_service_cases(id),
-            FOREIGN KEY (customer_id) REFERENCES users(id),
-            FOREIGN KEY (provider_id) REFERENCES users(id),
-            UNIQUE(case_id, customer_id, provider_id)
-          )
-        `, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      // Create indexes for better performance
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(`
-          CREATE INDEX IF NOT EXISTS idx_reviews_provider 
-          ON case_reviews(provider_id, created_at)
-        `, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(`
-          CREATE INDEX IF NOT EXISTS idx_reviews_customer 
-          ON case_reviews(customer_id, created_at)
-        `, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      logger.info('✅ Review tables initialized');
+      // Tables are already created in PostgreSQL migrations
+      logger.info('✅ Review tables already exist in PostgreSQL');
     } catch (error) {
-      logger.error('❌ Error initializing review tables:', error);
+      logger.error('❌ Error checking review tables:', error);
     }
   }
 
   /**
-   * Create a new review
+   * Create a new review (PostgreSQL)
    */
   async createReview(reviewData: {
     caseId: string;
@@ -118,39 +70,31 @@ export class ReviewService {
     wouldRecommend?: boolean;
   }): Promise<string> {
     try {
+      logger.info('🔍 Creating review with data:', reviewData);
+      
       // Validate that case exists and is completed
-      const caseExists = await new Promise<boolean>((resolve, reject) => {
-        this.db.db.get(
-          `SELECT id FROM marketplace_service_cases 
-           WHERE id = ? AND customer_id = ? AND provider_id = ? AND status = 'completed'`,
-          [reviewData.caseId, reviewData.customerId, reviewData.providerId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(!!row);
-          }
-        );
-      });
+      const caseResult = await this.db.query(
+        `SELECT id FROM marketplace_service_cases 
+         WHERE id = $1 AND customer_id = $2 AND provider_id = $3 AND status = 'completed'`,
+        [reviewData.caseId, reviewData.customerId, reviewData.providerId]
+      );
+      
+      logger.info('📋 Case query result:', { found: caseResult?.length > 0, caseResult });
 
-      if (!caseExists) {
+      if (!caseResult || caseResult.length === 0) {
         throw new Error('Case not found or not completed');
       }
 
       // Check if review already exists (with detailed logging)
-      const existingReview = await new Promise<any>((resolve, reject) => {
-        this.db.db.get(
-          'SELECT id, created_at FROM case_reviews WHERE case_id = ? AND customer_id = ? AND provider_id = ?',
-          [reviewData.caseId, reviewData.customerId, reviewData.providerId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
-        );
-      });
+      const existingReview = await this.db.query(
+        'SELECT id, created_at FROM case_reviews WHERE case_id = $1 AND customer_id = $2 AND provider_id = $3',
+        [reviewData.caseId, reviewData.customerId, reviewData.providerId]
+      );
 
-      if (existingReview) {
+      if (existingReview && existingReview.length > 0) {
         logger.warn('⚠️ Duplicate review attempt blocked', {
-          existingReviewId: existingReview.id,
-          existingCreatedAt: existingReview.created_at,
+          existingReviewId: existingReview[0].id,
+          existingCreatedAt: existingReview[0].created_at,
           caseId: reviewData.caseId,
           customerId: reviewData.customerId,
           providerId: reviewData.providerId
@@ -159,37 +103,28 @@ export class ReviewService {
       }
 
       const reviewId = uuidv4();
-      const now = new Date().toISOString();
 
       // Insert review
-      await new Promise<void>((resolve, reject) => {
-        this.db.db.run(
-          `INSERT INTO case_reviews (
-            id, case_id, customer_id, provider_id, rating, comment,
-            service_quality, communication, timeliness, value_for_money,
-            would_recommend, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            reviewId,
-            reviewData.caseId,
-            reviewData.customerId,
-            reviewData.providerId,
-            reviewData.rating,
-            reviewData.comment || null,
-            reviewData.serviceQuality || reviewData.rating,
-            reviewData.communication || reviewData.rating,
-            reviewData.timeliness || reviewData.rating,
-            reviewData.valueForMoney || reviewData.rating,
-            reviewData.wouldRecommend ? 1 : 0,
-            now,
-            now
-          ],
-          function(err: Error | null) {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
+      await this.db.query(
+        `INSERT INTO case_reviews (
+          id, case_id, customer_id, provider_id, rating, comment,
+          service_quality, communication, timeliness, value_for_money,
+          would_recommend, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`,
+        [
+          reviewId,
+          reviewData.caseId,
+          reviewData.customerId,
+          reviewData.providerId,
+          reviewData.rating,
+          reviewData.comment || null,
+          reviewData.serviceQuality || reviewData.rating,
+          reviewData.communication || reviewData.rating,
+          reviewData.timeliness || reviewData.rating,
+          reviewData.valueForMoney || reviewData.rating,
+          reviewData.wouldRecommend ? 1 : 0
+        ]
+      );
 
       logger.info('✅ Review created successfully', { 
         reviewId, 
@@ -298,27 +233,21 @@ export class ReviewService {
   }
 
   /**
-   * Check if customer can review a case
+   * Check if customer can review a case (PostgreSQL)
    */
   async canReviewCase(caseId: string, customerId: string): Promise<boolean> {
     try {
-      const result = await new Promise<any>((resolve, reject) => {
-        this.db.db.get(
-          `SELECT 
-            CASE WHEN c.status = 'completed' AND c.customer_id = ? AND r.id IS NULL 
-            THEN 1 ELSE 0 END as can_review
-           FROM marketplace_service_cases c
-           LEFT JOIN case_reviews r ON c.id = r.case_id AND r.customer_id = ?
-           WHERE c.id = ?`,
-          [customerId, customerId, caseId],
-          (err: Error | null, row: any) => {
-            if (err) reject(err);
-            else resolve(row);
-          }
-        );
-      });
+      const result = await this.db.query(
+        `SELECT 
+          CASE WHEN c.status = 'completed' AND c.customer_id = $1 AND r.id IS NULL 
+          THEN 1 ELSE 0 END as can_review
+         FROM marketplace_service_cases c
+         LEFT JOIN case_reviews r ON c.id = r.case_id AND r.customer_id = $1
+         WHERE c.id = $2`,
+        [customerId, caseId]
+      );
 
-      return !!result?.can_review;
+      return result && result.length > 0 && result[0].can_review === 1;
 
     } catch (error) {
       logger.error('❌ Error checking review eligibility:', error);
@@ -327,28 +256,22 @@ export class ReviewService {
   }
 
   /**
-   * Get pending reviews for customer (completed cases without reviews)
+   * Get pending reviews for customer (completed cases without reviews) (PostgreSQL)
    */
   async getPendingReviews(customerId: string): Promise<any[]> {
     try {
-      const pendingReviews = await new Promise<any[]>((resolve, reject) => {
-        this.db.db.all(
-          `SELECT c.id, c.description, c.provider_name, c.completed_at, c.provider_id
-           FROM marketplace_service_cases c
-           LEFT JOIN case_reviews r ON c.id = r.case_id AND r.customer_id = ?
-           WHERE c.customer_id = ? 
-             AND c.status = 'completed' 
-             AND r.id IS NULL
-           ORDER BY c.completed_at DESC`,
-          [customerId, customerId],
-          (err: Error | null, rows: any[]) => {
-            if (err) reject(err);
-            else resolve(rows || []);
-          }
-        );
-      });
+      const pendingReviews = await this.db.query(
+        `SELECT c.id, c.description, c.provider_name, c.completed_at, c.provider_id
+         FROM marketplace_service_cases c
+         LEFT JOIN case_reviews r ON c.id = r.case_id AND r.customer_id = $1
+         WHERE c.customer_id = $1
+           AND c.status = 'completed' 
+           AND r.id IS NULL
+         ORDER BY c.completed_at DESC`,
+        [customerId]
+      );
 
-      return pendingReviews;
+      return pendingReviews || [];
 
     } catch (error) {
       logger.error('❌ Error getting pending reviews:', error);

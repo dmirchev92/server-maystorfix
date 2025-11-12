@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import ReviewService from '../services/ReviewService';
+import NotificationService from '../services/NotificationService';
+import { DatabaseFactory } from '../models/DatabaseFactory';
 import logger from '../utils/logger';
 import {
   unauthorized,
@@ -7,17 +9,25 @@ import {
   badRequest,
   forbidden,
   reviewExists,
-  caseNotFound
+  caseNotFound,
+  asyncHandler
 } from '../utils/errorHelpers';
 
 const reviewService = new ReviewService();
+const notificationService = new NotificationService();
 
 /**
  * Create a new review
  */
-export const createReview = async (req: Request, res: Response): Promise<void> => {
+export const createReview = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id; // From auth middleware
+    
+    logger.info('📝 Review submission received:', {
+      userId,
+      body: req.body
+    });
+    
     const {
       caseId,
       providerId,
@@ -69,6 +79,23 @@ export const createReview = async (req: Request, res: Response): Promise<void> =
     // Update provider's cached rating
     await reviewService.updateProviderRating(providerId);
 
+    // Get customer name for notification
+    const db = DatabaseFactory.getDatabase() as any;
+    const customerResult = await db.query(
+      'SELECT first_name, last_name FROM users WHERE id = $1',
+      [userId]
+    );
+    const customer = customerResult[0];
+    const customerName = customer ? `${customer.first_name} ${customer.last_name}` : 'Клиент';
+
+    // Send notification to provider
+    await notificationService.notifyRatingReceived(
+      providerId,
+      customerName,
+      rating,
+      comment
+    );
+
     res.status(201).json({
       success: true,
       data: {
@@ -78,6 +105,14 @@ export const createReview = async (req: Request, res: Response): Promise<void> =
     });
 
   } catch (error) {
+    logger.error('❌ Error creating review:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: (req as any).user?.id,
+      caseId: req.body.caseId
+    });
+    
     if (error instanceof Error) {
       if (error.message.includes('already exists')) {
         throw reviewExists(req.body.caseId);
@@ -89,12 +124,12 @@ export const createReview = async (req: Request, res: Response): Promise<void> =
     }
     throw error;
   }
-};
+});
 
 /**
  * Get reviews for a provider
  */
-export const getProviderReviews = async (req: Request, res: Response): Promise<void> => {
+export const getProviderReviews = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { providerId } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -125,12 +160,12 @@ export const getProviderReviews = async (req: Request, res: Response): Promise<v
   } catch (error) {
     throw error;
   }
-};
+});
 
 /**
  * Get review statistics for a provider
  */
-export const getProviderReviewStats = async (req: Request, res: Response): Promise<void> => {
+export const getProviderReviewStats = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { providerId } = req.params;
 
@@ -148,12 +183,12 @@ export const getProviderReviewStats = async (req: Request, res: Response): Promi
   } catch (error) {
     throw error;
   }
-};
+});
 
 /**
  * Check if user can review a case
  */
-export const canReviewCase = async (req: Request, res: Response): Promise<void> => {
+export const canReviewCase = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
     const { caseId } = req.params;
@@ -176,12 +211,12 @@ export const canReviewCase = async (req: Request, res: Response): Promise<void> 
   } catch (error) {
     throw error;
   }
-};
+});
 
 /**
  * Get pending reviews for authenticated user
  */
-export const getPendingReviews = async (req: Request, res: Response): Promise<void> => {
+export const getPendingReviews = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.id;
 
@@ -206,12 +241,12 @@ export const getPendingReviews = async (req: Request, res: Response): Promise<vo
   } catch (error) {
     throw error;
   }
-};
+});
 
 /**
  * Update provider rating (recalculate from reviews)
  */
-export const updateProviderRating = async (req: Request, res: Response): Promise<void> => {
+export const updateProviderRating = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { providerId } = req.params;
 
@@ -231,12 +266,12 @@ export const updateProviderRating = async (req: Request, res: Response): Promise
   } catch (error) {
     throw error;
   }
-};
+});
 
 /**
  * Send review request notification
  */
-export const sendReviewRequest = async (req: Request, res: Response): Promise<void> => {
+export const sendReviewRequest = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   try {
     const { caseId, customerId, providerName } = req.body;
 
@@ -256,4 +291,4 @@ export const sendReviewRequest = async (req: Request, res: Response): Promise<vo
   } catch (error) {
     throw error;
   }
-};
+});

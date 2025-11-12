@@ -7,7 +7,7 @@ import { FCMService } from './FCMService';
 interface Notification {
   id: string;
   user_id: string;
-  type: 'case_assigned' | 'case_accepted' | 'case_completed' | 'case_declined' | 'new_case_available' | 'review_request' | 'trial_expiring_soon' | 'trial_expired' | 'subscription_upgrade_required';
+  type: 'case_assigned' | 'case_accepted' | 'case_completed' | 'case_declined' | 'new_case_available' | 'review_request' | 'trial_expiring_soon' | 'trial_expired' | 'subscription_upgrade_required' | 'new_bid_placed' | 'bid_selection_reminder' | 'bid_won' | 'bid_lost' | 'case_cancelled' | 'rating_received' | 'points_low_warning';
   title: string;
   message: string;
   data?: any;
@@ -761,6 +761,99 @@ export class NotificationService {
         upgradeUrl: '/upgrade-required'
       }
     );
+  }
+
+  /**
+   * Notify customer when a new bid is placed on their case
+   */
+  async notifyNewBidPlaced(caseId: string, customerId: string, providerName: string, bidAmount: number): Promise<void> {
+    await this.createNotification(
+      customerId,
+      'new_bid_placed',
+      'Нова оферта за вашата заявка',
+      `${providerName} предложи ${bidAmount} точки за вашата заявка.`,
+      { caseId, providerName, bidAmount, action: 'view_bids' }
+    );
+  }
+
+  /**
+   * Notify customer to select a winner after multiple bids
+   */
+  async notifyBidSelectionReminder(caseId: string, customerId: string, bidCount: number): Promise<void> {
+    await this.createNotification(
+      customerId,
+      'bid_selection_reminder',
+      'Изберете победител',
+      `Имате ${bidCount} оферти за вашата заявка. Моля изберете победител.`,
+      { caseId, bidCount, action: 'select_winner' }
+    );
+  }
+
+  /**
+   * Notify service provider when they win a bid
+   */
+  async notifyBidWon(caseId: string, providerId: string, customerName: string, caseDescription: string): Promise<void> {
+    await this.createNotification(
+      providerId,
+      'bid_won',
+      'Поздравления! Спечелихте заявката',
+      `Вашата оферта е избрана за "${caseDescription.substring(0, 50)}..." от ${customerName}.`,
+      { caseId, customerName, action: 'contact_customer' }
+    );
+  }
+
+  /**
+   * Notify service provider when they lose a bid
+   */
+  async notifyBidLost(caseId: string, providerId: string, customerName: string, caseDescription: string): Promise<void> {
+    await this.createNotification(
+      providerId,
+      'bid_lost',
+      'Офертата не е избрана',
+      `Друга оферта е избрана за "${caseDescription.substring(0, 50)}..." от ${customerName}.`,
+      { caseId, customerName }
+    );
+  }
+
+  /**
+   * Notify service provider when they receive a new rating
+   */
+  async notifyRatingReceived(providerId: string, customerName: string, rating: number, reviewText?: string): Promise<void> {
+    await this.createNotification(
+      providerId,
+      'rating_received',
+      'Нова оценка получена',
+      `${customerName} ви оцени с ${rating}/5 звезди${reviewText ? ': ' + reviewText.substring(0, 50) + '...' : ''}`,
+      { customerName, rating, reviewText, action: 'view_reviews' }
+    );
+  }
+
+  /**
+   * Notify service provider when their points are running low
+   */
+  async notifyPointsLowWarning(providerId: string, currentPoints: number, minThreshold: number = 50): Promise<void> {
+    await this.createNotification(
+      providerId,
+      'points_low_warning',
+      'Ниски точки за наддаване',
+      `Имате само ${currentPoints} точки. Добавете повече точки за да продължите да наддавате.`,
+      { currentPoints, minThreshold, action: 'add_points' }
+    );
+  }
+
+  /**
+   * Notify service providers when a case is cancelled
+   */
+  async notifyCaseCancelled(caseId: string, providerIds: string[], caseDescription: string, reason?: string): Promise<void> {
+    for (const providerId of providerIds) {
+      await this.createNotification(
+        providerId,
+        'case_cancelled',
+        'Заявката е отменена',
+        `Заявка "${caseDescription.substring(0, 50)}..." е отменена от клиента${reason ? ': ' + reason : ''}`,
+        { caseId, reason, action: 'view_cases' }
+      );
+    }
   }
 }
 
