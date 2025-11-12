@@ -23,6 +23,8 @@ import DashboardScreen from '../screens/DashboardScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import PointsScreen from '../screens/PointsScreen';
 import MyBidsScreen from '../screens/MyBidsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import PlaceBidScreen from '../screens/PlaceBidScreen';
 
 
 // Import components
@@ -101,6 +103,16 @@ function MainTabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{
+          tabBarLabel: 'Известия',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>🔔</Text>
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Chat"
         component={ChatScreen}
         options={{
@@ -125,6 +137,19 @@ function MainTabNavigator() {
         component={ChatDetailScreen}
         options={{
           tabBarButton: () => null, // Hide from tab bar
+        }}
+      />
+      <Tab.Screen
+        name="PlaceBid"
+        component={PlaceBidScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+          headerShown: true,
+          headerTitle: 'Направете оферта',
+          headerStyle: {
+            backgroundColor: '#007AFF',
+          },
+          headerTintColor: '#fff',
         }}
       />
       <Tab.Screen

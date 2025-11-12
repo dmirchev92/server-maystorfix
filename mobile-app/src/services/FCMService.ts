@@ -19,11 +19,38 @@ class FCMService {
   }
 
   /**
-   * Set navigation reference for deep linking
+   * Set navigation reference
    */
-  setNavigationRef(navigationRef: any): void {
-    this.navigationRef = navigationRef;
+  setNavigationRef(ref: any): void {
+    this.navigationRef = ref;
     console.log('✅ Navigation reference set for FCM');
+  }
+
+  /**
+   * Handle initial notification from App.tsx
+   */
+  handleInitialNotification(initialNotification: any): void {
+    if (!initialNotification) {
+      console.log('⚠️ No initial notification to handle');
+      return;
+    }
+
+    console.log('📱 FCMService - Handling initial notification from App.tsx:', initialNotification);
+    const { notification, pressAction } = initialNotification;
+    
+    // Check if an action button was pressed
+    const actionId = pressAction?.id;
+    if (actionId === 'view_and_bid') {
+      console.log('👁️ View and Bid action pressed (from App.tsx)');
+      this.handleNotificationAction('view_and_bid', notification?.data);
+    } else if (actionId === 'dismiss') {
+      console.log('✖️ Dismiss action pressed (from App.tsx)');
+      this.handleNotificationAction('dismiss', notification?.data);
+    } else {
+      // Default press (not an action button)
+      console.log('📱 Default notification press (from App.tsx)');
+      this.handleNotificationOpen(notification?.data);
+    }
   }
 
   /**
@@ -34,6 +61,9 @@ class FCMService {
     const isRegistered = await AsyncStorage.getItem('fcm_token_registered');
     if (this.initialized && isRegistered === 'true') {
       console.log('✅ FCM already initialized and token registered');
+      // Still need to set up notification opened handler for this session
+      console.log('🔔 Setting up notification handlers for this session...');
+      this.setupNotificationOpenedHandler();
       return;
     }
     
@@ -44,6 +74,10 @@ class FCMService {
 
     try {
       console.log('🔥 Initializing Firebase Cloud Messaging...');
+      
+      // Create notification categories for action buttons
+      await this.createNotificationCategories();
+      
       console.log('🔥 FCM - Step 1: Requesting permission...');
 
       // Request permission
@@ -79,6 +113,40 @@ class FCMService {
     } catch (error) {
       console.error('❌ Error initializing FCM:', error);
       console.error('❌ FCM Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    }
+  }
+
+  /**
+   * Create notification categories for action buttons
+   */
+  private async createNotificationCategories(): Promise<void> {
+    try {
+      console.log('🔔 Creating notification categories for action buttons...');
+      
+      const categories = [
+        {
+          id: 'new_case_available',
+          actions: [
+            {
+              id: 'view_and_bid',
+              title: 'Виж и наддавай',
+            },
+            {
+              id: 'dismiss',
+              title: 'Игнорирай',
+            },
+          ],
+        },
+      ];
+      
+      console.log('🔔 Categories to create:', JSON.stringify(categories));
+      await notifee.setNotificationCategories(categories);
+      
+      // Verify categories were created
+      const createdCategories = await notifee.getNotificationCategories();
+      console.log('✅ Notification categories created:', JSON.stringify(createdCategories));
+    } catch (error) {
+      console.error('❌ Error creating notification categories:', error);
     }
   }
 
@@ -191,33 +259,103 @@ class FCMService {
    * Setup notification opened handler
    */
   private setupNotificationOpenedHandler(): void {
-    // Handle notification opened app from quit state
+    console.log('🔔 Setting up notification opened handlers...');
+    
+    // Handle notification opened app from quit state (FCM)
     messaging()
       .getInitialNotification()
       .then(remoteMessage => {
         if (remoteMessage) {
           console.log(
-            '📱 Notification caused app to open from quit state:',
+            '📱 FCM notification caused app to open from quit state:',
             remoteMessage
           );
           this.handleNotificationOpen(remoteMessage.data);
         }
       });
 
-    // Handle notification opened app from background state
+    // Handle notification opened app from quit state (Notifee)
+    // Check immediately and also with delays to catch the notification
+    const checkInitialNotification = async (attempt: number) => {
+      console.log(`🔍 Checking for initial notifee notification (attempt ${attempt})...`);
+      const initialNotification = await notifee.getInitialNotification();
+      
+      if (initialNotification) {
+        console.log('📱 Notifee notification caused app to open from quit state:', initialNotification);
+        const { notification, pressAction } = initialNotification;
+        
+        // Check if an action button was pressed
+        const actionId = pressAction?.id;
+        if (actionId === 'view_and_bid') {
+          console.log('👁️ View and Bid action pressed (from quit state)');
+          this.handleNotificationAction('view_and_bid', notification?.data);
+        } else if (actionId === 'dismiss') {
+          console.log('✖️ Dismiss action pressed (from quit state)');
+          this.handleNotificationAction('dismiss', notification?.data);
+        } else {
+          // Default press (not an action button)
+          console.log('📱 Default notification press (from quit state)');
+          this.handleNotificationOpen(notification?.data);
+        }
+        return true;
+      }
+      return false;
+    };
+    
+    // Check immediately
+    checkInitialNotification(1);
+    
+    // Also check after delays in case navigation ref isn't ready yet
+    setTimeout(() => checkInitialNotification(2), 500);
+    setTimeout(() => checkInitialNotification(3), 1000);
+    setTimeout(() => checkInitialNotification(4), 2000);
+
+    // Handle notification opened app from background state (FCM)
     messaging().onNotificationOpenedApp(remoteMessage => {
       console.log(
-        '📱 Notification caused app to open from background state:',
+        '📱 FCM notification caused app to open from background state:',
         remoteMessage
       );
       this.handleNotificationOpen(remoteMessage.data);
     });
 
-    // Handle notifee notification press
+    // Handle notifee notification press and action buttons (foreground)
     notifee.onForegroundEvent(({ type, detail }) => {
-      if (type === EventType.PRESS) {
-        console.log('📱 Notifee notification pressed:', detail.notification);
-        this.handleNotificationOpen(detail.notification?.data);
+      if (type === EventType.PRESS || type === EventType.ACTION_PRESS) {
+        console.log('📱 Notifee notification pressed (foreground):', detail.notification);
+        console.log('📱 Notification data:', detail.notification?.data);
+        
+        // Check if an action button was pressed
+        const actionId = detail.pressAction?.id;
+        if (actionId === 'view_and_bid') {
+          console.log('👁️ View and Bid action pressed');
+          this.handleNotificationAction('view_and_bid', detail.notification?.data);
+        } else if (actionId === 'dismiss') {
+          console.log('✖️ Dismiss action pressed');
+          this.handleNotificationAction('dismiss', detail.notification?.data);
+        } else {
+          // Default press (not an action button)
+          console.log('📱 Default notification press (foreground)');
+          this.handleNotificationOpen(detail.notification?.data);
+        }
+      }
+    });
+
+    // Handle notifee notification press and action buttons (background)
+    notifee.onBackgroundEvent(async ({ type, detail }) => {
+      if (type === EventType.PRESS || type === EventType.ACTION_PRESS) {
+        console.log('📱 Notifee background notification pressed:', detail.notification);
+        console.log('📱 Notification data:', detail.notification?.data);
+        
+        // Check if an action button was pressed
+        const actionId = detail.pressAction?.id;
+        if (actionId === 'view_and_bid') {
+          console.log('👁️ View and Bid action pressed (background)');
+          // Background actions are handled when app opens
+        } else if (actionId === 'dismiss') {
+          console.log('✖️ Dismiss action pressed (background)');
+          // Just dismiss
+        }
       }
     });
   }
@@ -245,9 +383,15 @@ class FCMService {
       }
 
       // Determine channel based on notification type
-      const channelId = data?.type === 'case_assigned' ? 'case_assignments' : 'chat_messages';
+      let channelId = 'chat_messages';
+      if (data?.type === 'new_case_available') {
+        channelId = 'case_assignments';
+      } else if (data?.type === 'case_assigned') {
+        channelId = 'case_assignments';
+      }
 
-      await notifee.displayNotification({
+      // Build notification config
+      const notificationConfig: any = {
         title: notification.title,
         body: notification.body,
         data,
@@ -258,24 +402,67 @@ class FCMService {
             id: 'default',
           },
           sound: 'default',
-          vibrationPattern: [300, 500, 300],
+          vibrationPattern: [300, 500],
           smallIcon: 'ic_notification',
           color: '#4A90E2',
           showTimestamp: true,
           autoCancel: true,
         },
-        ios: {
-          sound: 'default',
-          foregroundPresentationOptions: {
-            alert: true,
-            badge: true,
-            sound: true,
-            banner: true,
-            list: true,
+      };
+
+      // Add action buttons for new_case_available notifications
+      if (data?.type === 'new_case_available') {
+        console.log('🔔 Adding action buttons for new_case_available notification');
+        
+        // Link to the notification category (use categoryId, not category)
+        notificationConfig.android.categoryId = 'new_case_available';
+        
+        // Set BigTextStyle to ensure actions are visible when expanded
+        notificationConfig.android.style = {
+          type: 1, // AndroidStyle.BIGTEXT
+          text: notification.body,
+        };
+        
+        // Add actions with launchActivity for proper Android compatibility
+        notificationConfig.android.actions = [
+          {
+            title: 'Виж и наддавай',
+            pressAction: {
+              id: 'view_and_bid',
+              launchActivity: 'default',
+            },
           },
-          interruptionLevel: 'timeSensitive',
+          {
+            title: 'Игнорирай',
+            pressAction: {
+              id: 'dismiss',
+              launchActivity: 'default',
+            },
+          },
+        ];
+        
+        console.log('🔔 Action buttons with categoryId and launchActivity:', {
+          categoryId: notificationConfig.android.categoryId,
+          actions: notificationConfig.android.actions
+        });
+      } else {
+        console.log('🔔 No action buttons - notification type:', data?.type);
+      }
+
+      // Add iOS config
+      notificationConfig.ios = {
+        sound: 'default',
+        foregroundPresentationOptions: {
+          alert: true,
+          badge: true,
+          sound: true,
+          banner: true,
+          list: true,
         },
-      });
+        interruptionLevel: 'timeSensitive',
+      };
+
+      await notifee.displayNotification(notificationConfig);
 
       console.log('✅ Notification displayed via notifee');
     } catch (error) {
@@ -284,34 +471,81 @@ class FCMService {
   }
 
   /**
-   * Handle notification open/tap
+   * Handle notification action button press
    */
-  private handleNotificationOpen(data: any): void {
-    console.log('👆 Handling notification tap:', data);
+  private handleNotificationAction(actionId: string, data: any): void {
+    console.log('🎯 Handling notification action:', actionId, data);
 
     if (!this.navigationRef) {
       console.warn('⚠️ Navigation ref not set, cannot navigate');
       return;
     }
 
-    // Navigate to appropriate screen based on data.type
-    if (data?.type === 'case_assigned' && data?.caseId) {
-      // Navigate to case details
-      console.log('📍 Navigating to case:', data.caseId);
-      // TODO: Implement case navigation when case screen is ready
-    } else if (data?.type === 'chat_message' && data?.conversationId) {
-      // Navigate to chat detail screen
-      console.log('📍 Navigating to conversation:', data.conversationId);
-      
+    if (actionId === 'view_and_bid') {
+      // Navigate to PlaceBid screen with caseId
+      console.log('📍 Navigating to PlaceBid screen for case:', data.caseId);
       try {
-        this.navigationRef.navigate('ChatDetail', {
-          conversationId: data.conversationId,
-          providerId: data.senderId || '',
-          providerName: data.senderName || 'User',
-        });
-        console.log('✅ Navigation to chat successful');
+        this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
+        console.log('✅ Navigation to PlaceBid successful');
       } catch (error) {
-        console.error('❌ Error navigating to chat:', error);
+        console.error('❌ Error navigating to PlaceBid:', error);
+      }
+    } else if (actionId === 'dismiss') {
+      // Just dismiss the notification (do nothing)
+      console.log('✅ Notification dismissed');
+    }
+  }
+
+  /**
+   * Handle notification open/tap
+   */
+  private handleNotificationOpen(data: any, retryCount: number = 0): void {
+    console.log('👆 Handling notification tap - RAW DATA:', JSON.stringify(data));
+    console.log('👆 Data type:', data?.type);
+    console.log('👆 Case ID:', data?.caseId);
+    console.log('👆 Retry count:', retryCount);
+
+    if (!this.navigationRef) {
+      if (retryCount < 10) { // Max 10 retries = 5 seconds
+        console.warn(`⚠️ Navigation ref not set, will retry in 500ms... (attempt ${retryCount + 1}/10)`);
+        // Retry after a delay to allow navigation ref to be set
+        setTimeout(() => {
+          console.log('🔄 Retrying navigation after delay...');
+          this.handleNotificationOpen(data, retryCount + 1);
+        }, 500);
+      } else {
+        console.error('❌ Navigation ref not set after 10 retries, giving up');
+      }
+      return;
+    }
+
+    // Navigate to appropriate screen based on data.type
+    if (data?.type === 'new_case_available') {
+      // Navigate directly to PlaceBid screen with caseId
+      console.log('📍 Navigating to PlaceBid screen for case:', data.caseId);
+      try {
+        this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
+        console.log('✅ Navigation to PlaceBid successful for case:', data.caseId);
+      } catch (error) {
+        console.error('❌ Error navigating to PlaceBid:', error);
+      }
+    } else if (data?.type === 'case_assigned') {
+      // Navigate to Cases screen
+      console.log('📍 Navigating to Cases screen for assigned case:', data.caseId);
+      try {
+        this.navigationRef.navigate('Cases');
+        console.log('✅ Navigation to Cases successful');
+      } catch (error) {
+        console.error('❌ Error navigating to Cases:', error);
+      }
+    } else if (data?.type === 'chat_message') {
+      // Navigate to Chat screen
+      console.log('📍 Navigating to Chat screen');
+      try {
+        this.navigationRef.navigate('Chat');
+        console.log('✅ Navigation to Chat successful');
+      } catch (error) {
+        console.error('❌ Error navigating to Chat:', error);
       }
     }
   }

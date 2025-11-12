@@ -24,6 +24,7 @@ import NotificationService from './src/services/NotificationService';
 import FCMService from './src/services/FCMService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NotificationProvider } from './src/contexts/NotificationContext';
+import notifee from '@notifee/react-native';
 
 interface User {
   id: string;
@@ -52,6 +53,36 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const appState = useRef(AppState.currentState);
   const [appStateVisible, setAppStateVisible] = useState(appState.current);
+  const initialNotificationRef = useRef<any>(null);
+
+  // Check for initial notification IMMEDIATELY when app starts
+  useEffect(() => {
+    console.log('🔍 App.tsx - Setting up initial notification listener...');
+    
+    // Set up listener for notification press events
+    const unsubscribe = notifee.onForegroundEvent(async ({ type, detail }) => {
+      console.log('📱 App.tsx - Notifee foreground event:', type, detail);
+      
+      if (type === 1) { // EventType.PRESS
+        console.log('📱 App.tsx - Notification pressed, storing for later processing');
+        initialNotificationRef.current = detail;
+      }
+    });
+    
+    // Also check for initial notification synchronously
+    notifee.getInitialNotification().then(initialNotification => {
+      if (initialNotification) {
+        console.log('📱 App.tsx - Found initial notification:', initialNotification);
+        initialNotificationRef.current = initialNotification;
+      } else {
+        console.log('📱 App.tsx - No initial notification found');
+      }
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     checkExistingSession();
@@ -158,6 +189,13 @@ function AppContent() {
         const fcmService = FCMService.getInstance();
         await fcmService.initialize();
         console.log('✅ App.tsx - FCM Service initialized successfully');
+        
+        // Handle initial notification if app was opened from killed state
+        if (initialNotificationRef.current) {
+          console.log('📱 App.tsx - Processing initial notification after FCM init');
+          fcmService.handleInitialNotification(initialNotificationRef.current);
+          initialNotificationRef.current = null; // Clear it so we don't process it again
+        }
       } catch (fcmError) {
         console.error('❌ App.tsx - FCM initialization failed:', fcmError);
       }

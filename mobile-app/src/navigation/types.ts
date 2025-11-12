@@ -9,11 +9,15 @@ export type MainTabParamList = {
   MyBids: undefined;
   Points: undefined;
   IncomeDashboard: undefined;
+  Notifications: undefined;
   Chat: undefined;
   ChatDetail: {
     conversationId: string;
     providerId: string;
     providerName: string;
+  };
+  PlaceBid: {
+    caseId: string;
   };
   SMS: undefined;
   ReferralDashboard: undefined;
