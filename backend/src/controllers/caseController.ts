@@ -1959,14 +1959,15 @@ export const getCaseStatsByChatSource = async (req: Request, res: Response): Pro
 
     const result = await (db as any).query(query, params);
     
-    const stats = result.rows || [];
+    // Handle both array and result.rows format
+    const stats = Array.isArray(result) ? result : (result.rows || []);
     
     // Calculate totals
     const totals = {
-      smschat: stats.find((s: any) => s.chat_source === 'smschat')?.count || 0,
-      searchchat: stats.find((s: any) => s.chat_source === 'searchchat')?.count || 0,
-      direct: stats.find((s: any) => s.chat_source === 'direct')?.count || 0,
-      total: stats.reduce((sum: number, s: any) => sum + parseInt(s.count), 0)
+      smschat: parseInt(stats.find((s: any) => s.chat_source === 'smschat')?.count || '0'),
+      searchchat: parseInt(stats.find((s: any) => s.chat_source === 'searchchat')?.count || '0'),
+      direct: parseInt(stats.find((s: any) => s.chat_source === 'direct')?.count || '0'),
+      total: stats.reduce((sum: number, s: any) => sum + parseInt(s.count || '0'), 0)
     };
 
     logger.info('📊 Chat source stats retrieved', { providerId, totals });

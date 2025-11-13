@@ -39,6 +39,8 @@ interface DashboardStats {
   responseRate: number;
   avgResponseTime: string;
   activeConversations: number;
+  smsChatCases?: number;
+  searchChatCases?: number;
 }
 
 interface CallDetectionStatus {
@@ -297,9 +299,29 @@ function ModernDashboardScreen() {
       
       // Try to get real stats from backend first
       const response = await ApiService.getInstance().getDashboardStats();
+      
+      // Get chat source stats (use user.id as providerId for service providers)
+      let chatSourceStats = { smsChatCases: 0, searchChatCases: 0 };
+      try {
+        const chatSourceResponse = await ApiService.getInstance().getCaseStatsByChatSource(user?.id);
+        if (chatSourceResponse.success && chatSourceResponse.data) {
+          console.log('✅ Chat source stats loaded:', chatSourceResponse.data);
+          const totals = chatSourceResponse.data.totals || chatSourceResponse.data;
+          chatSourceStats = {
+            smsChatCases: totals.smschat || 0,
+            searchChatCases: totals.searchchat || 0,
+          };
+        }
+      } catch (error) {
+        console.log('⚠️ Could not load chat source stats:', error);
+      }
+      
       if (response.success && response.data) {
         console.log('✅ Dashboard stats loaded from backend:', response.data);
-        setStats(response.data);
+        setStats({
+          ...response.data,
+          ...chatSourceStats,
+        });
         return;
       }
       
@@ -319,6 +341,7 @@ function ModernDashboardScreen() {
         responseRate: Math.max(70, 100 - todaysCalls.length * 2),
         avgResponseTime: '2m 15s',
         activeConversations: 5 + Math.floor(todaysCalls.length / 2),
+        ...chatSourceStats,
       };
       
       setStats(updatedStats);
@@ -588,6 +611,36 @@ function ModernDashboardScreen() {
             <Text style={styles.kpiValue}>{stats.responseRate}%</Text>
             <Text style={styles.kpiLabel}>Отговорени</Text>
           </View>
+        </View>
+
+        {/* Chat Source Stats */}
+        <View style={styles.kpiRowNew}>
+          <TouchableOpacity 
+            style={[styles.kpiCard, styles.kpiSms]}
+            onLongPress={() => {
+              Alert.alert(
+                '📱 SMS Заявки',
+                'Заявки създадени от клиенти чрез SMS линк след пропуснато обаждане. Тези клиенти са се свързали с вас директно.',
+                [{ text: 'Разбрах' }]
+              );
+            }}
+          >
+            <Text style={styles.kpiValue}>{stats.smsChatCases || 0}</Text>
+            <Text style={styles.kpiLabel}>📱 SMS Заявки</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.kpiCard, styles.kpiSearch]}
+            onLongPress={() => {
+              Alert.alert(
+                '🌐 Уеб Заявки',
+                'Заявки създадени от клиенти които са ви намерили чрез търсачката на сайта. Нови потенциални клиенти.',
+                [{ text: 'Разбрах' }]
+              );
+            }}
+          >
+            <Text style={styles.kpiValue}>{stats.searchChatCases || 0}</Text>
+            <Text style={styles.kpiLabel}>🌐 Уеб Заявки</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.navigationGrid}>
@@ -1008,6 +1061,14 @@ const styles = StyleSheet.create({
   kpiSuccess: {
     borderTopWidth: 3,
     borderTopColor: theme.colors.success.solid,
+  },
+  kpiSms: {
+    borderTopWidth: 3,
+    borderTopColor: '#9333ea', // Purple for SMS
+  },
+  kpiSearch: {
+    borderTopWidth: 3,
+    borderTopColor: '#0ea5e9', // Sky blue for search
   },
   kpiValue: {
     fontSize: theme.typography.h2.fontSize,

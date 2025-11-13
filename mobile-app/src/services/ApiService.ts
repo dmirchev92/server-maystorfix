@@ -379,6 +379,12 @@ export class ApiService {
     return this.makeRequest(`/cases/stats${params}`);
   }
 
+  public async getCaseStatsByChatSource(providerId?: string): Promise<APIResponse> {
+    console.log('📊 ApiService - Getting case stats by chat source for provider:', providerId);
+    const params = providerId ? `?providerId=${providerId}` : '';
+    return this.makeRequest(`/cases/stats/chat-source${params}`);
+  }
+
   public async acceptCase(caseId: string, providerId: string, providerName: string): Promise<APIResponse> {
     console.log('✅ ApiService - Accepting case:', caseId, 'by provider:', providerId, providerName);
     const response = await this.makeRequest(`/cases/${caseId}/accept`, {
