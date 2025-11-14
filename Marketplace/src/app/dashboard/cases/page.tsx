@@ -901,101 +901,116 @@ export default function DashboardPage() {
                         <div className="flex-shrink-0 ml-4">
                           {user?.role === 'tradesperson' || user?.role === 'service_provider' ? (
                             <div className="flex gap-2">
-                              {/* Show bid button for pending cases with bidding enabled */}
-                              {case_.status === 'pending' && case_.bidding_enabled && !case_.bidding_closed && case_.budget && (
-                                <div className="flex flex-col gap-1">
-                                  {(() => {
-                                    const hasBid = myBids.has(case_.id)
-                                    console.log(`🎯 Case ${case_.id}: hasBid=${hasBid}, myBids.size=${myBids.size}`)
-                                    return hasBid
-                                  })() ? (
-                                    // Show "View My Bid" if user has already bid
+                              {/* If case is assigned to me (in "Моите заявки" view) */}
+                              {case_.provider_id === user?.id ? (
+                                <>
+                                  {/* Show complete button for accepted cases OR pending cases with bidding */}
+                                  {(case_.status === 'accepted' || (case_.status === 'pending' && case_.bidding_enabled)) && (
                                     <Button
-                                      variant="outline"
+                                      variant="primary"
                                       size="sm"
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        router.push('/provider/my-bids')
+                                        handleStatusChange(case_.id, 'completed')
                                       }}
-                                      leftIcon={<span>👁️</span>}
-                                      className="bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                                      leftIcon={<span>🏁</span>}
                                     >
-                                      Виж моята оферта
+                                      Завърши
                                     </Button>
-                                  ) : (
-                                    // Show "Bid" button if user hasn't bid yet
+                                  )}
+                                  {/* Show pending status info for pending assigned cases WITHOUT bidding */}
+                                  {case_.status === 'pending' && !case_.bidding_enabled && (
+                                    <span className="text-xs text-slate-400 px-3 py-2">
+                                      Изчаква потвърждение
+                                    </span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {/* Show bid button for pending cases with bidding enabled (not assigned to me) */}
+                                  {case_.status === 'pending' && case_.bidding_enabled && !case_.bidding_closed && case_.budget && (
+                                    <div className="flex flex-col gap-1">
+                                      {(() => {
+                                        const hasBid = myBids.has(case_.id)
+                                        console.log(`🎯 Case ${case_.id}: hasBid=${hasBid}, myBids.size=${myBids.size}`)
+                                        return hasBid
+                                      })() ? (
+                                        // Show "View My Bid" if user has already bid
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            router.push('/provider/my-bids')
+                                          }}
+                                          leftIcon={<span>👁️</span>}
+                                          className="bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                                        >
+                                          Виж моята оферта
+                                        </Button>
+                                      ) : (
+                                        // Show "Bid" button if user hasn't bid yet
+                                        <>
+                                          <Button
+                                            variant="construction"
+                                            size="sm"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handlePlaceBid(case_.id, case_.budget!)
+                                            }}
+                                            disabled={biddingCases.has(case_.id) || (case_.current_bidders || 0) >= (case_.max_bidders || 3)}
+                                            leftIcon={<span>💰</span>}
+                                          >
+                                            {biddingCases.has(case_.id) ? 'Наддаване...' : 
+                                             (case_.current_bidders || 0) >= (case_.max_bidders || 3) ? 'Пълно' : 
+                                             'Наддай'}
+                                          </Button>
+                                          <span className="text-xs text-slate-400 text-center">
+                                            ~{estimatePointsCost(case_.budget)} точки
+                                          </span>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                  
+                                  {/* Show accept button for pending cases (in all views including declined) */}
+                                  {case_.status === 'pending' && !case_.bidding_enabled && (
                                     <>
                                       <Button
                                         variant="construction"
                                         size="sm"
-                                        onClick={(e) => {
+                                        onClick={async (e) => {
                                           e.stopPropagation()
-                                          handlePlaceBid(case_.id, case_.budget!)
+                                          // If in declined view, first undecline then accept
+                                          if (filters.viewMode === 'declined') {
+                                            try {
+                                              await apiClient.undeclineCase(case_.id, user!.id)
+                                            } catch (error) {
+                                              console.error('Error undeclining:', error)
+                                            }
+                                          }
+                                          handleStatusChange(case_.id, 'accepted')
                                         }}
-                                        disabled={biddingCases.has(case_.id) || (case_.current_bidders || 0) >= (case_.max_bidders || 3)}
-                                        leftIcon={<span>💰</span>}
+                                        leftIcon={<span>✅</span>}
                                       >
-                                        {biddingCases.has(case_.id) ? 'Наддаване...' : 
-                                         (case_.current_bidders || 0) >= (case_.max_bidders || 3) ? 'Пълно' : 
-                                         'Наддай'}
+                                        Приеми
                                       </Button>
-                                      <span className="text-xs text-slate-400 text-center">
-                                        ~{estimatePointsCost(case_.budget)} точки
-                                      </span>
+                                      {/* Only show decline button if NOT already in declined view */}
+                                      {filters.viewMode !== 'declined' && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleStatusChange(case_.id, 'declined')
+                                          }}
+                                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 border-2 border-red-500 text-white hover:bg-red-700 hover:border-red-600 transition-all duration-200"
+                                        >
+                                          <span className="text-red-800 drop-shadow-lg" style={{textShadow: '0 0 4px rgba(255,255,255,1), 1px 1px 2px rgba(255,255,255,1), -1px -1px 2px rgba(255,255,255,1), 0px 1px 0px rgba(255,255,255,1), 0px -1px 0px rgba(255,255,255,1), 1px 0px 0px rgba(255,255,255,1), -1px 0px 0px rgba(255,255,255,1)'}}>❌</span>
+                                          Откажи
+                                        </button>
+                                      )}
                                     </>
                                   )}
-                                </div>
-                              )}
-                              
-                              {/* Show accept button for pending cases (in all views including declined) */}
-                              {case_.status === 'pending' && !case_.bidding_enabled && (
-                                <>
-                                  <Button
-                                    variant="construction"
-                                    size="sm"
-                                    onClick={async (e) => {
-                                      e.stopPropagation()
-                                      // If in declined view, first undecline then accept
-                                      if (filters.viewMode === 'declined') {
-                                        try {
-                                          await apiClient.undeclineCase(case_.id, user!.id)
-                                        } catch (error) {
-                                          console.error('Error undeclining:', error)
-                                        }
-                                      }
-                                      handleStatusChange(case_.id, 'accepted')
-                                    }}
-                                    leftIcon={<span>✅</span>}
-                                  >
-                                    Приеми
-                                  </Button>
-                                  {/* Only show decline button if NOT already in declined view */}
-                                  {filters.viewMode !== 'declined' && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleStatusChange(case_.id, 'declined')
-                                      }}
-                                      className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 border-2 border-red-500 text-white hover:bg-red-700 hover:border-red-600 transition-all duration-200"
-                                    >
-                                      <span className="text-red-800 drop-shadow-lg" style={{textShadow: '0 0 4px rgba(255,255,255,1), 1px 1px 2px rgba(255,255,255,1), -1px -1px 2px rgba(255,255,255,1), 0px 1px 0px rgba(255,255,255,1), 0px -1px 0px rgba(255,255,255,1), 1px 0px 0px rgba(255,255,255,1), -1px 0px 0px rgba(255,255,255,1)'}}>❌</span>
-                                      Откажи
-                                    </button>
-                                  )}
                                 </>
-                              )}
-                              {case_.status === 'accepted' && (
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleStatusChange(case_.id, 'completed')
-                                  }}
-                                  leftIcon={<span>🏁</span>}
-                                >
-                                  Завърши
-                                </Button>
                               )}
                             </div>
                           ) : (
