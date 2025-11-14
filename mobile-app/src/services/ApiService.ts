@@ -467,6 +467,17 @@ export class ApiService {
     return this.makeRequest(`/income/provider/${providerId}/years`);
   }
 
+  public async getIncomeTransactionsByMonth(providerId: string, month: string): Promise<APIResponse> {
+    console.log('📊 ApiService - Getting income transactions for month:', month);
+    return this.makeRequest(`/income/provider/${providerId}/month/${month}`);
+  }
+
+  // Points/Rewards methods
+  public async getPoints(): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting user points');
+    return this.makeRequest('/points/balance');
+  }
+
   public async getIncomeTransactions(providerId: string): Promise<APIResponse> {
     console.log('💵 ApiService - Getting income transactions for provider:', providerId);
     return this.makeRequest(`/income/provider/${providerId}/transactions`);

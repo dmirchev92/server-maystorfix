@@ -8,10 +8,12 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
+import { PointsBalance } from '../components/PointsBalance';
 
 interface MonthlyIncome {
   month: string;
@@ -43,6 +45,13 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [showYearPicker, setShowYearPicker] = useState(false);
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showAllMonths, setShowAllMonths] = useState(false);
+  const [monthTransactions, setMonthTransactions] = useState<any[]>([]);
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
+  const [selectedMonthName, setSelectedMonthName] = useState('');
 
   useEffect(() => {
     loadUser();
@@ -158,6 +167,22 @@ export default function DashboardScreen() {
     return date.toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' });
   };
 
+  const handleMonthClick = async (month: string) => {
+    try {
+      setSelectedMonthName(getMonthName(month));
+      const response = await ApiService.getInstance().getIncomeTransactionsByMonth(user.id, month);
+      if (response.success && response.data) {
+        setMonthTransactions(response.data);
+        setShowTransactionsModal(true);
+      } else {
+        Alert.alert('Грешка', 'Не могат да се заредят транзакциите');
+      }
+    } catch (error) {
+      console.error('Error fetching month transactions:', error);
+      Alert.alert('Грешка', 'Възникна грешка при зареждането на транзакциите');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -179,69 +204,119 @@ export default function DashboardScreen() {
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {/* Year Selector */}
-        {availableYears.length > 0 && (
-          <View style={styles.yearSelector}>
-            <Text style={styles.sectionTitle}>Година:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.yearScroll}>
-              {availableYears.map((year) => (
-                <TouchableOpacity
-                  key={year}
-                  style={[styles.yearButton, selectedYear === year && styles.yearButtonActive]}
-                  onPress={() => setSelectedYear(year)}
-                >
-                  <Text
-                    style={[
-                      styles.yearButtonText,
-                      selectedYear === year && styles.yearButtonTextActive,
-                    ]}
-                  >
-                    {year}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+        {/* Points Balance */}
+        <View style={styles.pointsSection}>
+          <PointsBalance />
+        </View>
 
         {incomeStats ? (
           <>
-            {/* Summary Cards */}
-            <View style={styles.summaryContainer}>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Общо приходи</Text>
-                <Text style={styles.summaryValue}>
-                  {incomeStats.summary.totalIncome.toFixed(2)} BGN
-                </Text>
+            {/* Main Income Card - Matching Web Design */}
+            <View style={styles.incomeCard}>
+              <View style={styles.incomeHeader}>
+                <View style={styles.incomeHeaderLeft}>
+                  <Text style={styles.incomeEmoji}>💰</Text>
+                  <Text style={styles.incomeTitle}>Приходи</Text>
+                </View>
               </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Брой заявки</Text>
-                <Text style={styles.summaryValue}>{incomeStats.summary.incomeCount}</Text>
-              </View>
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryLabel}>Средно на заявка</Text>
-                <Text style={styles.summaryValue}>
-                  {incomeStats.summary.averageIncome.toFixed(2)} BGN
-                </Text>
+
+              {/* Two Column Layout - Month and Total */}
+              <View style={styles.twoColumnContainer}>
+                {/* Selected Month Card - Purple Gradient */}
+                {incomeStats.monthlyIncome && incomeStats.monthlyIncome.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.monthCard}
+                    onPress={() => setShowMonthPicker(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.cardLabel}>Избран месец</Text>
+                    <TouchableOpacity 
+                      style={styles.dropdownButton}
+                      onPress={() => setShowMonthPicker(true)}
+                    >
+                      <Text style={styles.dropdownText}>
+                        {getMonthName(selectedMonth || incomeStats.monthlyIncome[0]?.month)}
+                      </Text>
+                      <Text style={styles.dropdownArrow}>▼</Text>
+                    </TouchableOpacity>
+                    {(() => {
+                      const currentMonth = incomeStats.monthlyIncome.find(
+                        (m: any) => m.month === (selectedMonth || incomeStats.monthlyIncome[0]?.month)
+                      ) || incomeStats.monthlyIncome[0];
+                      return (
+                        <>
+                          <Text style={styles.monthValue}>
+                            {currentMonth.total.toFixed(2)} BGN
+                          </Text>
+                          <Text style={styles.cardDetails}>
+                            {currentMonth.count} заявки • Средно: {currentMonth.average.toFixed(2)} BGN
+                          </Text>
+                        </>
+                      );
+                    })()}
+                  </TouchableOpacity>
+                )}
+
+                {/* Total Income Card - Green Gradient */}
+                <TouchableOpacity 
+                  style={styles.totalCard}
+                  onPress={() => setShowYearPicker(true)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.cardLabel}>Общо приходи</Text>
+                  {availableYears.length > 0 && (
+                    <TouchableOpacity 
+                      style={styles.dropdownButton}
+                      onPress={() => setShowYearPicker(true)}
+                    >
+                      <Text style={styles.dropdownText}>{selectedYear} г.</Text>
+                      <Text style={styles.dropdownArrow}>▼</Text>
+                    </TouchableOpacity>
+                  )}
+                  <Text style={styles.totalValue}>
+                    {incomeStats.summary.totalIncome.toFixed(2)} BGN
+                  </Text>
+                  <Text style={styles.cardDetails}>
+                    {incomeStats.summary.incomeCount} заявки • Средно: {incomeStats.summary.averageIncome.toFixed(2)} BGN
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
 
             {/* Monthly Income */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>📅 Месечна разбивка</Text>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>📅 Месечна разбивка</Text>
+                {incomeStats.monthlyIncome && incomeStats.monthlyIncome.length > 1 && (
+                  <TouchableOpacity 
+                    style={styles.toggleButton}
+                    onPress={() => setShowAllMonths(!showAllMonths)}
+                  >
+                    <Text style={styles.toggleButtonText}>
+                      {showAllMonths ? 'Текущ месец' : `Всички (${incomeStats.monthlyIncome.length})`}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               {incomeStats.monthlyIncome && incomeStats.monthlyIncome.length > 0 ? (
-                incomeStats.monthlyIncome.map((month, index) => (
-                  <View key={index} style={styles.monthCard}>
-                    <View style={styles.monthHeader}>
-                      <Text style={styles.monthName}>{getMonthName(month.month)}</Text>
-                      <Text style={styles.monthTotal}>{month.total.toFixed(2)} BGN</Text>
+                (showAllMonths ? incomeStats.monthlyIncome : incomeStats.monthlyIncome.slice(0, 1)).map((month, index) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.monthListCard}
+                    onPress={() => handleMonthClick(month.month)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.monthListHeader}>
+                      <View style={styles.monthListLeft}>
+                        <Text style={styles.monthListName}>{getMonthName(month.month)}</Text>
+                        <Text style={styles.monthListCount}>{month.count} заявки</Text>
+                      </View>
+                      <View style={styles.monthListRight}>
+                        <Text style={styles.monthListTotal}>{month.total.toFixed(2)} BGN</Text>
+                        <Text style={styles.monthListArrow}>👆</Text>
+                      </View>
                     </View>
-                    <View style={styles.monthDetails}>
-                      <Text style={styles.monthDetailText}>
-                        {month.count} заявки • Средно: {month.average.toFixed(2)} BGN
-                      </Text>
-                    </View>
-                  </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.emptyState}>
@@ -250,26 +325,22 @@ export default function DashboardScreen() {
               )}
             </View>
 
-            {/* Payment Methods */}
+            {/* Payment Methods - Grid Layout */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>💳 По метод на плащане</Text>
               {incomeStats.paymentMethods && incomeStats.paymentMethods.length > 0 ? (
-                incomeStats.paymentMethods.map((pm, index) => {
-                  const average = pm.count > 0 ? (pm.total / pm.count).toFixed(2) : '0.00';
-                  return (
-                    <View key={index} style={styles.paymentCard}>
-                      <View style={styles.paymentHeader}>
-                        <Text style={styles.paymentMethod}>{getPaymentMethodLabel(pm.method)}</Text>
-                        <Text style={styles.paymentTotal}>{pm.total.toFixed(2)} BGN</Text>
+                <View style={styles.paymentGrid}>
+                  {incomeStats.paymentMethods.map((pm, index) => {
+                    const average = pm.count > 0 ? (pm.total / pm.count).toFixed(2) : '0.00';
+                    return (
+                      <View key={index} style={styles.paymentGridCard}>
+                        <Text style={styles.paymentGridLabel}>{getPaymentMethodLabel(pm.method)}</Text>
+                        <Text style={styles.paymentGridValue}>{pm.total.toFixed(2)} BGN</Text>
+                        <Text style={styles.paymentGridDetails}>{pm.count} заявки</Text>
                       </View>
-                      <View style={styles.paymentDetails}>
-                        <Text style={styles.paymentDetailText}>
-                          {pm.count} заявки • Средно: {average} BGN
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })
+                    );
+                  })}
+                </View>
               ) : (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>Няма данни за методи на плащане</Text>
@@ -287,6 +358,172 @@ export default function DashboardScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Year Picker Modal */}
+      <Modal
+        visible={showYearPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowYearPicker(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowYearPicker(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Изберете година</Text>
+              <TouchableOpacity onPress={() => setShowYearPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerScroll}>
+              {availableYears.map((year) => (
+                <TouchableOpacity
+                  key={year}
+                  style={[
+                    styles.pickerItem,
+                    selectedYear === year && styles.pickerItemSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedYear(year);
+                    setShowYearPicker(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.pickerItemText,
+                    selectedYear === year && styles.pickerItemTextSelected
+                  ]}>
+                    {year} г.
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Month Picker Modal */}
+      <Modal
+        visible={showMonthPicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowMonthPicker(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMonthPicker(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Изберете месец</Text>
+              <TouchableOpacity onPress={() => setShowMonthPicker(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.pickerScroll}>
+              {incomeStats?.monthlyIncome?.map((month) => (
+                <TouchableOpacity
+                  key={month.month}
+                  style={[
+                    styles.pickerItem,
+                    (selectedMonth || incomeStats.monthlyIncome[0]?.month) === month.month && styles.pickerItemSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedMonth(month.month);
+                    setShowMonthPicker(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.pickerItemText,
+                    (selectedMonth || incomeStats.monthlyIncome[0]?.month) === month.month && styles.pickerItemTextSelected
+                  ]}>
+                    {getMonthName(month.month)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Transactions Modal */}
+      <Modal
+        visible={showTransactionsModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTransactionsModal(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowTransactionsModal(false)}
+        >
+          <TouchableOpacity 
+            style={[styles.modalContent, styles.transactionsModalContent]}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{selectedMonthName}</Text>
+              <TouchableOpacity onPress={() => setShowTransactionsModal(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.transactionsScroll}>
+              {monthTransactions.length > 0 ? (
+                monthTransactions.map((transaction: any, index: number) => (
+                  <View key={index} style={styles.transactionCard}>
+                    <View style={styles.transactionHeader}>
+                      <Text style={styles.transactionTitle}>
+                        {transaction.case_description || `Заявка #${transaction.case_id?.substring(0, 8)}`}
+                      </Text>
+                      <Text style={styles.transactionAmount}>
+                        {parseFloat(transaction.amount || 0).toFixed(2)} BGN
+                      </Text>
+                    </View>
+                    <View style={styles.transactionDetails}>
+                      <Text style={styles.transactionDetail}>
+                        💳 {getPaymentMethodLabel(transaction.payment_method)}
+                      </Text>
+                      <Text style={styles.transactionDetail}>
+                        📅 {new Date(transaction.recorded_at).toLocaleDateString('bg-BG')}
+                      </Text>
+                    </View>
+                    {transaction.notes && (
+                      <Text style={styles.transactionNotes}>📝 {transaction.notes}</Text>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyStateText}>Няма транзакции за този месец</Text>
+                </View>
+              )}
+            </ScrollView>
+            <View style={styles.transactionsSummary}>
+              <Text style={styles.transactionsSummaryLabel}>Общо транзакции:</Text>
+              <Text style={styles.transactionsSummaryValue}>{monthTransactions.length}</Text>
+            </View>
+            <View style={styles.transactionsSummary}>
+              <Text style={styles.transactionsSummaryLabel}>Обща сума:</Text>
+              <Text style={styles.transactionsSummaryValue}>
+                {monthTransactions.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0).toFixed(2)} BGN
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -326,129 +563,181 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  yearSelector: {
+  pointsSection: {
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.background.secondary,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.light,
   },
-  yearScroll: {
-    marginTop: theme.spacing.sm,
+  // Main Income Card (Dark gradient like web)
+  incomeCard: {
+    margin: theme.spacing.md,
+    backgroundColor: '#1e293b', // slate-800
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    borderWidth: 2,
+    borderColor: 'rgba(34, 197, 94, 0.3)', // green-500/30
+    ...theme.shadows.lg,
   },
-  yearButton: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.sm,
-    marginRight: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.gray[100],
-    borderWidth: 1,
-    borderColor: theme.colors.border.light,
-  },
-  yearButtonActive: {
-    backgroundColor: theme.colors.primary.solid,
-    borderColor: theme.colors.primary.solid,
-  },
-  yearButtonText: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
-  },
-  yearButtonTextActive: {
-    color: theme.colors.text.inverse,
-  },
-  summaryContainer: {
+  incomeHeader: {
     flexDirection: 'row',
-    padding: theme.spacing.md,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  incomeHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: theme.spacing.sm,
   },
-  summaryCard: {
+  incomeEmoji: {
+    fontSize: 28,
+  },
+  incomeTitle: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.bold,
+    color: '#ffffff',
+  },
+  // Two column layout for month and total
+  twoColumnContainer: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  // Month Card - Purple Gradient
+  monthCard: {
     flex: 1,
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: 'rgba(168, 85, 247, 0.2)', // purple-500/20
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
-    alignItems: 'center',
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(192, 132, 252, 0.3)', // purple-400/30
   },
-  summaryLabel: {
+  monthValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#c084fc', // purple-400
+    marginTop: theme.spacing.xs,
+  },
+  // Total Card - Green Gradient
+  totalCard: {
+    flex: 1,
+    backgroundColor: 'rgba(34, 197, 94, 0.2)', // green-500/20
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.3)', // green-400/30
+  },
+  totalValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#4ade80', // green-400
+    marginTop: theme.spacing.xs,
+  },
+  cardLabel: {
+    fontSize: theme.fontSize.sm,
+    color: '#cbd5e1', // slate-300
+  },
+  cardDetails: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.text.secondary,
-    marginBottom: theme.spacing.xs,
-    textAlign: 'center',
-  },
-  summaryValue: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary.solid,
-    textAlign: 'center',
+    color: '#94a3b8', // slate-400
+    marginTop: theme.spacing.xs,
   },
   section: {
     padding: theme.spacing.md,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
   },
   sectionTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.md,
   },
-  monthCard: {
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: theme.borderRadius.md,
+  toggleButton: {
+    backgroundColor: 'rgba(51, 65, 85, 0.7)', // slate-700
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.5)', // slate-600
+  },
+  toggleButtonText: {
+    fontSize: theme.fontSize.xs,
+    color: '#cbd5e1', // slate-200
+    fontWeight: theme.fontWeight.medium,
+  },
+  // Monthly list cards (clickable with better colors)
+  monthListCard: {
+    backgroundColor: 'rgba(30, 41, 59, 0.5)', // slate-800/50
+    borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
-    ...theme.shadows.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
-  monthHeader: {
+  monthListHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.xs,
   },
-  monthName: {
+  monthListLeft: {
+    flex: 1,
+  },
+  monthListName: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300 (lighter, not gray)
+    marginBottom: 4,
   },
-  monthTotal: {
+  monthListCount: {
+    fontSize: theme.fontSize.xs,
+    color: '#94a3b8', // slate-400
+  },
+  monthListRight: {
+    alignItems: 'flex-end',
+  },
+  monthListTotal: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.success.solid,
+    color: '#4ade80', // green-400 (bright green, not gray!)
+    marginBottom: 4,
   },
-  monthDetails: {
-    marginTop: theme.spacing.xs,
+  monthListArrow: {
+    fontSize: 12,
+    color: '#4ade80', // green-400
   },
-  monthDetailText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+  // Payment methods grid
+  paymentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
   },
-  paymentCard: {
-    backgroundColor: theme.colors.background.secondary,
+  paymentGridCard: {
+    width: '48%',
+    backgroundColor: 'rgba(30, 41, 59, 0.5)', // slate-800/50
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
-    marginBottom: theme.spacing.sm,
-    ...theme.shadows.sm,
-  },
-  paymentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
     alignItems: 'center',
+  },
+  paymentGridLabel: {
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
     marginBottom: theme.spacing.xs,
+    textAlign: 'center',
   },
-  paymentMethod: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
-  },
-  paymentTotal: {
+  paymentGridValue: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.success.solid,
+    color: '#cbd5e1', // slate-200
+    marginBottom: theme.spacing.xs,
+    textAlign: 'center',
   },
-  paymentDetails: {
-    marginTop: theme.spacing.xs,
-  },
-  paymentDetailText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+  paymentGridDetails: {
+    fontSize: theme.fontSize.xs,
+    color: '#64748b', // slate-500
+    textAlign: 'center',
   },
   emptyState: {
     alignItems: 'center',
@@ -471,5 +760,148 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.xl,
+  },
+  // Dropdown button styles
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(51, 65, 85, 0.7)', // slate-700/70
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
+    marginBottom: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(148, 163, 184, 0.3)', // slate-400/30
+  },
+  dropdownText: {
+    fontSize: theme.fontSize.xs,
+    color: '#cbd5e1', // slate-200
+    flex: 1,
+  },
+  dropdownArrow: {
+    fontSize: 10,
+    color: '#cbd5e1', // slate-200
+    marginLeft: theme.spacing.xs,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.background.secondary,
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    padding: theme.spacing.lg,
+    maxHeight: '50%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  modalTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.text.primary,
+  },
+  modalClose: {
+    fontSize: 24,
+    color: theme.colors.text.secondary,
+    fontWeight: 'bold',
+  },
+  pickerScroll: {
+    maxHeight: 300,
+  },
+  pickerItem: {
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border.light,
+  },
+  pickerItemSelected: {
+    backgroundColor: theme.colors.primary.light,
+  },
+  pickerItemText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+  },
+  pickerItemTextSelected: {
+    color: theme.colors.primary.solid,
+    fontWeight: theme.fontWeight.bold,
+  },
+  // Transactions Modal
+  transactionsModalContent: {
+    maxHeight: '80%',
+  },
+  transactionsScroll: {
+    maxHeight: 400,
+  },
+  transactionCard: {
+    backgroundColor: 'rgba(30, 41, 59, 0.5)', // slate-800/50
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+  },
+  transactionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.sm,
+  },
+  transactionTitle: {
+    flex: 1,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginRight: theme.spacing.sm,
+  },
+  transactionAmount: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+    color: '#4ade80', // green-400
+  },
+  transactionDetails: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xs,
+  },
+  transactionDetail: {
+    fontSize: theme.fontSize.xs,
+    color: '#94a3b8', // slate-400
+  },
+  transactionNotes: {
+    fontSize: theme.fontSize.xs,
+    color: '#cbd5e1', // slate-300
+    fontStyle: 'italic',
+    marginTop: theme.spacing.xs,
+  },
+  transactionsSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+  },
+  transactionsSummaryLabel: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+  },
+  transactionsSummaryValue: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+    color: '#4ade80', // green-400
   },
 });
