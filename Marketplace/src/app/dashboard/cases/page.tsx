@@ -1111,8 +1111,8 @@ export default function DashboardPage() {
                             </div>
                           )}
                           
-                          {/* Bidding Info */}
-                          {case_.bidding_enabled && (
+                          {/* Bidding Info - Only show if case is NOT assigned to current user */}
+                          {case_.bidding_enabled && case_.provider_id !== user?.id && (
                             <div>
                               <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Оферти</div>
                               <div className="text-sm font-semibold text-amber-400">
