@@ -539,7 +539,7 @@ function PaymentDetailsModal({ method, transactions, onClose, onTransactionUpdat
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-2">
                       <span className="text-2xl font-bold text-green-400">
-                        {transaction.amount.toFixed(2)} BGN
+                        {Number(transaction.amount).toFixed(2)} BGN
                       </span>
                       <span className="text-sm text-slate-400">
                         {new Date(transaction.recorded_at).toLocaleDateString('bg-BG', {
@@ -704,7 +704,7 @@ function MonthDetailsModal({ month, transactions, onClose, onTransactionUpdated 
                   <div className="flex-1">
                     <div className="flex items-center gap-4 mb-2">
                       <span className="text-2xl font-bold text-green-400">
-                        {transaction.amount.toFixed(2)} BGN
+                        {Number(transaction.amount).toFixed(2)} BGN
                       </span>
                       <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
                         {transaction.payment_method || 'Неуточнен'}
