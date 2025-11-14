@@ -299,22 +299,71 @@ class ServiceTextProServer {
     });
 
     // Dashboard stats endpoint
-    this.app.get('/api/v1/dashboard/stats', (req: Request, res: Response) => {
-      // For now, return mock data. Later this will be replaced with real database queries
-      res.json({
-        success: true,
-        data: {
-          totalCalls: 0,
-          missedCalls: 0,
-          responseRate: 100,
-          avgResponseTime: '0m 0s',
-          activeConversations: 0
-        },
-        metadata: {
-          timestamp: new Date().toISOString(),
-          version: config.app.version
+    this.app.get('/api/v1/dashboard/stats', async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).user?.id || req.query.userId;
+        const db = DatabaseFactory.getDatabase() as any;
+        
+        logger.info('📊 Dashboard stats request for user:', userId);
+        
+        // Get user-specific SMS and calls counts
+        let smsSent = 0;
+        let missedCallsCount = 0;
+        let totalCallsCount = 0;
+        
+        if (userId) {
+          // Get SMS sent count for this user from sms_settings (actual usage tracking)
+          const smsSentQuery = `
+            SELECT COALESCE(monthly_sms_count, 0) as sms_count
+            FROM sms_settings
+            WHERE user_id = $1
+          `;
+          const smsSentResult = await db.query(smsSentQuery, [userId]);
+          smsSent = parseInt(smsSentResult[0]?.sms_count || 0);
+          
+          // Get missed calls count for this user
+          const missedCallsQuery = `
+            SELECT COUNT(*) as count
+            FROM missed_calls
+            WHERE user_id = $1
+            AND data_retention_until > CURRENT_TIMESTAMP
+          `;
+          const missedCallsResult = await db.query(missedCallsQuery, [userId]);
+          missedCallsCount = parseInt(missedCallsResult[0]?.count || 0);
+          totalCallsCount = missedCallsCount; // For now, total = missed (we only track missed calls)
+          
+          logger.info(`📊 Stats for user ${userId}: ${missedCallsCount} missed calls, ${smsSent} SMS sent`);
         }
-      });
+        
+        res.json({
+          success: true,
+          data: {
+            totalCalls: totalCallsCount,
+            missedCalls: missedCallsCount,
+            avgResponseTime: '0m 0s',
+            smsSent: smsSent
+          },
+          metadata: {
+            timestamp: new Date().toISOString(),
+            version: config.app.version
+          }
+        });
+      } catch (error) {
+        logger.error('❌ Error fetching dashboard stats:', error);
+        res.json({
+          success: true,
+          data: {
+            totalCalls: 0,
+            missedCalls: 0,
+            avgResponseTime: '0m 0s',
+            smsSent: 0
+          },
+          metadata: {
+            timestamp: new Date().toISOString(),
+            version: config.app.version
+          }
+        });
+      }
     });
 
     // GDPR-required privacy notice endpoint
@@ -552,27 +601,147 @@ class ServiceTextProServer {
     // this.app.get('/api/v1/users/:userId/public-id', chatController.getUserPublicId);
 
     // Sync endpoints
-    this.app.post('/api/v1/sync/missed-calls', (req: Request, res: Response) => {
-      const { missedCalls } = req.body;
-      
-      logger.info('Missed calls sync request', {
-        count: missedCalls?.length || 0,
-        ip: req.ip,
-        userAgent: req.get('User-Agent')
-      });
+    this.app.post('/api/v1/sync/missed-calls', async (req: Request, res: Response) => {
+      try {
+        const { missedCalls } = req.body;
+        const userId = (req as any).user?.id; // Get user ID from auth token
+        
+        logger.info('Missed calls sync request', {
+          count: missedCalls?.length || 0,
+          userId: userId,
+          ip: req.ip,
+          userAgent: req.get('User-Agent')
+        });
 
-      res.json({
-        success: true,
-        data: {
-          synced: missedCalls?.length || 0,
-          timestamp: new Date().toISOString()
-        },
-        gdpr: {
-          dataProcessingBasis: 'legitimate_interest',
-          retentionPeriod: '24 hours',
-          rightsInformation: config.gdpr.urls.privacyPolicy
+        if (!missedCalls || !Array.isArray(missedCalls) || missedCalls.length === 0) {
+          return res.json({
+            success: true,
+            data: { synced: 0, timestamp: new Date().toISOString() }
+          });
         }
-      });
+
+        const db = DatabaseFactory.getDatabase() as any;
+        let syncedCount = 0;
+
+        // Save each missed call to database
+        for (const call of missedCalls) {
+          try {
+            const callUserId = call.userId || userId;
+            
+            logger.info('Processing call:', {
+              callId: call.id,
+              callUserId: callUserId,
+              phoneNumber: call.phoneNumber,
+              timestamp: call.timestamp
+            });
+            
+            if (!callUserId) {
+              logger.warn('❌ Skipping call without user_id:', call.id);
+              continue;
+            }
+
+            // Insert or update (upsert) to avoid duplicates
+            const query = `
+              INSERT INTO missed_calls (id, user_id, phone_number, timestamp)
+              VALUES ($1, $2, $3, $4)
+              ON CONFLICT (id) DO NOTHING
+              RETURNING id
+            `;
+            
+            const result = await db.query(query, [
+              call.id,
+              callUserId,
+              call.phoneNumber,
+              call.timestamp
+            ]);
+            
+            if (result && result.length > 0) {
+              logger.info('✅ Inserted call to database:', call.id);
+              syncedCount++;
+            } else {
+              logger.info('⚠️ Call already exists (conflict):', call.id);
+            }
+          } catch (error) {
+            logger.error('❌ Error saving individual call:', error);
+          }
+        }
+
+        logger.info(`✅ Synced ${syncedCount}/${missedCalls.length} missed calls to database`);
+
+        res.json({
+          success: true,
+          data: {
+            synced: syncedCount,
+            timestamp: new Date().toISOString()
+          },
+          gdpr: {
+            dataProcessingBasis: 'legitimate_interest',
+            retentionPeriod: '90 days',
+            rightsInformation: config.gdpr.urls.privacyPolicy
+          }
+        });
+      } catch (error) {
+        logger.error('Error syncing missed calls:', error);
+        res.status(500).json({
+          success: false,
+          error: { code: 'SYNC_FAILED', message: 'Failed to sync missed calls' }
+        });
+      }
+    });
+
+    // Get missed calls from database
+    this.app.get('/api/v1/missed-calls', async (req: Request, res: Response) => {
+      try {
+        const userId = (req as any).user?.id || req.query.userId;
+        
+        logger.info('📞 GET missed-calls request:', {
+          userId: userId,
+          queryUserId: req.query.userId,
+          authUserId: (req as any).user?.id
+        });
+        
+        if (!userId) {
+          logger.warn('❌ No user ID provided in request');
+          return res.status(400).json({
+            success: false,
+            error: { code: 'USER_ID_REQUIRED', message: 'User ID is required' }
+          });
+        }
+
+        const db = DatabaseFactory.getDatabase() as any;
+        
+        // Get all missed calls for user (not expired)
+        const query = `
+          SELECT id, phone_number, timestamp, created_at
+          FROM missed_calls
+          WHERE user_id = $1
+          AND data_retention_until > CURRENT_TIMESTAMP
+          ORDER BY timestamp DESC
+        `;
+        
+        logger.info('🔍 Querying database for user:', userId);
+        const calls = await db.query(query, [userId]);
+        
+        logger.info(`✅ Retrieved ${calls.length} missed calls for user ${userId}`);
+        if (calls.length > 0) {
+          logger.info('First call:', calls[0]);
+        }
+
+        res.json({
+          success: true,
+          data: calls,
+          metadata: {
+            count: calls.length,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        logger.error('❌ Error retrieving missed calls:', error);
+        res.status(500).json({
+          success: false,
+          error: { code: 'RETRIEVAL_FAILED', message: 'Failed to retrieve missed calls' }
+        });
+      }
     });
 
     this.app.post('/api/v1/sync/sms-sent', (req: Request, res: Response) => {

@@ -36,9 +36,8 @@ interface User {
 interface DashboardStats {
   totalCalls: number;
   missedCalls: number;
-  responseRate: number;
   avgResponseTime: string;
-  activeConversations: number;
+  smsSent: number;
   smsChatCases?: number;
   searchChatCases?: number;
 }
@@ -66,9 +65,8 @@ function ModernDashboardScreen() {
   const [stats, setStats] = useState<DashboardStats>({
     totalCalls: 87,
     missedCalls: 12,
-    responseRate: 86,
     avgResponseTime: '2m 15s',
-    activeConversations: 5,
+    smsSent: 0,
   });
   const [callDetectionStatus, setCallDetectionStatus] = useState<CallDetectionStatus>({
     isInitialized: false,
@@ -259,6 +257,11 @@ function ModernDashboardScreen() {
           isGdprCompliant: userData.isGdprCompliant || userData.is_gdpr_compliant || false,
         };
         console.log('📱 Mapped user data:', mappedUser);
+        
+        // Save user to AsyncStorage so other services can access it
+        await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
+        console.log('💾 User saved to AsyncStorage for call detection service');
+        
         setUser(mappedUser);
       } else {
         console.log('⚠️ No user data from backend, using mock user. Response:', response);
@@ -297,8 +300,8 @@ function ModernDashboardScreen() {
     try {
       console.log('📊 Loading dashboard data from backend...');
       
-      // Try to get real stats from backend first
-      const response = await ApiService.getInstance().getDashboardStats();
+      // Try to get real stats from backend first (pass userId for missed calls count)
+      const response = await ApiService.getInstance().getDashboardStats(user?.id);
       
       // Get chat source stats (use user.id as providerId for service providers)
       let chatSourceStats = { smsChatCases: 0, searchChatCases: 0 };
@@ -338,9 +341,8 @@ function ModernDashboardScreen() {
       const updatedStats: DashboardStats = {
         totalCalls: 87 + storedCalls.length,
         missedCalls: 12 + todaysCalls.length,
-        responseRate: Math.max(70, 100 - todaysCalls.length * 2),
         avgResponseTime: '2m 15s',
-        activeConversations: 5 + Math.floor(todaysCalls.length / 2),
+        smsSent: 0, // Will be loaded from backend
         ...chatSourceStats,
       };
       
@@ -603,13 +605,9 @@ function ModernDashboardScreen() {
             <Text style={styles.kpiValue}>{stats.missedCalls}</Text>
             <Text style={styles.kpiLabel}>Пропуснати</Text>
           </View>
-          <View style={[styles.kpiCard, styles.kpiPrimary]}>
-            <Text style={styles.kpiValue}>{stats.activeConversations}</Text>
-            <Text style={styles.kpiLabel}>Активни разговори</Text>
-          </View>
           <View style={[styles.kpiCard, styles.kpiSuccess]}>
-            <Text style={styles.kpiValue}>{stats.responseRate}%</Text>
-            <Text style={styles.kpiLabel}>Отговорени</Text>
+            <Text style={styles.kpiValue}>{stats.smsSent}</Text>
+            <Text style={styles.kpiLabel}>📤 SMS Изпратени</Text>
           </View>
         </View>
 
@@ -768,18 +766,13 @@ function ModernDashboardScreen() {
         
         <View style={styles.statsRow}>
           <View style={[styles.statCard, styles.successCard]}>
-            <Text style={styles.statNumber}>{stats.responseRate}%</Text>
-            <Text style={styles.statLabel}>Отговорени</Text>
+            <Text style={styles.statNumber}>{stats.smsSent}</Text>
+            <Text style={styles.statLabel}>📤 SMS Изпратени</Text>
           </View>
           <View style={[styles.statCard, styles.infoCard]}>
             <Text style={styles.statNumber}>{stats.avgResponseTime}</Text>
             <Text style={styles.statLabel}>Ср. време отговор</Text>
           </View>
-        </View>
-
-        <View style={[styles.statCard, styles.fullWidth, styles.accentCard]}>
-          <Text style={styles.statNumber}>{stats.activeConversations}</Text>
-          <Text style={styles.statLabel}>Активни разговори</Text>
         </View>
       </View>
 

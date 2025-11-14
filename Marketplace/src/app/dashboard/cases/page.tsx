@@ -48,7 +48,6 @@ export default function DashboardPage() {
   const [cases, setCases] = useState<Case[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<any>(null)
-  const [expandedCases, setExpandedCases] = useState<Set<string>>(new Set())
   const [filters, setFilters] = useState({
     status: '',
     category: '',
@@ -360,17 +359,6 @@ export default function DashboardPage() {
     }
   }
 
-  const toggleCaseExpansion = (caseId: string) => {
-    setExpandedCases(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(caseId)) {
-        newSet.delete(caseId)
-      } else {
-        newSet.add(caseId)
-      }
-      return newSet
-    })
-  }
 
 
   const getStatusBadge = (status: string) => {
@@ -862,132 +850,54 @@ export default function DashboardPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {cases.map((case_) => (
                   <Card 
                     key={case_.id} 
                     variant="outline" 
                     hover 
-                    padding="lg" 
-                    className="group cursor-pointer"
-                    onClick={() => toggleCaseExpansion(case_.id)}
+                    padding="none"
+                    className="group bg-white/5 border-l-4 border-l-indigo-500"
                   >
                     <CardContent>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start gap-4">
-                            <div className="flex-shrink-0 flex flex-col items-center gap-2">
-                              <div className="w-12 h-12 bg-gradient-to-br from-white/10 to-white/20 border border-white/20 rounded-xl flex items-center justify-center">
-                                <span className="text-xl">
-                                  {case_.category === 'electrician' ? '⚡' :
-                                   case_.category === 'plumber' ? '🔧' :
-                                   case_.category === 'hvac' ? '❄️' :
-                                   case_.category === 'carpenter' ? '🪚' :
-                                   case_.category === 'painter' ? '🎨' :
-                                   case_.category === 'locksmith' ? '🔐' :
-                                   case_.category === 'cleaner' ? '🧹' :
-                                   case_.category === 'gardener' ? '🌱' :
-                                   case_.category === 'handyman' ? '🔨' : '🔧'}
-                                </span>
-                              </div>
-                              {/* Category Badge - below icon */}
-                              <div className="min-w-[96px] max-w-[120px] px-2 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 text-xs font-semibold text-center leading-tight break-words">
+                      {/* Salesforce-style compact header */}
+                      <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {/* Category Icon - smaller, inline */}
+                          <div className="flex-shrink-0 w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center border border-indigo-400/30">
+                            <span className="text-xl">
+                              {case_.category === 'electrician' ? '⚡' :
+                               case_.category === 'plumber' ? '🔧' :
+                               case_.category === 'hvac' ? '❄️' :
+                               case_.category === 'carpenter' ? '🪚' :
+                               case_.category === 'painter' ? '🎨' :
+                               case_.category === 'locksmith' ? '🔐' :
+                               case_.category === 'cleaner' ? '🧹' :
+                               case_.category === 'gardener' ? '🌱' :
+                               case_.category === 'handyman' ? '🔨' : '🔧'}
+                            </span>
+                          </div>
+                          
+                          {/* Title and metadata */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-base font-semibold text-white truncate mb-1">
+                              {case_.description}
+                            </h3>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600">
                                 {getCategoryDisplayName(case_.category)}
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="text-lg font-semibold text-white group-hover:text-slate-200 transition-colors duration-200">
-                                  {expandedCases.has(case_.id) ? case_.description : `${case_.description.substring(0, 80)}...`}
-                                </h3>
-                                <span className="text-slate-500 transition-colors">
-                                  {expandedCases.has(case_.id) ? '▼' : '▶'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-slate-300 mb-3">
-                                <span className="flex items-center gap-1">
-                                  📍 {case_.city}{case_.neighborhood ? `, ${case_.neighborhood}` : ''}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  📅 {new Date(case_.created_at).toLocaleDateString('bg-BG')}
-                                </span>
-                                {case_.budget && (
-                                  <span className="flex items-center gap-1 font-semibold text-green-400">
-                                    💰 {case_.budget} BGN
-                                  </span>
-                                )}
-                                {case_.bidding_enabled && (
-                                  <span className="flex items-center gap-1 text-blue-400">
-                                    👥 {case_.current_bidders || 0}/{case_.max_bidders || 3} оферти
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <StatusBadge status={case_.status as any} />
-                                
-                                {/* Assignment Badge */}
-                                {case_.provider_id === user?.id && case_.assignment_type === 'specific' && (
-                                  <Badge variant="construction" className="animate-pulse">
-                                    ⭐ Клиентът иска теб
-                                  </Badge>
-                                )}
-                                {case_.provider_id && case_.provider_id !== user?.id && (
-                                  <Badge variant="outline">
-                                    👤 Възложена на {case_.provider_name || 'друг изпълнител'}
-                                  </Badge>
-                                )}
-                              </div>
-                              
-                              {/* Expanded Details */}
-                              {expandedCases.has(case_.id) && (
-                                <div className="mt-4 p-4 bg-white/5 rounded-lg border-l-4 border-blue-400/60 backdrop-blur-sm">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                    <div className="md:col-span-2">
-                                      <span className="font-semibold text-slate-200">Телефон:</span>
-                                      {(case_ as any).phone_masked ? (
-                                        <div className="ml-2 space-y-2">
-                                          <div className="inline-flex items-center gap-2">
-                                            <span className="text-slate-400">{case_.phone}</span>
-                                            <span className="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded">
-                                              🔒 Скрит
-                                            </span>
-                                          </div>
-                                          <div className="text-xs text-blue-300 bg-blue-500/10 px-3 py-2 rounded border border-blue-400/20">
-                                            💡 <span className="font-medium">Спечелете наддаването</span>, за да получите достъп до телефонния номер на клиента
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <span className="ml-2 text-slate-300">{case_.phone}</span>
-                                      )}
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold text-slate-200">Приоритет:</span>
-                                      <span className="ml-2 text-slate-300">{case_.priority}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold text-slate-200">Предпочитана дата:</span>
-                                      <span className="ml-2 text-slate-300">{case_.preferred_date}</span>
-                                    </div>
-                                    <div>
-                                      <span className="font-semibold text-slate-200">Предпочитано време:</span>
-                                      <span className="ml-2 text-slate-300">{case_.preferred_time}</span>
-                                    </div>
-                                    {case_.square_meters && (
-                                      <div>
-                                        <span className="font-semibold text-slate-200">Площ:</span>
-                                        <span className="ml-2 text-slate-300">{case_.square_meters} кв.м</span>
-                                      </div>
-                                    )}
-                                    <div className="md:col-span-2">
-                                      <span className="font-semibold text-slate-200">Пълно описание:</span>
-                                      <p className="mt-1 text-slate-300">{case_.description}</p>
-                                    </div>
-                                  </div>
-                                </div>
+                              </span>
+                              <StatusBadge status={case_.status as any} />
+                              {case_.provider_id === user?.id && case_.assignment_type === 'specific' && (
+                                <Badge variant="construction" className="text-xs">
+                                  ⭐ За теб
+                                </Badge>
                               )}
                             </div>
                           </div>
                         </div>
+                        
+                        {/* Action buttons - right aligned */}
                         <div className="flex-shrink-0 ml-4">
                           {user?.role === 'tradesperson' || user?.role === 'service_provider' ? (
                             <div className="flex gap-2">
@@ -1089,39 +999,138 @@ export default function DashboardPage() {
                               )}
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-2">
-                              {/* Show View Bids button for cases with bidding enabled */}
+                            <div className="flex gap-2">
                               {case_.bidding_enabled && (case_.current_bidders || 0) > 0 && !case_.winning_bid_id && (
                                 <Button
                                   variant="construction"
                                   size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    router.push(`/dashboard/cases/${case_.id}/bids`)
-                                  }}
+                                  onClick={() => router.push(`/dashboard/cases/${case_.id}/bids`)}
                                   leftIcon={<span>👥</span>}
                                 >
                                   Виж оферти ({case_.current_bidders})
                                 </Button>
                               )}
-                              <div className="text-right">
-                                <p className="text-sm text-slate-300 mb-1">Изпълнител:</p>
-                                <div className="flex items-center gap-2">
-                                  {case_.provider_name ? (
-                                    <>
-                                      <Avatar name={case_.provider_name} size="sm" />
-                                      <span className="text-sm font-medium text-white">
-                                        {case_.provider_name}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    <Badge variant="outline">Изчаква</Badge>
-                                  )}
-                                </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Salesforce-style Details Section - Grid Layout */}
+                      <div className="px-5 py-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+                          {/* Budget */}
+                          {case_.budget && (
+                            <div>
+                              <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Бюджет</div>
+                              <div className="text-sm font-semibold text-green-400">{case_.budget} BGN</div>
+                            </div>
+                          )}
+                          
+                          {/* Location */}
+                          <div>
+                            <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Локация</div>
+                            <div className="text-sm font-semibold text-white">
+                              {case_.city}{case_.neighborhood ? `, ${case_.neighborhood}` : ''}
+                            </div>
+                          </div>
+                          
+                          {/* Preferred Date */}
+                          <div>
+                            <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Дата</div>
+                            <div className="text-sm font-semibold text-white">{case_.preferred_date}</div>
+                          </div>
+                          
+                          {/* Preferred Time */}
+                          <div>
+                            <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Време</div>
+                            <div className="text-sm font-semibold text-white">{case_.preferred_time}</div>
+                          </div>
+                          
+                          {/* Phone */}
+                          <div>
+                            <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Телефон</div>
+                            {(case_ as any).phone_masked ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-slate-400 font-mono">{case_.phone}</span>
+                                <span className="text-xs text-amber-400">🔒</span>
+                              </div>
+                            ) : (
+                              <a 
+                                href={`tel:${case_.phone}`} 
+                                className="text-sm font-semibold text-blue-400 hover:text-blue-300 hover:underline"
+                              >
+                                {case_.phone}
+                              </a>
+                            )}
+                          </div>
+                          
+                          {/* Priority */}
+                          <div>
+                            <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Приоритет</div>
+                            <div className="text-sm font-semibold">
+                              <span className={`${
+                                case_.priority === 'urgent' ? 'text-red-400' :
+                                case_.priority === 'normal' ? 'text-yellow-400' :
+                                'text-green-400'
+                              }`}>
+                                {case_.priority === 'urgent' ? 'Спешен' :
+                                 case_.priority === 'normal' ? 'Нормален' :
+                                 'Нисък'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Created Date */}
+                          <div>
+                            <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Създадена</div>
+                            <div className="text-sm font-semibold text-white">
+                              {new Date(case_.created_at).toLocaleDateString('bg-BG')}
+                            </div>
+                          </div>
+                          
+                          {/* Square Meters */}
+                          {case_.square_meters && (
+                            <div>
+                              <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Площ</div>
+                              <div className="text-sm font-semibold text-white">{case_.square_meters} кв.м</div>
+                            </div>
+                          )}
+                          
+                          {/* Bidding Info */}
+                          {case_.bidding_enabled && (
+                            <div>
+                              <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Оферти</div>
+                              <div className="text-sm font-semibold text-amber-400">
+                                {case_.current_bidders || 0}/{case_.max_bidders || 3}
+                                {case_.budget && (
+                                  <span className="text-xs text-slate-400 ml-1">
+                                    (~{estimatePointsCost(case_.budget)} т.)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Provider Info */}
+                          {case_.provider_id && case_.provider_id !== user?.id && (
+                            <div>
+                              <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Изпълнител</div>
+                              <div className="flex items-center gap-2">
+                                <Avatar name={case_.provider_name || 'Изпълнител'} size="xs" />
+                                <span className="text-sm font-semibold text-white truncate">
+                                  {case_.provider_name || 'Друг'}
+                                </span>
                               </div>
                             </div>
                           )}
                         </div>
+                        
+                        {/* Phone masked message */}
+                        {(case_ as any).phone_masked && (
+                          <div className="mt-4 text-xs text-blue-300 bg-blue-500/10 px-3 py-2 rounded border border-blue-400/20">
+                            💡 Спечелете наддаването, за да получите достъп до телефонния номер
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

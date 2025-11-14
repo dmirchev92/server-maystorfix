@@ -198,6 +198,12 @@ export class ApiService {
     });
   }
 
+  // Get Missed Calls from Backend
+  public async getMissedCalls(userId?: string): Promise<APIResponse<any>> {
+    const url = userId ? `/missed-calls?userId=${userId}` : '/missed-calls';
+    return this.makeRequest(url);
+  }
+
   // Sync SMS Data to Backend
   public async syncSMSSent(smsData: any[]): Promise<APIResponse<any>> {
     return this.makeRequest('/sync/sms-sent', {
@@ -207,8 +213,9 @@ export class ApiService {
   }
 
   // Get Dashboard Statistics
-  public async getDashboardStats(): Promise<APIResponse<any>> {
-    return this.makeRequest('/dashboard/stats');
+  public async getDashboardStats(userId?: string): Promise<APIResponse<any>> {
+    const url = userId ? `/dashboard/stats?userId=${userId}` : '/dashboard/stats';
+    return this.makeRequest(url);
   }
 
   public isAuthenticated(): boolean {

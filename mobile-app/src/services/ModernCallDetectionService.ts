@@ -130,6 +130,10 @@ export class ModernCallDetectionService {
       await AsyncStorage.setItem(key, JSON.stringify(calls));
       console.log('💾 Missed call stored locally');
 
+      // Sync to backend immediately (don't wait for SMS)
+      const callId = `call_${event.timestamp}_${event.phoneNumber}`;
+      await this.syncMissedCallToBackend(event, callId);
+
       // Send SMS automatically if enabled
       await this.sendAutomaticSMS(event);
 
@@ -197,9 +201,17 @@ export class ModernCallDetectionService {
    */
   private async syncMissedCallToBackend(event: MissedCallEvent, callId: string): Promise<void> {
     try {
+      // Get current user ID
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser?.id) {
+        console.log('⚠️ Cannot sync - no user ID available');
+        return;
+      }
+
       const apiService = ApiService.getInstance();
       const missedCallData = {
         id: callId,
+        userId: currentUser.id,  // Add user ID for backend
         phoneNumber: event.phoneNumber,
         timestamp: event.timestamp,
         duration: event.duration || 0,
@@ -208,6 +220,7 @@ export class ModernCallDetectionService {
         smsSentAt: new Date().toISOString()
       };
       
+      console.log('📤 Syncing missed call to backend:', missedCallData);
       const response = await apiService.syncMissedCalls([missedCallData]);
       
       if (response.success) {
@@ -369,8 +382,61 @@ export class ModernCallDetectionService {
       }
       
       const key = `missed_calls_${currentUser.id}`;
-      const data = await AsyncStorage.getItem(key);
-      return data ? JSON.parse(data) : [];
+      let localCalls: any[] = [];
+      let backendCalls: any[] = [];
+      
+      // Get local storage calls first
+      try {
+        const localData = await AsyncStorage.getItem(key);
+        localCalls = localData ? JSON.parse(localData) : [];
+        console.log(`📱 Loaded ${localCalls.length} calls from local storage`);
+      } catch (error) {
+        console.log('⚠️ Error loading from local storage:', error);
+      }
+      
+      // Try to get from backend database
+      try {
+        const apiService = ApiService.getInstance();
+        const response = await apiService.getMissedCalls(currentUser.id);
+        
+        if (response.success && response.data && Array.isArray(response.data)) {
+          console.log(`☁️ Loaded ${response.data.length} calls from backend database`);
+          
+          // Format the data to match the app's expected structure
+          backendCalls = response.data.map((call: any) => ({
+            id: call.id,
+            phoneNumber: call.phone_number,
+            timestamp: call.timestamp,
+            formattedTime: new Date(call.timestamp).toLocaleString('bg-BG'),
+            aiResponseSent: false,
+          }));
+        }
+      } catch (error) {
+        console.log('⚠️ Could not load from backend:', error);
+      }
+      
+      // Merge local and backend calls (remove duplicates by id)
+      const callsMap = new Map();
+      
+      // Add backend calls first (they're the source of truth)
+      backendCalls.forEach(call => callsMap.set(call.id, call));
+      
+      // Add local calls that aren't in backend yet
+      localCalls.forEach(call => {
+        if (!callsMap.has(call.id)) {
+          callsMap.set(call.id, call);
+        }
+      });
+      
+      const mergedCalls = Array.from(callsMap.values())
+        .sort((a, b) => b.timestamp - a.timestamp); // Sort by newest first
+      
+      console.log(`✅ Total merged calls: ${mergedCalls.length} (${backendCalls.length} from backend, ${localCalls.length} from local)`);
+      
+      // Update local storage with merged data
+      await AsyncStorage.setItem(key, JSON.stringify(mergedCalls));
+      
+      return mergedCalls;
     } catch (error) {
       console.error('❌ Error getting stored missed calls:', error);
       return [];
@@ -384,16 +450,35 @@ export class ModernCallDetectionService {
       if (userStr) {
         const user = JSON.parse(userStr);
         console.log('✅ Got user from AsyncStorage:', user.id);
-        return user;
+        
+        // Validate that user has required fields
+        if (user && user.id) {
+          return user;
+        } else {
+          console.log('⚠️ User in AsyncStorage is invalid (no ID), fetching from API');
+        }
       }
       
       // Fallback to API
+      console.log('📡 Fetching user from API...');
       const apiService = ApiService.getInstance();
       const response = await apiService.getCurrentUser();
-      const user = response.data?.user || response.data;
-      // Store user in AsyncStorage for faster access next time
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      return user;
+      
+      console.log('📡 API response:', JSON.stringify(response, null, 2));
+      
+      const userData = response.data?.user || response.data;
+      console.log('👤 Parsed user data:', JSON.stringify(userData, null, 2));
+      
+      // Validate user data before saving
+      if (userData && userData.id) {
+        // Store user in AsyncStorage for faster access next time
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        console.log('💾 User saved to AsyncStorage with ID:', userData.id);
+        return userData;
+      } else {
+        console.error('❌ Invalid user data from API (no ID):', userData);
+        return null;
+      }
     } catch (error) {
       console.error('❌ Error getting current user:', error);
       return null;

@@ -722,6 +722,11 @@ export class SMSService {
     try {
       console.log(`📱 [TWILIO] Processing missed call SMS for ${phoneNumber}, Call ID: ${callId}`);
       
+      // Reload config from API to get latest settings (especially filterKnownContacts)
+      console.log('🔄 Reloading SMS config from API to get latest settings...');
+      await this.loadConfig();
+      console.log(`📱 Current filter setting: filterKnownContacts = ${this.config.filterKnownContacts}`);
+      
       // 🔒 SECURITY CHECK: Block premium numbers
       const securityCheck = this.validatePhoneNumberSecurity(phoneNumber);
       if (!securityCheck.isAllowed) {
