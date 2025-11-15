@@ -631,7 +631,7 @@ export class NotificationService {
         const messageId = require('uuid').v4();
         if (this.isPostgreSQL) {
           await this.db.query(
-            `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_id, message, message_type, data, created_at)
+            `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_user_id, message, message_type, data, sent_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               messageId,
@@ -647,7 +647,7 @@ export class NotificationService {
         } else {
           await new Promise<void>((resolve, reject) => {
             this.db.db.run(
-              `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_id, message, message_type, data, created_at)
+              `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_user_id, message, message_type, data, sent_at)
                VALUES (?, ?, ?, ?, ?, ?, ?)`,
               [
                 messageId,

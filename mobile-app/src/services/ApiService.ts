@@ -575,8 +575,8 @@ export class ApiService {
     return this.makeRequest(`/bidding/case/${caseId}/bid`, {
       method: 'POST',
       body: JSON.stringify({
-        proposedBudgetRange,
-        bidComment
+        proposed_budget_range: proposedBudgetRange,
+        bid_comment: bidComment
       }),
     });
   }

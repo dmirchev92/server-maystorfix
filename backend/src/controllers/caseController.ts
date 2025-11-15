@@ -759,7 +759,7 @@ export const completeCase = async (req: Request, res: Response): Promise<void> =
     await db.query(
       `UPDATE marketplace_service_cases 
        SET status = 'completed', completion_notes = $1, completed_at = $2, updated_at = $3
-       WHERE id = $4 AND status IN ('wip', 'accepted')`,
+       WHERE id = $4 AND status IN ('wip', 'accepted', 'pending')`,
       [completionNotes, now, now, caseId]
     );
 
@@ -1225,7 +1225,8 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       `SELECT 
          c.*,
          CONCAT(u.first_name, ' ', u.last_name) as customer_name,
-         b.provider_id as winning_provider_id
+         b.provider_id as winning_provider_id,
+         b.proposed_budget_range as winning_bid_price
        FROM marketplace_service_cases c
        LEFT JOIN users u ON c.customer_id = u.id
        LEFT JOIN sp_case_bids b ON c.winning_bid_id = b.id

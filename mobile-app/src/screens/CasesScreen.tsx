@@ -68,8 +68,9 @@ export default function CasesScreen() {
   }>({ visible: false, caseId: '', caseTitle: '' });
   
   // Filters
-  const [viewMode, setViewMode] = useState<'available' | 'assigned' | 'declined'>('available');
+  const [viewMode, setViewMode] = useState<'available' | 'assigned' | 'declined' | 'bids'>('available');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [myBids, setMyBids] = useState<any[]>([]);
 
   useEffect(() => {
     loadUserAndCases();
@@ -106,36 +107,45 @@ export default function CasesScreen() {
     if (!user) return;
 
     try {
-      let filterParams: any = {
-        status: statusFilter || undefined,
-        page: 1,
-        limit: 50,
-      };
+      setLoading(true);
+      console.log('🔍 Fetching cases with filters:', { viewMode, statusFilter });
 
-      console.log('📋 CasesScreen - Fetching cases for viewMode:', viewMode);
-      console.log('📋 CasesScreen - User ID:', user.id);
-
-      if (viewMode === 'assigned') {
-        // Show cases assigned to this provider
-        filterParams.providerId = user.id;
-        console.log('📋 CasesScreen - Filtering by providerId:', user.id);
-      } else if (viewMode === 'declined') {
-        // Show cases declined by this provider
-        console.log('📋 CasesScreen - Fetching declined cases');
-        const response = await ApiService.getInstance().getDeclinedCases(user.id);
-        console.log('📋 CasesScreen - Declined cases response:', response);
-        if (response.success && response.data) {
-          setCases(response.data.data || []);
+      // Handle bids view mode separately
+      if (viewMode === 'bids') {
+        console.log('💰 Fetching my bids');
+        const bidsResponse = await ApiService.getInstance().getMyBids();
+        console.log('💰 Bids response:', bidsResponse);
+        if (bidsResponse.success && bidsResponse.data?.bids) {
+          setMyBids(bidsResponse.data.bids);
         } else {
-          console.error('📋 CasesScreen - Failed to fetch declined cases:', response.error);
-          setCases([]);
+          console.error('💰 Failed to fetch bids:', bidsResponse.error);
+          setMyBids([]);
         }
+        setLoading(false);
         return;
+      }
+      
+      // Reset bids when not in bids view
+      setMyBids([]);
+
+      // Build filter params for other view modes
+      const filterParams: any = {};
+      
+      if (viewMode === 'assigned') {
+        console.log('📋 Fetching assigned cases for user:', user?.id);
+        filterParams.providerId = user?.id;
+        if (statusFilter) {
+          filterParams.status = statusFilter;
+        }
+      } else if (viewMode === 'declined') {
+        console.log('❌ Fetching declined cases for user:', user?.id);
+        filterParams.providerId = user?.id;
+        filterParams.status = 'declined';
       } else {
-        // Available cases - show ALL unassigned cases, excluding ones this provider declined
+        console.log('🆕 Fetching available cases');
+        filterParams.status = 'pending';
         filterParams.onlyUnassigned = 'true';
         filterParams.excludeDeclinedBy = user.id;
-        console.log('📋 CasesScreen - Fetching available cases (unassigned, excluding declined)');
       }
 
       console.log('📋 CasesScreen - Filter params:', filterParams);
@@ -144,12 +154,10 @@ export default function CasesScreen() {
       console.log('📋 CasesScreen - Response.data:', response.data);
       
       if (response.success && response.data) {
-        // Backend returns { success: true, data: { cases: [...], pagination: {...} } }
         const cases = response.data.cases || [];
         console.log('📋 CasesScreen - Cases found:', cases.length);
         console.log('📋 CasesScreen - First case:', cases[0]);
         
-        // Debug: Log ALL case statuses
         cases.forEach((c: any, idx: number) => {
           console.log(`📋 Case ${idx + 1}: id=${c.id}, status="${c.status}", viewMode=${viewMode}`);
         });
@@ -164,6 +172,8 @@ export default function CasesScreen() {
       console.error('📋 CasesScreen - Error fetching cases:', error);
       Alert.alert('Грешка', 'Не успяхме да заредим заявките');
       setCases([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -474,12 +484,13 @@ export default function CasesScreen() {
         </View>
       )}
 
-      {/* View Mode Tabs */}
-      <View style={styles.tabsContainer}>
+      {/* View Mode Tabs - Compact Single Row */}
+      <View style={styles.tabsWrapper}>
         <TouchableOpacity
           style={[styles.tab, viewMode === 'available' && styles.activeTab]}
           onPress={() => setViewMode('available')}
         >
+          <Text style={styles.tabIcon}>🆕</Text>
           <Text style={[styles.tabText, viewMode === 'available' && styles.activeTabText]}>
             Налични
           </Text>
@@ -488,14 +499,25 @@ export default function CasesScreen() {
           style={[styles.tab, viewMode === 'assigned' && styles.activeTab]}
           onPress={() => setViewMode('assigned')}
         >
+          <Text style={styles.tabIcon}>✅</Text>
           <Text style={[styles.tabText, viewMode === 'assigned' && styles.activeTabText]}>
             Моите
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, viewMode === 'bids' && styles.activeTab]}
+          onPress={() => setViewMode('bids')}
+        >
+          <Text style={styles.tabIcon}>💰</Text>
+          <Text style={[styles.tabText, viewMode === 'bids' && styles.activeTabText]}>
+            Оферти
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, viewMode === 'declined' && styles.activeTab]}
           onPress={() => setViewMode('declined')}
         >
+          <Text style={styles.tabIcon}>❌</Text>
           <Text style={[styles.tabText, viewMode === 'declined' && styles.activeTabText]}>
             Отказани
           </Text>
@@ -547,7 +569,56 @@ export default function CasesScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {cases.length === 0 ? (
+        {viewMode === 'bids' ? (
+          myBids.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>💰</Text>
+              <Text style={styles.emptyStateText}>Няма кандидатури</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Все още не сте подали кандидатури за заявки
+              </Text>
+            </View>
+          ) : (
+            myBids.map((bid: any) => (
+              <View key={bid.id} style={styles.caseCard}>
+                <View style={styles.caseHeader}>
+                  <Text style={styles.caseTitle}>{bid.description || bid.service_type || 'Заявка'}</Text>
+                  <View style={[
+                    styles.statusBadge,
+                    bid.bid_status === 'pending' && styles.pendingBadge,
+                    bid.bid_status === 'won' && styles.wonBadge,
+                    bid.bid_status === 'lost' && styles.lostBadge,
+                  ]}>
+                    <Text style={styles.statusBadgeText}>
+                      {bid.bid_status === 'pending' ? '⏳ Чакаща' :
+                       bid.bid_status === 'won' ? '✅ Спечелена' :
+                       bid.bid_status === 'lost' ? '❌ Загубена' : bid.bid_status}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.caseDetails}>
+                  <Text style={styles.detailText}>💰 Предложена цена: {bid.proposed_budget_range} лв</Text>
+                  {bid.city && (
+                    <Text style={styles.detailText}>📍 Град: {bid.city}</Text>
+                  )}
+                  {bid.budget && (
+                    <Text style={styles.detailText}>💵 Бюджет на клиента: {bid.budget} лв</Text>
+                  )}
+                  {bid.bid_comment && (
+                    <Text style={styles.detailText}>💬 Коментар: {bid.bid_comment}</Text>
+                  )}
+                  {bid.case_status && (
+                    <Text style={styles.detailText}>📋 Статус на заявката: {
+                      bid.case_status === 'pending' ? 'Чакаща' :
+                      bid.case_status === 'accepted' ? 'Приета' :
+                      bid.case_status === 'completed' ? 'Завършена' : bid.case_status
+                    }</Text>
+                  )}
+                </View>
+              </View>
+            ))
+          )
+        ) : cases.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>📋</Text>
             <Text style={styles.emptyStateText}>Няма заявки</Text>
@@ -666,7 +737,7 @@ export default function CasesScreen() {
                   {/* Debug: Show what we're checking */}
                   {__DEV__ && (
                     <Text style={{ fontSize: 10, color: 'red', marginBottom: 4 }}>
-                      viewMode={viewMode}, status={caseItem.status}, assignType={caseItem.assignment_type}
+                      viewMode={viewMode}, status={caseItem.status}, bidding={caseItem.bidding_enabled ? 'YES' : 'NO'}
                     </Text>
                   )}
                   
@@ -676,7 +747,7 @@ export default function CasesScreen() {
                       {caseItem.bidding_enabled && caseItem.budget ? (
                         <BidButton
                           caseId={caseItem.id}
-                          budget={caseItem.budget}
+                          budget={String(caseItem.budget)}
                           currentBidders={caseItem.current_bidders}
                           maxBidders={caseItem.max_bidders}
                           onBidPlaced={() => {
@@ -709,12 +780,14 @@ export default function CasesScreen() {
                     </>
                   )}
                   
-                  {/* Assigned tab: Show Complete button for accepted/wip cases */}
-                  {viewMode === 'assigned' && (caseItem.status === 'accepted' || caseItem.status === 'wip') && (
+                  {/* Assigned tab: Show Complete button for accepted cases OR pending cases with bidding */}
+                  {viewMode === 'assigned' && 
+                   (caseItem.status === 'accepted' || 
+                    caseItem.status === 'wip' ||
+                    (caseItem.status === 'pending' && caseItem.bidding_enabled)) && (
                     <TouchableOpacity
                       style={[styles.actionButton, styles.completeButton]}
                       onPress={() => {
-                        console.log('🏁 Complete button pressed for case:', caseItem.id, 'status:', caseItem.status);
                         handleCompleteCase(caseItem.id);
                       }}
                     >
@@ -820,31 +893,51 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
     marginTop: theme.spacing.xs,
   },
+  tabsWrapper: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.background.secondary,
+    paddingHorizontal: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+    gap: theme.spacing.xs,
+    ...theme.shadows.sm,
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    marginBottom: theme.spacing.xs,
+  },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: theme.colors.background.secondary,
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
+    gap: theme.spacing.xs,
     ...theme.shadows.sm,
   },
   tab: {
     flex: 1,
-    paddingVertical: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 2,
     alignItems: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   },
   activeTab: {
     borderBottomColor: theme.colors.primary.solid,
   },
+  tabIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
   tabText: {
-    fontSize: theme.fontSize.md,
+    fontSize: 11,
     color: theme.colors.text.secondary,
     fontWeight: theme.fontWeight.medium,
+    textAlign: 'center',
   },
   activeTabText: {
     color: theme.colors.primary.solid,
-    fontWeight: theme.fontWeight.semibold,
+    fontWeight: theme.fontWeight.bold,
   },
   filterContainer: {
     backgroundColor: theme.colors.background.secondary,
@@ -1034,5 +1127,31 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.text.secondary,
     marginLeft: 'auto',
+  },
+  tabsScrollContainer: {
+    maxHeight: 60,
+  },
+  caseTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.sm,
+  },
+  detailText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
+  },
+  pendingBadge: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  wonBadge: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#10B981',
+  },
+  lostBadge: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#EF4444',
   },
 });

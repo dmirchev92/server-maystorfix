@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#1f2937',
     marginBottom: 8,
   },
   required: {
@@ -344,6 +344,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     height: 50,
+    color: '#1f2937',
   },
   hint: {
     fontSize: 12,

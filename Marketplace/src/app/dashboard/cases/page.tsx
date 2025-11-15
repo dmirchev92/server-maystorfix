@@ -773,37 +773,85 @@ export default function DashboardPage() {
                                  '↩️ Възстановена'}
                               </span>
                             </div>
-                            <h3 className="text-lg font-medium text-white mb-2">
-                              {bid.case_description || 'Заявка'}
+                            <h3 className="text-lg font-medium text-white mb-3">
+                              {bid.description || bid.service_type || 'Заявка'}
                             </h3>
-                            <div className="flex flex-wrap gap-4 text-sm text-slate-400 mb-3">
-                              {bid.case_budget && (
-                                <span className="flex items-center gap-1">
-                                  💰 Бюджет: <span className="font-medium text-green-400">{bid.case_budget} BGN</span>
-                                </span>
-                              )}
-                              {bid.case_city && (
-                                <span className="flex items-center gap-1">
-                                  📍 {bid.case_city}
-                                </span>
-                              )}
-                              <span className="flex items-center gap-1">
-                                📅 {new Date(bid.created_at).toLocaleDateString('bg-BG')}
-                              </span>
+                            
+                            {/* Bid Details Grid */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className="text-slate-400">💰 Предложена цена:</span>
+                                  <span className="font-semibold text-green-400">{bid.proposed_budget_range} лв</span>
+                                </div>
+                                {bid.budget && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-slate-400">💵 Бюджет на клиента:</span>
+                                    <span className="font-medium text-slate-300">{bid.budget} лв</span>
+                                  </div>
+                                )}
+                                {bid.city && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-slate-400">📍 Град:</span>
+                                    <span className="text-slate-300">{bid.city}</span>
+                                  </div>
+                                )}
+                                {bid.case_status && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-slate-400">📋 Статус на заявката:</span>
+                                    <span className={`font-medium ${
+                                      bid.case_status === 'pending' ? 'text-yellow-400' :
+                                      bid.case_status === 'accepted' ? 'text-green-400' :
+                                      bid.case_status === 'completed' ? 'text-blue-400' :
+                                      'text-slate-300'
+                                    }`}>
+                                      {bid.case_status === 'pending' ? 'Чакаща' :
+                                       bid.case_status === 'accepted' ? 'Приета' :
+                                       bid.case_status === 'completed' ? 'Завършена' : bid.case_status}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className="text-slate-400">📅 Дата на оферта:</span>
+                                  <span className="text-slate-300">{new Date(bid.created_at).toLocaleDateString('bg-BG', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-sm">
+                                  <span className={`text-slate-400 ${
+                                    bid.bid_status === 'won' ? 'text-red-400' :
+                                    bid.bid_status === 'lost' ? 'text-yellow-400' :
+                                    'text-slate-400'
+                                  }`}>💎 Точки:</span>
+                                  <span className={`font-medium ${
+                                    bid.bid_status === 'won' ? 'text-red-400' :
+                                    bid.bid_status === 'lost' ? 'text-yellow-400' :
+                                    'text-slate-300'
+                                  }`}>
+                                    {bid.bid_status === 'won' ? `-${bid.points_bid}` :
+                                     bid.bid_status === 'lost' ? `-${bid.points_deducted} (${Math.round((bid.points_bid - bid.points_deducted) / bid.points_bid * 100)}% възстановени)` :
+                                     `-${bid.points_bid} (резервирани)`}
+                                  </span>
+                                </div>
+                                {bid.bidding_closed && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="text-slate-400">🔒 Наддаване:</span>
+                                    <span className="text-red-400 font-medium">Затворено</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-4">
-                              <span className={`text-sm font-medium ${
-                                bid.bid_status === 'won' ? 'text-red-400' :
-                                bid.bid_status === 'lost' ? 'text-yellow-400' :
-                                'text-slate-300'
-                              }`}>
-                                💎 Точки: {
-                                  bid.bid_status === 'won' ? `-${bid.points_bid}` :
-                                  bid.bid_status === 'lost' ? `-${bid.points_deducted} (${Math.round((bid.points_bid - bid.points_deducted) / bid.points_bid * 100)}% възстановени)` :
-                                  `-${bid.points_bid} (резервирани)`
-                                }
-                              </span>
-                            </div>
+                            
+                            {/* Bid Comment */}
+                            {bid.bid_comment && (
+                              <div className="mt-3 p-3 bg-white/5 rounded-lg border border-white/10">
+                                <div className="flex items-start gap-2">
+                                  <span className="text-slate-400 text-sm">💬 Коментар:</span>
+                                  <p className="text-slate-300 text-sm flex-1">{bid.bid_comment}</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                           {bid.case_id && (
                             <Button
@@ -1033,11 +1081,23 @@ export default function DashboardPage() {
                       {/* Salesforce-style Details Section - Grid Layout */}
                       <div className="px-5 py-4">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
-                          {/* Budget */}
+                          {/* Budget - Show both customer budget and winning bid for completed cases */}
                           {case_.budget && (
                             <div>
-                              <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Бюджет</div>
+                              <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">
+                                {case_.status === 'completed' && case_.winning_bid_id ? 'Бюджет на клиента' : 'Бюджет'}
+                              </div>
                               <div className="text-sm font-semibold text-green-400">{case_.budget} BGN</div>
+                            </div>
+                          )}
+                          
+                          {/* Winning Bid Price - Only for completed cases with winning bid */}
+                          {case_.status === 'completed' && case_.winning_bid_id && (
+                            <div>
+                              <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Моята оферта</div>
+                              <div className="text-sm font-semibold text-blue-400">
+                                {(case_ as any).winning_bid_price || 'Няма данни'} {(case_ as any).winning_bid_price && 'лв'}
+                              </div>
                             </div>
                           )}
                           
