@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Switch,
   Dimensions,
+  Image,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ModernCallDetectionService } from '../services/ModernCallDetectionService';
@@ -21,6 +22,22 @@ import { AuthBus } from '../utils/AuthBus';
 import theme from '../styles/theme';
 
 const USE_NEW_DASHBOARD_UI = true;
+
+// Service category translations
+const SERVICE_CATEGORY_TRANSLATIONS: { [key: string]: string } = {
+  'electrician': 'Електротехник',
+  'plumber': 'Водопроводчик',
+  'handyman': 'Майстор',
+  'carpenter': 'Дърводелец',
+  'painter': 'Бояджия',
+  'locksmith': 'Ключар',
+  'cleaner': 'Почистване',
+  'gardener': 'Градинар',
+  'mechanic': 'Механик',
+  'roofer': 'Покривни работи',
+  'tiler': 'Плочкаджия',
+  'welder': 'Заварчик',
+};
 
 interface User {
   id: string;
@@ -78,6 +95,8 @@ function ModernDashboardScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [isTogglingDetection, setIsTogglingDetection] = useState(false);
+  const [serviceType, setServiceType] = useState<string>('Занаятчия');
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
 
   const callDetectionService = ModernCallDetectionService.getInstance();
 
@@ -94,9 +113,13 @@ function ModernDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       // Refresh data when screen comes into focus
-      refreshCallDetectionStatus();
-      loadRecentActivity();
-    }, [])
+      if (user) {
+        console.log('🔄 Screen focused, refreshing data...');
+        loadDashboardData();
+        refreshCallDetectionStatus();
+        loadRecentActivity();
+      }
+    }, [user?.id])
   );
 
   const initializeScreen = async () => {
@@ -107,11 +130,12 @@ function ModernDashboardScreen() {
       await refreshCallDetectionStatus();
       await loadRecentActivity();
       await testBackendConnection();
-      console.log('✅ Dashboard initialization complete');
     } catch (error) {
-      console.error('❌ Error initializing dashboard:', error);
+      console.error('Error initializing screen:', error);
+      Alert.alert('Грешка', 'Проблем при зареждане на данните');
     }
   };
+
 
   const testBackendConnection = async () => {
     try {
@@ -263,6 +287,27 @@ function ModernDashboardScreen() {
         console.log('💾 User saved to AsyncStorage for call detection service');
         
         setUser(mappedUser);
+        
+        // Load service type and profile image from provider profile
+        if (mappedUser.id) {
+          try {
+            const profileResponse = await ApiService.getInstance().makeRequest(`/marketplace/providers/${mappedUser.id}`);
+            if (profileResponse.success && profileResponse.data) {
+              const profileData: any = profileResponse.data;
+              if (profileData.serviceCategory) {
+                // Translate to Bulgarian if it's in English
+                const translatedCategory = SERVICE_CATEGORY_TRANSLATIONS[profileData.serviceCategory.toLowerCase()] 
+                  || profileData.serviceCategory;
+                setServiceType(translatedCategory);
+              }
+              if (profileData.profileImageUrl) {
+                setProfileImageUrl(profileData.profileImageUrl);
+              }
+            }
+          } catch (error) {
+            console.error('Error loading profile data:', error);
+          }
+        }
       } else {
         console.log('⚠️ No user data from backend, using mock user. Response:', response);
         const mockUser: User = {
@@ -321,10 +366,12 @@ function ModernDashboardScreen() {
       
       if (response.success && response.data) {
         console.log('✅ Dashboard stats loaded from backend:', response.data);
-        setStats({
+        const newStats = {
           ...response.data,
           ...chatSourceStats,
-        });
+        };
+        console.log('📊 Setting new stats:', newStats);
+        setStats(newStats);
         return;
       }
       
@@ -556,23 +603,34 @@ function ModernDashboardScreen() {
         }
       >
         <View style={styles.header}>
-          <View style={styles.userInfo}>
-            <Text style={styles.welcomeText}>Добре дошли,</Text>
-            <Text style={styles.userName}>
-              {user ? `${user.firstName} ${user.lastName}` : 'Зареждане...'}
-            </Text>
-            <Text style={styles.userRole}>
-              {user ? (user.role === 'tradesperson' ? 'Занаятчия' : user.role) : 'Зареждане...'}
-            </Text>
+          <View style={styles.headerLeft}>
+            <View style={styles.avatar}>
+              {profileImageUrl ? (
+                <Image 
+                  source={{ uri: profileImageUrl }} 
+                  style={styles.avatarImage}
+                />
+              ) : (
+                <Text style={styles.avatarText}>
+                  {user ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}` : 'SP'}
+                </Text>
+              )}
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.welcomeText}>Добре дошли,</Text>
+              <Text style={styles.userName}>
+                {user ? `${user.firstName} ${user.lastName}` : 'Зареждане...'}
+              </Text>
+              <View style={styles.serviceTypesContainer}>
+                <Text style={styles.userRole}>
+                  {serviceType}
+                </Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.headerButtons}>
-            <TouchableOpacity style={styles.settingsIconButton} onPress={() => navigation.navigate('Settings')}>
-              <Text style={styles.settingsIcon}>⚙️</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogoutPress}>
-              <Text style={styles.logoutButtonText}>Излизане</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.settingsIconButton} onPress={() => navigation.navigate('Settings')}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.statusContainer}>
@@ -601,13 +659,20 @@ function ModernDashboardScreen() {
         </View>
 
         <View style={styles.kpiRowNew}>
-          <View style={[styles.kpiCard, styles.kpiWarning]}>
+          <View style={[styles.kpiCard, styles.kpiWarning]} key={`missed-${stats.missedCalls}`}>
             <Text style={styles.kpiValue}>{stats.missedCalls}</Text>
-            <Text style={styles.kpiLabel}>Пропуснати</Text>
+            <View style={styles.kpiLabelRow}>
+              <View style={styles.redPhoneIcon}>
+                <Text style={styles.redPhoneText}>📞</Text>
+              </View>
+              <Text style={styles.kpiLabelText}>Пропуснати</Text>
+            </View>
           </View>
-          <View style={[styles.kpiCard, styles.kpiSuccess]}>
+          <View style={[styles.kpiCard, styles.kpiSuccess]} key={`sms-${stats.smsSent}`}>
             <Text style={styles.kpiValue}>{stats.smsSent}</Text>
-            <Text style={styles.kpiLabel}>📤 SMS Изпратени</Text>
+            <Text style={styles.kpiLabel}>
+              <Text style={styles.kpiIcon}>💬</Text> SMS Изпратени
+            </Text>
           </View>
         </View>
 
@@ -684,7 +749,8 @@ function ModernDashboardScreen() {
           </View>
         </View>
 
-        <View style={styles.activityContainer}>
+        {/* Recent Activity - Commented out as requested */}
+        {/* <View style={styles.activityContainer}>
           <Text style={styles.sectionTitle}>Последна активност</Text>
           {recentActivity.length > 0 ? (
             recentActivity.map((activity) => (
@@ -712,7 +778,7 @@ function ModernDashboardScreen() {
               </View>
             </View>
           )}
-        </View>
+        </View> */}
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
@@ -862,7 +928,7 @@ function ModernDashboardScreen() {
       </View>
 
       {/* Recent Activity */}
-      <View style={styles.activityContainer}>
+      {/* <View style={styles.activityContainer}>
         <Text style={styles.sectionTitle}>Последна активност</Text>
         
         {recentActivity.length > 0 ? (
@@ -891,7 +957,7 @@ function ModernDashboardScreen() {
             </View>
           </View>
         )}
-      </View>
+      </View> */}
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -909,35 +975,67 @@ const cardWidth = (width - 60) / 2;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background.primary,
+    backgroundColor: '#0f172a', // slate-900 - modern dark background
   },
   header: {
-    backgroundColor: theme.colors.primary.solid,
+    backgroundColor: '#1e293b', // slate-800 - elegant dark header
     padding: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99, 102, 241, 0.3)', // indigo accent border
+    marginBottom: theme.spacing.lg, // Add spacing before call detection
+  },
+  headerLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    ...theme.shadows.md,
+    flex: 1,
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)', // indigo background
+    borderWidth: 2,
+    borderColor: '#6366f1', // indigo-500
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
+    overflow: 'hidden', // Ensure image respects border radius
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  avatarText: {
+    color: '#a5b4fc', // indigo-300
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   userInfo: {
     flex: 1,
   },
   welcomeText: {
-    color: theme.colors.text.inverse,
-    fontSize: theme.typography.body.fontSize,
-    opacity: 0.9,
+    color: '#94a3b8', // slate-400 - subtle greeting
+    fontSize: theme.typography.bodySmall.fontSize,
+    fontWeight: theme.fontWeight.medium,
   },
   userName: {
-    color: theme.colors.text.inverse,
-    fontSize: theme.typography.h2.fontSize,
-    fontWeight: theme.typography.h2.fontWeight,
-    marginTop: theme.spacing.xs,
+    color: '#cbd5e1', // slate-300 - prominent name
+    fontSize: theme.typography.h3.fontSize,
+    fontWeight: theme.typography.h3.fontWeight,
+    marginTop: 2,
+  },
+  serviceTypesContainer: {
+    marginTop: 2,
   },
   userRole: {
-    color: theme.colors.text.inverse,
-    fontSize: theme.typography.bodySmall.fontSize,
-    opacity: 0.8,
-    marginTop: theme.spacing.xs,
+    color: '#a5b4fc', // indigo-300 - accent for role
+    fontSize: theme.typography.caption.fontSize,
+    fontWeight: theme.fontWeight.medium,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -945,37 +1043,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   settingsIconButton: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(148, 163, 184, 0.1)', // subtle slate background
+    marginTop: 4,
   },
   settingsIcon: {
-    fontSize: 20,
+    fontSize: 22,
+    opacity: 0.7,
   },
   testButton: {
-    backgroundColor: theme.colors.success.solid,
+    backgroundColor: '#4ade80', // green-400
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.xl,
   },
   testButtonText: {
-    color: theme.colors.text.inverse,
+    color: '#ffffff',
     fontSize: theme.typography.bodySmall.fontSize,
     fontWeight: '600',
   },
   logoutButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.xl,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
   },
   logoutButtonText: {
-    color: theme.colors.text.inverse,
-    fontSize: theme.typography.bodySmall.fontSize,
-    fontWeight: '600',
+    color: '#94a3b8', // slate-400
+    fontSize: 13,
+    fontWeight: '500',
   },
   statsContainer: {
     padding: theme.spacing.lg,
@@ -986,11 +1086,12 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   statCard: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
     alignItems: 'center',
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
     width: cardWidth,
   },
   fullWidth: {
@@ -998,33 +1099,33 @@ const styles = StyleSheet.create({
   },
   primaryCard: {
     borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary.solid,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   warningCard: {
     borderLeftWidth: 4,
-    borderLeftColor: theme.colors.warning.solid,
+    borderLeftColor: '#f59e0b', // amber-500
   },
   successCard: {
     borderLeftWidth: 4,
-    borderLeftColor: theme.colors.success.solid,
+    borderLeftColor: '#4ade80', // green-400
   },
   infoCard: {
     borderLeftWidth: 4,
-    borderLeftColor: theme.colors.status.info,
+    borderLeftColor: '#0ea5e9', // sky-500
   },
   accentCard: {
     borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary.solid,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   statNumber: {
     fontSize: theme.typography.h1.fontSize,
     fontWeight: theme.typography.h1.fontWeight,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.xs,
   },
   statLabel: {
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     textAlign: 'center',
   },
   kpiRowNew: {
@@ -1037,41 +1138,91 @@ const styles = StyleSheet.create({
   },
   kpiCard: {
     flex: 1,
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: theme.borderRadius.lg,
-    paddingVertical: theme.spacing.md,
+    backgroundColor: '#1e293b', // slate-800 - default
+    borderRadius: theme.borderRadius.xl,
+    paddingVertical: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.sm,
     alignItems: 'center',
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   kpiPrimary: {
-    borderTopWidth: 3,
-    borderTopColor: theme.colors.primary.solid,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)', // indigo fill
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.4)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#818cf8', // indigo-400 - brighter accent
   },
   kpiWarning: {
-    borderTopWidth: 3,
-    borderTopColor: theme.colors.warning.solid,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)', // amber fill
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.4)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#fbbf24', // amber-400 - brighter accent
   },
   kpiSuccess: {
-    borderTopWidth: 3,
-    borderTopColor: theme.colors.success.solid,
+    backgroundColor: 'rgba(74, 222, 128, 0.15)', // green fill
+    borderWidth: 1,
+    borderColor: 'rgba(74, 222, 128, 0.4)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4ade80', // green-400 - brighter accent
   },
   kpiSms: {
-    borderTopWidth: 3,
-    borderTopColor: '#9333ea', // Purple for SMS
+    backgroundColor: 'rgba(192, 132, 252, 0.15)', // purple fill
+    borderWidth: 1,
+    borderColor: 'rgba(192, 132, 252, 0.4)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#c084fc', // purple-400 - brighter accent
   },
   kpiSearch: {
-    borderTopWidth: 3,
-    borderTopColor: '#0ea5e9', // Sky blue for search
+    backgroundColor: 'rgba(14, 165, 233, 0.15)', // sky blue fill
+    borderWidth: 1,
+    borderColor: 'rgba(14, 165, 233, 0.4)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#38bdf8', // sky-400 - brighter accent
   },
   kpiValue: {
     fontSize: theme.typography.h2.fontSize,
     fontWeight: theme.typography.h2.fontWeight,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
   },
   kpiLabel: {
     marginTop: theme.spacing.xs,
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
+    textAlign: 'center',
+  },
+  kpiLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: theme.spacing.xs,
+    gap: 4,
+  },
+  kpiLabelText: {
+    fontSize: theme.typography.bodySmall.fontSize,
+    color: '#94a3b8', // slate-400
+  },
+  redPhoneIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ef4444', // red-500
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  redPhoneText: {
+    fontSize: 12,
+    color: '#ffffff',
+  },
+  kpiIcon: {
+    fontSize: 16,
+    color: '#ffffff', // Force full color rendering
+  },
+  kpiIconRed: {
+    fontSize: 16,
+    color: '#ef4444', // red-500 - red phone icon
+    fontWeight: 'bold',
   },
   statusContainer: {
     padding: theme.spacing.lg,
@@ -1080,14 +1231,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: theme.typography.h4.fontSize,
     fontWeight: theme.typography.h4.fontWeight,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.md,
   },
   statusCard: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500 accent
   },
   statusHeaderRow: {
     flexDirection: 'row',
@@ -1105,16 +1259,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   chipSuccess: {
-    backgroundColor: theme.colors.success.light,
+    backgroundColor: 'rgba(74, 222, 128, 0.2)', // green-400/20
+    borderWidth: 1,
+    borderColor: '#4ade80', // green-400
   },
   chipDanger: {
-    backgroundColor: theme.colors.danger.light,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)', // red-500/20
+    borderWidth: 1,
+    borderColor: '#ef4444', // red-500
   },
   chipWarning: {
-    backgroundColor: theme.colors.warning.light,
+    backgroundColor: 'rgba(245, 158, 11, 0.2)', // amber-500/20
+    borderWidth: 1,
+    borderColor: '#f59e0b', // amber-500
   },
   chipText: {
-    color: theme.colors.text.inverse,
+    color: '#cbd5e1', // slate-300
     fontSize: theme.typography.caption.fontSize,
     fontWeight: '600',
   },
@@ -1126,7 +1286,7 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     flex: 1,
   },
   statusIndicator: {
@@ -1135,19 +1295,19 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xl,
   },
   statusActive: {
-    backgroundColor: theme.colors.success.solid,
+    backgroundColor: '#4ade80', // green-400
   },
   statusInactive: {
-    backgroundColor: theme.colors.danger.solid,
+    backgroundColor: '#ef4444', // red-500
   },
   statusText: {
     fontSize: theme.typography.caption.fontSize,
-    color: theme.colors.text.inverse,
+    color: '#ffffff',
     fontWeight: '600',
   },
   statusValue: {
     fontSize: 14,
-    color: '#333',
+    color: '#cbd5e1', // slate-300
     fontWeight: '500',
   },
   buttonRow: {
@@ -1157,7 +1317,7 @@ const styles = StyleSheet.create({
   },
   startButton: {
     flex: 1,
-    backgroundColor: theme.colors.success.solid,
+    backgroundColor: '#4ade80', // green-400
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
@@ -1165,14 +1325,14 @@ const styles = StyleSheet.create({
   },
   stopButton: {
     flex: 1,
-    backgroundColor: theme.colors.danger.solid,
+    backgroundColor: '#ef4444', // red-500
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     borderRadius: theme.borderRadius.md,
     alignItems: 'center',
   },
   buttonText: {
-    color: theme.colors.text.inverse,
+    color: '#ffffff',
     fontSize: theme.typography.bodySmall.fontSize,
     fontWeight: '600',
   },
@@ -1187,7 +1347,7 @@ const styles = StyleSheet.create({
   navigationTitle: {
     fontSize: theme.typography.h4.fontSize,
     fontWeight: theme.typography.h4.fontWeight,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.md,
   },
   navigationRow: {
@@ -1198,12 +1358,13 @@ const styles = StyleSheet.create({
   },
   navCard: {
     flex: 1,
-    backgroundColor: theme.colors.background.secondary,
-    borderRadius: theme.borderRadius.lg,
+    backgroundColor: '#1e293b', // slate-800
+    borderRadius: theme.borderRadius.xl,
     paddingVertical: theme.spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
     minHeight: 90,
   },
   navCardEmpty: {
@@ -1217,7 +1378,7 @@ const styles = StyleSheet.create({
   navLabel: {
     fontSize: theme.typography.bodySmall.fontSize,
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     textAlign: 'center',
   },
   quickChipsContainer: {
@@ -1228,26 +1389,28 @@ const styles = StyleSheet.create({
     paddingRight: theme.spacing.lg,
   },
   quickChip: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.xl,
     paddingVertical: 10,
     paddingHorizontal: 14,
     marginRight: theme.spacing.sm,
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   quickChipText: {
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     fontSize: theme.typography.bodySmall.fontSize,
     fontWeight: '600',
   },
   actionButton: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   actionIcon: {
     fontSize: 24,
@@ -1259,29 +1422,30 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: theme.typography.body.fontSize,
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.xs,
   },
   actionSubtitle: {
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
   },
   actionArrow: {
     fontSize: theme.typography.h3.fontSize,
-    color: theme.colors.text.tertiary,
+    color: '#64748b', // slate-500
   },
   activityContainer: {
     padding: theme.spacing.lg,
     paddingTop: 0,
   },
   activityItem: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   activityIcon: {
     fontSize: 24,
@@ -1293,12 +1457,12 @@ const styles = StyleSheet.create({
   activityTitle: {
     fontSize: theme.typography.body.fontSize,
     fontWeight: '600',
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.xs,
   },
   activitySubtitle: {
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
   },
   activityStatus: {
     fontSize: theme.typography.bodySmall.fontSize,
@@ -1306,13 +1470,13 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   activeStatus: {
-    color: theme.colors.success.solid,
+    color: '#4ade80', // green-400
   },
   completedStatus: {
-    color: theme.colors.text.tertiary,
+    color: '#64748b', // slate-500
   },
   processingStatus: {
-    color: theme.colors.warning.solid,
+    color: '#f59e0b', // amber-500
   },
   footer: {
     padding: theme.spacing.lg,
@@ -1320,11 +1484,11 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: theme.typography.caption.fontSize,
-    color: theme.colors.text.tertiary,
+    color: '#64748b', // slate-500
   },
   errorText: {
     fontSize: theme.typography.body.fontSize,
-    color: theme.colors.danger.solid,
+    color: '#ef4444', // red-500
     textAlign: 'center',
     margin: theme.spacing.lg,
   },

@@ -102,9 +102,11 @@ export const PointsBalance: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
     ...theme.shadows.md,
   },
   header: {
@@ -122,11 +124,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: theme.typography.h3.fontSize,
     fontWeight: theme.typography.h3.fontWeight,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
   },
   tier: {
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     marginTop: 2,
   },
   pointsContainer: {
@@ -135,32 +137,34 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   pointsValue: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: 'bold',
-    color: theme.colors.primary.solid,
+    color: '#a5b4fc', // indigo-300
     marginRight: theme.spacing.xs,
   },
   pointsLabel: {
     fontSize: theme.typography.body.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
   },
   progressContainer: {
     marginTop: theme.spacing.sm,
   },
   progressBar: {
     height: 8,
-    backgroundColor: theme.colors.background.tertiary,
+    backgroundColor: 'rgba(30, 41, 59, 0.7)', // slate-800/70
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   progressFill: {
     height: '100%',
-    backgroundColor: theme.colors.primary.solid,
+    backgroundColor: '#6366f1', // indigo-500
   },
   progressText: {
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     textAlign: 'center',
   },
   errorText: {
@@ -174,19 +178,19 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     paddingTop: theme.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border.light,
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   statItem: {
     alignItems: 'center',
   },
   statLabel: {
     fontSize: theme.typography.bodySmall.fontSize,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     marginBottom: theme.spacing.xs,
   },
   statValue: {
     fontSize: theme.typography.h3.fontSize,
     fontWeight: theme.typography.h3.fontWeight,
-    color: theme.colors.primary.solid,
+    color: '#a5b4fc', // indigo-300
   },
 });

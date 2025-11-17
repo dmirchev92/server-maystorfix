@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
+import theme from '../styles/theme';
 
 interface Bid {
   id: string;
@@ -217,110 +218,116 @@ const MyBidsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#0f172a', // slate-900 - matches CasesScreen
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#0f172a', // slate-900
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6b7280',
+    marginTop: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: '#cbd5e1', // slate-300
   },
   header: {
-    backgroundColor: '#ffffff',
-    padding: 20,
+    backgroundColor: '#1e293b', // slate-800 - matches CasesScreen header
+    padding: theme.spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: theme.typography.h1.fontSize,
+    fontWeight: theme.typography.h1.fontWeight,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    fontWeight: theme.fontWeight.medium,
   },
   filterContainer: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: '#1e293b', // slate-800
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   filterTab: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: theme.spacing.sm,
     paddingHorizontal: 4,
     alignItems: 'center',
-    borderBottomWidth: 2,
+    borderBottomWidth: 3,
     borderBottomColor: 'transparent',
   },
   filterTabActive: {
-    borderBottomColor: '#6366f1',
+    borderBottomColor: '#6366f1', // indigo-500
   },
   filterText: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '500',
+    fontSize: 11,
+    color: '#94a3b8', // slate-400
+    fontWeight: theme.fontWeight.medium,
+    textAlign: 'center',
   },
   filterTextActive: {
-    color: '#6366f1',
-    fontWeight: '600',
+    color: '#a5b4fc', // indigo-300
+    fontWeight: theme.fontWeight.bold,
   },
   listContent: {
-    padding: 16,
+    padding: theme.spacing.md,
+    paddingBottom: 80, // Extra padding for bottom tab bar
   },
   bidCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: '#1e293b', // slate-800 - matches CasesScreen cards
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500 - accent like CasesScreen
   },
   bidHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   bidHeaderLeft: {
     flex: 1,
-    marginRight: 12,
+    marginRight: theme.spacing.md,
   },
   bidOrder: {
-    fontSize: 12,
-    color: '#6366f1',
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: theme.fontSize.xs,
+    color: '#a5b4fc', // indigo-300
+    fontWeight: theme.fontWeight.semibold,
+    marginBottom: theme.spacing.xs,
   },
   bidDescription: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+    color: '#cbd5e1', // slate-300
+    lineHeight: 20,
   },
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
   },
   badgeText: {
     color: '#ffffff',
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.semibold,
   },
   bidDetails: {
-    gap: 8,
+    gap: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   detailRow: {
     flexDirection: 'row',
@@ -328,37 +335,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailLabel: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    fontWeight: theme.fontWeight.medium,
   },
   detailValue: {
-    fontSize: 13,
-    color: '#111827',
-    fontWeight: '500',
+    fontSize: theme.fontSize.sm,
+    color: '#cbd5e1', // slate-300
+    fontWeight: theme.fontWeight.medium,
   },
   pointsWon: {
-    color: '#ef4444',
-    fontWeight: '600',
+    color: '#ef4444', // red-500
+    fontWeight: theme.fontWeight.semibold,
   },
   pointsLost: {
-    color: '#f59e0b',
-    fontWeight: '600',
+    color: '#fbbf24', // amber-400
+    fontWeight: theme.fontWeight.semibold,
   },
   pointsPending: {
-    color: '#6b7280',
-    fontWeight: '600',
+    color: '#94a3b8', // slate-400
+    fontWeight: theme.fontWeight.semibold,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: theme.spacing.xxl,
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: theme.fontSize.md,
+    color: '#94a3b8', // slate-400
     textAlign: 'center',
   },
 });

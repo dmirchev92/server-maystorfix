@@ -21,7 +21,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="bg">
-      <body className={inter.className}>
+      <head>
+        <meta name="color-scheme" content="light only" />
+      </head>
+      <body className={inter.className} style={{ colorScheme: 'light' }}>
         <Providers>
           {children}
           <GDPRPopup />

@@ -371,11 +371,11 @@ export default function CasesScreen() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: any = {
-      pending: { label: '🟡 Чакаща', color: theme.colors.warning.solid },
-      accepted: { label: '🟢 Приета', color: theme.colors.success.solid },
-      wip: { label: '⚡ В процес', color: theme.colors.status.info },
-      completed: { label: '🏁 Завършена', color: theme.colors.gray[600] },
-      declined: { label: '❌ Отказана', color: theme.colors.danger.solid },
+      pending: { label: '🟡 Чакаща', color: '#fbbf24' }, // amber-400 - logical for pending/waiting
+      accepted: { label: '🟢 Приета', color: '#4ade80' }, // green-400 - success
+      wip: { label: '⚡ В процес', color: '#60a5fa' }, // blue-400 - in progress
+      completed: { label: '🏁 Завършена', color: '#64748b' }, // slate-500 - neutral/done
+      declined: { label: '❌ Отказана', color: '#f87171' }, // red-400 - error/declined
     };
 
     const config = statusConfig[status] || { label: status, color: theme.colors.gray[500] };
@@ -429,7 +429,7 @@ export default function CasesScreen() {
     else {
       return (
         <View style={[styles.assignmentBadge, styles.openAssignmentBadge]}>
-          <Text style={styles.assignmentBadgeText}>🌐 Отворена заявка</Text>
+          <Text style={styles.assignmentBadgeText}>👥 Публична заявка</Text>
         </View>
       );
     }
@@ -438,6 +438,26 @@ export default function CasesScreen() {
   const getCategoryDisplayName = (category: string) => {
     const found = SERVICE_CATEGORIES.find(cat => cat.value === category);
     return found ? found.label : category;
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const iconMap: { [key: string]: string } = {
+      'electrician': '⚡',
+      'plumber': '🚰',
+      'hvac': '❄️',
+      'carpenter': '🔨',
+      'painter': '🎨',
+      'locksmith': '🔑',
+      'cleaner': '✨',
+      'gardener': '🌱',
+      'handyman': '🔧',
+      'roofer': '🏠',
+      'moving': '🚚',
+      'tiler': '🧱',
+      'welder': '🔥',
+      'design': '🎭'
+    };
+    return iconMap[category] || '🔧';
   };
 
   if (loading) {
@@ -643,35 +663,46 @@ export default function CasesScreen() {
             return (
               <View key={caseItem.id} style={styles.caseCard}>
                 <TouchableOpacity onPress={() => toggleCaseExpansion(caseItem.id)}>
-                  <View style={styles.caseHeader}>
-                    <View style={styles.caseHeaderLeft}>
-                      <Text style={styles.caseCategory}>
-                        {getCategoryDisplayName(caseItem.category)}
+                  {/* Compact Header with Icon */}
+                  <View style={styles.compactHeader}>
+                    <View style={styles.categoryIconContainer}>
+                      <Text style={styles.categoryIcon}>{getCategoryIcon(caseItem.category)}</Text>
+                    </View>
+                    <View style={styles.headerContent}>
+                      <View style={styles.headerTopRow}>
+                        {viewMode !== 'available' && getStatusBadge(caseItem.status)}
+                        {getAssignmentBadge(caseItem)}
+                      </View>
+                      <Text style={styles.compactDescription} numberOfLines={2}>
+                        {caseItem.description}
                       </Text>
-                      {getStatusBadge(caseItem.status)}
                     </View>
                     <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
                   </View>
                   
-                  {/* Assignment Type Badge */}
-                  {getAssignmentBadge(caseItem)}
-                  
-                  <Text style={styles.caseDescription} numberOfLines={isExpanded ? undefined : 2}>
-                    {caseItem.description}
-                  </Text>
-                  
-                  {/* Budget and Bidding Info */}
-                  {caseItem.budget && (
-                    <View style={styles.budgetContainer}>
-                      <Text style={styles.budgetLabel}>💰 Бюджет:</Text>
-                      <Text style={styles.budgetValue}>{caseItem.budget} BGN</Text>
-                      {caseItem.bidding_enabled && (
-                        <Text style={styles.biddingInfo}>
-                          👥 {caseItem.current_bidders || 0}/{caseItem.max_bidders || 3} оферти
+                  {/* Key Info Row - Always Visible */}
+                  <View style={styles.keyInfoRow}>
+                    {caseItem.budget && (
+                      <View style={styles.keyInfoItem}>
+                        <Text style={styles.keyInfoLabel}>💰 Бюджет:</Text>
+                        <Text style={styles.keyInfoValue}>{caseItem.budget} BGN</Text>
+                      </View>
+                    )}
+                    {caseItem.bidding_enabled && (
+                      <View style={styles.keyInfoItem}>
+                        <Text style={styles.keyInfoLabel}>👥 Оферти:</Text>
+                        <Text style={styles.keyInfoValue}>
+                          {caseItem.current_bidders || 0}/{caseItem.max_bidders || 3}
                         </Text>
-                      )}
-                    </View>
-                  )}
+                      </View>
+                    )}
+                    {caseItem.city && (
+                      <View style={styles.keyInfoItem}>
+                        <Text style={styles.keyInfoLabel}>📍</Text>
+                        <Text style={styles.keyInfoValue}>{caseItem.city}</Text>
+                      </View>
+                    )}
+                  </View>
                   
                   {isExpanded && (
                     <View style={styles.caseDetails}>
@@ -842,14 +873,15 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   header: {
-    backgroundColor: theme.colors.primary.solid,
+    backgroundColor: '#1e293b', // slate-800
     padding: theme.spacing.lg,
-    ...theme.shadows.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
   },
   headerTitle: {
     fontSize: theme.typography.h2.fontSize,
     fontWeight: theme.typography.h2.fontWeight,
-    color: theme.colors.text.inverse,
+    color: '#cbd5e1', // slate-300
   },
   pointsWidgetContainer: {
     paddingHorizontal: theme.spacing.md,
@@ -865,41 +897,46 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     alignItems: 'center',
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   primaryCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.primary.solid,
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
+    backgroundColor: 'rgba(99, 102, 241, 0.15)', // indigo-500/15
   },
   warningCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.warning.solid,
+    borderLeftWidth: 3,
+    borderLeftColor: '#c084fc', // purple-400
+    backgroundColor: 'rgba(168, 85, 247, 0.15)', // purple-500/15
   },
   successCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: theme.colors.success.solid,
+    borderLeftWidth: 3,
+    borderLeftColor: '#4ade80', // green-400
+    backgroundColor: 'rgba(34, 197, 94, 0.15)', // green-500/15
   },
   statNumber: {
     fontSize: theme.typography.h2.fontSize,
     fontWeight: theme.typography.h2.fontWeight,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
   },
   statLabel: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     marginTop: theme.spacing.xs,
   },
   tabsWrapper: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     paddingHorizontal: theme.spacing.xs,
     paddingVertical: theme.spacing.sm,
     gap: theme.spacing.xs,
-    ...theme.shadows.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   tabsRow: {
     flexDirection: 'row',
@@ -908,11 +945,12 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
     gap: theme.spacing.xs,
-    ...theme.shadows.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   tab: {
     flex: 1,
@@ -923,7 +961,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: theme.colors.primary.solid,
+    borderBottomColor: '#6366f1', // indigo-500
   },
   tabIcon: {
     fontSize: 20,
@@ -931,37 +969,42 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 11,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     fontWeight: theme.fontWeight.medium,
     textAlign: 'center',
   },
   activeTabText: {
-    color: theme.colors.primary.solid,
+    color: '#a5b4fc', // indigo-300
     fontWeight: theme.fontWeight.bold,
   },
   filterContainer: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     maxHeight: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   filterChip: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
     borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.gray[100],
+    backgroundColor: 'rgba(30, 41, 59, 0.7)', // slate-800/70
     marginRight: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   activeFilterChip: {
-    backgroundColor: theme.colors.primary.solid,
+    backgroundColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
+    borderColor: '#6366f1', // indigo-500
   },
   filterChipText: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     fontWeight: theme.fontWeight.medium,
   },
   activeFilterChipText: {
-    color: theme.colors.text.inverse,
+    color: '#a5b4fc', // indigo-300
   },
   casesList: {
     flex: 1,
@@ -969,11 +1012,48 @@ const styles = StyleSheet.create({
     paddingBottom: 80, // Extra padding for bottom tab bar
   },
   caseCard: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
-    ...theme.shadows.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
+  },
+  compactHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing.sm,
+    gap: theme.spacing.sm,
+  },
+  categoryIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)', // indigo-500/20
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.3)', // indigo-400/30
+  },
+  categoryIcon: {
+    fontSize: 28,
+  },
+  headerContent: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.xs,
+    flexWrap: 'wrap',
+  },
+  compactDescription: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+    color: '#cbd5e1', // slate-300
+    lineHeight: 20,
   },
   caseHeader: {
     flexDirection: 'row',
@@ -992,6 +1072,30 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.text.primary,
   },
+  keyInfoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    marginBottom: theme.spacing.xs,
+  },
+  keyInfoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  keyInfoLabel: {
+    fontSize: theme.fontSize.xs,
+    color: '#94a3b8', // slate-400
+    fontWeight: theme.fontWeight.medium,
+  },
+  keyInfoValue: {
+    fontSize: theme.fontSize.sm,
+    color: '#cbd5e1', // slate-300
+    fontWeight: theme.fontWeight.semibold,
+  },
   statusBadge: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
@@ -1004,7 +1108,7 @@ const styles = StyleSheet.create({
   },
   expandIcon: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.tertiary,
+    color: '#94a3b8', // slate-400
   },
   caseDescription: {
     fontSize: theme.fontSize.md,
@@ -1015,7 +1119,7 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
     paddingTop: theme.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border.light,
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   detailRow: {
     flexDirection: 'row',
@@ -1023,14 +1127,14 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     fontWeight: theme.fontWeight.medium,
     width: 100,
   },
   detailValue: {
     flex: 1,
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
   },
   actionButtons: {
     flexDirection: 'row',
@@ -1072,36 +1176,33 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.xs,
   },
   emptyStateSubtext: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     textAlign: 'center',
   },
   assignmentBadge: {
     paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
+    paddingVertical: 2,
     borderRadius: theme.borderRadius.sm,
-    alignSelf: 'flex-start',
-    marginTop: theme.spacing.xs,
-    marginBottom: theme.spacing.xs,
   },
   directAssignmentBadge: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: 'rgba(59, 130, 246, 0.2)', // blue-500/20
     borderWidth: 1,
-    borderColor: '#2196F3',
+    borderColor: '#60a5fa', // blue-400
   },
   openAssignmentBadge: {
-    backgroundColor: '#F3E5F5',
+    backgroundColor: 'rgba(168, 85, 247, 0.2)', // purple-500/20
     borderWidth: 1,
-    borderColor: '#9C27B0',
+    borderColor: '#c084fc', // purple-400
   },
   assignmentBadgeText: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 10,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
   },
   budgetContainer: {
     flexDirection: 'row',
@@ -1109,13 +1210,13 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     paddingTop: theme.spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border.light,
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
   },
   budgetLabel: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     fontWeight: theme.fontWeight.medium,
   },
   budgetValue: {
@@ -1125,7 +1226,7 @@ const styles = StyleSheet.create({
   },
   biddingInfo: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     marginLeft: 'auto',
   },
   tabsScrollContainer: {
@@ -1134,24 +1235,24 @@ const styles = StyleSheet.create({
   caseTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.sm,
   },
   detailText: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     marginBottom: theme.spacing.xs,
   },
   pendingBadge: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
+    backgroundColor: 'rgba(251, 191, 36, 0.2)', // amber-400/20
+    borderColor: '#fbbf24', // amber-400
   },
   wonBadge: {
-    backgroundColor: '#D1FAE5',
-    borderColor: '#10B981',
+    backgroundColor: 'rgba(34, 197, 94, 0.2)', // green-500/20
+    borderColor: '#4ade80', // green-400
   },
   lostBadge: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)', // red-500/20
+    borderColor: '#f87171', // red-400
   },
 });

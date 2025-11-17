@@ -310,23 +310,24 @@ function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#0f172a', // slate-900 - matches CasesScreen
   },
   header: {
-    padding: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: theme.spacing.lg,
+    backgroundColor: '#1e293b', // slate-800 - matches CasesScreen header
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.2)',
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 4,
+    fontSize: theme.typography.h1.fontSize,
+    fontWeight: theme.typography.h1.fontWeight,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#CBD5E1',
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    fontWeight: theme.fontWeight.medium,
   },
   loadingContainer: {
     flex: 1,
@@ -334,77 +335,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#CBD5E1',
+    marginTop: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: '#cbd5e1', // slate-300
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: theme.spacing.xxl,
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginBottom: 8,
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   emptyText: {
-    fontSize: 14,
-    color: '#94A3B8',
+    fontSize: theme.fontSize.md,
+    color: '#94a3b8', // slate-400
     textAlign: 'center',
   },
   listContent: {
-    paddingVertical: 8,
+    padding: theme.spacing.md,
+    paddingBottom: 80, // Extra padding for bottom tab bar
   },
   conversationItem: {
     flexDirection: 'row',
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    marginHorizontal: 16,
-    marginVertical: 4,
-    borderRadius: 12,
+    padding: theme.spacing.md,
+    backgroundColor: '#1e293b', // slate-800 - matches CasesScreen cards
+    marginBottom: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500 - accent like CasesScreen
   },
   avatarContainer: {
     position: 'relative',
-    marginRight: 12,
+    marginRight: theme.spacing.md,
   },
   avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#6366F1',
+    backgroundColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#6366f1', // indigo-500
   },
   avatarText: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: theme.fontWeight.bold,
+    color: '#a5b4fc', // indigo-300
   },
   unreadBadge: {
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#ef4444', // red-500
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: '#1e293b', // slate-800 - matches card background
   },
   unreadText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: theme.fontWeight.bold,
+    color: '#ffffff',
   },
   conversationContent: {
     flex: 1,
@@ -413,22 +420,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: theme.spacing.xs,
   },
   providerName: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    marginRight: 8,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.bold,
+    color: '#cbd5e1', // slate-300
+    marginRight: theme.spacing.sm,
   },
   timestamp: {
-    fontSize: 12,
-    color: '#94A3B8',
+    fontSize: theme.fontSize.xs,
+    color: '#94a3b8', // slate-400
+    fontWeight: theme.fontWeight.medium,
   },
   lastMessage: {
-    fontSize: 14,
-    color: '#CBD5E1',
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
     lineHeight: 20,
   },
 });

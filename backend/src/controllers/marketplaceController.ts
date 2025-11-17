@@ -268,7 +268,12 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       params.push(category);
     }
 
-    query += ` ORDER BY spp.created_at DESC LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+    // Order by rating (highest first), then total reviews, then newest
+    query += ` ORDER BY 
+      COALESCE(spp.rating, 0) DESC, 
+      COALESCE(spp.total_reviews, 0) DESC, 
+      spp.created_at DESC 
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     params.push(Number(limit), Number(offset));
 
     // Use PostgreSQL query

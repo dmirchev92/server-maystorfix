@@ -11,6 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../navigation/types';
+import { AuthBus } from '../utils/AuthBus';
 
 type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Settings'>;
 
@@ -37,7 +38,15 @@ const SettingsScreen: React.FC = () => {
           onPress: async () => {
             try {
               const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+              
+              // Clear all auth-related data
               await AsyncStorage.removeItem('auth_token');
+              await AsyncStorage.removeItem('user');
+              
+              // Emit logout event to trigger app-wide logout
+              AuthBus.emit('logout');
+              
+              // Show success message
               Alert.alert('Успех', 'Излязохте успешно от профила си');
             } catch (error) {
               console.error('Error logging out:', error);

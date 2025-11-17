@@ -12,9 +12,9 @@ export default {
       dark: '#059669',
     },
     background: {
-      primary: '#F9FAFB',
-      secondary: '#FFFFFF',
-      tertiary: '#F3F4F6',
+      primary: '#0f172a', // slate-900 - main dark background
+      secondary: '#1e293b', // slate-800 - card backgrounds
+      tertiary: '#334155', // slate-700 - tertiary backgrounds
     },
     text: {
       primary: '#111827',

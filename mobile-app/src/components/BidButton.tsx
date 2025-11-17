@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import ApiService from '../services/ApiService';
 import BidModal from './BidModal';
 
@@ -57,13 +58,26 @@ const BidButton: React.FC<BidButtonProps> = ({
   return (
     <View>
       <TouchableOpacity
-        style={[styles.button, isDisabled && styles.buttonDisabled]}
         onPress={handlePress}
         disabled={isDisabled}
         activeOpacity={0.7}
       >
-        <Text style={styles.icon}>💰</Text>
-        <Text style={styles.buttonText}>{buttonText}</Text>
+        {isDisabled ? (
+          <View style={[styles.button, styles.buttonDisabled]}>
+            <Text style={styles.icon}>💰</Text>
+            <Text style={styles.buttonText}>{buttonText}</Text>
+          </View>
+        ) : (
+          <LinearGradient
+            colors={['#3CCB72', '#0C544A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0.6 }}
+            style={styles.button}
+          >
+            <Text style={styles.icon}>💰</Text>
+            <Text style={styles.buttonText}>{buttonText}</Text>
+          </LinearGradient>
+        )}
       </TouchableOpacity>
       
       <BidModal
@@ -79,7 +93,6 @@ const BidButton: React.FC<BidButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#f59e0b',
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -89,8 +102,9 @@ const styles = StyleSheet.create({
     minWidth: 120,
   },
   buttonDisabled: {
-    backgroundColor: '#9ca3af',
-    opacity: 0.6,
+    backgroundColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50 - dark theme disabled
+    borderColor: 'rgba(100, 116, 139, 0.5)', // slate-600/50
+    opacity: 0.8,
   },
   icon: {
     fontSize: 16,

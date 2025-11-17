@@ -469,10 +469,9 @@ export default function DashboardScreen() {
           activeOpacity={1}
           onPress={() => setShowTransactionsModal(false)}
         >
-          <TouchableOpacity 
+          <View 
             style={[styles.modalContent, styles.transactionsModalContent]}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
+            onStartShouldSetResponder={() => true}
           >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{selectedMonthName}</Text>
@@ -480,7 +479,11 @@ export default function DashboardScreen() {
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.transactionsScroll}>
+            <ScrollView 
+              style={styles.transactionsScroll}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={true}
+            >
               {monthTransactions.length > 0 ? (
                 monthTransactions.map((transaction: any, index: number) => (
                   <View key={index} style={styles.transactionCard}>
@@ -521,7 +524,7 @@ export default function DashboardScreen() {
                 {monthTransactions.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0).toFixed(2)} BGN
               </Text>
             </View>
-          </TouchableOpacity>
+          </View>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -545,26 +548,27 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   header: {
-    backgroundColor: theme.colors.primary.solid,
+    backgroundColor: '#1e293b', // slate-800 to match theme
     padding: theme.spacing.lg,
-    ...theme.shadows.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
   },
   headerTitle: {
     fontSize: theme.typography.h2.fontSize,
     fontWeight: theme.typography.h2.fontWeight,
-    color: theme.colors.text.inverse,
+    color: '#cbd5e1', // slate-300
   },
   headerSubtitle: {
     fontSize: theme.fontSize.sm,
-    color: theme.colors.text.inverse,
+    color: '#94a3b8', // slate-400
     marginTop: theme.spacing.xs,
-    opacity: 0.9,
   },
   scrollView: {
     flex: 1,
   },
   pointsSection: {
     padding: theme.spacing.md,
+    marginHorizontal: theme.spacing.md,
   },
   // Main Income Card (Dark gradient like web)
   incomeCard: {
@@ -641,6 +645,12 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: theme.spacing.md,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    backgroundColor: '#1e293b', // slate-800
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -650,30 +660,32 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    fontWeight: theme.fontWeight.bold,
+    color: '#cbd5e1', // slate-300
   },
   toggleButton: {
-    backgroundColor: 'rgba(51, 65, 85, 0.7)', // slate-700
+    backgroundColor: 'rgba(99, 102, 241, 0.2)', // indigo-500/20
     paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.sm,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
     borderWidth: 1,
-    borderColor: 'rgba(100, 116, 139, 0.5)', // slate-600
+    borderColor: 'rgba(129, 140, 248, 0.4)', // indigo-400/40
   },
   toggleButtonText: {
     fontSize: theme.fontSize.xs,
-    color: '#cbd5e1', // slate-200
-    fontWeight: theme.fontWeight.medium,
+    color: '#a5b4fc', // indigo-300
+    fontWeight: theme.fontWeight.semibold,
   },
   // Monthly list cards (clickable with better colors)
   monthListCard: {
-    backgroundColor: 'rgba(30, 41, 59, 0.5)', // slate-800/50
-    borderRadius: theme.borderRadius.lg,
+    backgroundColor: 'rgba(30, 41, 59, 0.7)', // slate-800/70
+    borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderColor: 'rgba(34, 197, 94, 0.3)', // green-500/30 accent
+    borderLeftWidth: 3,
+    borderLeftColor: '#4ade80', // green-400
   },
   monthListHeader: {
     flexDirection: 'row',
@@ -714,11 +726,11 @@ const styles = StyleSheet.create({
   },
   paymentGridCard: {
     width: '48%',
-    backgroundColor: 'rgba(30, 41, 59, 0.5)', // slate-800/50
+    backgroundColor: 'rgba(30, 41, 59, 0.7)', // slate-800/70
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
     alignItems: 'center',
   },
   paymentGridLabel: {
@@ -728,15 +740,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   paymentGridValue: {
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.bold,
-    color: '#cbd5e1', // slate-200
+    color: '#a5b4fc', // indigo-300
     marginBottom: theme.spacing.xs,
     textAlign: 'center',
   },
   paymentGridDetails: {
     fontSize: theme.fontSize.xs,
-    color: '#64748b', // slate-500
+    color: '#94a3b8', // slate-400
     textAlign: 'center',
   },
   emptyState: {
@@ -751,13 +763,13 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     marginBottom: theme.spacing.xs,
     textAlign: 'center',
   },
   emptyStateSubtext: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     textAlign: 'center',
     paddingHorizontal: theme.spacing.xl,
   },
@@ -787,15 +799,17 @@ const styles = StyleSheet.create({
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#1e293b', // slate-800 to match theme
     borderTopLeftRadius: theme.borderRadius.xl,
     borderTopRightRadius: theme.borderRadius.xl,
     padding: theme.spacing.lg,
     maxHeight: '50%',
+    borderWidth: 2,
+    borderColor: 'rgba(100, 116, 139, 0.3)', // slate-500/30
   },
   modalHeader: {
     flexDirection: 'row',
@@ -804,16 +818,16 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     paddingBottom: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.light,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   modalTitle: {
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300 for better contrast
   },
   modalClose: {
     fontSize: 24,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     fontWeight: 'bold',
   },
   pickerScroll: {
@@ -823,26 +837,32 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border.light,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    backgroundColor: 'rgba(30, 41, 59, 0.3)', // slate-800/30
   },
   pickerItemSelected: {
-    backgroundColor: theme.colors.primary.light,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)', // indigo-500/20
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   pickerItemText: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.primary,
+    color: '#cbd5e1', // slate-300
     textAlign: 'center',
   },
   pickerItemTextSelected: {
-    color: theme.colors.primary.solid,
+    color: '#a5b4fc', // indigo-300
     fontWeight: theme.fontWeight.bold,
   },
   // Transactions Modal
   transactionsModalContent: {
-    maxHeight: '80%',
+    maxHeight: '85%',
+    backgroundColor: '#1e293b', // slate-800
+    borderWidth: 2,
+    borderColor: 'rgba(34, 197, 94, 0.3)', // green-500/30 accent
   },
   transactionsScroll: {
-    maxHeight: 400,
+    flexGrow: 1, // Allow full scrolling
   },
   transactionCard: {
     backgroundColor: 'rgba(30, 41, 59, 0.5)', // slate-800/50
@@ -891,8 +911,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    marginTop: theme.spacing.sm,
+    borderTopWidth: 2,
+    borderTopColor: 'rgba(34, 197, 94, 0.3)', // green-500/30
+    backgroundColor: 'rgba(30, 41, 59, 0.5)', // slate-800/50
   },
   transactionsSummaryLabel: {
     fontSize: theme.fontSize.md,

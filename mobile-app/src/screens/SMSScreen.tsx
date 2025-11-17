@@ -14,6 +14,7 @@ import { SMSService } from '../services/SMSService';
 import { ApiService } from '../services/ApiService';
 import NotificationService from '../services/NotificationService';
 import { SocketIOService } from '../services/SocketIOService';
+import theme from '../styles/theme';
 
 interface SMSStats {
   isEnabled: boolean;
@@ -641,88 +642,87 @@ function SMSScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f172a', // slate-900
   },
   header: {
-    backgroundColor: '#2E7D32',
-    padding: 20,
+    backgroundColor: '#1e293b', // slate-800
+    padding: theme.spacing.lg,
     paddingTop: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   title: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
+    color: '#cbd5e1', // slate-300
+    fontSize: theme.typography.h1.fontSize,
+    fontWeight: theme.typography.h1.fontWeight,
   },
   subtitle: {
-    color: 'white',
-    fontSize: 14,
-    opacity: 0.9,
-    marginTop: 4,
+    color: '#94a3b8', // slate-400
+    fontSize: theme.fontSize.sm,
+    marginTop: theme.spacing.xs,
   },
   statusCard: {
-    backgroundColor: 'white',
-    margin: 16,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    backgroundColor: '#1e293b', // slate-800
+    margin: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   statusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   statusTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+    color: '#cbd5e1', // slate-300
   },
   statusIndicator: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
   },
   statusActive: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#4ade80', // green-400
   },
   statusInactive: {
-    backgroundColor: '#F44336',
+    backgroundColor: '#ef4444', // red-500
   },
   statusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#ffffff',
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.semibold,
   },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   statusLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
   },
   statusValue: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: theme.fontSize.sm,
+    color: '#cbd5e1', // slate-300
+    fontWeight: theme.fontWeight.medium,
   },
   toggleCard: {
-    backgroundColor: 'white',
-    margin: 16,
+    backgroundColor: '#1e293b', // slate-800
+    margin: theme.spacing.md,
     marginTop: 0,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -731,41 +731,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   toggleTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
   },
   toggleSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    marginTop: theme.spacing.xs,
   },
   filterCard: {
-    backgroundColor: 'white',
-    margin: 16,
+    backgroundColor: '#1e293b', // slate-800
+    margin: theme.spacing.md,
     marginTop: 0,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   filterTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   filterSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    marginBottom: theme.spacing.md,
     lineHeight: 20,
   },
   checkboxContainer: {
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   checkboxRow: {
     flexDirection: 'row',
@@ -775,159 +774,152 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderWidth: 2,
-    borderRadius: 4,
-    marginRight: 12,
+    borderRadius: theme.borderRadius.sm,
+    marginRight: theme.spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: '#6366f1', // indigo-500
+    borderColor: '#6366f1',
   },
   checkboxUnchecked: {
     backgroundColor: 'transparent',
-    borderColor: '#E0E0E0',
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   checkmark: {
-    color: 'white',
+    color: '#ffffff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: theme.fontWeight.bold,
   },
   checkboxText: {
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    fontSize: theme.fontSize.md,
+    color: '#cbd5e1', // slate-300
+    fontWeight: theme.fontWeight.medium,
     flex: 1,
   },
   filterDescription: {
-    fontSize: 14,
-    color: '#4CAF50',
-    backgroundColor: '#E8F5E8',
-    padding: 12,
-    borderRadius: 8,
+    fontSize: theme.fontSize.sm,
+    color: '#4ade80', // green-400
+    backgroundColor: 'rgba(34, 197, 94, 0.15)', // green-500/15
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     borderLeftWidth: 4,
-    borderLeftColor: '#4CAF50',
+    borderLeftColor: '#4ade80', // green-400
     lineHeight: 20,
   },
   messageCard: {
-    backgroundColor: 'white',
-    margin: 16,
+    backgroundColor: '#1e293b', // slate-800
+    margin: theme.spacing.md,
     marginTop: 0,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   messageTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   messageSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    marginBottom: theme.spacing.md,
   },
   messageInput: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    fontSize: theme.fontSize.md,
     minHeight: 80,
-    marginBottom: 12,
-    color: '#000000',
-    backgroundColor: '#FFFFFF',
+    marginBottom: theme.spacing.md,
+    color: '#cbd5e1', // slate-300
+    backgroundColor: '#0f172a', // slate-900
   },
   updateButton: {
-    backgroundColor: '#2196F3',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    backgroundColor: '#6366f1', // indigo-500
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
   },
   updateButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
 
   clearCard: {
-    backgroundColor: 'white',
-    margin: 16,
+    backgroundColor: '#1e293b', // slate-800
+    margin: theme.spacing.md,
     marginTop: 0,
-    borderRadius: 12,
-    padding: 16,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#ef4444', // red-500
   },
   clearTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   clearSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    marginBottom: theme.spacing.md,
   },
   clearButton: {
-    backgroundColor: '#F44336',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    backgroundColor: '#ef4444', // red-500
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
   },
   clearButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
   infoCard: {
-    backgroundColor: '#E3F2FD',
-    margin: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)', // indigo-500/15
+    margin: theme.spacing.md,
     marginTop: 0,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
     borderLeftWidth: 4,
-    borderLeftColor: '#2196F3',
+    borderLeftColor: '#6366f1', // indigo-500
   },
   infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1976D2',
-    marginBottom: 8,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#a5b4fc', // indigo-300
+    marginBottom: theme.spacing.sm,
   },
   testButton: {
-    backgroundColor: '#9C27B0',
-    margin: 16,
+    backgroundColor: '#c084fc', // purple-400
+    margin: theme.spacing.md,
     marginTop: 0,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
   },
   testButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
   infoText: {
-    fontSize: 14,
-    color: '#1976D2',
+    fontSize: theme.fontSize.sm,
+    color: '#a5b4fc', // indigo-300
     lineHeight: 20,
   },
 });

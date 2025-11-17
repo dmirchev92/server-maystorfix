@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import theme from '../styles/theme';
 
 interface ReferredUser {
   referredUser: {
@@ -92,13 +93,6 @@ const ReferralDashboardScreen: React.FC = () => {
     fetchDashboard();
   };
 
-  const copyReferralCode = () => {
-    if (!dashboard?.referralCode) return;
-    
-    Clipboard.setString(dashboard.referralCode);
-    Alert.alert('Успех', 'Препоръчителният код е копиран!');
-  };
-
   const copyReferralLink = () => {
     if (!dashboard?.referralLink) return;
     
@@ -117,25 +111,6 @@ const ReferralDashboardScreen: React.FC = () => {
     } catch (error) {
       console.error('Error sharing:', error);
     }
-  };
-
-  const openWhatsApp = () => {
-    if (!dashboard?.referralLink) return;
-
-    const message = encodeURIComponent(
-      `Присъедини се към ServiceText Pro и получи достъп до най-добрите майстори в България! ${dashboard.referralLink}`
-    );
-    const url = `whatsapp://send?text=${message}`;
-    
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Alert.alert('Грешка', 'WhatsApp не е инсталиран на устройството');
-        }
-      })
-      .catch((err) => console.error('Error opening WhatsApp:', err));
   };
 
   const getRewardTypeText = (type: string) => {
@@ -223,20 +198,11 @@ const ReferralDashboardScreen: React.FC = () => {
         </View>
 
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.copyButton} onPress={copyReferralCode}>
-            <Text style={styles.copyButtonText}>📋 Копирай код</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.copyButton} onPress={copyReferralLink}>
-            <Text style={styles.copyButtonText}>🔗 Копирай връзка</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.shareButton} onPress={shareReferralLink}>
             <Text style={styles.shareButtonText}>📤 Сподели</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.whatsappButton} onPress={openWhatsApp}>
-            <Text style={styles.whatsappButtonText}>💬 WhatsApp</Text>
+          <TouchableOpacity style={styles.copyButton} onPress={copyReferralLink}>
+            <Text style={styles.copyButtonText}>🔗 Копирай връзка</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -357,187 +323,175 @@ const ReferralDashboardScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0f172a', // slate-900
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0f172a', // slate-900
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
+    marginTop: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: '#cbd5e1', // slate-300
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    padding: 20,
+    backgroundColor: '#0f172a', // slate-900
+    padding: theme.spacing.lg,
   },
   errorText: {
-    fontSize: 16,
-    color: '#EF4444',
+    fontSize: theme.fontSize.md,
+    color: '#ef4444', // red-500
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: '#6366f1', // indigo-500
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
   },
   retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#ffffff',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
   },
   header: {
-    padding: 20,
-    backgroundColor: 'white',
+    padding: theme.spacing.lg,
+    backgroundColor: '#1e293b', // slate-800
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: theme.typography.h1.fontSize,
+    fontWeight: theme.typography.h1.fontWeight,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+    fontSize: theme.fontSize.md,
+    color: '#94a3b8', // slate-400
   },
   card: {
-    backgroundColor: 'white',
-    margin: 16,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#1e293b', // slate-800
+    margin: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.md,
   },
   codeContainer: {
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   codeLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    marginBottom: theme.spacing.xs,
   },
   code: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#3B82F6',
+    fontWeight: theme.fontWeight.bold,
+    color: '#a5b4fc', // indigo-300
     fontFamily: 'monospace',
   },
   linkContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
   },
   linkLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    marginBottom: theme.spacing.xs,
   },
   link: {
-    fontSize: 14,
-    color: '#111827',
+    fontSize: theme.fontSize.sm,
+    color: '#cbd5e1', // slate-300
   },
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   copyButton: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: '#0f172a', // slate-900
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   copyButtonText: {
     textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
   },
   shareButton: {
     flex: 1,
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: '#6366f1', // indigo-500
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
     marginHorizontal: 4,
   },
   shareButtonText: {
     textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'white',
-  },
-  whatsappButton: {
-    flex: 1,
-    backgroundColor: '#10B981',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginHorizontal: 4,
-  },
-  whatsappButtonText: {
-    textAlign: 'center',
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'white',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#ffffff',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: theme.spacing.xxl,
   },
   emptyIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 8,
+    fontSize: theme.fontSize.md,
+    color: '#94a3b8', // slate-400
+    marginBottom: theme.spacing.sm,
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    fontSize: theme.fontSize.sm,
+    color: '#64748b', // slate-500
   },
   usersList: {
-    gap: 12,
+    gap: theme.spacing.md,
   },
   userCard: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 16,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    backgroundColor: '#0f172a', // slate-900
   },
   userInfo: {
-    marginBottom: 12,
+    marginBottom: theme.spacing.md,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   userStatus: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
   },
   userStats: {
     flexDirection: 'row',
@@ -548,74 +502,77 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#3B82F6',
+    fontWeight: theme.fontWeight.bold,
+    color: '#a5b4fc', // indigo-300
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: theme.fontSize.xs,
+    color: '#94a3b8', // slate-400
     marginTop: 2,
   },
   rewardsList: {
-    gap: 12,
+    gap: theme.spacing.md,
   },
   rewardCard: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 16,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    backgroundColor: '#0f172a', // slate-900
   },
   rewardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
   },
   rewardType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
   },
   rewardStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
   },
   rewardStatusText: {
-    fontSize: 12,
-    color: 'white',
-    fontWeight: '600',
+    fontSize: theme.fontSize.xs,
+    color: '#ffffff',
+    fontWeight: theme.fontWeight.semibold,
   },
   rewardProgress: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
+    marginBottom: theme.spacing.xs,
   },
   rewardDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    fontSize: theme.fontSize.xs,
+    color: '#64748b', // slate-500
   },
   tiersList: {
-    gap: 12,
+    gap: theme.spacing.md,
   },
   tierItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    backgroundColor: '#0f172a', // slate-900
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   tierClicks: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
   },
   tierReward: {
-    fontSize: 14,
-    color: '#10B981',
-    fontWeight: '600',
+    fontSize: theme.fontSize.sm,
+    color: '#4ade80', // green-400
+    fontWeight: theme.fontWeight.semibold,
   },
 });
 

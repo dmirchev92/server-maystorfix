@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import ApiService from '../services/ApiService';
 
 interface PointsBalanceWidgetProps {
@@ -40,27 +41,33 @@ const PointsBalanceWidget: React.FC<PointsBalanceWidgetProps> = ({ onPress, comp
 
   return (
     <TouchableOpacity 
-      style={[styles.container, compact && styles.containerCompact]} 
       onPress={onPress}
       activeOpacity={0.7}
+      style={compact && styles.containerCompact}
     >
-      <View style={styles.content}>
-        <Text style={styles.icon}>💰</Text>
-        <View style={styles.textContainer}>
-          <Text style={styles.label}>Точки</Text>
-          <Text style={styles.balance}>{balance ?? 0}</Text>
+      <LinearGradient
+        colors={['#3CCB72', '#0C544A']}
+        start={{ x: 0.00, y: 1.00 }}
+        end={{ x: 0.60, y: 0.00 }}
+        style={[styles.container, compact && styles.containerCompact]}
+      >
+        <View style={styles.content}>
+          <Text style={styles.icon}>💰</Text>
+          <View style={styles.textContainer}>
+            <Text style={styles.label}>Точки</Text>
+            <Text style={styles.balance}>{balance ?? 0}</Text>
+          </View>
         </View>
-      </View>
-      {!compact && (
-        <Text style={styles.arrow}>›</Text>
-      )}
+        {!compact && (
+          <Text style={styles.arrow}>›</Text>
+        )}
+      </LinearGradient>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#6366f1',
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',

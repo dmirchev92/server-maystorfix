@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
+import theme from '../styles/theme';
 
 interface Transaction {
   id: string;
@@ -203,45 +204,44 @@ const PointsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#0f172a', // slate-900
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#0f172a', // slate-900
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6b7280',
+    marginTop: theme.spacing.md,
+    fontSize: theme.fontSize.md,
+    color: '#cbd5e1', // slate-300
   },
   balanceCard: {
-    backgroundColor: '#6366f1',
-    margin: 16,
-    padding: 24,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    backgroundColor: '#1e293b', // slate-800
+    margin: theme.spacing.md,
+    padding: theme.spacing.xl,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   balanceLabel: {
-    color: '#e0e7ff',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
+    color: '#94a3b8', // slate-400
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
+    marginBottom: theme.spacing.sm,
   },
   balanceAmount: {
-    color: '#ffffff',
+    color: '#cbd5e1', // slate-300
     fontSize: 48,
-    fontWeight: 'bold',
-    marginBottom: 20,
+    fontWeight: theme.fontWeight.bold,
+    marginBottom: theme.spacing.lg,
   },
   statsRow: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
   },
   statItem: {
     flex: 1,
@@ -249,122 +249,122 @@ const styles = StyleSheet.create({
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#818cf8',
-    marginHorizontal: 16,
+    backgroundColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    marginHorizontal: theme.spacing.md,
   },
   statLabel: {
-    color: '#e0e7ff',
-    fontSize: 12,
-    marginBottom: 4,
+    color: '#94a3b8', // slate-400
+    fontSize: theme.fontSize.xs,
+    marginBottom: theme.spacing.xs,
   },
   statValue: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
   },
   subscriptionInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 16,
-    paddingTop: 16,
+    marginBottom: theme.spacing.md,
+    paddingTop: theme.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#818cf8',
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   subscriptionText: {
-    color: '#e0e7ff',
-    fontSize: 13,
+    color: '#94a3b8', // slate-400
+    fontSize: theme.fontSize.sm,
   },
   upgradeButton: {
-    backgroundColor: '#ffffff',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    backgroundColor: '#6366f1', // indigo-500
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
     alignItems: 'center',
   },
   upgradeButtonText: {
-    color: '#6366f1',
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#ffffff',
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
   },
   transactionsHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: '#1e293b', // slate-800
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   transactionsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.semibold,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   transactionsCount: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8', // slate-400
   },
   listContent: {
-    padding: 16,
+    padding: theme.spacing.md,
+    paddingBottom: 80,
   },
   transactionCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: '#1e293b', // slate-800
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1', // indigo-500
   },
   transactionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 12,
+    marginRight: theme.spacing.md,
   },
   transactionIcon: {
     fontSize: 24,
-    marginRight: 12,
+    marginRight: theme.spacing.md,
   },
   transactionInfo: {
     flex: 1,
   },
   transactionReason: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
+    color: '#cbd5e1', // slate-300
+    marginBottom: theme.spacing.xs,
   },
   transactionDate: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: theme.fontSize.xs,
+    color: '#94a3b8', // slate-400
   },
   transactionRight: {
     alignItems: 'flex-end',
   },
   transactionAmount: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
     marginBottom: 2,
   },
   transactionBalance: {
-    fontSize: 11,
-    color: '#6b7280',
+    fontSize: theme.fontSize.xs,
+    color: '#94a3b8', // slate-400
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: theme.spacing.xxl,
   },
   emptyIcon: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: theme.fontSize.md,
+    color: '#94a3b8', // slate-400
   },
 });
 

@@ -65,7 +65,7 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
   ];
 
   return (
-    <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900/90 text-slate-100 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 shadow-lg">
+    <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900/90 text-slate-100 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 shadow-lg relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -244,14 +244,17 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden border-t border-white/10 py-4">
+          <div className="md:hidden border-t border-white/10 py-4 relative z-50">
             <div className="space-y-2">
               {navigationItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className="flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-200 hover:text-white hover:bg-white/10 transition-colors duration-200"
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTimeout(() => setIsMenuOpen(false), 100);
+                  }}
                 >
                   <span>{item.icon}</span>
                   <span className="font-medium">{item.label}</span>

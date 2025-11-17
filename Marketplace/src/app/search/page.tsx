@@ -567,33 +567,32 @@ export default function SearchPage() {
                   <div key={provider.id} className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-white/20">
                     <div className="p-6">
                       {/* Provider Header */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            {/* Profile Picture */}
-                            {(provider as any).profileImageUrl ? (
-                              <img
-                                src={(provider as any).profileImageUrl}
-                                alt={(provider as any).businessName}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-white/30"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 border-2 border-white/30 rounded-full flex items-center justify-center">
-                                <span className="text-white text-sm font-bold">
-                                  {(provider as any).firstName?.charAt(0)}{(provider as any).lastName?.charAt(0)}
-                                </span>
-                              </div>
-                            )}
-                            <div>
-                              <h3 className="text-lg font-bold text-white">
-                                {(provider as any).businessName}
-                              </h3>
-                              <p className="text-sm text-slate-300 font-medium">
-                                {(provider as any).firstName} {(provider as any).lastName}
-                              </p>
+                      <div className="mb-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          {/* Profile Picture */}
+                          {(provider as any).profileImageUrl ? (
+                            <img
+                              src={(provider as any).profileImageUrl}
+                              alt={(provider as any).businessName}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-white/30"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 border-2 border-white/30 rounded-full flex items-center justify-center">
+                              <span className="text-white text-sm font-bold">
+                                {(provider as any).firstName?.charAt(0)}{(provider as any).lastName?.charAt(0)}
+                              </span>
                             </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-bold text-white truncate">
+                              {(provider as any).businessName}
+                            </h3>
+                            <p className="text-sm text-slate-300 font-medium truncate">
+                              {(provider as any).firstName} {(provider as any).lastName}
+                            </p>
                           </div>
                         </div>
+                        {/* Service Categories - Separate row */}
                         <div className="flex flex-wrap gap-2">
                           {((provider as any).serviceCategories && (provider as any).serviceCategories.length > 0) ? (
                             (provider as any).serviceCategories.map((cat: string, idx: number) => (
