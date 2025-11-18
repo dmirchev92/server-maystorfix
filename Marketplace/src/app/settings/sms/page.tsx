@@ -310,15 +310,16 @@ export default function SMSSettingsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-6">
-            {/* SMS Status */}
+            {/* Automation Settings (Merged Status & Filter) */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  <span className="text-2xl mr-2">📱</span>
-                  SMS Статус
+                  <span className="text-2xl mr-2">⚙️</span>
+                  Настройки за Автоматизация
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
+                {/* Auto SMS Toggle */}
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-medium text-white">Автоматични SMS</h3>
@@ -336,6 +337,31 @@ export default function SMSSettingsPage() {
                     <span
                       className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                         config.isEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="h-px bg-white/10" />
+
+                {/* Contact Filter Toggle */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-medium text-white">Филтриране на контакти</h3>
+                    <p className="text-slate-300">
+                      {config.filterKnownContacts ? 'Включено - SMS ще се изпращат само на непознати номера' : 'Изключено - SMS ще се изпращат на всички номера'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleToggleContactFilter}
+                    disabled={saving}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
+                      config.filterKnownContacts ? 'bg-indigo-600' : 'bg-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        config.filterKnownContacts ? 'translate-x-6' : 'translate-x-1'
                       }`}
                     />
                   </button>
@@ -397,117 +423,12 @@ export default function SMSSettingsPage() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Contact Filtering */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <span className="text-2xl mr-2">👥</span>
-                  Филтриране на Контакти
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium text-white">Филтрирай познати контакти</h3>
-                    <p className="text-slate-300">
-                      {config.filterKnownContacts ? 'Включено - SMS ще се изпращат само на непознати номера' : 'Изключено - SMS ще се изпращат на всички номера'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleToggleContactFilter}
-                    disabled={saving}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-                      config.filterKnownContacts ? 'bg-indigo-600' : 'bg-gray-200'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        config.filterKnownContacts ? 'translate-x-6' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
-          {/* Statistics & Actions */}
+          {/* Sidebar */}
           <div className="space-y-6">
             {/* SMS Limit Widget */}
             <SMSLimitWidget compact={false} showPurchaseButton={true} />
-
-            {/* Statistics */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <span className="text-2xl mr-2">📊</span>
-                  Статистики
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-white/10 p-3 rounded-lg border border-white/20">
-                    <div className="text-2xl font-bold text-indigo-400">{config.sentCount}</div>
-                    <div className="text-sm text-slate-300">Общо изпратени SMS</div>
-                  </div>
-                  <div className="bg-white/10 p-3 rounded-lg border border-white/20">
-                    <div className="text-2xl font-bold text-green-400">{stats.todayCount}</div>
-                    <div className="text-sm text-slate-300">Днес</div>
-                  </div>
-                  <div className="bg-white/10 p-3 rounded-lg border border-white/20">
-                    <div className="text-2xl font-bold text-orange-400">{config.processedCalls}</div>
-                    <div className="text-sm text-slate-300">Обработени обаждания</div>
-                  </div>
-                </div>
-
-                {config.lastSentTime && (
-                  <div className="text-sm text-slate-300">
-                    <strong>Последно SMS:</strong><br />
-                    {new Date(config.lastSentTime).toLocaleString('bg-BG')}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <span className="text-2xl mr-2">🛠️</span>
-                  Действия
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  onClick={handleClearHistory}
-                  disabled={saving}
-                  variant="outline"
-                  className="w-full bg-red-500/10 border-red-400/30 text-red-300 hover:bg-red-500/20"
-                >
-                  🗑️ Изчисти История
-                </Button>
-                <p className="text-xs text-slate-400">
-                  Изчистване на историята ще позволи SMS да се изпращат отново на номера, които вече са получавали SMS
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Help */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <span className="text-2xl mr-2">💡</span>
-                  Помощ
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-slate-300">
-                <p>• SMS се изпращат автоматично при пропуснати обаждания</p>
-                <p>• Всеки номер получава SMS само веднъж на 5 дни</p>
-                <p>• Чат връзката се обновява автоматично при всяко използване</p>
-                <p>• Можете да тествате настройките от мобилното приложение</p>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

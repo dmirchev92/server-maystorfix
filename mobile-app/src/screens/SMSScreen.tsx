@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SMSService } from '../services/SMSService';
 import { ApiService } from '../services/ApiService';
-import NotificationService from '../services/NotificationService';
 import { SocketIOService } from '../services/SocketIOService';
 import theme from '../styles/theme';
 
@@ -178,133 +177,23 @@ function SMSScreen() {
     setIsRefreshing(false);
   };
 
-  const testNotifications = async () => {
-    try {
-      const notificationService = NotificationService.getInstance();
-      
-      // Test chat notification
-      await notificationService.showChatNotification({
-        conversationId: 'test_123',
-        senderName: 'Test Customer',
-        message: 'This is a test notification message!',
-        timestamp: new Date().toISOString(),
-      });
-      
-      Alert.alert('✅ Success', 'Test chat notification sent!');
-      
-      // Test case notification after 3 seconds
-      setTimeout(async () => {
-        await notificationService.showCaseNotification({
-          caseId: 'case_456',
-          customerName: 'Jane Doe',
-          serviceType: 'Plumbing',
-          description: 'Need urgent plumbing repair',
-          priority: 'urgent',
-        });
-      }, 3000);
-      
-    } catch (error) {
-      console.error('❌ Error testing notifications:', error);
-      Alert.alert('❌ Error', 'Failed to send test notification');
-    }
-  };
-
   const handleToggleSMS = async () => {
     try {
       const newEnabled = await smsService.toggleEnabled();
       if (newEnabled) {
         Alert.alert(
-          'SMS Enabled! 📱',
-          'Automatic SMS will now be sent when you miss calls.\n\nMake sure to test with a missed call!',
-          [{ text: 'OK' }]
+          'SMS Включени! 📱',
+          'Автоматични SMS ще се изпращат при пропуснати повиквания.\n\nТествайте с пропуснато повикване!',
+          [{ text: 'Добре' }]
         );
       } else {
-        Alert.alert('SMS Disabled', 'Automatic SMS sending has been turned off.');
+        Alert.alert('SMS Изключени', 'Автоматичното изпращане на SMS е изключено.');
       }
       await loadSMSData();
     } catch (error) {
       console.error('Error toggling SMS:', error);
-      Alert.alert('Error', 'Failed to toggle SMS settings');
+      Alert.alert('Грешка', 'Неуспешна промяна на SMS настройките');
     }
-  };
-
-  const handleUpdateMessage = async () => {
-    if (messageText.trim().length === 0) {
-      Alert.alert('Error', 'Message cannot be empty');
-      return;
-    }
-
-    try {
-      await smsService.updateMessage(messageText.trim());
-      Alert.alert('Message Updated! ✅', 'Your SMS message has been saved.');
-      await loadSMSData();
-    } catch (error) {
-      console.error('Error updating message:', error);
-      Alert.alert('Error', 'Failed to update message');
-    }
-  };
-
-  const handleTestChatLink = async () => {
-    try {
-      console.log('🧪 BUTTON PRESSED: Testing chat link generation...');
-      
-      // Get current user ID first
-      const userResponse = await ApiService.getInstance().getCurrentUser();
-      const currentUser = (userResponse.data as any)?.user || userResponse.data; // Handle both formats
-      const currentUserId = currentUser?.id;
-      
-      if (!currentUserId) {
-        Alert.alert('Error', 'Could not get current user ID');
-        return;
-      }
-      
-      console.log('👤 Using current user ID for SMS test:', currentUserId);
-      
-      // Generate real SMS text with actual current user token
-      const result = await smsService.testGenerateChatLink(currentUserId, '+359888123456');
-      
-      Alert.alert(
-        '🧪 Real SMS Text Generated!',
-        `This is the actual SMS that would be sent:\n\n${result.message}\n\nToken: ${result.token}\nURL: ${result.url}\n\nThe link is now LIVE and ready to test!\n\nUser ID: ${currentUserId}`,
-        [
-          { text: 'Copy URL', onPress: () => {
-            // You can manually copy the URL from the alert
-            console.log('🔗 Copy this URL to test:', result.url);
-          }},
-          { text: 'OK' }
-        ]
-      );
-      
-    } catch (error) {
-      console.error('❌ Error testing chat link:', error);
-      Alert.alert('Error', 'Failed to generate test chat link');
-    }
-  };
-
-
-
-  const handleClearHistory = async () => {
-    Alert.alert(
-      'Clear SMS History',
-      'This will clear the history of processed calls. Only NEW missed calls will get SMS after this.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear History',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await smsService.clearSMSSentHistory();
-              Alert.alert('History Cleared! ✅', 'SMS history has been cleared. Only new missed calls will get SMS.');
-              await loadSMSData();
-            } catch (error) {
-              console.error('Error clearing history:', error);
-              Alert.alert('Error', 'Failed to clear SMS history');
-            }
-          }
-        }
-      ]
-    );
   };
 
   const handleToggleContactFiltering = async () => {
@@ -326,9 +215,9 @@ function SMSScreen() {
         
         if (!hasPermission) {
           Alert.alert(
-            'Permission Required',
-            'Contact filtering requires access to your contacts. Please grant the permission to continue.',
-            [{ text: 'OK' }]
+            'Изисква се разрешение',
+            'Филтрирането на контакти изисква достъп до контактите. Моля, разрешете достъпа.',
+            [{ text: 'Добре' }]
           );
           return;
         }
@@ -339,15 +228,15 @@ function SMSScreen() {
       
       if (newFiltering) {
         Alert.alert(
-          'Contact Filtering Enabled! 📞',
-          'SMS will only be sent to unknown numbers (not in your contacts).\n\nThis helps avoid sending SMS to family members and friends.',
-          [{ text: 'OK' }]
+          'Филтрирането на контакти е включено! 📞',
+          'SMS ще се изпращат само до непознати номера.\n\nТова предотвратява пращането на SMS до близки.',
+          [{ text: 'Добре' }]
         );
       } else {
         Alert.alert(
-          'Contact Filtering Disabled',
-          'SMS will be sent to all missed calls, including contacts.',
-          [{ text: 'OK' }]
+          'Филтрирането на контакти е изключено',
+          'SMS ще се изпращат до всички пропуснати повиквания, включително контакти.',
+          [{ text: 'Добре' }]
         );
       }
       
@@ -356,33 +245,14 @@ function SMSScreen() {
       
     } catch (error) {
       console.error('Error toggling contact filtering:', error);
-      Alert.alert('Error', 'Failed to toggle contact filtering');
+      Alert.alert('Грешка', 'Неуспешна промяна на филтрирането');
     }
   };
 
   const formatLastSent = (timestamp?: number) => {
-    if (!timestamp) return 'Never';
+    if (!timestamp) return 'Никога';
     const date = new Date(timestamp);
     return date.toLocaleString('bg-BG');
-  };
-
-  const testMissedCallDetection = async () => {
-    try {
-      const { ModernCallDetectionService } = await import('../services/ModernCallDetectionService');
-      const callService = ModernCallDetectionService.getInstance();
-      
-      // Use safe test method that only checks filtering without sending SMS
-      const result = await callService.testContactFiltering();
-      
-      Alert.alert(
-        'Test Complete', 
-        'Check the console logs for contact filtering results. No SMS was sent.',
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      Alert.alert('Error', `Test failed: ${error}`);
-      console.error('Test error:', error);
-    }
   };
 
   return (
@@ -394,127 +264,69 @@ function SMSScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>SMS Settings</Text>
-        <Text style={styles.subtitle}>Automatic SMS for missed calls</Text>
+        <Text style={styles.title}>SMS Настройки</Text>
+        <Text style={styles.subtitle}>Автоматични SMS при пропуснати повиквания</Text>
       </View>
 
-      {/* Test Notifications Button */}
-      <TouchableOpacity
-        style={styles.testButton}
-        onPress={testNotifications}
-      >
-        <Text style={styles.testButtonText}>🔔 Test Notifications</Text>
-      </TouchableOpacity>
-
-      {/* Status Card */}
+      {/* Automation Settings Card */}
       <View style={styles.statusCard}>
         <View style={styles.statusHeader}>
-          <Text style={styles.statusTitle}>SMS Status</Text>
-          <View style={[
-            styles.statusIndicator,
-            smsStats.isEnabled ? styles.statusActive : styles.statusInactive
-          ]}>
-            <Text style={styles.statusText}>
-              {smsStats.isEnabled ? 'Enabled' : 'Disabled'}
-            </Text>
-          </View>
+          <Text style={styles.statusTitle}>Настройки за автоматизация</Text>
+        </View>
+
+        {/* Enable/Disable Switch */}
+        <View style={styles.statusRow}>
+          <Text style={styles.statusLabel}>Включи автоматични SMS</Text>
+          <Switch
+            value={smsStats.isEnabled}
+            onValueChange={handleToggleSMS}
+            trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
+            thumbColor={smsStats.isEnabled ? '#FFFFFF' : '#F4F3F4'}
+          />
         </View>
 
         <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Permission:</Text>
-          <Text style={[
-            styles.statusValue,
-            { color: permissions?.hasAllPermissions ? '#4CAF50' : '#F44336' }
-          ]}>
-            {permissions?.hasAllPermissions ? 'Granted' : 'Not Granted'}
-          </Text>
-        </View>
-
-        <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Messages Sent:</Text>
+          <Text style={styles.statusLabel}>Изпратени съобщения:</Text>
           <Text style={styles.statusValue}>{smsStats.sentCount}</Text>
         </View>
 
+        <View style={styles.divider} />
+
+        {/* Contact Filtering Section */}
         <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Last Sent:</Text>
-          <Text style={styles.statusValue}>{formatLastSent(smsStats.lastSentTime)}</Text>
-        </View>
-
-        <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Processed Calls:</Text>
-          <Text style={styles.statusValue}>{smsStats.processedCalls}</Text>
-        </View>
-      </View>
-
-      {/* Test Button */}
-      <TouchableOpacity 
-        style={styles.testButton}
-        onPress={testMissedCallDetection}
-      >
-        <Text style={styles.testButtonText}>🧪 Test Missed Call Detection</Text>
-      </TouchableOpacity>
-
-      {/* Toggle Switch */}
-      <View style={styles.toggleCard}>
-        <View style={styles.toggleHeader}>
-          <Text style={styles.toggleTitle}>Enable Automatic SMS</Text>
-          <Text style={styles.toggleSubtitle}>
-            Send SMS automatically when you miss a call
-          </Text>
-        </View>
-        <Switch
-          value={smsStats.isEnabled}
-          onValueChange={handleToggleSMS}
-          trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
-          thumbColor={smsStats.isEnabled ? '#FFFFFF' : '#F4F3F4'}
-        />
-      </View>
-
-      {/* Contact Filtering Checkbox */}
-      <View style={styles.filterCard}>
-        <Text style={styles.filterTitle}>Contact Filtering</Text>
-        <Text style={styles.filterSubtitle}>
-          Choose whether to send SMS to people in your contacts
-        </Text>
-        
-        <TouchableOpacity 
-          style={styles.checkboxContainer}
-          onPress={handleToggleContactFiltering}
-        >
-          <View style={styles.checkboxRow}>
-            <View style={[
-              styles.checkbox,
-              !(smsStats.filterKnownContacts ?? false) ? styles.checkboxChecked : styles.checkboxUnchecked
-            ]}>
-              {!(smsStats.filterKnownContacts ?? false) && (
-                <Text style={styles.checkmark}>✓</Text>
-              )}
-            </View>
-            <Text style={styles.checkboxText}>
-              Include existing contacts {(smsStats.filterKnownContacts ?? false) ? '(OFF)' : '(ON)'}
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <Text style={styles.filterTitle}>Филтриране на контакти</Text>
+            <Text style={styles.filterSubtitle}>
+              Изберете дали да пращате SMS на хора от контактите си
             </Text>
           </View>
-        </TouchableOpacity>
+          <Switch
+            value={smsStats.filterKnownContacts ?? false}
+            onValueChange={handleToggleContactFiltering}
+            trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
+            thumbColor={(smsStats.filterKnownContacts ?? false) ? '#FFFFFF' : '#F4F3F4'}
+          />
+        </View>
         
         <Text style={styles.filterDescription}>
-          {!(smsStats.filterKnownContacts ?? false)
-            ? '✅ SMS will be sent to ALL missed calls (including family, friends, and strangers)'
-            : '🚫 SMS will only be sent to unknown numbers (strangers only, not family/friends)'
+          {(smsStats.filterKnownContacts ?? false)
+            ? '✅ Филтърът е ВКЛЮЧЕН: SMS ще се изпращат само до непознати номера (не на семейство/приятели)'
+            : '🚫 Филтърът е ИЗКЛЮЧЕН: SMS ще се изпращат до ВСИЧКИ пропуснати повиквания (вкл. семейство и приятели)'
           }
         </Text>
       </View>
 
       {/* Message Configuration */}
       <View style={styles.messageCard}>
-        <Text style={styles.messageTitle}>SMS Message Template</Text>
+        <Text style={styles.messageTitle}>Шаблон за SMS съобщение</Text>
         <Text style={styles.messageSubtitle}>
-          This template will be sent when you miss a call. Use [chat_link] for the auto-updating chat URL.
+          Този шаблон ще се изпраща при пропуснато повикване. Използвайте [chat_link] за автоматичния линк за чат.
         </Text>
         
         <View style={[styles.statusRow, { marginBottom: 10, padding: 10, backgroundColor: '#f0f8ff', borderRadius: 8 }]}>
-          <Text style={[styles.statusLabel, { fontWeight: 'bold' }]}>Current Chat Link:</Text>
+          <Text style={[styles.statusLabel, { fontWeight: 'bold' }]}>Текущ линк за чат:</Text>
           <Text style={[styles.statusValue, { fontSize: 12, color: smsService.getCurrentChatLinkSync().includes('http') ? '#0066cc' : isGeneratingLink ? '#999' : '#ff6b35' }]} numberOfLines={1}>
-            {isGeneratingLink ? '🔄 Auto-generating chat link...' : smsService.getCurrentChatLinkSync()}
+            {isGeneratingLink ? '🔄 Генериране на линк...' : smsService.getCurrentChatLinkSync()}
           </Text>
         </View>
         
@@ -535,104 +347,30 @@ function SMSScreen() {
         />
         
         <Text style={[styles.messageSubtitle, { fontSize: 12, marginTop: 8, fontStyle: 'italic' }]}>
-          💡 Tip: Use [chat_link] where you want the auto-updating chat link to appear. Link refreshes automatically when used.
+          💡 Съвет: Използвайте [chat_link] там, където искате да се покаже линкът. Той се обновява автоматично при ползване.
         </Text>
         
         {/* SMS Preview */}
         <View style={{ marginTop: 15, padding: 12, backgroundColor: '#f8f9fa', borderRadius: 8, borderLeftWidth: 4, borderLeftColor: '#007bff' }}>
-          <Text style={[styles.statusLabel, { fontSize: 14, fontWeight: 'bold', marginBottom: 8 }]}>📱 SMS Preview:</Text>
+          <Text style={[styles.statusLabel, { fontSize: 14, fontWeight: 'bold', marginBottom: 8 }]}>📱 Преглед на SMS:</Text>
           <Text style={{ fontSize: 13, lineHeight: 18, color: '#333' }}>
-            {displayText || 'Loading SMS preview...'}
+            {displayText || 'Зареждане на преглед...'}
           </Text>
           <Text style={[styles.messageSubtitle, { fontSize: 11, marginTop: 5, fontStyle: 'italic' }]}>
-            This is what customers will receive
+            Това ще получат клиентите
           </Text>
         </View>
-        
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <TouchableOpacity
-            style={[styles.updateButton, { flex: 1 }]}
-            onPress={handleUpdateMessage}
-          >
-            <Text style={styles.updateButtonText}>Update Template</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.updateButton, { backgroundColor: '#28a745', flex: 0.48 }]}
-            onPress={async () => {
-              try {
-                await smsService.regenerateChatLink();
-                Alert.alert('✅ Success', 'New chat link generated!');
-                await loadSMSData(); // Refresh to show new link
-                // Update display text with new link
-                const currentLink = smsService.getCurrentChatLinkSync();
-                setDisplayText(messageText.replace('[chat_link]', currentLink));
-              } catch (error) {
-                Alert.alert('❌ Error', 'Failed to generate new chat link');
-              }
-            }}
-          >
-            <Text style={styles.updateButtonText}>🔄 New Link</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.updateButton, { backgroundColor: '#9B59B6', flex: 0.48 }]}
-            onPress={async () => {
-              try {
-                Alert.alert('🔄 Generating...', 'Please wait while we generate your chat link');
-                await smsService.initializeChatLink();
-                await loadSMSData(); // Refresh to show new link
-                Alert.alert('✅ Success', 'Chat link generated successfully!');
-              } catch (error) {
-                Alert.alert('❌ Error', 'Failed to generate chat link. Please make sure you are logged in.');
-              }
-            }}
-          >
-            <Text style={styles.updateButtonText}>🔗 Generate</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Test Chat Link */}
-      <View style={[styles.messageCard, { backgroundColor: '#FFF3E0', borderColor: '#FF9800', borderWidth: 2 }]}>
-        <Text style={styles.messageTitle}>🧪 Test Chat Link</Text>
-        <Text style={styles.messageSubtitle}>
-          Generate real SMS text with working chat link for testing
-        </Text>
-        
-        <TouchableOpacity
-          style={[styles.updateButton, { backgroundColor: '#FF9800' }]}
-          onPress={handleTestChatLink}
-        >
-          <Text style={styles.updateButtonText}>🧪 Generate Test SMS Link</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Clear History */}
-      <View style={styles.clearCard}>
-        <Text style={styles.clearTitle}>Clear SMS History</Text>
-        <Text style={styles.clearSubtitle}>
-          Clear processed calls history. Only NEW missed calls will get SMS after this.
-        </Text>
-        
-        <TouchableOpacity
-          style={styles.clearButton}
-          onPress={handleClearHistory}
-        >
-          <Text style={styles.clearButtonText}>Clear History</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Info Card */}
       <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>How it works:</Text>
+        <Text style={styles.infoTitle}>Как работи:</Text>
         <Text style={styles.infoText}>
-          1. Enable automatic SMS above{'\n'}
-          2. Enable contact filtering to avoid SMS to family/friends{'\n'}
-          3. Grant SMS and contacts permissions when prompted{'\n'}
-          4. Only NEW missed calls will get SMS (not old ones){'\n'}
-          5. Each call gets only 1 SMS (no duplicates){'\n'}
-          6. Use "Clear History" to reset for new calls
+          1. Включете автоматичните SMS отгоре{'\n'}
+          2. Включете филтрирането на контакти, за да избегнете SMS до близки{'\n'}
+          3. Разрешете достъп до контактите, когато бъде поискан{'\n'}
+          4. Само НОВИ пропуснати повиквания получават SMS{'\n'}
+          5. Всяко повикване получава само 1 SMS (без дубликати)
         </Text>
       </View>
     </ScrollView>
@@ -703,6 +441,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    marginVertical: theme.spacing.md,
   },
   statusLabel: {
     fontSize: theme.fontSize.sm,

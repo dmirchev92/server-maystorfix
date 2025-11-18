@@ -175,12 +175,15 @@ export class SMSService {
         const result: any = await response.json();
         if (result.success && result.data?.config) {
           const apiConfig = result.data.config;
+          console.log('📥 Raw API config keys:', Object.keys(apiConfig));
+          
+          // Handle both camelCase (standard JSON) and snake_case (DB direct)
           return {
-            isEnabled: apiConfig.isEnabled,
+            isEnabled: apiConfig.isEnabled ?? apiConfig.is_enabled,
             message: apiConfig.message,
-            sentCount: apiConfig.sentCount,
-            lastSentTime: apiConfig.lastSentTime,
-            filterKnownContacts: apiConfig.filterKnownContacts,
+            sentCount: apiConfig.sentCount ?? apiConfig.sent_count,
+            lastSentTime: apiConfig.lastSentTime ?? apiConfig.last_sent_time,
+            filterKnownContacts: apiConfig.filterKnownContacts ?? apiConfig.filter_known_contacts,
             sentCallIds: [] // This is managed locally for now
           };
         }
