@@ -1,4 +1,4 @@
-import notifee, { AndroidImportance, AndroidStyle, EventType } from '@notifee/react-native';
+import notifee, { AndroidImportance, AndroidStyle, EventType, AndroidCategory } from '@notifee/react-native';
 import { Platform } from 'react-native';
 
 export interface ChatNotification {
@@ -112,7 +112,7 @@ class NotificationService {
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
-        vibrationPattern: [500, 500, 500],
+        vibrationPattern: [500, 500, 500, 500],
         lights: true,
         lightColor: '#FF4444',
         badge: true,
@@ -126,7 +126,7 @@ class NotificationService {
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
-        vibrationPattern: [500, 200, 500, 200, 500],
+        vibrationPattern: [0, 500, 200, 500, 200, 500],
         lights: true,
         lightColor: '#FF0000',
         badge: true,
@@ -211,7 +211,7 @@ class NotificationService {
           sound: 'default',
           vibrationPattern: [300, 500],
           // Show as heads-up notification
-          category: 'message',
+          category: AndroidCategory.MESSAGE,
           showTimestamp: true,
           timestamp: Date.now(),
           // Auto-cancel when tapped
@@ -278,9 +278,9 @@ class NotificationService {
           largeIcon: 'ic_launcher',
           color: data.priority === 'urgent' ? '#FF4444' : '#4A90E2',
           sound: 'default',
-          vibrationPattern: data.priority === 'urgent' ? [500, 200, 500, 200, 500] : [300, 500],
+          vibrationPattern: data.priority === 'urgent' ? [0, 500, 200, 500, 200, 500] : [300, 500],
           // Show as heads-up notification
-          category: 'event',
+          category: AndroidCategory.EVENT,
           showTimestamp: true,
           timestamp: Date.now(),
           autoCancel: true,

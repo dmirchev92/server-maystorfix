@@ -212,11 +212,12 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
  */
 export const searchProviders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { city, neighborhood, category, limit = 50, offset = 0 } = req.query;
+    const { city, neighborhood, category, limit = 50, offset = 0, lat, lng, radius } = req.query;
 
-    logger.info('🔍 Searching providers with filters:', { city, neighborhood, category, limit, offset });
+    logger.info('🔍 Searching providers with filters:', { city, neighborhood, category, limit, offset, lat, lng, radius });
 
-    let query = `
+    // Base selection
+    let selectQuery = `
       SELECT 
         u.id, u.first_name, u.last_name, u.email, u.phone_number,
         spp.business_name, spp.service_category, spp.description,
@@ -224,63 +225,92 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
         spp.address, spp.phone_number as profile_phone, 
         spp.email as profile_email, spp.website_url as website, 
         spp.profile_image_url, spp.rating, spp.total_reviews, spp.is_active,
-        COALESCE(
-          (SELECT json_agg(psc.category_id) 
-           FROM provider_service_categories psc 
-           WHERE psc.provider_id = u.id),
-          '[]'::json
-        ) as service_categories,
-        COALESCE(
-          (SELECT COUNT(*) 
-           FROM marketplace_service_cases msc 
-           WHERE msc.provider_id = u.id AND msc.status = 'completed'),
-          0
-        ) as completed_projects
-      FROM users u
-      LEFT JOIN service_provider_profiles spp ON u.id = spp.user_id
-      WHERE u.role = 'tradesperson' 
-        AND (spp.is_active = TRUE OR spp.is_active IS NULL)
-        AND (
-          u.subscription_tier_id != 'free' 
-          OR u.trial_expired = FALSE 
-          OR u.trial_expired IS NULL
-        )
+        spp.latitude, spp.longitude,
+        COALESCE((SELECT json_agg(psc.category_id) FROM provider_service_categories psc WHERE psc.provider_id = u.id), '[]'::json) as service_categories,
+        COALESCE((SELECT COUNT(*) FROM marketplace_service_cases msc WHERE msc.provider_id = u.id AND msc.status = 'completed'), 0) as completed_projects
     `;
 
     const params: any[] = [];
     let paramIndex = 1;
 
+    if (lat && lng) {
+      // Haversine distance calculation
+      selectQuery += `,
+        (6371 * acos(
+          LEAST(1.0, GREATEST(-1.0, 
+            cos(radians($${paramIndex})) * cos(radians(spp.latitude)) * cos(radians(spp.longitude) - radians($${paramIndex+1})) +
+            sin(radians($${paramIndex+2})) * sin(radians(spp.latitude))
+          ))
+        )) as distance`;
+      
+      params.push(Number(lat)); // $1 (cos lat)
+      params.push(Number(lng)); // $2 (cos long diff)
+      params.push(Number(lat)); // $3 (sin lat)
+      paramIndex += 3;
+    } else {
+      selectQuery += `, NULL as distance`;
+    }
+
+    let fromWhereClause = `
+      FROM users u
+      LEFT JOIN service_provider_profiles spp ON u.id = spp.user_id
+      WHERE u.role = 'tradesperson' 
+        AND (spp.is_active = TRUE OR spp.is_active IS NULL)
+        AND (u.subscription_tier_id != 'free' OR u.trial_expired = FALSE OR u.trial_expired IS NULL)
+    `;
+
     if (city) {
-      query += ` AND spp.city = $${paramIndex++}`;
+      fromWhereClause += ` AND spp.city = $${paramIndex++}`;
       params.push(city);
     }
 
     if (neighborhood) {
-      query += ` AND spp.neighborhood = $${paramIndex++}`;
+      fromWhereClause += ` AND spp.neighborhood = $${paramIndex++}`;
       params.push(neighborhood);
     }
 
     if (category) {
-      query += ` AND EXISTS (
-        SELECT 1 FROM provider_service_categories psc 
-        WHERE psc.provider_id = u.id AND psc.category_id = $${paramIndex++}
-      )`;
+      fromWhereClause += ` AND EXISTS (SELECT 1 FROM provider_service_categories psc WHERE psc.provider_id = u.id AND psc.category_id = $${paramIndex++})`;
       params.push(category);
     }
 
-    // Order by rating (highest first), then total reviews, then newest
-    query += ` ORDER BY 
-      COALESCE(spp.rating, 0) DESC, 
-      COALESCE(spp.total_reviews, 0) DESC, 
-      spp.created_at DESC 
-      LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+    // Final Query Construction
+    let finalQuery = `WITH ranked_providers AS (${selectQuery} ${fromWhereClause}) SELECT * FROM ranked_providers`;
+
+    if (lat && lng && radius) {
+      finalQuery += ` WHERE distance <= $${paramIndex++}`;
+      params.push(Number(radius));
+    }
+
+    // Sorting
+    if (lat && lng) {
+      finalQuery += ` ORDER BY distance ASC, rating DESC NULLS LAST`;
+    } else {
+      finalQuery += ` ORDER BY rating DESC NULLS LAST, total_reviews DESC, completed_projects DESC`;
+    }
+
+    finalQuery += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     params.push(Number(limit), Number(offset));
 
-    // Use PostgreSQL query
-    const providers = await (db as any).query(query, params);
+    logger.info('🔍 Executing SQL:', finalQuery);
+    logger.info('🔍 Params:', params);
 
-    // Transform the data
-    const transformedProviders = providers.map(provider => ({
+    // Execute Query
+    const result = await (db as any).query(finalQuery, params);
+    
+    // Handle Result Format
+    let providers: any[] = [];
+    if (Array.isArray(result)) {
+      providers = result;
+    } else if (result && Array.isArray(result.rows)) {
+      providers = result.rows;
+    } else {
+      logger.warn('⚠️ Unexpected database result format:', result);
+      providers = [];
+    }
+
+    // Transform Data
+    const transformedProviders = providers.map((provider: any) => ({
       id: provider.id,
       email: provider.email,
       firstName: provider.first_name,
@@ -302,12 +332,15 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       rating: provider.rating || 0,
       totalReviews: provider.total_reviews || 0,
       completedProjects: parseInt(provider.completed_projects) || 0,
-      isActive: Boolean(provider.is_active)
+      isActive: Boolean(provider.is_active),
+      latitude: provider.latitude ? parseFloat(provider.latitude) : null,
+      longitude: provider.longitude ? parseFloat(provider.longitude) : null,
+      distance: provider.distance ? parseFloat(provider.distance) : null
     }));
 
     logger.info('✅ Provider search completed', { 
       resultsCount: transformedProviders.length,
-      filters: { city, neighborhood, category }
+      filters: { city, neighborhood, category, radius }
     });
 
     res.json({
@@ -324,6 +357,7 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
 
   } catch (error) {
     logger.error('❌ Error searching providers:', error);
+    console.error('❌ DEBUG Error details:', error);
     res.status(500).json({
       success: false,
       error: {

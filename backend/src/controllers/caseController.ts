@@ -6,9 +6,11 @@ import { v4 as uuidv4 } from 'uuid';
 import SmartMatchingService from '../services/SmartMatchingService';
 import NotificationService from '../services/NotificationService';
 import trialService from '../services/TrialService';
+import { SubscriptionService } from '../services/SubscriptionService';
 import { getIO } from '../server';
 
 const db = DatabaseFactory.getDatabase();
+const subscriptionService = new SubscriptionService();
 
 // Get NotificationService instance with Socket.IO
 function getNotificationService(): NotificationService {
@@ -48,7 +50,10 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       category,
       squareMeters,
       conversationId,
-      chatSource: directChatSource // Direct chat source from request (e.g., 'searchchat')
+      chatSource: directChatSource, // Direct chat source from request (e.g., 'searchchat')
+      latitude,
+      longitude,
+      formattedAddress
     } = req.body;
     
     // Determine chat_source: use direct source if provided, otherwise inherit from conversation
@@ -76,12 +81,27 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       }
     }
 
-    // Log case creation details for debugging
-    logger.info('📝 Creating case with data:', {
+    // Fallback for missing coordinates if City is Sofia (common issue with UI dropdowns)
+    let finalLat = latitude;
+    let finalLng = longitude;
+    
+    if ((!finalLat || !finalLng) && (city?.toLowerCase().includes('sofia') || city?.toLowerCase().includes('софия'))) {
+       finalLat = 42.6977;
+       finalLng = 23.3219;
+       logger.info('📍 Using fallback coordinates for Sofia (missing in request)');
+    }
+
+    // Log case creation details for debugging (Use console.log for production visibility)
+    console.log('📝 Creating case with data:', {
       customerId,
       providerId,
       assignmentType,
-      hasCustomerId: !!customerId
+      hasCustomerId: !!customerId,
+      latitude: finalLat,
+      longitude: finalLng,
+      originalLat: latitude,
+      city,
+      address
     });
 
     // Validate required fields
@@ -118,13 +138,32 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
     // Create the case record - Use database abstraction
     if (DatabaseFactory.isPostgreSQL()) {
       // PostgreSQL syntax
+      
+      // Calculate exclusive_until if location is provided (10 mins for PROs)
+      let exclusiveUntil = null;
+      let locationSearchStatus = 'pending';
+      let searchRadiusKm = 5;
+      let locationSearchStartedAt = null;
+
+      if (finalLat && finalLng) {
+        const exclusiveDate = new Date();
+        exclusiveDate.setMinutes(exclusiveDate.getMinutes() + 10);
+        exclusiveUntil = exclusiveDate.toISOString();
+        
+        locationSearchStatus = 'active';
+        locationSearchStartedAt = now;
+      }
+
       await (db as any).query(
         `INSERT INTO marketplace_service_cases (
           id, service_type, description, preferred_date, preferred_time,
           priority, budget, bidding_enabled, max_bidders, city, neighborhood, phone, additional_details, provider_id,
           provider_name, is_open_case, assignment_type, status,
-          customer_id, category, square_meters, chat_source, created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
+          customer_id, category, square_meters, chat_source, 
+          latitude, longitude, formatted_address, location_search_status, 
+          search_radius_km, location_search_started_at, exclusive_until,
+          created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)`,
         [
           caseId,
           serviceType,
@@ -148,6 +187,13 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           category || serviceType || 'general',
           squareMeters ? parseFloat(squareMeters) : null,
           chatSource,
+          finalLat || null,
+          finalLng || null,
+          formattedAddress || null,
+          locationSearchStatus,
+          searchRadiusKm,
+          locationSearchStartedAt,
+          exclusiveUntil,
           now,
           now
         ]
@@ -265,12 +311,80 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       // Fire and forget - don't await
       (async () => {
         try {
+          // 1. Instant Alert for Nearby PROs (Uber-like)
+          let notifiedProIds: string[] = [];
+          
+          if (finalLat && finalLng && budget) {
+            try {
+              const smartMatchingService = new SmartMatchingService();
+              // Find PROs within 15km
+              const nearbyPros = await smartMatchingService.findNearbyProProviders(
+                category || serviceType || 'general',
+                finalLat,
+                finalLng,
+                15 // Increased from 5km to 15km to cover city area
+              );
+              
+              if (nearbyPros.length > 0) {
+                console.log(`🔔 Found ${nearbyPros.length} nearby PROs for instant alert (Radius: 15km)`);
+                const notificationService = getNotificationService();
+                
+                // Deduplicate pros just in case
+                const uniquePros = nearbyPros.filter((pro, index, self) => 
+                  index === self.findIndex((p) => p.id === pro.id)
+                );
+                
+                for (const pro of uniquePros) {
+                  // Calculate accurate distance if available in pro object, otherwise generic
+                  const dist = (pro as any).distance ? parseFloat((pro as any).distance).toFixed(1) : '5';
+                  
+                  // Check if we should notify this pro (might have been excluded)
+                  if (notifiedProIds.includes(pro.id)) continue;
+
+                  // Fetch screenshots for this case
+                  const screenshotsResult = await db.query(
+                    'SELECT image_url FROM case_screenshots WHERE case_id = $1 ORDER BY created_at ASC',
+                    [caseId]
+                  );
+                  const screenshots = screenshotsResult.map((s: any) => ({ url: s.image_url }));
+
+                  await notificationService.createNotification(
+                    pro.id,
+                    'job_incoming', // Special type for Full Screen Modal
+                    '🔔 НОВА ЗАЯВКА НАБЛИЗО!',
+                    `Клиент търси ${category || serviceType} на ${dist}км от вас. Бюджет: ${budget} лв.`,
+                    {
+                      caseId,
+                      distance: dist,
+                      budget,
+                      description: description.substring(0, 100),
+                      category: category || serviceType,
+                      location: formattedAddress || city || 'Unknown Location',
+                      customerName: 'Клиент', // Anonymized until accepted
+                      screenshots // Include screenshots in notification payload
+                    }
+                  );
+                  notifiedProIds.push(pro.id);
+                }
+                logger.info('✅ Instant alerts sent to PROs', { count: notifiedProIds.length });
+              } else {
+                logger.info('ℹ️ No nearby PROs found for instant alert');
+              }
+            } catch (alertError) {
+              logger.error('❌ Error sending instant alerts:', alertError);
+            }
+          }
+
+          // 2. Standard Notifications (Email/Push for everyone else)
           if (DatabaseFactory.isPostgreSQL()) {
             const { BidSelectionReminderJob } = await import('../jobs/BidSelectionReminderJob');
             const pool = (db as any).pool;
             const bidJob = new BidSelectionReminderJob(pool);
-            await bidJob.notifyMatchingProvidersForCase(caseId);
-            logger.info('✅ Notifications triggered for matching SPs', { caseId });
+            // Pass notifiedProIds to exclude them from standard notifications
+            // This ensures PROs don't get double notified
+            logger.info('🔔 Triggering standard notifications, excluding:', notifiedProIds);
+            await bidJob.notifyMatchingProvidersForCase(caseId, notifiedProIds);
+            logger.info('✅ Notifications triggered for matching SPs', { caseId, excluded: notifiedProIds.length });
           }
         } catch (notifError) {
           logger.error('❌ Error triggering notifications for open case:', notifError);
@@ -346,7 +460,10 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
     const { caseId } = req.params;
     const { providerId, providerName } = req.body;
 
-    if (!caseId || !providerId) {
+    // Get actual user ID from authenticated request
+    const actualProviderId = (req as any).user?.id || providerId;
+    
+    if (!caseId || !actualProviderId) {
       res.status(400).json({
         success: false,
         error: {
@@ -357,18 +474,20 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    logger.info('📝 Accepting case:', { caseId, actualProviderId, providerId, providerName });
+
     // Check trial status BEFORE accepting case
-    const trialStatus = await trialService.checkTrialStatus(providerId);
+    const trialStatus = await trialService.checkTrialStatus(actualProviderId);
     if (trialStatus.isExpired) {
-      logger.warn('Trial expired - blocking case acceptance', { providerId, caseId, reason: trialStatus.reason });
+      logger.warn('Trial expired - blocking case acceptance', { providerId: actualProviderId, caseId, reason: trialStatus.reason });
       
       // Auto-disable SMS if trial expired (either by cases or time)
       try {
         await db.query(
           `UPDATE sms_settings SET is_enabled = FALSE, updated_at = NOW() WHERE user_id = $1`,
-          [providerId]
+          [actualProviderId]
         );
-        logger.info('📵 SMS auto-disabled due to trial expiration', { providerId, reason: trialStatus.reason });
+        logger.info('📵 SMS auto-disabled due to trial expiration', { providerId: actualProviderId, reason: trialStatus.reason });
       } catch (smsError) {
         logger.error('❌ Error disabling SMS on trial expiration:', smsError);
       }
@@ -399,7 +518,7 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
       `UPDATE marketplace_service_cases 
        SET status = 'accepted', provider_id = $1, provider_name = $2, updated_at = $3
        WHERE id = $4 AND status = 'pending'`,
-      [providerId, providerName, now, caseId]
+      [actualProviderId, providerName, now, caseId]
     );
 
     // Get case details for notification
@@ -414,7 +533,7 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
       hasCustomerId: !!caseDetails?.customer_id,
       customerId: caseDetails?.customer_id,
       caseId,
-      providerId
+      providerId: actualProviderId
     });
     
     if (caseDetails?.customer_id) {
@@ -423,7 +542,7 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
       await notificationService.notifyCaseAssigned(
         caseId,
         caseDetails.customer_id,
-        providerId,
+        actualProviderId,
         providerName
       );
       logger.info('✅ Case accepted notification sent to customer');
@@ -431,23 +550,23 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
       logger.warn('⚠️ Cannot send notification - customer_id is missing from case');
     }
 
-    logger.info('✅ Case accepted successfully', { caseId, providerId });
+    logger.info('✅ Case accepted successfully', { caseId, providerId: actualProviderId });
 
     // Increment trial cases for FREE tier service providers
-    if (providerId) {
+    if (actualProviderId) {
       try {
-        await trialService.incrementTrialCases(providerId);
-        logger.info('📊 Trial case acceptance incremented', { providerId, caseId });
+        await trialService.incrementTrialCases(actualProviderId);
+        logger.info('📊 Trial case acceptance incremented', { providerId: actualProviderId, caseId });
         
         // Check if this was the 5th case - auto-disable SMS
-        const updatedTrialStatus = await trialService.checkTrialStatus(providerId);
+        const updatedTrialStatus = await trialService.checkTrialStatus(actualProviderId);
         if (updatedTrialStatus.casesUsed === 5) {
-          logger.info('📵 5th case accepted - auto-disabling SMS for FREE user', { providerId });
+          logger.info('📵 5th case accepted - auto-disabling SMS for FREE user', { providerId: actualProviderId });
           try {
             // Disable SMS in sms_settings table
             const smsUpdateResult = await db.query(
               `UPDATE sms_settings SET is_enabled = FALSE, updated_at = NOW() WHERE user_id = $1`,
-              [providerId]
+              [actualProviderId]
             );
             
             // If no settings exist, create them with is_enabled = false
@@ -456,11 +575,11 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
                 `INSERT INTO sms_settings (id, user_id, is_enabled, created_at, updated_at) 
                  VALUES (gen_random_uuid(), $1, FALSE, NOW(), NOW())
                  ON CONFLICT (user_id) DO UPDATE SET is_enabled = FALSE, updated_at = NOW()`,
-                [providerId]
+                [actualProviderId]
               );
             }
             
-            logger.info('✅ SMS auto-disabled for user reaching trial limit', { providerId });
+            logger.info('✅ SMS auto-disabled for user reaching trial limit', { providerId: actualProviderId });
           } catch (smsError) {
             logger.error('❌ Error disabling SMS:', smsError);
           }
@@ -480,11 +599,14 @@ export const acceptCase = async (req: Request, res: Response): Promise<void> => 
 
   } catch (error) {
     logger.error('❌ Error accepting case:', error);
+    logger.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    logger.error('❌ Error message:', error instanceof Error ? error.message : String(error));
     res.status(500).json({
       success: false,
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'Failed to accept case'
+        message: 'Failed to accept case',
+        details: error instanceof Error ? error.message : String(error)
       }
     });
   }
@@ -528,7 +650,7 @@ export const declineCase = async (req: Request, res: Response): Promise<void> =>
 
     // Check if this provider already declined this case
     const existingDeclineResult = await db.query(
-      'SELECT * FROM case_declines WHERE case_id = $1 AND provider_id = $2',
+      'SELECT * FROM marketplace_case_declines WHERE case_id = $1 AND provider_id = $2',
       [caseId, actualProviderId]
     );
     const existingDecline = existingDeclineResult[0];
@@ -564,7 +686,7 @@ export const declineCase = async (req: Request, res: Response): Promise<void> =>
 
     // Record the decline for this specific provider
     await db.query(
-      `INSERT INTO case_declines (id, case_id, provider_id, reason, declined_at)
+      `INSERT INTO marketplace_case_declines (id, case_id, provider_id, reason, created_at)
        VALUES ($1, $2, $3, $4, $5)`,
       [declineId, caseId, actualProviderId, reason, now]
     );
@@ -583,6 +705,7 @@ export const declineCase = async (req: Request, res: Response): Promise<void> =>
     // Send notification to customer if case was assigned to this provider
     if (caseDetails.provider_id === actualProviderId && caseDetails.customer_id) {
       try {
+        const notificationService = getNotificationService();
         await notificationService.createNotification(
           caseDetails.customer_id,
           'case_declined',
@@ -639,7 +762,7 @@ export const undeclineCase = async (req: Request, res: Response): Promise<void> 
 
     // Remove the decline record
     await db.query(
-      'DELETE FROM case_declines WHERE case_id = $1 AND provider_id = $2',
+      'DELETE FROM marketplace_case_declines WHERE case_id = $1 AND provider_id = $2',
       [caseId, providerId]
     );
 
@@ -672,11 +795,11 @@ export const getDeclinedCases = async (req: Request, res: Response): Promise<voi
     const { providerId } = req.params;
 
     const cases = await db.query(
-      `SELECT c.*, cd.declined_at, cd.reason as decline_reason
+      `SELECT c.*, cd.created_at as declined_at, cd.reason as decline_reason
        FROM marketplace_service_cases c
-       INNER JOIN case_declines cd ON c.id = cd.case_id
+       INNER JOIN marketplace_case_declines cd ON c.id = cd.case_id
        WHERE cd.provider_id = $1
-       ORDER BY cd.declined_at DESC`,
+       ORDER BY cd.created_at DESC`,
       [providerId]
     );
 
@@ -705,6 +828,19 @@ export const getAvailableCases = async (req: Request, res: Response): Promise<vo
   try {
     const { providerId } = req.params;
 
+    // Check if provider is PRO to determine visibility of exclusive cases
+    let isPro = false;
+    try {
+      const tier = await subscriptionService.getUserTier(providerId);
+      isPro = tier === 'pro';
+    } catch (err) {
+      logger.warn('Failed to check provider tier for case visibility', { providerId });
+    }
+
+    // Standard query for available cases
+    // If NOT PRO, exclude cases where exclusive_until > NOW
+    const exclusiveFilter = isPro ? "" : "AND (exclusive_until IS NULL OR exclusive_until <= NOW())";
+
     const cases = await db.query(
       `SELECT c.* FROM marketplace_service_cases c
        WHERE (
@@ -712,8 +848,9 @@ export const getAvailableCases = async (req: Request, res: Response): Promise<vo
          OR (c.provider_id = $1 AND c.status != 'closed')
        )
        AND c.id NOT IN (
-         SELECT case_id FROM case_declines WHERE provider_id = $2
+         SELECT case_id FROM marketplace_case_declines WHERE provider_id = $2
        )
+       ${exclusiveFilter}
        ORDER BY c.created_at DESC`,
       [providerId, providerId]
     );
@@ -1064,6 +1201,23 @@ export const getCase = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Fetch case screenshots
+    const screenshotsResult = await db.query(
+      'SELECT id, image_url, created_at FROM case_screenshots WHERE case_id = $1 ORDER BY created_at ASC',
+      [caseId]
+    );
+    
+    logger.info('📸 getCase - Fetched screenshots:', { caseId, count: screenshotsResult.length, screenshots: screenshotsResult });
+    
+    // Add screenshots to case data
+    caseData.screenshots = screenshotsResult.map((s: any) => ({
+      id: s.id,
+      url: s.image_url,
+      createdAt: s.created_at
+    }));
+    
+    logger.info('📸 getCase - Returning case with screenshots:', { caseId, screenshotCount: caseData.screenshots.length });
+
     res.json({
       success: true,
       data: caseData
@@ -1190,7 +1344,11 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const offset = (Number(page) - 1) * Number(limit);
+    
+    // Safely parse page and limit with defaults
+    const parsedPage = parseInt(String(page)) || 1;
+    const parsedLimit = parseInt(String(limit)) || 10;
+    const offset = (parsedPage - 1) * parsedLimit;
 
     console.log('🔍 Backend - SQL WHERE clause:', whereClause);
     console.log('🔍 Backend - SQL params:', params);
@@ -1233,7 +1391,7 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
        ${whereClause}
        ${orderClause}
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...params, Number(limit), offset]
+      [...params, parsedLimit, offset]
     );
 
     console.log('📊 Backend - Query returned', cases.length, 'cases');
@@ -1244,6 +1402,37 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
         status: cases[0].status,
         provider_id: cases[0].provider_id,
         customer_id: cases[0].customer_id
+      });
+    }
+
+    // Fetch screenshots for all cases
+    const caseIds = cases.map((c: any) => c.id);
+    let screenshotsMap = new Map();
+    
+    if (caseIds.length > 0) {
+      const screenshotsResult = await db.query(
+        `SELECT case_id, id, image_url, created_at 
+         FROM case_screenshots 
+         WHERE case_id = ANY($1)
+         ORDER BY created_at ASC`,
+        [caseIds]
+      );
+      
+      // Group screenshots by case_id
+      screenshotsResult.forEach((screenshot: any) => {
+        if (!screenshotsMap.has(screenshot.case_id)) {
+          screenshotsMap.set(screenshot.case_id, []);
+        }
+        screenshotsMap.get(screenshot.case_id).push({
+          id: screenshot.id,
+          url: screenshot.image_url,
+          createdAt: screenshot.created_at
+        });
+      });
+      
+      logger.info('📸 getCasesWithFilters - Fetched screenshots for cases:', { 
+        totalCases: cases.length, 
+        casesWithScreenshots: screenshotsMap.size 
       });
     }
 
@@ -1266,14 +1455,16 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
           return {
             ...caseItem,
             phone: '***-***-****',
-            phone_masked: true
+            phone_masked: true,
+            screenshots: screenshotsMap.get(caseItem.id) || []
           };
         }
       }
       
       return {
         ...caseItem,
-        phone_masked: false
+        phone_masked: false,
+        screenshots: screenshotsMap.get(caseItem.id) || []
       };
     });
 

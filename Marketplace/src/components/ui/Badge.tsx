@@ -85,7 +85,7 @@ Badge.displayName = 'Badge';
 
 // Status Badge Component for case statuses
 interface StatusBadgeProps {
-  status: 'open' | 'wip' | 'closed' | 'pending' | 'accepted' | 'declined';
+  status: 'open' | 'wip' | 'closed' | 'pending' | 'accepted' | 'declined' | 'completed' | 'cancelled';
   size?: BadgeProps['size'];
   className?: string;
 }
@@ -126,6 +126,11 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md', classNam
       variant: 'default' as const,
       icon: '🏁',
       label: 'Завършена'
+    },
+    cancelled: {
+      variant: 'error' as const,
+      icon: '🚫',
+      label: 'Анулирана'
     }
   };
 

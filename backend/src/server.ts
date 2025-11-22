@@ -36,15 +36,19 @@ import { ChatService } from './services/ChatService';
 import { ChatRepository } from './models/ChatRepository';
 import { ChatSocketHandler } from './socket/chatSocket';
 import * as caseController from './controllers/caseController';
+import * as trackingController from './controllers/trackingController';
 import * as notificationController from './controllers/notificationController';
 import * as reviewController from './controllers/reviewController';
 import * as deviceTokenController from './controllers/deviceTokenController';
+import * as uploadController from './controllers/uploadController';
 import { authenticateToken } from './middleware/auth';
 import { checkTrialStatus, addTrialInfo } from './middleware/trialCheck';
 import trialCleanupService from './services/TrialCleanupService';
 import smsVerificationRoutes from './controllers/smsVerificationController';
 import { DatabaseFactory } from './models/DatabaseFactory';
 import { BidSelectionReminderJob } from './jobs/BidSelectionReminderJob';
+import { LocationSearchJob } from './jobs/LocationSearchJob';
+import { ScreenshotCleanupJob } from './jobs/ScreenshotCleanupJob';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
 
@@ -515,14 +519,19 @@ class ServiceTextProServer {
     this.app.get('/api/v1/cases/queue/:providerId', caseController.getAvailableCases);
     this.app.get('/api/v1/cases/:caseId', caseController.getCase);
     this.app.get('/api/v1/cases/:caseId/smart-matches', caseController.getSmartMatches);
-    this.app.post('/api/v1/cases/:caseId/decline', caseController.declineCase);
-    this.app.post('/api/v1/cases/:caseId/accept', caseController.acceptCase);
-    this.app.put('/api/v1/cases/:caseId/accept', caseController.acceptCase); // REST convention
+    this.app.post('/api/v1/cases/:caseId/decline', authenticateToken, caseController.declineCase);
+    this.app.post('/api/v1/cases/:caseId/accept', authenticateToken, caseController.acceptCase);
+    this.app.put('/api/v1/cases/:caseId/accept', authenticateToken, caseController.acceptCase); // REST convention
     this.app.post('/api/v1/cases/:caseId/complete', caseController.completeCase);
     this.app.put('/api/v1/cases/:caseId/complete', caseController.completeCase); // REST convention
     this.app.put('/api/v1/cases/:caseId/status', caseController.updateCaseStatus);
     this.app.post('/api/v1/cases/:caseId/auto-assign', caseController.autoAssignCase);
     this.app.post('/api/v1/cases/:caseId/cancel', authenticateToken, caseController.cancelCase);
+
+    // Tracking routes
+    this.app.post('/api/v1/tracking/update', authenticateToken, trackingController.updateLocation);
+    this.app.delete('/api/v1/tracking/location', authenticateToken, trackingController.clearLocation);
+    this.app.get('/api/v1/tracking/case/:caseId', authenticateToken, trackingController.getCaseTracking);
 
     // Declined cases routes
     this.app.get('/api/v1/cases/declined/:providerId', authenticateToken, caseController.getDeclinedCases);
@@ -576,6 +585,17 @@ class ServiceTextProServer {
     // App version check routes
     const { getAppVersion } = require('./controllers/appVersionController');
     this.app.get('/api/v1/app/version', getAppVersion);
+
+    // Screenshot upload routes
+    this.app.post('/api/v1/upload/case-screenshots', 
+      authenticateToken, 
+      uploadController.upload.array('screenshots', 5), // Max 5 files
+      uploadController.uploadCaseScreenshots
+    );
+    this.app.delete('/api/v1/upload/case-screenshots/:filename', 
+      authenticateToken, 
+      uploadController.deleteScreenshot
+    );
 
     // Simple base64 image upload (for mobile without multipart libs)
     this.app.post('/api/v1/uploads/image', async (req: Request, res: Response) => {
@@ -1054,6 +1074,23 @@ private initializeWebSocket(): void {
         category 
       });
     });
+
+    // Handle case tracking room joins
+    socket.on('join_case_room', (caseId) => {
+      socket.join(`case_${caseId}`);
+      logger.info('Client joined case room', { 
+        socketId: socket.id, 
+        caseId 
+      });
+    });
+
+    socket.on('leave_case_room', (caseId) => {
+      socket.leave(`case_${caseId}`);
+      logger.info('Client left case room', { 
+        socketId: socket.id, 
+        caseId 
+      });
+    });
   });
 }
 
@@ -1080,8 +1117,22 @@ private async initializeNotificationJobs(): Promise<void> {
       return;
     }
 
-    logger.info('🔔 Database pool obtained, creating notification job instance...');
+    logger.info('🔔 Database pool obtained, creating job instances...');
     const notificationJob = new BidSelectionReminderJob(pool);
+    const locationSearchJob = new LocationSearchJob(pool);
+    const screenshotCleanupJob = new ScreenshotCleanupJob(pool);
+    
+    // Start screenshot cleanup job (runs daily at 3 AM)
+    screenshotCleanupJob.start();
+
+    // Run location search every 1 minute
+    setInterval(async () => {
+      try {
+        await locationSearchJob.runLocationSearch();
+      } catch (error) {
+        logger.error('❌ Error in location search job:', error);
+      }
+    }, 60000); // 1 minute
 
     // Run new case notifications every 5 minutes (backup for event-driven system)
     // Primary notifications are now event-driven (triggered on case creation)

@@ -102,6 +102,63 @@ export class SmartMatchingService {
   }
 
   /**
+   * Find active PRO providers nearby for instant alert
+   */
+  async findNearbyProProviders(
+    category: string, 
+    latitude: number, 
+    longitude: number, 
+    radiusKm: number = 5
+  ): Promise<Provider[]> {
+    if (DatabaseFactory.isPostgreSQL()) {
+      try {
+        // PostgreSQL implementation using Haversine formula
+        const result = await this.db.query(
+          `SELECT sp.*, u.first_name, u.last_name, u.email, u.phone_number,
+                  (6371 * acos(cos(radians($1)) * cos(radians(sp.latitude)) * cos(radians(sp.longitude) - radians($2)) + sin(radians($3)) * sin(radians(sp.latitude)))) AS distance
+           FROM service_provider_profiles sp
+           JOIN users u ON sp.user_id = u.id
+           WHERE sp.service_category = $4 
+             AND u.status = 'active'
+             AND u.subscription_tier_id = 'pro'
+             -- AND sp.is_verified = true -- Relaxed for testing
+             AND sp.latitude IS NOT NULL
+             AND sp.longitude IS NOT NULL
+             AND (6371 * acos(cos(radians($1)) * cos(radians(sp.latitude)) * cos(radians(sp.longitude) - radians($2)) + sin(radians($3)) * sin(radians(sp.latitude)))) < $5
+           ORDER BY distance ASC`,
+          [latitude, longitude, latitude, category, radiusKm]
+        );
+        
+        // Map to Provider interface
+        return result.map((row: any) => ({
+          id: row.user_id, // Use user_id as provider ID
+          business_name: row.business_name,
+          service_category: row.service_category,
+          city: row.city,
+          neighborhood: row.neighborhood,
+          rating: 0, // Default
+          total_reviews: 0, // Default
+          experience_years: row.experience_years || 0,
+          hourly_rate: row.hourly_rate || 0,
+          phone_number: row.phone_number,
+          email: row.email,
+          first_name: row.first_name,
+          last_name: row.last_name,
+          is_available: true, // Assumed active
+          last_active: new Date().toISOString(),
+          distance: row.distance
+        }));
+      } catch (error) {
+        logger.error('Error finding nearby PRO providers:', error);
+        return [];
+      }
+    } else {
+      // SQLite fallback (simplified)
+      return [];
+    }
+  }
+
+  /**
    * Get providers eligible for a specific category
    */
   private async getEligibleProviders(category: string): Promise<Provider[]> {

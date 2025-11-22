@@ -25,12 +25,14 @@ import PointsScreen from '../screens/PointsScreen';
 import MyBidsScreen from '../screens/MyBidsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PlaceBidScreen from '../screens/PlaceBidScreen';
+import MapSearchScreen from '../screens/MapSearchScreen';
 
 
 // Import components
 import ConsentBanner from '../components/ConsentBanner';
 import GDPRStatus from '../components/GDPRStatus';
 import QuickActions from '../components/QuickActions';
+import JobAlertModal from '../components/JobAlertModal';
 
 // Import types
 import { RootStackParamList, MainTabParamList, SettingsStackParamList } from './types';
@@ -59,6 +61,16 @@ function MainTabNavigator() {
           tabBarLabel: 'Табло',
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Text style={{ color, fontSize: size }}>🏠</Text>
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="MapSearch" 
+        component={MapSearchScreen}
+        options={{
+          tabBarLabel: 'Карта',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>🗺️</Text>
           ),
         }}
       />
@@ -319,13 +331,16 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Stack.Screen name="Main" component={MainTabNavigator} />
-      </Stack.Navigator>
+      <View style={{ flex: 1 }}>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+          }}
+        >
+          <Stack.Screen name="Main" component={MainTabNavigator} />
+        </Stack.Navigator>
+        <JobAlertModal />
+      </View>
     </NavigationContainer>
   );
 }

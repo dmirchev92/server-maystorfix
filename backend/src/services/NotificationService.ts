@@ -207,6 +207,32 @@ export class NotificationService {
           });
           logger.info('📱 Emitted case_assigned event via Socket.IO', { userId, caseId: data.caseId });
         }
+
+        // For Instant Job Alerts (Uber-like modal)
+        if (type === 'job_incoming' && data) {
+          const payload = {
+            id: notificationId,
+            caseId: data.caseId,
+            distance: data.distance,
+            budget: data.budget,
+            description: data.description,
+            category: data.category,
+            location: data.location,
+            timeoutSeconds: 300, // 5 minutes
+            ...data
+          };
+
+          // Update data object with timeoutSeconds for the generic FCM handler
+          if (typeof data === 'object') {
+            data.timeoutSeconds = 300;
+          }
+
+          this.io.of('/chat').to(`user:${userId}`).emit('job:incoming', payload);
+          logger.info('📱 Emitted job:incoming event via Socket.IO', { userId, caseId: data.caseId });
+          
+          // Note: We rely on the generic FCM sender below to send the push notification.
+          // The duplicate FCM call that was here has been removed.
+        }
         
         logger.info('📡 Notification emitted via Socket.IO', { userId, type, event: 'notification' });
       }

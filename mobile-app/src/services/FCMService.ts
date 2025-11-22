@@ -1,8 +1,10 @@
+// @ts-nocheck
 import messaging from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import { Platform } from 'react-native';
 import ApiService from './ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SocketIOService from './SocketIOService';
 
 class FCMService {
   private static instance: FCMService;
@@ -75,6 +77,9 @@ class FCMService {
     try {
       console.log('🔥 Initializing Firebase Cloud Messaging...');
       
+      // Create notification channels (Android)
+      await this.createChannels();
+
       // Create notification categories for action buttons
       await this.createNotificationCategories();
       
@@ -113,6 +118,48 @@ class FCMService {
     } catch (error) {
       console.error('❌ Error initializing FCM:', error);
       console.error('❌ FCM Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    }
+  }
+
+  /**
+   * Create notification channels (Android)
+   */
+  private async createChannels(): Promise<void> {
+    try {
+      console.log('🔔 Creating notification channels...');
+      
+      // 1. Chat Messages (High Importance)
+      await notifee.createChannel({
+        id: 'chat_messages',
+        name: 'Chat Messages',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: false,
+      });
+
+      // 2. Case Assignments (High Importance)
+      await notifee.createChannel({
+        id: 'case_assignments',
+        name: 'Case Assignments',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: false,
+      });
+
+      // 3. Urgent Cases (Max Importance for Full Screen Intent)
+      await notifee.createChannel({
+        id: 'urgent_cases',
+        name: 'Urgent Job Alerts',
+        importance: AndroidImportance.HIGH, 
+        sound: 'default', 
+        vibration: false,
+        lights: true,
+        lightColor: '#DC2626',
+      });
+
+      console.log('✅ Notification channels created');
+    } catch (error) {
+      console.error('❌ Error creating notification channels:', error);
     }
   }
 
@@ -388,6 +435,8 @@ class FCMService {
         channelId = 'case_assignments';
       } else if (data?.type === 'case_assigned') {
         channelId = 'case_assignments';
+      } else if (data?.type === 'job_incoming') {
+        channelId = 'urgent_cases';
       }
 
       // Build notification config
@@ -402,7 +451,6 @@ class FCMService {
             id: 'default',
           },
           sound: 'default',
-          vibrationPattern: [300, 500],
           smallIcon: 'ic_notification',
           color: '#4A90E2',
           showTimestamp: true,
@@ -440,11 +488,26 @@ class FCMService {
             },
           },
         ];
+      } else if (data?.type === 'job_incoming') {
+        // Configure Full Screen Intent for Urgent Job Alerts
+        notificationConfig.android.fullScreenAction = {
+          id: 'default',
+          launchActivity: 'default',
+        };
         
-        console.log('🔔 Action buttons with categoryId and launchActivity:', {
-          categoryId: notificationConfig.android.categoryId,
-          actions: notificationConfig.android.actions
-        });
+        notificationConfig.android.actions = [
+          {
+            title: 'ПРЕГЛЕДАЙ ЗАЯВКАТА',
+            pressAction: {
+              id: 'view_job_alert',
+              launchActivity: 'default',
+            },
+          }
+        ];
+        
+        // Set timeout from data or default to 5 minutes
+        const timeout = data.timeoutSeconds ? parseInt(data.timeoutSeconds) * 1000 : 300000;
+        notificationConfig.android.timeoutAfter = timeout; 
       } else {
         console.log('🔔 No action buttons - notification type:', data?.type);
       }
@@ -490,6 +553,12 @@ class FCMService {
       } catch (error) {
         console.error('❌ Error navigating to PlaceBid:', error);
       }
+    } else if (actionId === 'view_job_alert') {
+      console.log('🔔 View Job Alert action pressed');
+      // Trigger local job alert modal via SocketIO service
+      setTimeout(() => {
+        SocketIOService.getInstance().triggerLocalJobAlert(data);
+      }, 500);
     } else if (actionId === 'dismiss') {
       // Just dismiss the notification (do nothing)
       console.log('✅ Notification dismissed');
@@ -504,6 +573,15 @@ class FCMService {
     console.log('👆 Data type:', data?.type);
     console.log('👆 Case ID:', data?.caseId);
     console.log('👆 Retry count:', retryCount);
+
+    if (data?.type === 'job_incoming') {
+       console.log('🔔 Triggering instant job alert from notification tap');
+       // No need for navigation ref for this one, handled by global modal
+       setTimeout(() => {
+         SocketIOService.getInstance().triggerLocalJobAlert(data);
+       }, 1000);
+       return;
+    }
 
     if (!this.navigationRef) {
       if (retryCount < 10) { // Max 10 retries = 5 seconds

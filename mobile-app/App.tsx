@@ -22,6 +22,7 @@ import ApiService from './src/services/ApiService';
 import SocketIOService from './src/services/SocketIOService';
 import NotificationService from './src/services/NotificationService';
 import FCMService from './src/services/FCMService';
+import LocationTrackingService from './src/services/LocationTrackingService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import notifee from '@notifee/react-native';
@@ -54,6 +55,7 @@ function AppContent() {
   const appState = useRef(AppState.currentState);
   const [appStateVisible, setAppStateVisible] = useState(appState.current);
   const initialNotificationRef = useRef<any>(null);
+  const SERVICE_INIT_DELAY = 1500; // Time to wait for services to initialize before processing notifications
 
   // Check for initial notification IMMEDIATELY when app starts
   useEffect(() => {
@@ -64,6 +66,15 @@ function AppContent() {
       console.log('📱 App.tsx - Notifee foreground event:', type, detail);
       
       if (type === 1) { // EventType.PRESS
+        // Handle instant job alert tap
+        if (detail.notification?.data?.type === 'job_incoming') {
+           console.log('🔔 Triggering instant job alert from notification tap');
+           setTimeout(() => {
+             SocketIOService.getInstance().triggerLocalJobAlert(detail.notification?.data);
+           }, 500);
+           return; 
+        }
+
         console.log('📱 App.tsx - Notification pressed, storing for later processing');
         initialNotificationRef.current = detail;
       }
@@ -73,6 +84,15 @@ function AppContent() {
     notifee.getInitialNotification().then(initialNotification => {
       if (initialNotification) {
         console.log('📱 App.tsx - Found initial notification:', initialNotification);
+        
+        if (initialNotification.notification?.data?.type === 'job_incoming') {
+           console.log('🔔 Triggering instant job alert from initial notification');
+           setTimeout(() => {
+             SocketIOService.getInstance().triggerLocalJobAlert(initialNotification.notification.data);
+           }, SERVICE_INIT_DELAY); // Longer timeout for cold start
+           return;
+        }
+
         initialNotificationRef.current = initialNotification;
       } else {
         console.log('📱 App.tsx - No initial notification found');
@@ -103,6 +123,8 @@ function AppContent() {
       setCurrentUser(null);
       // Disconnect Socket.IO on logout
       SocketIOService.getInstance().disconnect();
+      // Stop location tracking
+      LocationTrackingService.getInstance().stopTracking();
     });
     
     // Monitor app state changes (background/foreground)
@@ -154,8 +176,11 @@ function AppContent() {
     if (currentUser) {
       console.log('✅ App.tsx - User authenticated, initializing Socket.IO');
       initializeSocketIO();
+      // Start location tracking
+      LocationTrackingService.getInstance().startTracking();
     } else {
       console.log('⚠️ App.tsx - No user, skipping Socket.IO');
+      LocationTrackingService.getInstance().stopTracking();
     }
   }, [currentUser]);
 
@@ -194,7 +219,8 @@ function AppContent() {
         if (initialNotificationRef.current) {
           console.log('📱 App.tsx - Processing initial notification after FCM init');
           fcmService.handleInitialNotification(initialNotificationRef.current);
-          initialNotificationRef.current = null; // Clear it so we don't process it again
+          // CRITICAL: Clear the ref to prevent double-processing on re-renders
+          initialNotificationRef.current = null; 
         }
       } catch (fcmError) {
         console.error('❌ App.tsx - FCM initialization failed:', fcmError);
@@ -266,20 +292,6 @@ function AppContent() {
 
   const handleAuthSuccess = (user: User) => {
     setCurrentUser(user);
-  };
-
-  const handleLogout = async () => {
-    try {
-      // Import callDetectionService to clear user data
-      const { ModernCallDetectionService } = await import('./src/services/ModernCallDetectionService');
-      const callDetectionService = ModernCallDetectionService.getInstance();
-      
-      await callDetectionService.clearUserData(); // Clear user-specific data
-      await ApiService.getInstance().logout();
-      setCurrentUser(null);
-    } catch (error) {
-      console.log('Logout error:', error);
-    }
   };
 
   if (isLoading) {

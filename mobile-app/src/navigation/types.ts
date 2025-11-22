@@ -1,10 +1,12 @@
 export type RootStackParamList = {
   Login: undefined;
   Main: undefined;
+  MapSearch: undefined;
 };
 
 export type MainTabParamList = {
   Dashboard: undefined;
+  MapSearch: undefined;
   Cases: undefined;
   MyBids: undefined;
   Points: undefined;

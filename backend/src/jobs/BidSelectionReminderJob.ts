@@ -106,7 +106,7 @@ export class BidSelectionReminderJob {
           AND NOT EXISTS (
             SELECT 1 FROM notifications n 
             WHERE n.user_id = u.id 
-            AND n.type = 'new_case_available' 
+            AND n.type IN ('new_case_available', 'job_incoming')
             AND n.data->>'caseId' = c.id
           )
       `;
@@ -206,9 +206,9 @@ export class BidSelectionReminderJob {
   /**
    * Notify matching providers for a specific case (event-driven)
    */
-  async notifyMatchingProvidersForCase(caseId: string): Promise<void> {
+  async notifyMatchingProvidersForCase(caseId: string, excludedProviderIds: string[] = []): Promise<void> {
     try {
-      logger.info(`🔔 Finding matching providers for case ${caseId}...`);
+      logger.info(`🔔 Finding matching providers for case ${caseId} (excluding ${excludedProviderIds.length} providers)...`);
 
       const query = `
         SELECT 
@@ -242,7 +242,7 @@ export class BidSelectionReminderJob {
           AND NOT EXISTS (
             SELECT 1 FROM notifications n 
             WHERE n.user_id = u.id 
-            AND n.type = 'new_case_available' 
+            AND n.type IN ('new_case_available', 'job_incoming')
             AND n.data->>'caseId' = c.id
           )
       `;
@@ -254,23 +254,27 @@ export class BidSelectionReminderJob {
         return;
       }
 
-      const providers: string[] = [];
-      const caseDetails = result.rows[0];
-
-      for (const row of result.rows) {
-        providers.push(row.provider_id);
+      // Deduplicate providers and filter excluded ones
+      const allProviderIds = result.rows.map(row => row.provider_id);
+      const uniqueProviders = [...new Set(allProviderIds)].filter(id => !excludedProviderIds.includes(id));
+      
+      if (uniqueProviders.length === 0) {
+        logger.info(`🔔 No new providers to notify for case ${caseId} (after exclusion)`);
+        return;
       }
+
+      const caseDetails = result.rows[0];
 
       await this.notificationService.notifyNewCaseAvailable(
         caseId,
         caseDetails.service_type,
         caseDetails.city,
-        providers,
+        uniqueProviders,
         caseDetails.budget,
         caseDetails.priority
       );
 
-      logger.info(`🔔 Sent new case notification for case ${caseId} to ${providers.length} providers`);
+      logger.info(`🔔 Sent new case notification for case ${caseId} to ${uniqueProviders.length} providers`);
     } catch (error) {
       logger.error(`❌ Error notifying providers for case ${caseId}:`, error);
     }

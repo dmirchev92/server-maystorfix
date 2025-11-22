@@ -5,6 +5,7 @@ import { sofiaNeighborhoods } from './NeighborhoodSelect'
 import { requiresSquareMeters } from '@/constants/serviceMetrics'
 import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
 import { BUDGET_RANGES } from '@/constants/budgetRanges'
+import LocationPicker from './LocationPicker'
 
 interface UnifiedCaseModalProps {
   isOpen: boolean
@@ -92,7 +93,20 @@ export default function UnifiedCaseModal({
     }))
   }
 
+  const handleLocationSelect = (location: { address: string, latitude: number, longitude: number, city?: string }) => {
+    setFormData(prev => ({
+      ...prev,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      formattedAddress: location.address,
+      city: location.city || prev.city,
+      // Reset neighborhood if city changes to something other than Sofia (or just keep it, user can change)
+      neighborhood: (location.city && location.city !== 'София') ? '' : prev.neighborhood
+    }))
+  }
+
   const handleFileUpload = (files: FileList | null) => {
+    console.log('📸 UnifiedCaseModal - handleFileUpload called with files:', files)
     if (!files) return
 
     const newFiles = Array.from(files).filter(file => {
@@ -109,14 +123,15 @@ export default function UnifiedCaseModal({
       return true
     })
 
-    setScreenshots(prev => {
-      const combined = [...prev, ...newFiles]
-      if (combined.length > 5) {
-        alert('Максимум 5 снимки')
-        return prev
-      }
-      return combined
-    })
+    if (newFiles.length > 0) {
+      console.log('📸 UnifiedCaseModal - Adding files to screenshots:', newFiles.length)
+      setScreenshots(prev => {
+        const combined = [...prev, ...newFiles]
+        const final = combined.slice(0, 5) // Max 5 screenshots
+        console.log('📸 UnifiedCaseModal - Total screenshots now:', final.length)
+        return final
+      })
+    }
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -160,6 +175,7 @@ export default function UnifiedCaseModal({
         return
       }
       
+      console.log('📸 UnifiedCaseModal - Submitting with screenshots:', screenshots.length, screenshots)
       onSubmit({
         ...formData,
         screenshots: screenshots
@@ -354,6 +370,14 @@ export default function UnifiedCaseModal({
                   </p>
                 </div>
               )}
+
+              {/* Location Map Picker */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-200 mb-2">
+                  Местоположение (Изберете от картата)
+                </label>
+                <LocationPicker onLocationSelect={handleLocationSelect} />
+              </div>
 
               {/* Location: City */}
               <div>

@@ -53,6 +53,7 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
     ...(user && user.role !== 'tradesperson' && user.role !== 'service_provider' ? [
       { href: '/create-case', label: 'Нова заявка', icon: '➕' },
       { href: '/my-cases', label: 'Моите заявки', icon: '📋' },
+      { href: '/map', label: 'Карта', icon: '🗺️' },
     ] : []),
   ];
 

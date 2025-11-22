@@ -7,16 +7,34 @@ import {
   TouchableOpacity,
   Alert,
   SafeAreaView,
+  Switch,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../navigation/types';
 import { AuthBus } from '../utils/AuthBus';
+import LocationTrackingService from '../services/LocationTrackingService';
+import { useState, useEffect } from 'react';
 
 type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Settings'>;
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
+  const [isTrackingEnabled, setIsTrackingEnabled] = useState(true);
+
+  useEffect(() => {
+    loadTrackingPreference();
+  }, []);
+
+  const loadTrackingPreference = async () => {
+    const enabled = await LocationTrackingService.getInstance().getTrackingPreference();
+    setIsTrackingEnabled(enabled);
+  };
+
+  const toggleTracking = async (value: boolean) => {
+    setIsTrackingEnabled(value);
+    await LocationTrackingService.getInstance().setTrackingPreference(value);
+  };
 
   const handleEditProfile = () => {
     navigation.navigate('EditProfile');
@@ -78,6 +96,22 @@ const SettingsScreen: React.FC = () => {
             <Text style={styles.settingItemText}>Смени парола</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📍 Местоположение</Text>
+          <View style={styles.settingItem}>
+            <View>
+              <Text style={styles.settingItemText}>Споделяне на локация</Text>
+              <Text style={styles.settingItemSubtext}>За намиране на клиенти наблизо</Text>
+            </View>
+            <Switch
+              value={isTrackingEnabled}
+              onValueChange={toggleTracking}
+              trackColor={{ false: '#767577', true: '#4F46E5' }}
+              thumbColor={isTrackingEnabled ? '#fff' : '#f4f3f4'}
+            />
+          </View>
         </View>
 
         <View style={styles.section}>
@@ -178,6 +212,11 @@ const styles = StyleSheet.create({
   settingItemText: {
     fontSize: 16,
     color: '#CBD5E1',
+  },
+  settingItemSubtext: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
   },
   settingItemArrow: {
     fontSize: 18,

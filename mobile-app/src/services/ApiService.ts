@@ -598,6 +598,21 @@ export class ApiService {
     console.log('📋 ApiService - Getting my bids');
     return this.makeRequest('/bidding/my-bids');
   }
+
+  // Tracking Methods
+  public async updateLocation(data: {
+    caseId?: string;
+    latitude: number;
+    longitude: number;
+    heading?: number;
+    speed?: number;
+  }): Promise<APIResponse> {
+    console.log('📍 ApiService - Updating location:', data);
+    return this.makeRequest('/tracking/update', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export default ApiService;

@@ -8,7 +8,10 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
+import Geolocation from 'react-native-geolocation-service';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
@@ -42,6 +45,9 @@ interface Case {
   max_bidders?: number;
   winning_bid_id?: string;
   square_meters?: number;
+  latitude?: number;
+  longitude?: number;
+  formatted_address?: string;
 }
 
 interface CaseStats {
@@ -67,6 +73,11 @@ export default function CasesScreen() {
     caseTitle: string;
   }>({ visible: false, caseId: '', caseTitle: '' });
   
+  // Tracking state
+  const [isTracking, setIsTracking] = useState(false);
+  const [trackingCaseId, setTrackingCaseId] = useState<string | null>(null);
+  const [watchId, setWatchId] = useState<number | null>(null);
+
   // Filters
   const [viewMode, setViewMode] = useState<'available' | 'assigned' | 'declined' | 'bids'>('available');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -355,6 +366,68 @@ export default function CasesScreen() {
       console.error('Error un-declining case:', error);
       Alert.alert('Грешка', 'Не успяхме да възстановим заявката');
     }
+  };
+
+  const openMap = (lat: number, lng: number, label: string) => {
+    const scheme = Platform.select({ ios: 'maps:0,0?q=', android: 'geo:0,0?q=' });
+    const latLng = `${lat},${lng}`;
+    const url = Platform.select({
+      ios: `${scheme}${label}@${latLng}`,
+      android: `${scheme}${latLng}(${label})`
+    });
+
+    if (url) {
+      Linking.openURL(url);
+    }
+  };
+
+  const startTracking = async (caseId: string) => {
+    if (isTracking) {
+      // Stop tracking
+      if (watchId !== null) {
+        Geolocation.clearWatch(watchId);
+        setWatchId(null);
+      }
+      setIsTracking(false);
+      setTrackingCaseId(null);
+      Alert.alert('Проследяване спряно', 'Вече не споделяте локацията си с клиента.');
+      return;
+    }
+
+    // Start tracking
+    Alert.alert(
+      'Споделяне на локация',
+      'Ще започнем да споделяме вашата локация с клиента, докато пътувате към адреса. Съгласни ли сте?',
+      [
+        { text: 'Отказ', style: 'cancel' },
+        {
+          text: 'Да, тръгвам',
+          onPress: () => {
+            const id = Geolocation.watchPosition(
+              (position) => {
+                const { latitude, longitude, heading, speed } = position.coords;
+                console.log('📍 New location:', latitude, longitude);
+                ApiService.getInstance().updateLocation({
+                  caseId,
+                  latitude,
+                  longitude,
+                  heading: heading || 0,
+                  speed: speed || 0
+                });
+              },
+              (error) => {
+                console.error('Geolocation error:', error);
+              },
+              { enableHighAccuracy: true, distanceFilter: 10, interval: 10000, fastestInterval: 5000 }
+            );
+            setWatchId(id);
+            setIsTracking(true);
+            setTrackingCaseId(caseId);
+            Alert.alert('Приятен път!', 'Клиентът вече вижда къде се намирате.');
+          }
+        }
+      ]
+    );
   };
 
   const toggleCaseExpansion = (caseId: string) => {
@@ -706,10 +779,20 @@ export default function CasesScreen() {
                   
                   {isExpanded && (
                     <View style={styles.caseDetails}>
-                      {caseItem.address && (
+                      {(caseItem.address || caseItem.formatted_address) && (
                         <View style={styles.detailRow}>
                           <Text style={styles.detailLabel}>📍 Адрес:</Text>
-                          <Text style={styles.detailValue}>{caseItem.address}</Text>
+                          <View>
+                            <Text style={styles.detailValue}>{caseItem.formatted_address || caseItem.address}</Text>
+                            {caseItem.latitude && caseItem.longitude && (
+                              <TouchableOpacity 
+                                onPress={() => openMap(caseItem.latitude!, caseItem.longitude!, 'Адрес на клиента')}
+                                style={{marginTop: 8, backgroundColor: '#eff6ff', padding: 8, borderRadius: 6, flexDirection: 'row', alignItems: 'center'}}
+                              >
+                                <Text style={{color: '#2563eb', fontWeight: '600', fontSize: 12}}>🗺️ Виж на картата / Навигация</Text>
+                              </TouchableOpacity>
+                            )}
+                          </View>
                         </View>
                       )}
                       {caseItem.phone && (
@@ -816,14 +899,31 @@ export default function CasesScreen() {
                    (caseItem.status === 'accepted' || 
                     caseItem.status === 'wip' ||
                     (caseItem.status === 'pending' && caseItem.bidding_enabled)) && (
-                    <TouchableOpacity
-                      style={[styles.actionButton, styles.completeButton]}
-                      onPress={() => {
-                        handleCompleteCase(caseItem.id);
-                      }}
-                    >
-                      <Text style={styles.actionButtonText}>🏁 Завърши</Text>
-                    </TouchableOpacity>
+                    <View style={{flexDirection: 'column', gap: 8, width: '100%'}}>
+                      {/* Start Tracking Button */}
+                      {caseItem.status === 'accepted' && caseItem.latitude && (
+                        <TouchableOpacity
+                          style={[
+                            styles.actionButton, 
+                            isTracking && trackingCaseId === caseItem.id ? {backgroundColor: '#f87171'} : {backgroundColor: '#3b82f6'}
+                          ]}
+                          onPress={() => startTracking(caseItem.id)}
+                        >
+                          <Text style={styles.actionButtonText}>
+                            {isTracking && trackingCaseId === caseItem.id ? '⏹️ Спри споделяне' : '🚗 Тръгвам към адреса'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.completeButton]}
+                        onPress={() => {
+                          handleCompleteCase(caseItem.id);
+                        }}
+                      >
+                        <Text style={styles.actionButtonText}>🏁 Завърши</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                   
                   {/* Declined tab: Show Restore button */}

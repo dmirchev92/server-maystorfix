@@ -39,6 +39,7 @@ class SocketIOService {
   private typingCallbacks: ((data: { userId: string; isTyping: boolean }) => void)[] = [];
   private readCallbacks: ((data: { messageId: string }) => void)[] = [];
   private smsConfigCallbacks: ((data: any) => void)[] = [];
+  private jobIncomingCallbacks: ((data: any) => void)[] = [];
   private notificationService: NotificationService;
   private currentConversationId: string | null = null;
   private userId: string | null = null;
@@ -56,7 +57,22 @@ class SocketIOService {
 
   async connect(token: string, userId?: string): Promise<void> {
     return new Promise(async (resolve, reject) => {
+      // Idempotency check: If already connected, don't create a new connection
+      if (this.socket?.connected) {
+        console.log('✅ Socket already connected, skipping new connection');
+        resolve();
+        return;
+      }
+
       console.log('🔌 Connecting to Socket.IO /chat namespace...');
+      
+      // Clean up existing instance if it exists but isn't connected
+      if (this.socket) {
+        console.log('⚠️ Cleaning up existing disconnected socket instance');
+        this.socket.removeAllListeners();
+        this.socket.disconnect();
+        this.socket = null;
+      }
       
       // Initialize notification service
       try {
@@ -118,6 +134,18 @@ class SocketIOService {
 
   private setupEventListeners() {
     if (!this.socket) return;
+
+    // Remove all existing listeners to prevent duplicates
+    this.socket.off('message:new');
+    this.socket.off('message:updated');
+    this.socket.off('message:deleted');
+    this.socket.off('conversation:updated');
+    this.socket.off('new_message_notification');
+    this.socket.off('notification');
+    this.socket.off('typing');
+    this.socket.off('read');
+    this.socket.off('sms_config_updated');
+    this.socket.off('job:incoming');
 
     // New message received - backend emits 'message:new'
     this.socket.on('message:new', (data: { conversationId: string; message: Message }) => {
@@ -238,6 +266,12 @@ class SocketIOService {
       console.log('✅ Message read:', data);
       this.readCallbacks.forEach(callback => callback(data));
     });
+
+    // Instant Job Alert (Uber-like modal)
+    this.socket.on('job:incoming', (data: any) => {
+      console.log('🔔 Instant Job Alert received:', data);
+      this.jobIncomingCallbacks.forEach(callback => callback(data));
+    });
   }
 
   joinConversation(conversationId: string) {
@@ -352,6 +386,19 @@ class SocketIOService {
     return () => {
       this.smsConfigCallbacks = this.smsConfigCallbacks.filter(cb => cb !== callback);
     };
+  }
+
+  onJobIncoming(callback: (data: any) => void) {
+    this.jobIncomingCallbacks.push(callback);
+    return () => {
+      this.jobIncomingCallbacks = this.jobIncomingCallbacks.filter(cb => cb !== callback);
+    };
+  }
+
+  // Allow triggering the alert locally (e.g. from a push notification tap)
+  triggerLocalJobAlert(data: any) {
+    console.log('🔔 Triggering local job alert:', data);
+    this.jobIncomingCallbacks.forEach(callback => callback(data));
   }
 
   disconnect() {

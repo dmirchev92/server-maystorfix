@@ -131,6 +131,10 @@ class ApiClient {
     return this.client.get(`/marketplace/providers/${id}`)
   }
 
+  async getServiceCategories() {
+    return this.client.get('/marketplace/categories')
+  }
+
   async validatePublicChat(publicId: string, token: string) {
     return this.client.get(`/chat/public/${publicId}/validate/${token}`)
   }
@@ -357,9 +361,53 @@ class ApiClient {
     return this.client.post(`/chat/messages/${messageId}/receipts`, { status })
   }
 
+  // Upload screenshots and return URLs
+  async uploadScreenshots(files: File[]) {
+    const formData = new FormData()
+    files.forEach(file => {
+      formData.append('screenshots', file)
+    })
+    
+    console.log('📸 API Client - Uploading screenshots:', files.length)
+    const response = await this.client.post('/upload/case-screenshots', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  }
+
   // Case Management API Methods (Updated to new endpoints)
   async createCase(caseData: any) {
-    console.log('📋 API Client - Creating case:', caseData)
+    console.log('📋 API Client - Creating case with data:', caseData)
+    console.log('📸 API Client - Screenshots in caseData:', caseData.screenshots)
+    console.log('📸 API Client - Screenshots length:', caseData.screenshots?.length)
+    console.log('📸 API Client - First screenshot type:', caseData.screenshots?.[0]?.constructor?.name)
+    
+    // If screenshots are File objects, upload them first
+    if (caseData.screenshots && caseData.screenshots.length > 0 && caseData.screenshots[0] instanceof File) {
+      console.log('📸 API Client - Detected File objects, uploading screenshots first...')
+      try {
+        const uploadResponse = await this.uploadScreenshots(caseData.screenshots)
+        console.log('📸 API Client - Upload response:', uploadResponse)
+        
+        if (uploadResponse.success && uploadResponse.data.screenshots) {
+          // Replace File objects with URLs
+          caseData.screenshots = uploadResponse.data.screenshots.map((s: any) => ({ url: s.url }))
+          console.log('✅ API Client - Screenshots uploaded successfully:', caseData.screenshots)
+        } else {
+          console.error('❌ API Client - Screenshot upload failed, response:', uploadResponse)
+          delete caseData.screenshots // Remove if upload failed
+        }
+      } catch (error) {
+        console.error('❌ API Client - Screenshot upload error:', error)
+        delete caseData.screenshots // Remove if upload failed
+      }
+    } else {
+      console.log('📸 API Client - No File objects detected, skipping upload')
+    }
+    
+    console.log('📋 API Client - Final caseData before POST:', caseData)
     return this.client.post('/cases', caseData)
   }
 

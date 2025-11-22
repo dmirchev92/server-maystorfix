@@ -207,6 +207,17 @@ export default function MyCasesPage() {
                               Виж оферти ({case_.current_bidders})
                             </Button>
                           )}
+                          
+                          {/* View Details / Tracking Button */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/cases/${case_.id}`)}
+                            leftIcon={<span>👁️</span>}
+                          >
+                            Детайли
+                          </Button>
+
                           {case_.winning_bid_id && (
                             <Badge variant="construction" className="text-center">
                               ✅ Избран изпълнител
