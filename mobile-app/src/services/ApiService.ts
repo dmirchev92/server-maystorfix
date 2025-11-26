@@ -21,7 +21,7 @@ interface User {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  role: 'tradesperson' | 'employee' | 'admin';
+  role: 'tradesperson' | 'employee' | 'admin' | 'customer' | 'service_provider';
   businessId?: string;
   isGdprCompliant: boolean;
 }
@@ -62,6 +62,11 @@ export class ApiService {
 
   public async setAuthToken(token: string): Promise<void> {
     await this.saveAuthToken(token);
+  }
+
+  public async getAuthToken(): Promise<string | null> {
+    await this.tokenLoaded;
+    return this.authToken;
   }
 
   public async makeRequest<T>(
@@ -144,6 +149,18 @@ export class ApiService {
   }
 
   public async logout(): Promise<APIResponse<any>> {
+    // IMPORTANT: Deactivate FCM token BEFORE clearing auth token
+    // This ensures the device won't receive notifications for the old user
+    try {
+      console.log('🔒 Logout - Deactivating FCM token...');
+      const FCMService = require('./FCMService').default;
+      await FCMService.getInstance().deleteToken();
+      console.log('✅ Logout - FCM token deactivated');
+    } catch (fcmError) {
+      console.warn('⚠️ Logout - Error deactivating FCM token:', fcmError);
+      // Continue with logout even if FCM fails
+    }
+
     const response = await this.makeRequest('/auth/logout', {
       method: 'POST',
     });
@@ -154,6 +171,21 @@ export class ApiService {
     await AsyncStorage.removeItem('user'); // Clear cached user data
     
     return response;
+  }
+
+  // Password Reset Methods
+  public async requestPasswordReset(email: string): Promise<APIResponse<{ message: string }>> {
+    return this.makeRequest('/auth/password-reset-request', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  public async resetPassword(token: string, newPassword: string): Promise<APIResponse<{ message: string }>> {
+    return this.makeRequest('/auth/password-reset', {
+      method: 'POST',
+      body: JSON.stringify({ token, newPassword }),
+    });
   }
 
   // Health Check
@@ -228,6 +260,11 @@ export class ApiService {
     // Chat API V2 automatically gets conversations for authenticated user
     // No need to pass userId - it's extracted from auth token
     return this.makeRequest(`/chat/conversations`);
+  }
+
+  public async getMessages(conversationId: string): Promise<APIResponse> {
+    // Use marketplace type by default for now as it matches the V2 structure
+    return this.getConversationMessages(conversationId, 'marketplace');
   }
 
   public async getConversationMessages(
@@ -341,6 +378,22 @@ export class ApiService {
     return this.makeRequest('/marketplace/categories');
   }
 
+  public async searchProviders(params: {
+    lat?: number;
+    lng?: number;
+    radius?: number;
+    category?: string;
+    city?: string;
+    neighborhood?: string;
+    limit?: number;
+    t?: number;
+  }): Promise<APIResponse> {
+    console.log('🔍 ApiService - Searching providers:', params);
+    const queryString = new URLSearchParams(params as any).toString();
+    // Using the endpoint from memory/web app
+    return this.makeRequest(`/marketplace/providers/search?${queryString}`);
+  }
+
   public async closeConversation(conversationId: string): Promise<APIResponse> {
     console.log('📱 ApiService - Closing conversation:', conversationId);
     return this.makeRequest(`/chat/conversations/${conversationId}/close`, {
@@ -349,6 +402,14 @@ export class ApiService {
   }
 
   // Case Management Methods
+  public async createCase(caseData: any): Promise<APIResponse> {
+    console.log('📝 ApiService - Creating case:', caseData);
+    return this.makeRequest('/cases', {
+      method: 'POST',
+      body: JSON.stringify(caseData),
+    });
+  }
+
   public async getCasesWithFilters(filters: {
     status?: string;
     category?: string;
@@ -374,8 +435,8 @@ export class ApiService {
     console.log('📋 ApiService - Cases response:', {
       success: response.success,
       hasData: !!response.data,
-      dataKeys: response.data ? Object.keys(response.data) : [],
-      casesCount: response.data?.cases?.length || 0
+      dataKeys: response.data ? Object.keys(response.data as any) : [],
+      casesCount: (response.data as any)?.cases?.length || 0
     });
     return response;
   }
@@ -590,7 +651,7 @@ export class ApiService {
     console.log('✅ ApiService - Selecting winning bid:', bidId);
     return this.makeRequest(`/bidding/case/${caseId}/select-winner`, {
       method: 'POST',
-      body: JSON.stringify({ bidId }),
+      body: JSON.stringify({ winning_bid_id: bidId }),
     });
   }
 
@@ -612,6 +673,83 @@ export class ApiService {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  // ============ Location Schedule API ============
+
+  /**
+   * Get location schedule settings
+   */
+  public async getLocationSchedule(): Promise<APIResponse> {
+    console.log('📅 ApiService - Getting location schedule');
+    return this.makeRequest('/tracking/schedule', { method: 'GET' });
+  }
+
+  /**
+   * Update location schedule settings
+   */
+  public async updateLocationSchedule(data: {
+    schedule_enabled?: boolean;
+    start_time?: string;
+    end_time?: string;
+    disable_weekends?: boolean;
+    monday_enabled?: boolean;
+    tuesday_enabled?: boolean;
+    wednesday_enabled?: boolean;
+    thursday_enabled?: boolean;
+    friday_enabled?: boolean;
+    saturday_enabled?: boolean;
+    sunday_enabled?: boolean;
+  }): Promise<APIResponse> {
+    console.log('📅 ApiService - Updating location schedule:', data);
+    return this.makeRequest('/tracking/schedule', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Check if location sharing should be active based on schedule
+   */
+  public async checkLocationSchedule(): Promise<APIResponse> {
+    console.log('📅 ApiService - Checking location schedule');
+    return this.makeRequest('/tracking/schedule/check', { method: 'GET' });
+  }
+
+  // ============ Location API ============
+
+  /**
+   * Get all Bulgarian cities
+   */
+  public async getCities(): Promise<APIResponse> {
+    console.log('📍 ApiService - Fetching cities');
+    return this.makeRequest('/locations/cities', { method: 'GET' });
+  }
+
+  /**
+   * Get neighborhoods for a specific city
+   */
+  public async getNeighborhoods(city: string): Promise<APIResponse> {
+    console.log('📍 ApiService - Fetching neighborhoods for:', city);
+    return this.makeRequest(`/locations/neighborhoods/${encodeURIComponent(city)}`, { method: 'GET' });
+  }
+
+  /**
+   * Get all locations (cities and neighborhoods) for caching
+   */
+  public async getAllLocations(): Promise<APIResponse> {
+    console.log('📍 ApiService - Fetching all locations');
+    return this.makeRequest('/locations/all', { method: 'GET' });
+  }
+
+  /**
+   * Search locations by query
+   */
+  public async searchLocations(query: string, type?: 'city' | 'neighborhood'): Promise<APIResponse> {
+    console.log('📍 ApiService - Searching locations:', query, type);
+    const params = new URLSearchParams({ q: query });
+    if (type) params.append('type', type);
+    return this.makeRequest(`/locations/search?${params.toString()}`, { method: 'GET' });
   }
 }
 

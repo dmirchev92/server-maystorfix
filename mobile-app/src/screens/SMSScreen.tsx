@@ -24,6 +24,59 @@ interface SMSStats {
   filterKnownContacts: boolean;
 }
 
+interface SMSLimitStatus {
+  canSend: boolean;
+  monthlyLimit: number;
+  monthlyUsed: number;
+  monthlyRemaining: number;
+  addonRemaining: number;
+  totalRemaining: number;
+  tier: string;
+}
+
+// SMS Templates
+const SMS_TEMPLATES = {
+  latin: {
+    id: 'latin',
+    name: 'Латиница (1 SMS)',
+    text: 'Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]',
+    description: 'По-евтино - използва само 1 SMS',
+    badge: '💰 По-евтино'
+  },
+  bulgarian: {
+    id: 'bulgarian',
+    name: 'Кирилица (2 SMS)',
+    text: 'Зает съм, ще върна обаждане след няколко минути.\n\nЗапочнете чат тук:\n[chat_link]',
+    description: 'На български - използва 2 SMS заради кирилицата',
+    badge: '🇧🇬 Български'
+  },
+  custom: {
+    id: 'custom',
+    name: 'Персонализиран',
+    text: '',
+    description: 'Напишете свое съобщение',
+    badge: '✏️ Custom'
+  }
+};
+
+// Helper function to calculate SMS segments
+function calculateSMSSegments(text: string): { chars: number; segments: number; maxChars: number; isUnicode: boolean } {
+  const gsmChars = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&'()*+,\-.\/0-9:;<=>?¡A-ZÄÖÑܧ¿a-zäöñüà]*$/;
+  const isUnicode = !gsmChars.test(text);
+  
+  const maxCharsPerSegment = isUnicode ? 70 : 160;
+  const maxCharsMultipart = isUnicode ? 67 : 153;
+  
+  const chars = text.length;
+  let segments = 1;
+  
+  if (chars > maxCharsPerSegment) {
+    segments = Math.ceil(chars / maxCharsMultipart);
+  }
+  
+  return { chars, segments, maxChars: maxCharsPerSegment, isUnicode };
+}
+
 function SMSScreen() {
   const [smsStats, setSmsStats] = useState<SMSStats>({
     isEnabled: false,
@@ -38,6 +91,10 @@ function SMSScreen() {
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [permissions, setPermissions] = useState<any>(null);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<any>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<'latin' | 'bulgarian' | 'custom'>('latin');
+  const [customText, setCustomText] = useState('');
+  const [smsLimitStatus, setSmsLimitStatus] = useState<SMSLimitStatus | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const smsService = SMSService.getInstance();
   const socketService = SocketIOService.getInstance();
@@ -164,8 +221,76 @@ function SMSScreen() {
       setPermissions(perms);
       
       console.log('✅ SMS data loaded successfully');
+      
+      // Detect which template is being used
+      if (config.message === SMS_TEMPLATES.latin.text) {
+        setSelectedTemplate('latin');
+      } else if (config.message === SMS_TEMPLATES.bulgarian.text) {
+        setSelectedTemplate('bulgarian');
+      } else {
+        setSelectedTemplate('custom');
+        setCustomText(config.message);
+      }
+      
+      // Load SMS limit status
+      await loadSMSLimitStatus();
     } catch (error) {
       console.error('❌ Error loading SMS data:', error);
+    }
+  };
+
+  const loadSMSLimitStatus = async () => {
+    try {
+      const response = await ApiService.getInstance().makeRequest('/sms/limit-status');
+      if (response.success && response.data) {
+        setSmsLimitStatus(response.data as SMSLimitStatus);
+      }
+    } catch (error) {
+      console.error('Error loading SMS limit status:', error);
+    }
+  };
+
+  const handleTemplateChange = async (templateId: 'latin' | 'bulgarian' | 'custom') => {
+    setSelectedTemplate(templateId);
+    if (templateId === 'custom') {
+      if (!customText) {
+        setCustomText(messageText);
+      }
+      setMessageText(customText || messageText);
+    } else {
+      setMessageText(SMS_TEMPLATES[templateId].text);
+    }
+    
+    // Update preview
+    const currentLink = smsService.getCurrentChatLinkSync();
+    const newText = templateId === 'custom' ? (customText || messageText) : SMS_TEMPLATES[templateId].text;
+    setDisplayText(newText.replace('[chat_link]', currentLink));
+  };
+
+  const handleSaveTemplate = async () => {
+    const textToSave = selectedTemplate === 'custom' ? customText : SMS_TEMPLATES[selectedTemplate].text;
+    
+    if (!textToSave.trim()) {
+      Alert.alert('Грешка', 'Съобщението не може да бъде празно');
+      return;
+    }
+    
+    if (!textToSave.includes('[chat_link]')) {
+      Alert.alert(
+        'Липсва [chat_link]',
+        'Съобщението трябва да съдържа [chat_link] за да се изпрати линк към чата.\n\nПример: "Можете да започнете чат с мен тук: [chat_link]"'
+      );
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      await smsService.updateConfig({ message: textToSave.trim() });
+      Alert.alert('✅ Успешно', 'SMS шаблонът е запазен успешно!');
+    } catch (error) {
+      Alert.alert('❌ Грешка', 'Неуспешно запазване на шаблона');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -316,63 +441,216 @@ function SMSScreen() {
         </Text>
       </View>
 
-      {/* Message Configuration */}
+      {/* SMS Template Selection */}
       <View style={styles.messageCard}>
-        <Text style={styles.messageTitle}>Шаблон за SMS съобщение</Text>
-        <Text style={styles.messageSubtitle}>
-          Този шаблон ще се изпраща при пропуснато повикване. Използвайте [chat_link] за автоматичния линк за чат.
-        </Text>
+        <Text style={styles.messageTitle}>✏️ SMS Шаблон</Text>
+        <Text style={styles.messageSubtitle}>Изберете шаблон за автоматичното съобщение</Text>
         
-        <View style={[styles.statusRow, { marginBottom: 10, padding: 10, backgroundColor: '#f0f8ff', borderRadius: 8 }]}>
-          <Text style={[styles.statusLabel, { fontWeight: 'bold' }]}>Текущ линк за чат:</Text>
-          <Text style={[styles.statusValue, { fontSize: 12, color: smsService.getCurrentChatLinkSync().includes('http') ? '#0066cc' : isGeneratingLink ? '#999' : '#ff6b35' }]} numberOfLines={1}>
-            {isGeneratingLink ? '🔄 Генериране на линк...' : smsService.getCurrentChatLinkSync()}
-          </Text>
+        {/* Template Options */}
+        <View style={styles.templateContainer}>
+          {/* Latin Template */}
+          <TouchableOpacity 
+            style={[styles.templateOption, selectedTemplate === 'latin' && styles.templateOptionSelected]}
+            onPress={() => handleTemplateChange('latin')}
+          >
+            <View style={styles.templateRadio}>
+              {selectedTemplate === 'latin' && <View style={styles.templateRadioInner} />}
+            </View>
+            <View style={styles.templateContent}>
+              <View style={styles.templateHeader}>
+                <Text style={styles.templateName}>{SMS_TEMPLATES.latin.name}</Text>
+                <View style={[styles.templateBadge, styles.templateBadgeGreen]}>
+                  <Text style={styles.templateBadgeText}>💰 По-евтино</Text>
+                </View>
+              </View>
+              <Text style={styles.templateDescription}>{SMS_TEMPLATES.latin.description}</Text>
+              <Text style={styles.templatePreview}>{SMS_TEMPLATES.latin.text.replace('\n', ' ').substring(0, 45)}...</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Bulgarian Template */}
+          <TouchableOpacity 
+            style={[styles.templateOption, selectedTemplate === 'bulgarian' && styles.templateOptionSelectedBlue]}
+            onPress={() => handleTemplateChange('bulgarian')}
+          >
+            <View style={styles.templateRadio}>
+              {selectedTemplate === 'bulgarian' && <View style={styles.templateRadioInnerBlue} />}
+            </View>
+            <View style={styles.templateContent}>
+              <View style={styles.templateHeader}>
+                <Text style={styles.templateName}>{SMS_TEMPLATES.bulgarian.name}</Text>
+                <View style={[styles.templateBadge, styles.templateBadgeBlue]}>
+                  <Text style={styles.templateBadgeText}>🇧🇬 Български</Text>
+                </View>
+              </View>
+              <Text style={styles.templateDescription}>{SMS_TEMPLATES.bulgarian.description}</Text>
+              <Text style={styles.templatePreview}>{SMS_TEMPLATES.bulgarian.text.replace('\n', ' ').substring(0, 45)}...</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Custom Template */}
+          <TouchableOpacity 
+            style={[styles.templateOption, selectedTemplate === 'custom' && styles.templateOptionSelectedPurple]}
+            onPress={() => handleTemplateChange('custom')}
+          >
+            <View style={styles.templateRadio}>
+              {selectedTemplate === 'custom' && <View style={styles.templateRadioInnerPurple} />}
+            </View>
+            <View style={styles.templateContent}>
+              <Text style={styles.templateName}>{SMS_TEMPLATES.custom.name}</Text>
+              <Text style={styles.templateDescription}>{SMS_TEMPLATES.custom.description}</Text>
+            </View>
+          </TouchableOpacity>
         </View>
-        
-        <TextInput
-          style={styles.messageInput}
-          value={messageText}
-          onChangeText={(text) => {
-            setMessageText(text);
-            // Update preview in real-time
-            const currentLink = smsService.getCurrentChatLinkSync();
-            setDisplayText(text.replace('[chat_link]', currentLink));
-          }}
-          placeholder="Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]\n\n"
-          placeholderTextColor="#999999"
-          multiline
-          numberOfLines={4}
-          textAlignVertical="top"
-        />
-        
-        <Text style={[styles.messageSubtitle, { fontSize: 12, marginTop: 8, fontStyle: 'italic' }]}>
-          💡 Съвет: Използвайте [chat_link] там, където искате да се покаже линкът. Той се обновява автоматично при ползване.
+
+        {/* Custom Text Input */}
+        {selectedTemplate === 'custom' && (
+          <View style={styles.customTextContainer}>
+            <Text style={styles.customTextLabel}>Вашето съобщение:</Text>
+            <TextInput
+              style={styles.messageInput}
+              value={customText}
+              onChangeText={(text) => {
+                setCustomText(text);
+                const currentLink = smsService.getCurrentChatLinkSync();
+                setDisplayText(text.replace('[chat_link]', currentLink));
+              }}
+              placeholder="Напишете вашето съобщение тук..."
+              placeholderTextColor="#999999"
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+            <View style={styles.customTextWarning}>
+              <Text style={styles.customTextWarningText}>
+                ⚠️ [chat_link] е задължително! Ще бъде заменен с линк към чата.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Character Counter */}
+        {(() => {
+          const smsInfo = calculateSMSSegments(displayText || messageText);
+          return (
+            <View style={[styles.charCounterContainer, smsInfo.isUnicode ? styles.charCounterWarning : styles.charCounterSuccess]}>
+              <View style={styles.charCounterRow}>
+                <Text style={styles.charCounterLabel}>Брой символи:</Text>
+                <Text style={[styles.charCounterValue, smsInfo.isUnicode ? styles.charCounterValueWarning : styles.charCounterValueSuccess]}>
+                  {smsInfo.chars}
+                </Text>
+              </View>
+              <View style={styles.charCounterRow}>
+                <Text style={styles.charCounterLabel}>Тип кодиране:</Text>
+                <View style={[styles.encodingBadge, smsInfo.isUnicode ? styles.encodingBadgeWarning : styles.encodingBadgeSuccess]}>
+                  <Text style={styles.encodingBadgeText}>
+                    {smsInfo.isUnicode ? 'Unicode (Кирилица)' : 'GSM-7 (Латиница)'}
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.charCounterRow, styles.charCounterRowBorder]}>
+                <Text style={styles.charCounterLabelBold}>Брой SMS:</Text>
+                <View style={styles.smsCountContainer}>
+                  <Text style={[styles.smsCountValue, smsInfo.segments > 1 ? styles.charCounterValueWarning : styles.charCounterValueSuccess]}>
+                    {smsInfo.segments}
+                  </Text>
+                  <Text style={styles.smsCountLabel}>SMS</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })()}
+
+        {/* SMS Preview */}
+        <View style={styles.previewContainer}>
+          <Text style={styles.previewTitle}>📱 Преглед на SMS:</Text>
+          <Text style={styles.previewText}>{displayText || 'Зареждане на преглед...'}</Text>
+          <Text style={styles.previewSubtitle}>Това е съобщението, което клиентите ще получат</Text>
+        </View>
+
+        {/* Save Button */}
+        <TouchableOpacity 
+          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          onPress={handleSaveTemplate}
+          disabled={saving}
+        >
+          <Text style={styles.saveButtonText}>{saving ? '⏳ Запазване...' : '💾 Запази Шаблон'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* SMS Limit Widget */}
+      {smsLimitStatus && (
+        <View style={styles.smsLimitCard}>
+          <View style={styles.smsLimitHeader}>
+            <Text style={styles.smsLimitTitle}>📱 SMS Лимит & Баланс</Text>
+            <View style={[styles.tierBadge, 
+              smsLimitStatus.tier === 'pro' ? styles.tierPro : 
+              smsLimitStatus.tier === 'normal' ? styles.tierNormal : styles.tierFree
+            ]}>
+              <Text style={styles.tierBadgeText}>
+                {smsLimitStatus.tier === 'pro' ? '⭐ PRO' : smsLimitStatus.tier === 'normal' ? '💼 NORMAL' : '🆓 FREE'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.smsLimitRow}>
+            <Text style={styles.smsLimitLabel}>Месечен лимит:</Text>
+            <Text style={styles.smsLimitValue}>{smsLimitStatus.monthlyUsed} / {smsLimitStatus.monthlyLimit} използвани</Text>
+          </View>
+          <View style={styles.smsLimitProgressBar}>
+            <View 
+              style={[
+                styles.smsLimitProgressFill,
+                { width: `${Math.min((smsLimitStatus.monthlyUsed / smsLimitStatus.monthlyLimit) * 100, 100)}%` },
+                smsLimitStatus.monthlyRemaining === 0 ? styles.progressDanger :
+                smsLimitStatus.monthlyRemaining <= 3 ? styles.progressWarning : styles.progressSuccess
+              ]} 
+            />
+          </View>
+          <View style={styles.smsLimitTotalRow}>
+            <Text style={styles.smsLimitTotalLabel}>Общо налични SMS:</Text>
+            <Text style={styles.smsLimitTotalValue}>{smsLimitStatus.totalRemaining}</Text>
+          </View>
+          {!smsLimitStatus.canSend && (
+            <View style={styles.limitWarning}>
+              <Text style={styles.limitWarningText}>❌ Лимитът е изчерпан</Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* How It Works / Info Card */}
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>💡 Как работи системата?</Text>
+        <Text style={styles.infoText}>
+          • Месечен лимит: {smsLimitStatus?.monthlyLimit || 15} SMS се нулират на 1-во число всеки месец{'\n'}
+          • Закупени SMS: Нямат срок на валидност{'\n'}
+          • Приоритет: Първо се използват закупените SMS{'\n'}
+          • Цена: 15 SMS за 40 BGN
         </Text>
         
-        {/* SMS Preview */}
-        <View style={{ marginTop: 15, padding: 12, backgroundColor: '#f8f9fa', borderRadius: 8, borderLeftWidth: 4, borderLeftColor: '#007bff' }}>
-          <Text style={[styles.statusLabel, { fontSize: 14, fontWeight: 'bold', marginBottom: 8 }]}>📱 Преглед на SMS:</Text>
-          <Text style={{ fontSize: 13, lineHeight: 18, color: '#333' }}>
-            {displayText || 'Зареждане на преглед...'}
+        {/* Encoding Explanation */}
+        <View style={styles.encodingExplanation}>
+          <Text style={styles.encodingExplanationTitle}>📝 Защо кирилицата използва повече SMS?</Text>
+          <Text style={styles.encodingExplanationText}>
+            SMS съобщенията използват различно кодиране в зависимост от символите:
           </Text>
-          <Text style={[styles.messageSubtitle, { fontSize: 11, marginTop: 5, fontStyle: 'italic' }]}>
-            Това ще получат клиентите
-          </Text>
+          <View style={styles.encodingGrid}>
+            <View style={styles.encodingGridItemGreen}>
+              <Text style={styles.encodingGridTitle}>Латиница (GSM-7)</Text>
+              <Text style={styles.encodingGridValue}>160 символа/SMS</Text>
+              <Text style={styles.encodingGridDesc}>A-Z, 0-9, основни символи</Text>
+            </View>
+            <View style={styles.encodingGridItemOrange}>
+              <Text style={styles.encodingGridTitleOrange}>Кирилица (Unicode)</Text>
+              <Text style={styles.encodingGridValueOrange}>70 символа/SMS</Text>
+              <Text style={styles.encodingGridDesc}>А-Я, емотикони, специални</Text>
+            </View>
+          </View>
+          <Text style={styles.encodingTip}>💡 Съвет: Използвайте латиница за по-евтини SMS!</Text>
         </View>
       </View>
 
-      {/* Info Card */}
-      <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Как работи:</Text>
-        <Text style={styles.infoText}>
-          1. Включете автоматичните SMS отгоре{'\n'}
-          2. Включете филтрирането на контакти, за да избегнете SMS до близки{'\n'}
-          3. Разрешете достъп до контактите, когато бъде поискан{'\n'}
-          4. Само НОВИ пропуснати повиквания получават SMS{'\n'}
-          5. Всяко повикване получава само 1 SMS (без дубликати)
-        </Text>
-      </View>
+      <View style={{ height: 30 }} />
     </ScrollView>
   );
 };
@@ -665,6 +943,92 @@ const styles = StyleSheet.create({
     color: '#a5b4fc', // indigo-300
     lineHeight: 20,
   },
+  // Template Styles
+  templateContainer: { marginTop: 12 },
+  templateOption: { flexDirection: 'row', padding: 12, marginBottom: 8, borderRadius: 12, backgroundColor: '#1e293b', borderWidth: 2, borderColor: 'rgba(71, 85, 105, 0.5)' },
+  templateOptionSelected: { backgroundColor: 'rgba(34, 197, 94, 0.15)', borderColor: '#22c55e' },
+  templateOptionSelectedBlue: { backgroundColor: 'rgba(59, 130, 246, 0.15)', borderColor: '#3b82f6' },
+  templateOptionSelectedPurple: { backgroundColor: 'rgba(168, 85, 247, 0.15)', borderColor: '#a855f7' },
+  templateRadio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#64748b', alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 2 },
+  templateRadioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#22c55e' },
+  templateRadioInnerBlue: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#3b82f6' },
+  templateRadioInnerPurple: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#a855f7' },
+  templateContent: { flex: 1 },
+  templateHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  templateName: { fontSize: 16, fontWeight: '600', color: '#fff' },
+  templateBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 },
+  templateBadgeGreen: { backgroundColor: 'rgba(34, 197, 94, 0.3)' },
+  templateBadgeBlue: { backgroundColor: 'rgba(59, 130, 246, 0.3)' },
+  templateBadgeText: { fontSize: 10, fontWeight: '600', color: '#fff' },
+  templateDescription: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+  templatePreview: { fontSize: 11, color: '#64748b', marginTop: 4, fontFamily: 'monospace' },
+  // Custom text
+  customTextContainer: { marginTop: 12, padding: 12, backgroundColor: 'rgba(168, 85, 247, 0.1)', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.3)' },
+  customTextLabel: { fontSize: 13, color: '#c4b5fd', marginBottom: 8 },
+  customTextWarning: { backgroundColor: 'rgba(245, 158, 11, 0.15)', padding: 8, borderRadius: 8, marginTop: 8, borderLeftWidth: 3, borderLeftColor: '#f59e0b' },
+  customTextWarningText: { fontSize: 12, color: '#fbbf24' },
+  // Character counter
+  charCounterContainer: { padding: 12, borderRadius: 12, marginTop: 12, borderWidth: 1 },
+  charCounterSuccess: { backgroundColor: 'rgba(34, 197, 94, 0.1)', borderColor: 'rgba(34, 197, 94, 0.3)' },
+  charCounterWarning: { backgroundColor: 'rgba(245, 158, 11, 0.1)', borderColor: 'rgba(245, 158, 11, 0.3)' },
+  charCounterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  charCounterRowBorder: { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: 8, marginTop: 4 },
+  charCounterLabel: { fontSize: 13, color: '#94a3b8' },
+  charCounterLabelBold: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  charCounterValue: { fontSize: 16, fontWeight: '700' },
+  charCounterValueSuccess: { color: '#22c55e' },
+  charCounterValueWarning: { color: '#f59e0b' },
+  encodingBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  encodingBadgeSuccess: { backgroundColor: 'rgba(34, 197, 94, 0.3)' },
+  encodingBadgeWarning: { backgroundColor: 'rgba(245, 158, 11, 0.3)' },
+  encodingBadgeText: { fontSize: 11, fontWeight: '600', color: '#fff' },
+  smsCountContainer: { flexDirection: 'row', alignItems: 'baseline' },
+  smsCountValue: { fontSize: 24, fontWeight: '700' },
+  smsCountLabel: { fontSize: 12, color: '#94a3b8', marginLeft: 4 },
+  // Preview
+  previewContainer: { backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: 12, borderRadius: 8, marginTop: 12, borderLeftWidth: 4, borderLeftColor: '#6366f1' },
+  previewTitle: { fontSize: 14, fontWeight: '600', color: '#a5b4fc', marginBottom: 8 },
+  previewText: { fontSize: 13, color: '#c4b5fd', lineHeight: 20 },
+  previewSubtitle: { fontSize: 11, color: '#818cf8', marginTop: 8, fontStyle: 'italic' },
+  // Save button
+  saveButton: { backgroundColor: '#6366f1', padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 16 },
+  saveButtonDisabled: { backgroundColor: '#4b5563' },
+  saveButtonText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  // SMS Limit Card
+  smsLimitCard: { backgroundColor: '#1e293b', margin: 16, marginTop: 0, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.3)' },
+  smsLimitHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  smsLimitTitle: { fontSize: 18, fontWeight: '700', color: '#fff' },
+  tierBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  tierPro: { backgroundColor: 'rgba(168, 85, 247, 0.2)', borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.4)' },
+  tierNormal: { backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.4)' },
+  tierFree: { backgroundColor: 'rgba(107, 114, 128, 0.2)', borderWidth: 1, borderColor: 'rgba(107, 114, 128, 0.4)' },
+  tierBadgeText: { fontSize: 12, fontWeight: '600', color: '#fff' },
+  smsLimitRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  smsLimitLabel: { fontSize: 13, color: '#94a3b8' },
+  smsLimitValue: { fontSize: 13, color: '#fff', fontWeight: '500' },
+  smsLimitProgressBar: { height: 8, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden', marginBottom: 12 },
+  smsLimitProgressFill: { height: '100%', borderRadius: 4 },
+  progressSuccess: { backgroundColor: '#22c55e' },
+  progressWarning: { backgroundColor: '#f59e0b' },
+  progressDanger: { backgroundColor: '#ef4444' },
+  smsLimitTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.3)' },
+  smsLimitTotalLabel: { fontSize: 14, color: '#a5b4fc', fontWeight: '500' },
+  smsLimitTotalValue: { fontSize: 24, fontWeight: '700', color: '#a5b4fc' },
+  limitWarning: { backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: 10, borderRadius: 8, marginTop: 12, borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.3)' },
+  limitWarningText: { fontSize: 14, color: '#fca5a5', textAlign: 'center', fontWeight: '500' },
+  // Encoding explanation
+  encodingExplanation: { marginTop: 16, padding: 12, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  encodingExplanationTitle: { fontSize: 14, fontWeight: '600', color: '#fff', marginBottom: 8 },
+  encodingExplanationText: { fontSize: 12, color: '#94a3b8', marginBottom: 12 },
+  encodingGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  encodingGridItemGreen: { flex: 1, padding: 10, marginRight: 4, backgroundColor: 'rgba(34, 197, 94, 0.1)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(34, 197, 94, 0.3)' },
+  encodingGridItemOrange: { flex: 1, padding: 10, marginLeft: 4, backgroundColor: 'rgba(245, 158, 11, 0.1)', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(245, 158, 11, 0.3)' },
+  encodingGridTitle: { fontSize: 12, fontWeight: '600', color: '#22c55e', marginBottom: 2 },
+  encodingGridTitleOrange: { fontSize: 12, fontWeight: '600', color: '#f59e0b', marginBottom: 2 },
+  encodingGridValue: { fontSize: 14, fontWeight: '700', color: '#86efac' },
+  encodingGridValueOrange: { fontSize: 14, fontWeight: '700', color: '#fbbf24' },
+  encodingGridDesc: { fontSize: 10, color: '#94a3b8', marginTop: 2 },
+  encodingTip: { fontSize: 12, color: '#94a3b8', marginTop: 12, textAlign: 'center' },
 });
 
 export default SMSScreen;

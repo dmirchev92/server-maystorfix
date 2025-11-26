@@ -802,6 +802,30 @@ class ApiClient {
     console.log('❌ API Client - Cancelling bid:', bidId)
     return this.client.delete(`/bidding/bid/${bidId}`)
   }
+
+  // ============ Location API ============
+
+  async getCities() {
+    console.log('📍 API Client - Getting cities')
+    return this.client.get('/locations/cities')
+  }
+
+  async getNeighborhoods(city: string) {
+    console.log('📍 API Client - Getting neighborhoods for:', city)
+    return this.client.get(`/locations/neighborhoods/${encodeURIComponent(city)}`)
+  }
+
+  async getAllLocations() {
+    console.log('📍 API Client - Getting all locations')
+    return this.client.get('/locations/all')
+  }
+
+  async searchLocations(query: string, type?: 'city' | 'neighborhood') {
+    console.log('📍 API Client - Searching locations:', query)
+    const params: any = { q: query }
+    if (type) params.type = type
+    return this.client.get('/locations/search', { params })
+  }
 }
 
 // Export singleton instance

@@ -9,8 +9,10 @@ interface Message {
   senderName: string;
   senderUserId?: string;
   message: string;
+  body?: string; // Added for V2 API compatibility
   messageType?: 'text' | 'system' | 'survey_request' | 'case_created' | 'case_template' | 'service_request';
   timestamp: string;
+  sentAt?: string; // Added for V2 API compatibility
   data?: any;
   caseId?: string;
 }
@@ -153,6 +155,9 @@ class SocketIOService {
       // Extract message from data envelope
       const message = data.message;
       this.messageCallbacks.forEach(callback => callback(message));
+      
+      // Check if we need to show a notification (e.g. if app is in background)
+      this.handleMessageNotification(message, 'message:new');
     });
 
     // Message updated - backend emits 'message:updated'
@@ -179,10 +184,7 @@ class SocketIOService {
     // New message notification (for messages in other conversations)
     this.socket.on('new_message_notification', (data: any) => {
       console.log('📨 New message notification received (raw):', data);
-      console.log('📱 App state:', AppState.currentState);
-      console.log('📱 Current conversation:', this.currentConversationId);
-      console.log('📱 Message conversation:', data.conversationId);
-
+      
       // Transform notification payload to Message shape
       const message: Message = {
         id: data.id,
@@ -200,32 +202,8 @@ class SocketIOService {
       // Route through callbacks as a fallback (dedupe happens in UI by id)
       this.messageCallbacks.forEach(callback => callback(message));
 
-      // Show notification if app in background or viewing different conversation
-      // Don't show for own messages (check userId)
-      const isAppInBackground = AppState.currentState !== 'active';
-      const isDifferentConversation = message.conversationId !== this.currentConversationId;
-      const isOwnMessage = message.senderUserId === this.userId;
-      
-      console.log('📱 Notification check:', {
-        isAppInBackground,
-        isDifferentConversation,
-        isOwnMessage,
-        senderType: message.senderType,
-        appState: AppState.currentState
-      });
-      
-      if ((isAppInBackground || isDifferentConversation) && !isOwnMessage) {
-        console.log('📱 Showing notification for message:', message.id);
-        this.notificationService.showChatNotification({
-          conversationId: message.conversationId,
-          senderName: data.customerName || message.senderName || 'New Message',
-          message: message.message || 'New message received',
-          timestamp: message.timestamp,
-        });
-        this.notificationService.incrementBadgeCount();
-      } else {
-        console.log('📱 Skipping notification for notification event - active conversation');
-      }
+      // Handle notification logic
+      this.handleMessageNotification(message, 'new_message_notification');
     });
 
     // New case assignment
@@ -272,6 +250,55 @@ class SocketIOService {
       console.log('🔔 Instant Job Alert received:', data);
       this.jobIncomingCallbacks.forEach(callback => callback(data));
     });
+  }
+
+  private handleMessageNotification(message: Message, source: string) {
+    // Show notification if app in background or viewing different conversation
+    // Don't show for own messages (check userId)
+    const isAppInBackground = AppState.currentState !== 'active';
+    const isDifferentConversation = message.conversationId !== this.currentConversationId;
+    
+    // Robust check for own message (handle string/number types)
+    const isOwnMessage = String(message.senderUserId) === String(this.userId);
+    
+    // NOTE: Normally we filter out own messages (!isOwnMessage).
+    // However, for testing purposes (or if user messages themselves from another device),
+    // we allow the notification to trigger if the app is in background.
+    const shouldShowNotification = isAppInBackground || isDifferentConversation;
+
+    if (isOwnMessage && shouldShowNotification) {
+      console.log('⚠️ Notification triggered for own message (allowed for testing)');
+    }
+
+    console.log(`📱 Notification check [${source}]:`, {
+      isAppInBackground,
+      isDifferentConversation,
+      isOwnMessage,
+      shouldShowNotification,
+      senderType: message.senderType,
+      appState: AppState.currentState,
+      currentConversationId: this.currentConversationId,
+      msgConversationId: message.conversationId,
+      myUserId: this.userId,
+      msgSenderId: message.senderUserId,
+      decision: shouldShowNotification ? 'SHOW' : 'SKIP'
+    });
+    
+    if (shouldShowNotification) {
+      // If it's our own message, append (Me) to clearer debugging
+      const displayName = isOwnMessage ? `${message.senderName} (Me)` : (message.senderName || 'New Message');
+      
+      console.log('📱 Showing notification for message:', message.id);
+      this.notificationService.showChatNotification({
+        conversationId: message.conversationId,
+        senderName: displayName,
+        message: message.message || message.body || 'New message received',
+        timestamp: message.timestamp || message.sentAt || new Date().toISOString(),
+      });
+      this.notificationService.incrementBadgeCount();
+    } else {
+      console.log(`📱 Skipping notification for ${source}. Reason: App is active and in same conversation`);
+    }
   }
 
   joinConversation(conversationId: string) {

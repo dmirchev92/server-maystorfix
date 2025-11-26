@@ -164,6 +164,14 @@ export default function SMSLimitWidget({ compact = false, showPurchaseButton = t
 
   // Compact version for dashboard
   if (compact) {
+    // Calculate addon SMS from packages (same logic as full version)
+    const totalAddonSMS = packages
+      .filter(p => p.status === 'active' || p.status === 'depleted')
+      .reduce((sum, p) => sum + p.smsCount, 0)
+    const usedAddonSMS = packages
+      .filter(p => p.status === 'active' || p.status === 'depleted')
+      .reduce((sum, p) => sum + p.smsUsed, 0)
+    
     return (
       <Card>
         <CardHeader>
@@ -174,15 +182,15 @@ export default function SMSLimitWidget({ compact = false, showPurchaseButton = t
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-300">Месечен лимит:</span>
-            <span className="font-bold text-white">{limitStatus.monthlyUsed}/{limitStatus.monthlyLimit}</span>
+            <span className="text-sm text-slate-300">Месечни SMS:</span>
+            <span className="font-bold text-white">{limitStatus.monthlyUsed}/{limitStatus.monthlyLimit} използвани</span>
           </div>
-          {limitStatus.addonRemaining > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-300">Закупени SMS:</span>
-              <span className="font-bold text-green-400">+{limitStatus.addonRemaining}</span>
-            </div>
-          )}
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-300">Закупени SMS:</span>
+            <span className={`font-bold ${totalAddonSMS > 0 ? 'text-green-400' : 'text-slate-500'}`}>
+              {totalAddonSMS > 0 ? `${usedAddonSMS}/${totalAddonSMS} използвани` : '0'}
+            </span>
+          </div>
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
             <span className="text-sm font-medium text-slate-200">Общо налични:</span>
             <span className="text-2xl font-bold text-indigo-400">{limitStatus.totalRemaining}</span>
@@ -389,14 +397,35 @@ export default function SMSLimitWidget({ compact = false, showPurchaseButton = t
             Как работи системата?
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-slate-300">
+        <CardContent className="space-y-3 text-sm text-slate-300">
           <p>• <strong>Месечен лимит:</strong> {limitStatus.monthlyLimit} SMS се нулират на 1-во число всеки месец</p>
-          <p>• <strong>Закупени SMS:</strong> Никога не изтичат и се пренасят в следващия месец</p>
+          <p>• <strong>Закупени SMS:</strong> Нямат срок на валидност - остават докато не ги използвате</p>
           <p>• <strong>Приоритет:</strong> Първо се използват закупените SMS, след това месечните</p>
           <p>• <strong>Цена:</strong> 15 SMS за 40 BGN (може да купувате многократно)</p>
           {limitStatus.tier === 'normal' && (
             <p className="text-indigo-400">• <strong>Upgrade:</strong> PRO планът включва 25 месечни SMS вместо 15</p>
           )}
+          
+          {/* SMS Encoding Explanation */}
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <p className="font-medium text-white mb-2">📝 Защо кирилицата използва повече SMS?</p>
+            <div className="space-y-2 text-xs text-slate-400">
+              <p>SMS съобщенията използват различно кодиране в зависимост от символите:</p>
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="bg-green-500/10 border border-green-400/20 rounded p-2">
+                  <p className="text-green-400 font-medium">Латиница (GSM-7)</p>
+                  <p className="text-green-300">160 символа/SMS</p>
+                  <p className="text-slate-200 text-[10px]">A-Z, 0-9, основни символи</p>
+                </div>
+                <div className="bg-amber-500/10 border border-amber-400/20 rounded p-2">
+                  <p className="text-amber-400 font-medium">Кирилица (Unicode)</p>
+                  <p className="text-amber-300">70 символа/SMS</p>
+                  <p className="text-slate-200 text-[10px]">А-Я, емотикони, специални</p>
+                </div>
+              </div>
+              <p className="mt-2">💡 <strong className="text-slate-300">Съвет:</strong> Използвайте латиница за по-евтини SMS!</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar, StyleSheet, useColorScheme, View, Alert, AppState, AppStateStatus } from 'react-native';
 import { Provider } from 'react-redux';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
@@ -23,6 +24,7 @@ import SocketIOService from './src/services/SocketIOService';
 import NotificationService from './src/services/NotificationService';
 import FCMService from './src/services/FCMService';
 import LocationTrackingService from './src/services/LocationTrackingService';
+import UpdateService from './src/services/UpdateService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import notifee from '@notifee/react-native';
@@ -107,6 +109,17 @@ function AppContent() {
   useEffect(() => {
     checkExistingSession();
     
+    // Check for app updates on startup
+    const checkForUpdates = async () => {
+      try {
+        console.log('🔄 App.tsx - Checking for app updates...');
+        await UpdateService.getInstance().checkOnStartup();
+      } catch (error) {
+        console.error('❌ App.tsx - Error checking for updates:', error);
+      }
+    };
+    checkForUpdates();
+    
     // Initialize call detection service immediately (doesn't need auth)
     const initCallDetection = async () => {
       try {
@@ -127,11 +140,18 @@ function AppContent() {
       LocationTrackingService.getInstance().stopTracking();
     });
     
+    // Listen for login events from LoginScreen
+    const unsubscribeLogin = AuthBus.subscribe('login', async () => {
+      console.log('✅ App.tsx - Login event received, refreshing session');
+      await checkExistingSession();
+    });
+    
     // Monitor app state changes (background/foreground)
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
       unsubscribe();
+      unsubscribeLogin();
       subscription.remove();
     };
   }, []);
@@ -245,7 +265,8 @@ function AppContent() {
         const cachedUserStr = await AsyncStorage.getItem('user');
         if (cachedUserStr) {
           try {
-            const cachedUser = JSON.parse(cachedUserStr);
+            const parsed = JSON.parse(cachedUserStr);
+            const cachedUser = parsed.user || parsed;
             console.log('✅ Restored user from cache:', cachedUser.id);
             setCurrentUser(cachedUser);
             setIsLoading(false);
@@ -255,8 +276,9 @@ function AppContent() {
               .then((response) => {
                 if (response.success && response.data) {
                   console.log('✅ User verified from API');
-                  setCurrentUser(response.data);
-                  AsyncStorage.setItem('user', JSON.stringify(response.data));
+                  const userData = (response.data as any).user || response.data;
+                  setCurrentUser(userData);
+                  AsyncStorage.setItem('user', JSON.stringify(userData));
                 }
               })
               .catch((err) => {
@@ -273,10 +295,11 @@ function AppContent() {
         const response = await ApiService.getInstance().getCurrentUser();
         
         if (response.success && response.data) {
-          console.log('✅ User fetched successfully:', response.data.id);
-          setCurrentUser(response.data);
+          const userData = (response.data as any).user || response.data;
+          console.log('✅ User fetched successfully:', userData.id);
+          setCurrentUser(userData);
           // Cache user data for faster startup
-          await AsyncStorage.setItem('user', JSON.stringify(response.data));
+          await AsyncStorage.setItem('user', JSON.stringify(userData));
         } else {
           console.log('⚠️ Failed to fetch user, token may be expired');
           // Don't logout automatically - token might be temporarily unavailable
@@ -313,7 +336,7 @@ function AppContent() {
   return (
     <NotificationProvider>
       <View style={[styles.container, { paddingTop: safeAreaInsets.top }]}>
-        <AppNavigator />
+        <AppNavigator key={currentUser.role} userRole={currentUser.role} />
       </View>
     </NotificationProvider>
   );

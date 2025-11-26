@@ -46,7 +46,7 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
     // Service provider items
     ...(user?.role === 'tradesperson' || user?.role === 'service_provider' ? [
       { href: '/dashboard/cases', label: 'Заявки', icon: '📋' },
-      { href: '/dashboard', label: 'Табло', icon: '📊' },
+      { href: '/provider/dashboard', label: 'Табло', icon: '📊' },
       { href: '/referrals', label: 'Препоръки', icon: '🎯' },
     ] : []),
     // Customer items

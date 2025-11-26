@@ -312,6 +312,43 @@ export class ChatTokenService {
         [conversationId, tokenData.user_id, 'Chat Customer', '', '', 'active', 'smschat']
       );
 
+      // Send automatic welcome message from the Service Provider
+      const autoMessageId = uuidv4();
+      const autoMessageText = `Извинете, в момента съм зает. Ще се свържа с вас веднага щом се освободя. Междувременно, моля опишете проблема тук - снимки на проблема биха били много полезни. Благодаря за разбирането.`;
+      
+      // Get provider's name
+      const providerResult = await pool.query(
+        `SELECT u.first_name, u.last_name, spp.business_name 
+         FROM users u 
+         LEFT JOIN service_provider_profiles spp ON u.id = spp.user_id 
+         WHERE u.id = $1`,
+        [tokenData.user_id]
+      );
+      
+      let providerName = 'Доставчик на услуги';
+      if (providerResult.rows.length > 0) {
+        const provider = providerResult.rows[0];
+        if (provider.first_name && provider.last_name) {
+          providerName = `${provider.first_name} ${provider.last_name}`;
+        } else if (provider.business_name) {
+          providerName = provider.business_name;
+        }
+      }
+      
+      // Insert the automatic welcome message
+      await pool.query(
+        `INSERT INTO marketplace_chat_messages 
+         (id, conversation_id, sender_user_id, sender_type, sender_name, message, message_type, sent_at, is_read)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, false)`,
+        [autoMessageId, conversationId, tokenData.user_id, 'provider', providerName, autoMessageText, 'text']
+      );
+      
+      logger.info('Auto welcome message sent for SMS chat', {
+        conversationId,
+        messageId: autoMessageId,
+        providerName
+      });
+
       // Create permanent chat session
       await new Promise<void>((resolve, reject) => {
         (this.database as any).db.run(

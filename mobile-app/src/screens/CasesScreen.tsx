@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  Image,
+  Modal,
 } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -48,6 +50,7 @@ interface Case {
   latitude?: number;
   longitude?: number;
   formatted_address?: string;
+  screenshots?: Array<{ id?: string; url: string; createdAt?: string }>;
 }
 
 interface CaseStats {
@@ -842,6 +845,30 @@ export default function CasesScreen() {
                           <Text style={styles.detailValue}>{caseItem.priority}</Text>
                         </View>
                       )}
+                      {/* Screenshots */}
+                      {caseItem.screenshots && caseItem.screenshots.length > 0 && (
+                        <View style={styles.screenshotsSection}>
+                          <Text style={styles.detailLabel}>📷 Снимки:</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotsScroll}>
+                            {caseItem.screenshots.map((screenshot, index) => (
+                              <TouchableOpacity 
+                                key={screenshot.id || index} 
+                                style={styles.screenshotWrapper}
+                                onPress={() => {
+                                  // Open full screen image viewer
+                                  Linking.openURL(screenshot.url);
+                                }}
+                              >
+                                <Image 
+                                  source={{ uri: screenshot.url }} 
+                                  style={styles.screenshotImage}
+                                  resizeMode="cover"
+                                />
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
+                      )}
                     </View>
                   )}
                 </TouchableOpacity>
@@ -1354,5 +1381,24 @@ const styles = StyleSheet.create({
   lostBadge: {
     backgroundColor: 'rgba(239, 68, 68, 0.2)', // red-500/20
     borderColor: '#f87171', // red-400
+  },
+  // Screenshots styles
+  screenshotsSection: {
+    marginTop: theme.spacing.md,
+  },
+  screenshotsScroll: {
+    marginTop: theme.spacing.sm,
+  },
+  screenshotWrapper: {
+    marginRight: theme.spacing.sm,
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+  },
+  screenshotImage: {
+    width: 120,
+    height: 90,
+    borderRadius: 8,
   },
 });

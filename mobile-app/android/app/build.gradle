@@ -82,8 +82,8 @@ android {
         applicationId "com.servicetextpro"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1"
+        versionCode 5
+        versionName "1.4"
     }
     signingConfigs {
         debug {
@@ -116,6 +116,9 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+    implementation 'com.google.android.gms:play-services-maps:19.2.0'
+    implementation 'com.google.maps.android:android-maps-utils:3.8.2'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
 }
 
 apply plugin: 'com.google.gms.google-services'

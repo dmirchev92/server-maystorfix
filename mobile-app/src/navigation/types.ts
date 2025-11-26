@@ -1,7 +1,28 @@
 export type RootStackParamList = {
   Login: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { token: string };
   Main: undefined;
+  CustomerMain: undefined;
   MapSearch: undefined;
+  CreateCase: undefined;
+  ChatDetail: {
+    conversationId: string;
+    providerId: string;
+    providerName: string;
+  };
+  CaseBids: {
+    caseId: string;
+    caseDescription?: string;
+  };
+};
+
+export type CustomerTabParamList = {
+  Dashboard: undefined;
+  Search: undefined;
+  MyCases: undefined;
+  Chat: undefined;
+  Settings: undefined;
 };
 
 export type MainTabParamList = {
@@ -13,11 +34,6 @@ export type MainTabParamList = {
   IncomeDashboard: undefined;
   Notifications: undefined;
   Chat: undefined;
-  ChatDetail: {
-    conversationId: string;
-    providerId: string;
-    providerName: string;
-  };
   PlaceBid: {
     caseId: string;
   };
@@ -27,6 +43,8 @@ export type MainTabParamList = {
   EditProfile: undefined;
   ChangePassword: undefined;
   Subscription: undefined;
+  Consent: undefined;
+  LocationSchedule: undefined;
 };
 
 export type SettingsStackParamList = {

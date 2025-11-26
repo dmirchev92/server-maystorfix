@@ -7,14 +7,13 @@ import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import ChatWidget from '@/components/ChatWidget'
 import SMSLimitWidget from '@/components/SMSLimitWidget'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { apiClient } from '@/lib/api'
 
 interface DashboardStats {
-  totalCases: number
-  activeCases: number
+  available: number
+  accepted: number
   completedCases: number
-  totalRevenue: number
-  monthlyRevenue: number
   averageRating: number
   totalReviews: number
 }
@@ -35,6 +34,12 @@ export default function ProviderDashboard() {
   const [recentCases, setRecentCases] = useState<RecentCase[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Income state
+  const [incomeStats, setIncomeStats] = useState<any>(null)
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
+  const [availableYears, setAvailableYears] = useState<number[]>([])
 
   useEffect(() => {
     console.log('🏠 Provider Dashboard - Auth state:', { 
@@ -121,17 +126,15 @@ export default function ProviderDashboard() {
       const casesData = casesResponse.data?.data?.cases || []
       const providerData = providerResponse.data?.data || {}
 
-      // Calculate totals from status stats
-      const totalCases = statusStats.reduce((sum: number, stat: any) => sum + (stat.count || 0), 0)
-      const activeCases = statusStats.find((s: any) => s.status === 'wip')?.count || 0
-      const completedCases = statusStats.find((s: any) => s.status === 'completed')?.count || 0
+      // Get stats directly from API response (same structure as /dashboard/cases)
+      const available = Number(statsData.available) || 0
+      const accepted = Number(statsData.accepted) || 0
+      const completedCases = Number(statsData.completed) || 0
 
       const dashboardStats: DashboardStats = {
-        totalCases,
-        activeCases,
+        available,
+        accepted,
         completedCases,
-        totalRevenue: 0, // Not tracked yet
-        monthlyRevenue: 0, // Not tracked yet
         averageRating: providerData.rating || 0,
         totalReviews: providerData.totalReviews || providerData.total_reviews || 0
       }
@@ -154,6 +157,50 @@ export default function ProviderDashboard() {
       setError('Неуспешно зареждане на данните за таблото')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Fetch income data
+  useEffect(() => {
+    if (isAuthenticated && user && !isLoading) {
+      fetchAvailableYears()
+    }
+  }, [isAuthenticated, user?.id, isLoading])
+
+  useEffect(() => {
+    if (isAuthenticated && user && selectedYear && !isLoading) {
+      fetchIncomeStats()
+    }
+  }, [isAuthenticated, user?.id, selectedYear, isLoading])
+
+  const fetchAvailableYears = async () => {
+    try {
+      const response = await apiClient.getIncomeYears(user!.id)
+      if (response.data?.success) {
+        const years = response.data.data || []
+        setAvailableYears(years)
+        const currentYear = new Date().getFullYear()
+        if (years.includes(currentYear)) {
+          setSelectedYear(currentYear)
+        } else if (years.length > 0) {
+          setSelectedYear(years[years.length - 1])
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching available years:', error)
+    }
+  }
+
+  const fetchIncomeStats = async () => {
+    try {
+      const startDate = `${selectedYear}-01-01`
+      const endDate = `${selectedYear}-12-31`
+      const response = await apiClient.getIncomeStats(user!.id, startDate, endDate)
+      if (response.data?.success) {
+        setIncomeStats(response.data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching income stats:', error)
     }
   }
 
@@ -240,93 +287,84 @@ export default function ProviderDashboard() {
       <main className="relative z-10 container mx-auto px-4 py-8">
         {/* Welcome Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-white mb-2">
-                Добре дошли, {user?.firstName}! 👋
-              </h1>
-              <p className="text-slate-300">
-                Управлявайте вашите заявки и следете статистиките си
-              </p>
-            </div>
-            <button
-              onClick={() => router.push('/provider/my-bids')}
-              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all flex items-center space-x-2"
-            >
-              <span className="text-xl">💰</span>
-              <span>Моите оферти</span>
-            </button>
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              Добре дошли, {user?.firstName}! 👋
+            </h1>
+            <p className="text-slate-300">
+              Управлявайте вашите заявки и следете статистиките си
+            </p>
           </div>
         </div>
 
         {/* Stats Grid */}
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all">
+            <div className="bg-gradient-to-br from-green-600/20 to-emerald-600/10 backdrop-blur-md rounded-xl shadow-xl border border-green-500/30 p-6 hover:from-green-600/30 hover:to-emerald-600/20 transition-all">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <span className="text-blue-600 text-lg">📋</span>
+                  <div className="w-10 h-10 bg-green-500/30 rounded-lg flex items-center justify-center">
+                    <span className="text-green-300 text-xl">📋</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-300">Общо заявки</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalCases}</p>
+                  <p className="text-sm font-medium text-green-200">Налични заявки</p>
+                  <p className="text-2xl font-bold text-white">{stats.available}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all">
+            <div className="bg-gradient-to-br from-blue-600/20 to-indigo-600/10 backdrop-blur-md rounded-xl shadow-xl border border-blue-500/30 p-6 hover:from-blue-600/30 hover:to-indigo-600/20 transition-all">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-green-400 text-lg">⚡</span>
+                  <div className="w-10 h-10 bg-blue-500/30 rounded-lg flex items-center justify-center">
+                    <span className="text-blue-300 text-xl">✅</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-300">Активни</p>
-                  <p className="text-2xl font-bold text-white">{stats.activeCases}</p>
+                  <p className="text-sm font-medium text-blue-200">Приети</p>
+                  <p className="text-2xl font-bold text-white">{stats.accepted}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all">
+            <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/10 backdrop-blur-md rounded-xl shadow-xl border border-purple-500/30 p-6 hover:from-purple-600/30 hover:to-pink-600/20 transition-all">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-purple-400 text-lg">✅</span>
+                  <div className="w-10 h-10 bg-purple-500/30 rounded-lg flex items-center justify-center">
+                    <span className="text-purple-300 text-xl">🏁</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-300">Завършени</p>
+                  <p className="text-sm font-medium text-purple-200">Завършени</p>
                   <p className="text-2xl font-bold text-white">{stats.completedCases}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all">
+            <div className="bg-gradient-to-br from-yellow-600/20 to-amber-600/10 backdrop-blur-md rounded-xl shadow-xl border border-yellow-500/30 p-6 hover:from-yellow-600/30 hover:to-amber-600/20 transition-all">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-yellow-400 text-lg">⭐</span>
+                  <div className="w-10 h-10 bg-yellow-500/30 rounded-lg flex items-center justify-center">
+                    <span className="text-yellow-300 text-xl">⭐</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-300">Оценка</p>
-                  <p className="text-2xl font-bold text-white">{stats.averageRating.toFixed(1)}</p>
+                  <p className="text-sm font-medium text-yellow-200">Оценка</p>
+                  <p className="text-2xl font-bold text-white">{Number(stats.averageRating || 0).toFixed(1)}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6 hover:bg-white/15 transition-all">
+            <div className="bg-gradient-to-br from-pink-600/20 to-rose-600/10 backdrop-blur-md rounded-xl shadow-xl border border-pink-500/30 p-6 hover:from-pink-600/30 hover:to-rose-600/20 transition-all">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                    <span className="text-orange-400 text-lg">💬</span>
+                  <div className="w-10 h-10 bg-pink-500/30 rounded-lg flex items-center justify-center">
+                    <span className="text-pink-300 text-xl">💬</span>
                   </div>
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-slate-300">Отзиви</p>
+                  <p className="text-sm font-medium text-pink-200">Отзиви</p>
                   <p className="text-2xl font-bold text-white">{stats.totalReviews}</p>
                 </div>
               </div>
@@ -334,157 +372,175 @@ export default function ProviderDashboard() {
           </div>
         )}
 
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Recent Cases */}
-          <div className="lg:col-span-2">
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white">Последни заявки</h2>
-                <a
-                  href="/dashboard?view=assigned"
-                  className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
-                >
-                  Виж всички →
-                </a>
+        {/* Quick Actions Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <a
+            href="/dashboard/cases"
+            className="bg-gradient-to-br from-indigo-600/20 to-blue-600/10 backdrop-blur-md rounded-xl shadow-xl border border-indigo-500/30 p-6 hover:from-indigo-600/30 hover:to-blue-600/20 hover:border-indigo-400/50 transition-all group"
+          >
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-3 bg-indigo-500/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-3xl">📋</span>
               </div>
-              
-              {recentCases.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="text-6xl mb-4">📋</div>
-                  <p className="text-slate-300 mb-4">Няма активни заявки</p>
-                  <p className="text-sm text-slate-400">Новите заявки ще се появят тук</p>
+              <h3 className="text-white font-semibold">Заявки</h3>
+              <p className="text-indigo-300 text-xs mt-1">Управление</p>
+            </div>
+          </a>
+          
+          <a
+            href="/provider/my-bids"
+            className="bg-gradient-to-br from-pink-600/20 to-rose-600/10 backdrop-blur-md rounded-xl shadow-xl border border-pink-500/30 p-6 hover:from-pink-600/30 hover:to-rose-600/20 hover:border-pink-400/50 transition-all group"
+          >
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-3 bg-pink-500/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-3xl">💰</span>
+              </div>
+              <h3 className="text-white font-semibold">Оферти</h3>
+              <p className="text-pink-300 text-xs mt-1">Моите оферти</p>
+            </div>
+          </a>
+          
+          <a
+            href="/settings/sms"
+            className="bg-gradient-to-br from-cyan-600/20 to-teal-600/10 backdrop-blur-md rounded-xl shadow-xl border border-cyan-500/30 p-6 hover:from-cyan-600/30 hover:to-teal-600/20 hover:border-cyan-400/50 transition-all group"
+          >
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-3 bg-cyan-500/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-3xl">📱</span>
+              </div>
+              <h3 className="text-white font-semibold">SMS</h3>
+              <p className="text-cyan-300 text-xs mt-1">Настройки</p>
+            </div>
+          </a>
+          
+          <a
+            href="/settings?section=profile"
+            className="bg-gradient-to-br from-purple-600/20 to-pink-600/10 backdrop-blur-md rounded-xl shadow-xl border border-purple-500/30 p-6 hover:from-purple-600/30 hover:to-pink-600/20 hover:border-purple-400/50 transition-all group"
+          >
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-3 bg-purple-400/40 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-3xl">⚙️</span>
+              </div>
+              <h3 className="text-white font-semibold">Профил</h3>
+              <p className="text-purple-300 text-xs mt-1">Редактиране</p>
+            </div>
+          </a>
+        </div>
+
+        {/* Income Section */}
+        {incomeStats && (
+          <Card className="mb-8 bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border-2 border-green-500/30 shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <span className="text-2xl">💰</span>
+                <span>Приходи</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* Selected Month */}
+                {incomeStats.monthlyIncome && incomeStats.monthlyIncome.length > 0 && (
+                  <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 p-4 rounded-lg border border-purple-400/30">
+                    <div className="text-sm text-slate-300 mb-2">Избран месец</div>
+                    <select
+                      value={selectedMonth || incomeStats.monthlyIncome[0]?.month}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="w-full mb-3 px-2 py-1 bg-slate-700 text-slate-200 rounded border border-purple-400/30 text-xs focus:outline-none focus:border-purple-400"
+                    >
+                      {incomeStats.monthlyIncome.map((m: any) => (
+                        <option key={m.month} value={m.month}>
+                          {new Date(m.month + '-01').toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' })}
+                        </option>
+                      ))}
+                    </select>
+                    {(() => {
+                      const currentMonth = incomeStats.monthlyIncome.find((m: any) => m.month === (selectedMonth || incomeStats.monthlyIncome[0]?.month))
+                      return (
+                        <>
+                          <div className="text-2xl font-bold text-purple-400">
+                            {currentMonth?.total?.toFixed(2) || '0.00'} {incomeStats.summary?.currency || 'BGN'}
+                          </div>
+                          <div className="text-xs text-slate-400 mt-1">
+                            {currentMonth?.count || 0} заявки • Средно: {currentMonth?.average?.toFixed(2) || '0.00'} BGN
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                {/* Total Income */}
+                <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 p-4 rounded-lg border border-green-400/30">
+                  <div className="text-sm text-slate-300 mb-2">Общо приходи</div>
+                  {availableYears.length > 0 && (
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="w-full mb-3 px-2 py-1 bg-slate-700 text-slate-200 rounded border border-green-400/30 text-xs focus:outline-none focus:border-green-400"
+                    >
+                      {availableYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year} г.
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  <div className="text-2xl font-bold text-green-400">
+                    {incomeStats.summary?.totalIncome?.toFixed(2) || '0.00'} {incomeStats.summary?.currency || 'BGN'}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">
+                    {incomeStats.summary?.incomeCount || 0} заявки • Средно: {incomeStats.summary?.averageIncome?.toFixed(2) || '0.00'} BGN
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentCases.map((case_) => (
-                    <div key={case_.id} className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 hover:border-indigo-500/50 hover:bg-slate-800/70 transition-all duration-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-white text-sm">{case_.title}</h3>
-                        <div className="flex items-center space-x-2">
-                          <span className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-medium ${getStatusColor(case_.status)}`}>
-                            {getStatusLabel(case_.status)}
-                          </span>
-                          <span className={`text-xs font-medium ${getUrgencyColor(case_.urgency)}`}>
-                            {case_.urgency === 'urgent' ? '🔥' : '📅'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
-                        <span className="flex items-center">
-                          <span className="mr-1">👤</span>
-                          {case_.customerName}
-                        </span>
-                        <span>{new Date(case_.createdAt).toLocaleDateString('bg-BG')}</span>
-                      </div>
-                      
-                      <div className="mt-3 flex space-x-2">
-                        {case_.status === 'pending' && (
-                          <button 
-                            onClick={() => handleAcceptCase(case_.id)}
-                            className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
-                          >
-                            ✅ Приеми
-                          </button>
-                        )}
-                        {(case_.status === 'active' || case_.status === 'accepted' || case_.status === 'wip') && (
-                          <button 
-                            onClick={() => handleCompleteCase(case_.id)}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
-                          >
-                            🏁 Завърши
-                          </button>
-                        )}
-                        <a
-                          href={`/dashboard?view=assigned`}
-                          className="bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-700 inline-block"
+              </div>
+
+              {/* Payment Methods */}
+              {incomeStats.paymentMethods && incomeStats.paymentMethods.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-slate-300 mb-3">По метод на плащане</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {(() => {
+                      const methodNames: { [key: string]: string } = {
+                        'cash': '💵 Кеш',
+                        'card': '💳 Карта',
+                        'bank_transfer': '🏦 Банка',
+                        'online': '🌐 Revolut',
+                        'other': '📝 Друго'
+                      }
+                      const sortedMethods = [...incomeStats.paymentMethods].sort((a: any, b: any) => b.total - a.total)
+                      return sortedMethods.map((pm: any) => (
+                        <div
+                          key={pm.method}
+                          className="p-3 bg-slate-800/50 rounded-lg text-center border border-slate-700/50"
                         >
-                          📋 Виж всички
-                        </a>
-                      </div>
-                    </div>
-                  ))}
+                          <div className="text-xs text-slate-400 mb-1">
+                            {methodNames[pm.method] || pm.method}
+                          </div>
+                          <div className="text-sm font-bold text-slate-200">{pm.total?.toFixed(2)} BGN</div>
+                          <div className="text-xs text-slate-500">{pm.count} заявки</div>
+                        </div>
+                      ))
+                    })()}
+                  </div>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* Quick Actions Sidebar */}
-          <div className="lg:col-span-1">
-            {/* SMS Limit Widget */}
-            <div className="mb-6">
-              <SMSLimitWidget compact={true} showPurchaseButton={true} />
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6 mb-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Бързи действия</h2>
-              
-              <div className="space-y-3">
+              {/* Link to full income page */}
+              <div className="mt-4 text-center">
                 <a
-                  href="/dashboard?view=assigned"
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 text-sm font-medium flex items-center justify-center space-x-2"
+                  href="/dashboard"
+                  className="text-sm text-green-400 hover:text-green-300 transition-colors"
                 >
-                  <span>📋</span>
-                  <span>Управление на заявки</span>
-                </a>
-                
-                <a
-                  href="/settings?section=profile"
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-2 px-4 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 text-sm font-medium flex items-center justify-center space-x-2"
-                >
-                  <span>👤</span>
-                  <span>Редактирай профил</span>
-                </a>
-                
-                <a
-                  href="/referrals"
-                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-2 px-4 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 text-sm font-medium flex items-center justify-center space-x-2"
-                >
-                  <span>🤝</span>
-                  <span>Препоръки</span>
-                </a>
-                
-                <a
-                  href="/provider/analytics"
-                  className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 text-white py-2 px-4 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 text-sm font-medium flex items-center justify-center space-x-2"
-                >
-                  <span>📊</span>
-                  <span>Статистики</span>
+                  Виж пълни детайли и изтегли отчет →
                 </a>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Profile Summary */}
-            <div className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl border border-white/20 p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Профил</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between py-2 border-b border-white/10">
-                  <span className="text-slate-400">Име:</span>
-                  <span className="font-semibold text-white">{user?.firstName} {user?.lastName}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-white/10">
-                  <span className="text-slate-400">Имейл:</span>
-                  <span className="font-semibold text-white text-xs">{user?.email}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-white/10">
-                  <span className="text-slate-400">Роля:</span>
-                  <span className="font-semibold text-indigo-400">Доставчик на услуги</span>
-                </div>
-                {stats && (
-                  <>
-                    <div className="flex items-center justify-between py-2 border-b border-white/10">
-                      <span className="text-slate-400">Оценка:</span>
-                      <span className="font-semibold text-yellow-400">{stats.averageRating.toFixed(1)} ⭐</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-slate-400">Отзиви:</span>
-                      <span className="font-semibold text-white">{stats.totalReviews}</span>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+        {/* SMS Balance Card */}
+        <div className="mb-8">
+          <SMSLimitWidget compact={true} showPurchaseButton={true} />
         </div>
       </main>
       

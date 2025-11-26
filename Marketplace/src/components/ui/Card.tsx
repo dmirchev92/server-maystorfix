@@ -10,9 +10,11 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = 'default', padding = 'md', hover = false, children, ...props }, ref) => {
+    // Note: Removed hover:scale effect - it causes scroll jumping on mobile browsers
+    // when touch events trigger hover states
     const baseClasses = `
       rounded-xl transition-all duration-300 ease-in-out
-      ${hover ? 'hover:scale-[1.02] hover:shadow-xl cursor-pointer' : ''}
+      ${hover ? 'md:hover:shadow-xl cursor-pointer' : ''}
     `;
 
     const variants = {

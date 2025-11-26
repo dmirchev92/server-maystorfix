@@ -848,13 +848,13 @@ export class NotificationService {
   /**
    * Notify customer when a new bid is placed on their case
    */
-  async notifyNewBidPlaced(caseId: string, customerId: string, providerName: string, bidAmount: number): Promise<void> {
+  async notifyNewBidPlaced(caseId: string, customerId: string, providerName: string, proposedBudgetRange: string): Promise<void> {
     await this.createNotification(
       customerId,
       'new_bid_placed',
       'Нова оферта за вашата заявка',
-      `${providerName} предложи ${bidAmount} точки за вашата заявка.`,
-      { caseId, providerName, bidAmount, action: 'view_bids' }
+      `${providerName} предложи ${proposedBudgetRange} лв. за вашата заявка.`,
+      { caseId, providerName, proposedBudgetRange, action: 'view_bids' }
     );
   }
 

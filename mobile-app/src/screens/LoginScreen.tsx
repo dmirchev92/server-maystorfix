@@ -14,7 +14,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/ApiService';
+import { AuthBus } from '../utils/AuthBus';
 import theme from '../styles/theme';
 
 interface LoginScreenProps {}
@@ -32,8 +34,8 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
 
   const checkBackendConnection = async () => {
     try {
-      const isConnected = await ApiService.testConnection();
-      setBackendStatus(isConnected ? 'connected' : 'disconnected');
+      const response = await ApiService.getInstance().healthCheck();
+      setBackendStatus(response.success ? 'connected' : 'disconnected');
     } catch (error) {
       setBackendStatus('disconnected');
     }
@@ -47,10 +49,32 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
 
     setIsLoading(true);
     try {
-      const { user } = await ApiService.login({ email: email.trim(), password });
-      if (user) {
-        // Navigate to main app
-        navigation.replace('Main');
+      const response = await ApiService.getInstance().login(email.trim(), password);
+      if (response.success && response.data) {
+        const { user } = response.data;
+        if (user) {
+          // Persist user data immediately
+          await AsyncStorage.setItem('user', JSON.stringify(user));
+          
+          // Notify App.tsx to update state
+          // We can try to emit an event if App.tsx listens, 
+          // or rely on navigation if App.tsx re-checks on focus (which it does).
+          // But explicit update is better. 
+          // Since we don't have direct access to App's setUser here, 
+          // we rely on the fact that we saved to AsyncStorage.
+          
+          // Also trigger a global event just in case
+          AuthBus.emit('login'); // Removed 'user' arg if it only accepts one
+
+          // Navigate based on role
+          if (user.role === 'customer') {
+            navigation.replace('CustomerMain');
+          } else {
+            navigation.replace('Main');
+          }
+        }
+      } else {
+        throw new Error(response.error?.message || 'Login failed');
       }
     } catch (error: any) {
       Alert.alert(
@@ -65,7 +89,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
   const handleTestLogin = async () => {
     setIsLoading(true);
     try {
-      const { user } = await ApiService.login({ email: 'ivan@example.com', password: 'Test123!@#' });
+      const { user } = await ApiService.getInstance().login('ivan@example.com', 'Test123!@#');
       if (user) {
         // Navigate to main app
         navigation.replace('Main');
@@ -78,7 +102,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         email: 'ivan@example.com',
         firstName: 'Иван',
         lastName: 'Петров',
-        role: 'business_owner'
+        role: 'tradesperson'
       };
       // Store mock user in AsyncStorage or similar
       navigation.replace('Main');

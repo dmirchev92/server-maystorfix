@@ -184,6 +184,31 @@ export const config = {
   // Communication services
   communication: {
     email: {
+      smtp: {
+        host: process.env.SMTP_HOST || 'mail.privateemail.com',
+        port: parseInt(process.env.SMTP_PORT || '465', 10),
+        secure: process.env.SMTP_SECURE !== 'false', // true for 465, false for 587
+        user: process.env.SMTP_USER || '',
+        password: process.env.SMTP_PASSWORD || '',
+        fromEmail: process.env.SMTP_FROM_EMAIL || 'admin@maystorfix.com',
+        fromName: process.env.SMTP_FROM_NAME || 'MaystorFix'
+      },
+      dkim: {
+        domainName: process.env.DKIM_DOMAIN || 'maystorfix.com',
+        keySelector: process.env.DKIM_SELECTOR || 'default',
+        privateKey: process.env.DKIM_PRIVATE_KEY || ''
+      },
+      verification: {
+        tokenExpiryHours: parseInt(process.env.EMAIL_VERIFICATION_EXPIRY_HOURS || '24', 10),
+        baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL || 'https://maystorfix.com'
+      },
+      passwordReset: {
+        tokenExpiryHours: parseInt(process.env.PASSWORD_RESET_EXPIRY_HOURS || '1', 10),
+        baseUrl: process.env.PASSWORD_RESET_BASE_URL || 'https://maystorfix.com'
+      },
+      subscriptionReminder: {
+        daysBeforeExpiry: (process.env.SUBSCRIPTION_REMINDER_DAYS || '7,3,1').split(',').map(d => parseInt(d, 10))
+      },
       sendgrid: {
         apiKey: process.env.SENDGRID_API_KEY,
         fromEmail: process.env.SENDGRID_FROM_EMAIL || 'noreply@servicetextpro.bg',

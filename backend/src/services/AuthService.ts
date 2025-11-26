@@ -8,6 +8,7 @@ import config from '../utils/config';
 import logger, { gdprLogger } from '../utils/logger';
 import { DatabaseFactory } from '../models/DatabaseFactory';
 import SecurityEnhancementService from './SecurityEnhancementServiceSimple';
+import EmailService from './EmailService';
 import {
   User,
   UserRole,
@@ -296,6 +297,13 @@ export class AuthService {
         gdprCompliant: savedUser.isGdprCompliant
       });
 
+      // Send verification email (non-blocking)
+      this.sendVerificationEmailAsync(savedUser.id, savedUser.email, savedUser.firstName, userData.ipAddress);
+
+      // Send welcome email (non-blocking)
+      EmailService.sendWelcomeEmail(savedUser.email, savedUser.firstName, savedUser.role, savedUser.id)
+        .catch(err => logger.error('Failed to send welcome email', { error: err, userId: savedUser.id }));
+
       return { user: this.sanitizeUser(savedUser), tokens };
 
     } catch (error) {
@@ -541,15 +549,11 @@ export class AuthService {
         return;
       }
 
-      // Generate reset token
-      const resetToken = uuidv4();
-      const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      // Create password reset token using EmailService
+      const { token: resetToken } = await EmailService.createPasswordResetToken(user.id, request.ipAddress);
 
-      // Save reset token (implementation would store in database)
-      await this.savePasswordResetToken(user.id, resetToken, resetExpires);
-
-      // Send reset email (implementation would use email service)
-      await this.sendPasswordResetEmail(user.email, resetToken);
+      // Send reset email
+      await EmailService.sendPasswordResetEmail(user.email, user.firstName, resetToken, user.id);
 
       // Log GDPR event
       gdprLogger.logDataAccess(
@@ -799,22 +803,112 @@ export class AuthService {
   }
 
   private async savePasswordResetToken(userId: string, token: string, expires: Date): Promise<void> {
-    // Implementation would save to Redis or PostgreSQL
-    throw new Error('Database implementation required');
+    // Use EmailService to create password reset token
+    // Note: The token is already created in requestPasswordReset, this is a compatibility wrapper
+    logger.info('Password reset token saved', { userId });
   }
 
   private async validatePasswordResetToken(token: string): Promise<{ userId: string } | null> {
-    // Implementation would validate token from Redis or PostgreSQL
-    throw new Error('Database implementation required');
+    return await EmailService.validatePasswordResetToken(token);
   }
 
   private async invalidatePasswordResetToken(token: string): Promise<void> {
-    // Implementation would remove token from Redis or PostgreSQL
-    throw new Error('Database implementation required');
+    await EmailService.markPasswordResetTokenUsed(token);
   }
 
   private async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    // Implementation would send email via SendGrid
-    throw new Error('Email service implementation required');
+    const user = await this.findUserByEmail(email);
+    if (user) {
+      await EmailService.sendPasswordResetEmail(email, user.firstName, token, user.id);
+    }
+  }
+
+  /**
+   * Send verification email asynchronously (non-blocking)
+   */
+  private sendVerificationEmailAsync(userId: string, email: string, firstName: string, ipAddress?: string): void {
+    (async () => {
+      try {
+        const { token } = await EmailService.createVerificationToken(userId, ipAddress);
+        await EmailService.sendVerificationEmail(email, firstName, token, userId);
+        logger.info('Verification email sent asynchronously', { userId, email });
+      } catch (error) {
+        logger.error('Failed to send verification email', { 
+          error: error instanceof Error ? error.message : 'Unknown error', 
+          userId 
+        });
+      }
+    })();
+  }
+
+  /**
+   * Send verification email to user
+   */
+  public async sendVerificationEmail(userId: string, ipAddress?: string): Promise<void> {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new ServiceTextProError('User not found', 'USER_NOT_FOUND', 404);
+    }
+
+    const { token } = await EmailService.createVerificationToken(userId, ipAddress);
+    await EmailService.sendVerificationEmail(user.email, user.firstName, token, userId);
+
+    logger.info('Verification email sent', { userId, email: user.email });
+  }
+
+  /**
+   * Verify email with token
+   */
+  public async verifyEmail(token: string): Promise<{ user: User }> {
+    const tokenData = await EmailService.validateVerificationToken(token);
+    if (!tokenData) {
+      throw new ServiceTextProError('Invalid or expired verification token', 'INVALID_TOKEN', 400);
+    }
+
+    const user = await this.findUserById(tokenData.userId);
+    if (!user) {
+      throw new ServiceTextProError('User not found', 'USER_NOT_FOUND', 404);
+    }
+
+    // Mark token as used
+    await EmailService.markVerificationTokenUsed(token);
+
+    // Mark email as verified
+    await EmailService.markEmailVerified(tokenData.userId);
+
+    // Update user status to active if pending verification
+    if (user.status === UserStatus.PENDING_VERIFICATION) {
+      user.status = UserStatus.ACTIVE;
+      user.updatedAt = new Date();
+      await this.updateUser(user);
+    }
+
+    logger.info('Email verified successfully', { userId: tokenData.userId });
+
+    return { user: this.sanitizeUser(user) };
+  }
+
+  /**
+   * Resend verification email
+   */
+  public async resendVerificationEmail(email: string, ipAddress?: string): Promise<void> {
+    const user = await this.findUserByEmail(email);
+    if (!user) {
+      // Don't reveal if email exists
+      logger.info('Resend verification requested for non-existent email', { email });
+      return;
+    }
+
+    // Check if already verified
+    const userDetails = await this.database.query(
+      `SELECT email_verified FROM users WHERE id = $1`,
+      [user.id]
+    );
+
+    if (userDetails && userDetails.length > 0 && userDetails[0].email_verified) {
+      throw new ServiceTextProError('Email already verified', 'EMAIL_ALREADY_VERIFIED', 400);
+    }
+
+    await this.sendVerificationEmail(user.id, ipAddress);
   }
 }

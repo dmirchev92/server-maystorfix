@@ -8,6 +8,7 @@ import {
   Alert,
   SafeAreaView,
   Switch,
+  Linking,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -15,6 +16,8 @@ import { MainTabParamList } from '../navigation/types';
 import { AuthBus } from '../utils/AuthBus';
 import LocationTrackingService from '../services/LocationTrackingService';
 import { useState, useEffect } from 'react';
+
+import ApiService from '../services/ApiService';
 
 type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Settings'>;
 
@@ -55,20 +58,18 @@ const SettingsScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+              // Use ApiService to logout - this clears in-memory token and storage
+              await ApiService.getInstance().logout();
               
-              // Clear all auth-related data
-              await AsyncStorage.removeItem('auth_token');
-              await AsyncStorage.removeItem('user');
-              
-              // Emit logout event to trigger app-wide logout
+              // Emit logout event to trigger app-wide logout (App.tsx listener)
               AuthBus.emit('logout');
               
               // Show success message
-              Alert.alert('Успех', 'Излязохте успешно от профила си');
+              // Alert.alert('Успех', 'Излязохте успешно от профила си'); 
             } catch (error) {
               console.error('Error logging out:', error);
-              Alert.alert('Грешка', 'Неуспешен изход');
+              // Force logout locally even if API fails
+              AuthBus.emit('logout');
             }
           },
         },
@@ -112,6 +113,16 @@ const SettingsScreen: React.FC = () => {
               thumbColor={isTrackingEnabled ? '#fff' : '#f4f3f4'}
             />
           </View>
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => navigation.navigate('LocationSchedule')}
+          >
+            <View>
+              <Text style={styles.settingItemText}>График за споделяне</Text>
+              <Text style={styles.settingItemSubtext}>Автоматично вкл./изкл. по часове</Text>
+            </View>
+            <Text style={styles.settingItemArrow}>›</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -135,15 +146,36 @@ const SettingsScreen: React.FC = () => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>ℹ️ Информация</Text>
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingItemText}>Условия за ползване</Text>
+          <Text style={styles.sectionTitle}>🔒 Поверителност и GDPR</Text>
+          <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Consent')}>
+            <Text style={styles.settingItemText}>Настройки за поверителност</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('https://maystorfix.com/privacy-policy')}>
             <Text style={styles.settingItemText}>Политика за поверителност</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('https://maystorfix.com/terms')}>
+            <Text style={styles.settingItemText}>Общи условия</Text>
+            <Text style={styles.settingItemArrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => {
+            Alert.alert(
+              'Вашите права по GDPR',
+              '✓ Достъп до данните си\n✓ Коригиране на неточни данни\n✓ Изтриване на данни\n✓ Преносимост на данните\n✓ Оттегляне на съгласие\n\nКонтакт: dpo@maystorfix.com',
+              [
+                { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:dpo@maystorfix.com') },
+                { text: 'OK' }
+              ]
+            );
+          }}>
+            <Text style={styles.settingItemText}>Права по GDPR</Text>
+            <Text style={styles.settingItemArrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ℹ️ Информация</Text>
           <TouchableOpacity style={styles.settingItem}>
             <Text style={styles.settingItemText}>За приложението</Text>
             <Text style={styles.settingItemArrow}>›</Text>

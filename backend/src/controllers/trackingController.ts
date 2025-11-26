@@ -241,3 +241,319 @@ export const getCaseTracking = async (req: Request, res: Response): Promise<void
     });
   }
 };
+
+// ============ Location Schedule Endpoints ============
+
+/**
+ * Get location schedule settings for the current provider
+ * GET /api/v1/tracking/schedule
+ */
+export const getLocationSchedule = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'User not authenticated' }
+      });
+      return;
+    }
+
+    if (!DatabaseFactory.isPostgreSQL()) {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Not available on SQLite' } });
+      return;
+    }
+
+    const result = await (db as any).query(
+      `SELECT 
+        schedule_enabled,
+        start_time,
+        end_time,
+        disable_weekends,
+        monday_enabled,
+        tuesday_enabled,
+        wednesday_enabled,
+        thursday_enabled,
+        friday_enabled,
+        saturday_enabled,
+        sunday_enabled
+       FROM provider_location_schedule 
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    if (result.rows.length > 0) {
+      res.json({
+        success: true,
+        data: result.rows[0]
+      });
+    } else {
+      // Return default settings if no record exists
+      res.json({
+        success: true,
+        data: {
+          schedule_enabled: false,
+          start_time: '08:00',
+          end_time: '21:00',
+          disable_weekends: false,
+          monday_enabled: true,
+          tuesday_enabled: true,
+          wednesday_enabled: true,
+          thursday_enabled: true,
+          friday_enabled: true,
+          saturday_enabled: true,
+          sunday_enabled: true
+        }
+      });
+    }
+
+  } catch (error) {
+    logger.error('❌ Error getting location schedule:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to get location schedule'
+      }
+    });
+  }
+};
+
+/**
+ * Update location schedule settings for the current provider
+ * PUT /api/v1/tracking/schedule
+ */
+export const updateLocationSchedule = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'User not authenticated' }
+      });
+      return;
+    }
+
+    if (!DatabaseFactory.isPostgreSQL()) {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Not available on SQLite' } });
+      return;
+    }
+
+    const {
+      schedule_enabled,
+      start_time,
+      end_time,
+      disable_weekends,
+      monday_enabled,
+      tuesday_enabled,
+      wednesday_enabled,
+      thursday_enabled,
+      friday_enabled,
+      saturday_enabled,
+      sunday_enabled
+    } = req.body;
+
+    // Validate time format (HH:MM)
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (start_time && !timeRegex.test(start_time)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_TIME', message: 'Invalid start_time format. Use HH:MM' }
+      });
+      return;
+    }
+    if (end_time && !timeRegex.test(end_time)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_TIME', message: 'Invalid end_time format. Use HH:MM' }
+      });
+      return;
+    }
+
+    const now = new Date().toISOString();
+
+    // Upsert the schedule settings
+    await (db as any).query(
+      `INSERT INTO provider_location_schedule (
+        user_id, schedule_enabled, start_time, end_time, disable_weekends,
+        monday_enabled, tuesday_enabled, wednesday_enabled, thursday_enabled,
+        friday_enabled, saturday_enabled, sunday_enabled, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ON CONFLICT (user_id) DO UPDATE SET
+        schedule_enabled = COALESCE($2, provider_location_schedule.schedule_enabled),
+        start_time = COALESCE($3, provider_location_schedule.start_time),
+        end_time = COALESCE($4, provider_location_schedule.end_time),
+        disable_weekends = COALESCE($5, provider_location_schedule.disable_weekends),
+        monday_enabled = COALESCE($6, provider_location_schedule.monday_enabled),
+        tuesday_enabled = COALESCE($7, provider_location_schedule.tuesday_enabled),
+        wednesday_enabled = COALESCE($8, provider_location_schedule.wednesday_enabled),
+        thursday_enabled = COALESCE($9, provider_location_schedule.thursday_enabled),
+        friday_enabled = COALESCE($10, provider_location_schedule.friday_enabled),
+        saturday_enabled = COALESCE($11, provider_location_schedule.saturday_enabled),
+        sunday_enabled = COALESCE($12, provider_location_schedule.sunday_enabled),
+        updated_at = $13`,
+      [
+        userId,
+        schedule_enabled ?? false,
+        start_time ?? '08:00',
+        end_time ?? '21:00',
+        disable_weekends ?? false,
+        monday_enabled ?? true,
+        tuesday_enabled ?? true,
+        wednesday_enabled ?? true,
+        thursday_enabled ?? true,
+        friday_enabled ?? true,
+        saturday_enabled ?? true,
+        sunday_enabled ?? true,
+        now
+      ]
+    );
+
+    logger.info(`📅 Location schedule updated for user ${userId}`);
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Location schedule updated successfully'
+      }
+    });
+
+  } catch (error) {
+    logger.error('❌ Error updating location schedule:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to update location schedule'
+      }
+    });
+  }
+};
+
+/**
+ * Check if location sharing should be active based on schedule
+ * GET /api/v1/tracking/schedule/check
+ * Returns whether the provider should be sharing location right now
+ */
+export const checkLocationSchedule = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHORIZED', message: 'User not authenticated' }
+      });
+      return;
+    }
+
+    if (!DatabaseFactory.isPostgreSQL()) {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Not available on SQLite' } });
+      return;
+    }
+
+    const result = await (db as any).query(
+      `SELECT 
+        schedule_enabled,
+        start_time,
+        end_time,
+        disable_weekends,
+        monday_enabled,
+        tuesday_enabled,
+        wednesday_enabled,
+        thursday_enabled,
+        friday_enabled,
+        saturday_enabled,
+        sunday_enabled
+       FROM provider_location_schedule 
+       WHERE user_id = $1`,
+      [userId]
+    );
+
+    // If no schedule exists or schedule is disabled, always allow tracking
+    if (result.rows.length === 0 || !result.rows[0].schedule_enabled) {
+      res.json({
+        success: true,
+        data: {
+          should_track: true,
+          reason: 'schedule_disabled'
+        }
+      });
+      return;
+    }
+
+    const schedule = result.rows[0];
+    
+    // Get current time in Sofia timezone
+    const now = new Date();
+    const sofiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Sofia' }));
+    const currentHour = sofiaTime.getHours();
+    const currentMinute = sofiaTime.getMinutes();
+    const currentTimeMinutes = currentHour * 60 + currentMinute;
+    
+    // Parse schedule times
+    const [startHour, startMinute] = schedule.start_time.split(':').map(Number);
+    const [endHour, endMinute] = schedule.end_time.split(':').map(Number);
+    const startTimeMinutes = startHour * 60 + startMinute;
+    const endTimeMinutes = endHour * 60 + endMinute;
+    
+    // Check day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const dayOfWeek = sofiaTime.getDay();
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayKey = `${dayNames[dayOfWeek]}_enabled`;
+    
+    // Check if today is enabled
+    const isDayEnabled = schedule[dayKey];
+    
+    // Check weekend override
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    if (schedule.disable_weekends && isWeekend) {
+      res.json({
+        success: true,
+        data: {
+          should_track: false,
+          reason: 'weekend_disabled'
+        }
+      });
+      return;
+    }
+    
+    // Check if day is enabled
+    if (!isDayEnabled) {
+      res.json({
+        success: true,
+        data: {
+          should_track: false,
+          reason: 'day_disabled'
+        }
+      });
+      return;
+    }
+    
+    // Check time window
+    const isWithinTimeWindow = currentTimeMinutes >= startTimeMinutes && currentTimeMinutes < endTimeMinutes;
+    
+    res.json({
+      success: true,
+      data: {
+        should_track: isWithinTimeWindow,
+        reason: isWithinTimeWindow ? 'within_schedule' : 'outside_time_window',
+        current_time: `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`,
+        schedule_start: schedule.start_time,
+        schedule_end: schedule.end_time
+      }
+    });
+
+  } catch (error) {
+    logger.error('❌ Error checking location schedule:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to check location schedule'
+      }
+    });
+  }
+};

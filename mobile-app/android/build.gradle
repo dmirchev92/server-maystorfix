@@ -6,7 +6,10 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
-        googlePlayServicesLocationVersion = "21.0.1"
+        googlePlayServicesBaseVersion = "18.5.0"
+        googlePlayServicesMapsVersion = "19.2.0"
+        googlePlayServicesLocationVersion = "21.3.0"
+        androidMapsUtilsVersion = "3.8.2"
     }
     repositories {
         google()
@@ -17,14 +20,22 @@ buildscript {
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
         classpath("com.google.gms:google-services:4.4.0")
+        classpath("com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin:2.0.1")
     }
 }
 
 allprojects {
     configurations.all {
         resolutionStrategy {
-            force "com.google.android.gms:play-services-location:21.0.1"
+            force "com.google.android.gms:play-services-base:18.5.0"
+            force "com.google.android.gms:play-services-maps:19.2.0"
+            force "com.google.android.gms:play-services-location:21.3.0"
+            force "com.google.maps.android:android-maps-utils:3.8.2"
         }
+    }
+    repositories {
+        google()
+        mavenCentral()
     }
 }
 

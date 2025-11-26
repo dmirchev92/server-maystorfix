@@ -77,6 +77,12 @@ export class ChatSocketHandler {
       socket.userName = (firstName + ' ' + lastName).trim() || decoded.email || decoded.phoneNumber || 'User'
       
       console.log('🔍 Built userName:', socket.userName)
+      console.log('🔍 Socket Authentication Complete:', {
+        socketId: socket.id,
+        userId: socket.userId,
+        userRole: socket.userRole,
+        userName: socket.userName
+      })
 
       next()
     } catch (error) {
@@ -189,6 +195,15 @@ export class ChatSocketHandler {
         const userId = socket.userId!
         const userName = socket.userName!
         const userRole = socket.userRole === 'service_provider' || socket.userRole === 'tradesperson' ? 'provider' : 'customer'
+
+        console.log('📨 Handling message:send:', {
+          socketId: socket.id,
+          userId,
+          userName,
+          userRole,
+          tokenRole: socket.userRole,
+          conversationId: data.conversationId
+        })
 
         const message = await this.chatService.sendMessage(
           data as any,

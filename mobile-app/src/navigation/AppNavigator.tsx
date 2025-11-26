@@ -7,6 +7,9 @@ import FCMService from '../services/FCMService';
 
 // Import all screens
 import ModernDashboardScreen from '../screens/ModernDashboardScreen';
+import CustomerDashboardScreen from '../screens/CustomerDashboardScreen';
+import CustomerCasesScreen from '../screens/CustomerCasesScreen';
+import CreateCaseScreen from '../screens/CreateCaseScreen';
 import ConsentScreen from '../screens/ConsentScreen';
 import ProviderProfileScreen from '../screens/ProviderProfileScreen';
 import PrivacyScreen from '../screens/PrivacyScreen';
@@ -26,6 +29,9 @@ import MyBidsScreen from '../screens/MyBidsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PlaceBidScreen from '../screens/PlaceBidScreen';
 import MapSearchScreen from '../screens/MapSearchScreen';
+import SearchScreen from '../screens/SearchScreen';
+import CaseBidsScreen from '../screens/CaseBidsScreen';
+import LocationScheduleScreen from '../screens/LocationScheduleScreen';
 
 
 // Import components
@@ -35,14 +41,15 @@ import QuickActions from '../components/QuickActions';
 import JobAlertModal from '../components/JobAlertModal';
 
 // Import types
-import { RootStackParamList, MainTabParamList, SettingsStackParamList } from './types';
+import { RootStackParamList, MainTabParamList, SettingsStackParamList, CustomerTabParamList } from './types';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const CustomerTab = createBottomTabNavigator<CustomerTabParamList>();
 const SettingsStack = createStackNavigator<SettingsStackParamList>();
 
-// Main tab navigator for authenticated users
-function MainTabNavigator() {
+// Provider Tab Navigator (Original)
+function ProviderTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -145,13 +152,6 @@ function MainTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="ChatDetail"
-        component={ChatDetailScreen}
-        options={{
-          tabBarButton: () => null, // Hide from tab bar
-        }}
-      />
-      <Tab.Screen
         name="PlaceBid"
         component={PlaceBidScreen}
         options={{
@@ -208,9 +208,103 @@ function MainTabNavigator() {
           headerTintColor: '#fff',
         }}
       />
+      <Tab.Screen
+        name="Consent"
+        component={ConsentScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+          headerShown: true,
+          headerTitle: 'Настройки за поверителност',
+          headerStyle: {
+            backgroundColor: '#007AFF',
+          },
+          headerTintColor: '#fff',
+        }}
+      />
+      <Tab.Screen
+        name="LocationSchedule"
+        component={LocationScheduleScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+          headerShown: true,
+          headerTitle: 'График за локация',
+          headerStyle: {
+            backgroundColor: '#4F46E5',
+          },
+          headerTintColor: '#fff',
+        }}
+      />
     </Tab.Navigator>
   );
 }
+
+// Customer Tab Navigator (New)
+function CustomerTabNavigator() {
+  return (
+    <CustomerTab.Navigator
+      screenOptions={{
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: 'gray',
+        tabBarStyle: {
+          display: 'none',
+        },
+        headerShown: false,
+      }}
+    >
+      <CustomerTab.Screen 
+        name="Dashboard" 
+        component={CustomerDashboardScreen}
+        options={{
+          tabBarLabel: 'Начало',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>🏠</Text>
+          ),
+        }}
+      />
+      <CustomerTab.Screen 
+        name="Search" 
+        component={SearchScreen}
+        options={{
+          tabBarLabel: 'Търсене',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>🔍</Text>
+          ),
+        }}
+      />
+      <CustomerTab.Screen
+        name="MyCases"
+        component={CustomerCasesScreen}
+        options={{
+          tabBarLabel: 'Моите заявки',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>📋</Text>
+          ),
+        }}
+      />
+      <CustomerTab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          tabBarLabel: 'Съобщения',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ color, fontSize: size }}>💬</Text>
+          ),
+        }}
+      />
+      <CustomerTab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: 'Профил',
+          tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+            <Text style={{ fontSize: size, color }}>👤</Text>
+          ),
+        }}
+      />
+    </CustomerTab.Navigator>
+  );
+}
+
 // Settings stack navigator
 function SettingsStackNavigator() {
   return (
@@ -319,7 +413,7 @@ function SettingsMainScreen({ navigation }: any) {
 }
 
 // Main app navigator
-export default function AppNavigator() {
+export default function AppNavigator({ userRole }: { userRole?: string }) {
   const navigationRef = useRef<any>(null);
 
   useEffect(() => {
@@ -329,17 +423,39 @@ export default function AppNavigator() {
     }
   }, []);
 
+  const initialRoute = userRole === 'customer' ? 'CustomerMain' : 'Main';
+
   return (
     <NavigationContainer ref={navigationRef}>
       <View style={{ flex: 1 }}>
         <Stack.Navigator
+          initialRouteName={initialRoute}
           screenOptions={{
             headerShown: false,
           }}
         >
-          <Stack.Screen name="Main" component={MainTabNavigator} />
+          <Stack.Screen name="Main" component={ProviderTabNavigator} />
+          <Stack.Screen name="CustomerMain" component={CustomerTabNavigator} />
+          <Stack.Screen name="ChatDetail" component={ChatDetailScreen} />
+          <Stack.Screen name="MapSearch" component={MapSearchScreen} />
+          <Stack.Screen 
+            name="CreateCase" 
+            component={CreateCaseScreen}
+            options={{
+              headerShown: true,
+              title: 'Публикуване на заявка',
+              presentation: 'modal',
+            }}
+          />
+          <Stack.Screen 
+            name="CaseBids" 
+            component={CaseBidsScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
         </Stack.Navigator>
-        <JobAlertModal />
+        {/* <JobAlertModal /> */}
       </View>
     </NavigationContainer>
   );

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { GoogleMap, Marker, InfoWindow, useLoadScript, StandaloneSearchBox } from '@react-google-maps/api'
+import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { apiClient } from '@/lib/api'
@@ -10,12 +11,20 @@ import { Search, MapPin, Navigation, Filter, List as ListIcon, Map as MapIcon } 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ''
 const libraries: ("places")[] = ["places"]
 
+// Increase limit since we now have clustering
+const PROVIDER_LIMIT = 200
+
 const RADIUS_OPTIONS = [
+  { value: 1, label: '1 км' },
   { value: 2, label: '2 км' },
+  { value: 3, label: '3 км' },
+  { value: 4, label: '4 км' },
   { value: 5, label: '5 км' },
+  { value: 6, label: '6 км' },
+  { value: 7, label: '7 км' },
+  { value: 8, label: '8 км' },
+  { value: 9, label: '9 км' },
   { value: 10, label: '10 км' },
-  { value: 20, label: '20 км' },
-  { value: 50, label: '50 км' },
 ]
 
 export default function MapPage() {
@@ -31,6 +40,8 @@ export default function MapPage() {
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null)
   const [providers, setProviders] = useState<any[]>([])
   const [searchBox, setSearchBox] = useState<google.maps.places.SearchBox | null>(null)
+  const clustererRef = useRef<MarkerClusterer | null>(null)
+  const markersRef = useRef<google.maps.Marker[]>([])
   
   // Filters
   const [radius, setRadius] = useState(10)
@@ -57,7 +68,7 @@ export default function MapPage() {
   const fetchProviders = async () => {
     try {
       const params: any = { 
-        limit: 20, // Nearest 20
+        limit: PROVIDER_LIMIT, // Increased limit since we have clustering
         t: Date.now() 
       }
 
@@ -90,6 +101,85 @@ export default function MapPage() {
     const intervalId = setInterval(fetchProviders, 15000)
     return () => clearInterval(intervalId)
   }, [userLocation, radius, selectedCategory]) // Refetch when filters change
+
+  // Update markers when providers change
+  useEffect(() => {
+    if (!mapInstance) return
+
+    // Clear existing clusterer completely
+    if (clustererRef.current) {
+      clustererRef.current.clearMarkers()
+      clustererRef.current.setMap(null)
+      clustererRef.current = null
+    }
+
+    // Clear old markers
+    markersRef.current.forEach(marker => marker.setMap(null))
+    markersRef.current = []
+
+    if (providers.length === 0) return
+
+    // Create new markers using standard google.maps.Marker
+    const markers = providers.map((provider: any) => {
+      const lat = Number(provider.latitude)
+      const lng = Number(provider.longitude)
+      if (isNaN(lat) || isNaN(lng)) return null
+
+      const marker = new google.maps.Marker({
+        position: { lat, lng },
+        title: provider.businessName,
+        // Use default Google Maps red pin marker
+      })
+
+      // Add click listener
+      marker.addListener('click', () => {
+        setSelectedProvider(provider)
+      })
+
+      return marker
+    }).filter(Boolean) as google.maps.Marker[]
+
+    markersRef.current = markers
+
+    // Create clusterer with custom renderer
+    clustererRef.current = new MarkerClusterer({
+      map: mapInstance,
+      markers: markers,
+      algorithm: new SuperClusterAlgorithm({ radius: 80, maxZoom: 15 }),
+      renderer: {
+        render: ({ count, position }) => {
+          // Calculate size based on count
+          const size = count < 10 ? 40 : count < 50 ? 50 : 60
+          const fontSize = count < 10 ? 14 : count < 50 ? 16 : 18
+          
+          return new google.maps.Marker({
+            position,
+            icon: {
+              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                  <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 3}" fill="#E53E3E" stroke="white" stroke-width="3"/>
+                  <text x="${size/2}" y="${size/2 + fontSize/3}" text-anchor="middle" fill="white" font-size="${fontSize}" font-weight="bold" font-family="Arial">${count}</text>
+                </svg>
+              `),
+              scaledSize: new google.maps.Size(size, size),
+              anchor: new google.maps.Point(size/2, size/2),
+            },
+            zIndex: 1000 + count,
+          })
+        },
+      },
+    })
+
+    return () => {
+      // Cleanup on unmount
+      if (clustererRef.current) {
+        clustererRef.current.clearMarkers()
+        clustererRef.current.setMap(null)
+      }
+      markersRef.current.forEach(marker => marker.setMap(null))
+      markersRef.current = []
+    }
+  }, [providers, mapInstance])
 
   // Locate Me
   const handleLocateMe = () => {
@@ -148,6 +238,11 @@ export default function MapPage() {
 
   const onLoadSearchBox = (ref: google.maps.places.SearchBox) => {
     setSearchBox(ref)
+  }
+
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId)
+    return category ? category.name : categoryId
   }
 
   if (loadError) return <div className="p-4 text-red-500">Error loading map</div>
@@ -249,7 +344,7 @@ export default function MapPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <h3 className="font-bold text-slate-900 text-sm">{provider.businessName}</h3>
-                        <p className="text-xs text-slate-500">{provider.serviceCategory}</p>
+                        <p className="text-xs text-slate-500">{getCategoryName(provider.serviceCategory)}</p>
                       </div>
                       <div className="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded">
                         <span className="text-yellow-500 text-xs mr-1">⭐</span>
@@ -288,14 +383,11 @@ export default function MapPage() {
             mapContainerStyle={{ width: '100%', height: '100%' }}
             onLoad={setMapInstance}
             options={{
-              mapId: "DEMO_MAP_ID",
               disableDefaultUI: false,
               zoomControl: true,
-              styles: [
-                { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
-                { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-                { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
-              ]
+              mapTypeControl: false,
+              streetViewControl: false,
+              fullscreenControl: false,
             }}
           >
             {/* User Location Marker */}
@@ -310,40 +402,53 @@ export default function MapPage() {
               />
             )}
 
-            {/* Provider Markers */}
-            {providers.map((provider: any) => (
-              <Marker
-                key={provider.id}
-                position={{ lat: Number(provider.latitude), lng: Number(provider.longitude) }}
-                onClick={() => setSelectedProvider(provider)}
-                title={provider.businessName}
-              />
-            ))}
+            {/* Provider markers are now handled by the MarkerClusterer in useEffect */}
 
-            {/* Info Window */}
+            {/* Info Window for selected provider */}
             {selectedProvider && (
               <InfoWindow
                 position={{ lat: Number(selectedProvider.latitude), lng: Number(selectedProvider.longitude) }}
                 onCloseClick={() => setSelectedProvider(null)}
               >
-                <div className="p-2 min-w-[200px]">
-                  <h3 className="font-bold text-lg text-slate-900">{selectedProvider.businessName}</h3>
-                  <p className="text-slate-600">{selectedProvider.serviceCategory}</p>
-                  <div className="flex items-center mt-1 mb-2">
-                    <span className="text-yellow-500 mr-1">⭐</span>
-                    <span className="font-medium text-slate-700">{selectedProvider.rating || 0}</span>
-                    <span className="text-slate-500 text-xs ml-1">({selectedProvider.totalReviews || 0})</span>
+                <div className="p-2 min-w-[240px] max-w-[300px]">
+                  <div className="flex gap-3 mb-3">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      {selectedProvider.profileImageUrl ? (
+                        <img 
+                          src={selectedProvider.profileImageUrl} 
+                          alt={selectedProvider.businessName}
+                          className="w-16 h-16 rounded-full object-cover border-2 border-slate-100 shadow-sm"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xl border-2 border-slate-100 shadow-sm">
+                          {selectedProvider.businessName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-lg text-slate-900 leading-tight mb-1 truncate">{selectedProvider.businessName}</h3>
+                      <p className="text-slate-600 text-sm mb-1 truncate">{getCategoryName(selectedProvider.serviceCategory)}</p>
+                      <div className="flex items-center">
+                        <span className="text-yellow-500 mr-1 text-sm">⭐</span>
+                        <span className="font-medium text-slate-700 text-sm">{selectedProvider.rating || 0}</span>
+                        <span className="text-slate-400 text-xs ml-1">({selectedProvider.totalReviews || 0})</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex space-x-2 mt-2">
+
+                  <div className="flex space-x-2">
                     <a 
-                      href={`/create-case?providerId=${selectedProvider.id}&providerName=${encodeURIComponent(selectedProvider.businessName)}`}
-                      className="flex-1 bg-indigo-600 text-white text-center py-1.5 px-3 rounded text-sm hover:bg-indigo-700 transition-colors no-underline block"
+                      href={`/provider/${selectedProvider.id}`}
+                      className="flex-1 bg-indigo-600 text-white text-center py-2 px-3 rounded-lg text-sm hover:bg-indigo-700 transition-colors no-underline font-medium shadow-sm"
                     >
-                      Заяви
+                      Виж профил
                     </a>
                     <a 
                       href={`/chat?providerId=${selectedProvider.id}`}
-                      className="flex-1 bg-green-600 text-white text-center py-1.5 px-3 rounded text-sm hover:bg-green-700 transition-colors no-underline block"
+                      className="flex-1 bg-emerald-500 text-white text-center py-2 px-3 rounded-lg text-sm hover:bg-emerald-600 transition-colors no-underline font-medium shadow-sm flex items-center justify-center"
                     >
                       Чат
                     </a>

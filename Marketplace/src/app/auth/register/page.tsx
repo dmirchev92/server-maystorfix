@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import NeighborhoodSelect from '@/components/NeighborhoodSelect'
+import { CitySelect, SimpleNeighborhoodSelect } from '@/components/LocationSelect'
 import TierSelector from '@/components/TierSelector'
 import SMSVerification from '@/components/SMSVerification'
 import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
@@ -27,7 +27,7 @@ interface RegistrationData {
 
 const serviceCategories = SERVICE_CATEGORIES.map(cat => cat.label)
 
-const cities = ['София', 'Пловдив', 'Варна', 'Бургас']
+// Cities are now fetched dynamically from the API
 
 function RegisterForm() {
   const router = useRouter()
@@ -362,51 +362,43 @@ function RegisterForm() {
                     value={formData.serviceCategory}
                     onChange={(e) => handleInputChange('serviceCategory', e.target.value)}
                     className="mt-1 block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    style={{ color: 'white', backgroundColor: '#334155' }}
                   >
-                    <option value="">Изберете категория</option>
+                    <option value="" className="text-white bg-slate-800">Изберете категория</option>
                     {serviceCategories.map((category) => (
-                      <option key={category} value={category}>
+                      <option key={category} value={category} className="text-white bg-slate-800">
                         {category}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {/* City selection */}
+                {/* City selection - Dynamic from API */}
                 <div>
                   <label htmlFor="city" className="block text-sm font-medium text-slate-200">
                     Град
                   </label>
-                  <select
-                    id="city"
+                  <CitySelect
                     value={formData.city || ''}
-                    onChange={(e) => {
-                      handleInputChange('city', e.target.value)
-                      // Clear neighborhood when city changes
+                    onChange={(value) => {
+                      handleInputChange('city', value)
                       handleInputChange('neighborhood', '')
                     }}
-                    className="mt-1 block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  >
-                    <option value="">Изберете град</option>
-                    {cities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Изберете град"
+                  />
                 </div>
 
-                {/* Neighborhood field - only for Sofia */}
-                {formData.city === 'София' && (
+                {/* Neighborhood field - Dynamic based on selected city */}
+                {formData.city && (
                   <div>
                     <label htmlFor="neighborhood" className="block text-sm font-medium text-slate-200">
-                      Квартал в София
+                      Квартал
                     </label>
-                    <NeighborhoodSelect
+                    <SimpleNeighborhoodSelect
+                      city={formData.city}
                       value={formData.neighborhood || ''}
                       onChange={(value) => handleInputChange('neighborhood', value)}
                       placeholder="Изберете квартал"
-                      className="mt-1 block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                   </div>
                 )}

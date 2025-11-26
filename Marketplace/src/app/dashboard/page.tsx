@@ -179,7 +179,7 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white/30 mx-auto"></div>
-          <p className="mt-4 text-slate-200">Табло????...</p>
+          <p className="mt-4 text-slate-200">Зареждане...</p>
         </div>
       </div>
     )
@@ -197,9 +197,17 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-4">
-            📊 Табло
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-white mb-4">
+              💰 Приходи
+            </h1>
+            <a
+              href="/provider/dashboard"
+              className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              ← Назад към таблото
+            </a>
+          </div>
         </div>
 
         {/* Points Balance Card */}

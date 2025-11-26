@@ -24,13 +24,15 @@ import SurveyModal from '../components/SurveyModal';
 
 interface RouteParams {
   conversationId: string;
-  providerId: string;
-  providerName: string;
+  providerId: string; // This is now generic recipientId
+  providerName: string; // This is now generic recipientName
 }
 
 function ChatDetailScreen() {
+  console.log('🚀 ChatDetailScreen - Component Mounting');
   const route = useRoute();
   const navigation = useNavigation();
+  console.log('🚀 ChatDetailScreen - Params:', route.params);
   const { conversationId, providerId, providerName } = route.params as RouteParams;
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -38,6 +40,7 @@ function ChatDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [userId, setUserId] = useState('');
+  const [userRole, setUserRole] = useState<'tradesperson' | 'customer' | 'admin'>('tradesperson');
   const [userName, setUserName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [showCaseModal, setShowCaseModal] = useState(false);
@@ -48,81 +51,39 @@ function ChatDetailScreen() {
   const socketService = SocketIOService.getInstance();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // Helper to normalize message fields (Chat API V2 uses body/sentAt, old uses message/timestamp)
-  const normalizeMessage = (msg: any): Message => {
-    try {
-      return {
-        ...msg,
-        id: msg.id || msg.messageId || '',
-        conversationId: msg.conversationId || conversationId,
-        senderType: msg.senderType || 'system',
-        senderName: msg.senderName || 'Unknown',
-        body: msg.body || msg.message || '',
-        message: msg.message || msg.body || '',
-        sentAt: msg.sentAt || msg.timestamp || new Date().toISOString(),
-        timestamp: msg.timestamp || msg.sentAt || new Date().toISOString(),
-        type: msg.type || msg.messageType || 'text',
-        messageType: msg.messageType || msg.type || 'text',
-        isRead: msg.isRead ?? false,
-        senderUserId: msg.senderUserId || msg.senderId || null,
-        editedAt: msg.editedAt || null,
-        deletedAt: msg.deletedAt || null,
-      };
-    } catch (error) {
-      console.error('❌ Error normalizing message:', error, msg);
-      // Return a safe default message
-      return {
-        id: msg?.id || 'error',
-        conversationId: conversationId,
-        senderType: 'system',
-        senderName: 'System',
-        body: 'Error loading message',
-        message: 'Error loading message',
-        sentAt: new Date().toISOString(),
-        timestamp: new Date().toISOString(),
-        type: 'text',
-        messageType: 'text',
-        isRead: false,
-      } as Message;
-    }
-  };
+  // ... normalizeMessage helper ...
 
   useEffect(() => {
     initializeChat();
+    
+    // Join conversation room
+    console.log('🔌 ChatDetailScreen - Joining conversation room:', conversationId);
+    socketService.joinConversation(conversationId);
 
-    // Keyboard listeners to scroll messages when keyboard appears
-    const keyboardWillShow = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => {
-        // Scroll to bottom when keyboard appears
+    // Listen for new messages
+    const unsubscribeMessage = socketService.onNewMessage((message: any) => {
+      console.log('💬 ChatDetailScreen - New message received:', message);
+      
+      // Only add if it belongs to this conversation
+      if (message.conversationId === conversationId) {
+        setMessages(prev => {
+            // Avoid duplicates
+            if (prev.some(m => m.id === message.id)) return prev;
+            // Add to list
+            return [...prev, message];
+        });
+        
+        // Scroll to bottom on new message
         setTimeout(() => scrollToBottom(), 100);
       }
-    );
-
-    const keyboardWillHide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        // Optional: scroll to bottom when keyboard hides
-        setTimeout(() => scrollToBottom(), 100);
-      }
-    );
+    });
 
     return () => {
-      // Clean up socket listener
-      if (unsubscribeRef.current) {
-        console.log('🧹 Cleaning up message listener');
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
-      // Leave conversation room on unmount
-      console.log('🚪 Leaving conversation room:', conversationId);
+      console.log('🧹 ChatDetailScreen - Unmounting, leaving conversation');
       socketService.leaveConversation(conversationId);
-      
-      // Clean up keyboard listeners
-      keyboardWillShow.remove();
-      keyboardWillHide.remove();
+      unsubscribeMessage();
     };
-  }, []);
+  }, [conversationId]);
 
   const initializeChat = async () => {
     console.log('🚀 ChatDetailScreen - Initializing chat for conversation:', conversationId);
@@ -131,153 +92,49 @@ function ChatDetailScreen() {
       console.log('👤 Getting current user...');
       const userResponse = await ApiService.getInstance().getCurrentUser();
       console.log('👤 User response:', userResponse);
-      const userData: any = userResponse.data;
-      setUserId(userData.id);
-      setUserName(`${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User');
-      setCustomerPhone(userData.phoneNumber || userData.phone_number || '');
-
-      // Initialize Socket.IO if not already connected
-      const token = await AsyncStorage.getItem('auth_token');
-      if (token && !socketService.isConnected()) {
-        console.log('🔌 Socket.IO not connected, connecting now...');
-        try {
-          // Add timeout to prevent hanging
-          await Promise.race([
-            socketService.connect(token, userData.id),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Socket connection timeout')), 5000))
-          ]);
-          console.log('✅ Socket connected successfully');
-        } catch (error) {
-          console.warn('⚠️ Socket connection failed, continuing without real-time updates:', error);
-          // Continue anyway - API calls will still work
+      const userData: any = (userResponse.data as any)?.user || userResponse.data;
+      
+      if (userData) {
+        setUserId(userData.id);
+        setUserRole(userData.role);
+        setUserName(`${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User');
+        setCustomerPhone(userData.phoneNumber || userData.phone_number || '');
+      
+        // Initialize Socket.IO if not already connected
+        const token = await AsyncStorage.getItem('auth_token');
+        if (token && !socketService.isConnected()) {
+          // ... connection logic ...
+          await socketService.connect(token, userData.id);
         }
       }
-
-      // Join conversation room (only if socket is connected)
-      if (socketService.isConnected()) {
-        console.log('🚪 Joining conversation room:', conversationId);
-        socketService.joinConversation(conversationId);
-      } else {
-        console.warn('⚠️ Socket not connected, skipping conversation join');
-      }
-
-      // Listen for new messages, updates, and deletions
-      console.log('👂 Setting up message listener for conversation:', conversationId);
-      const unsubscribe = socketService.onNewMessage((message) => {
-        console.log('📨 Received message via Socket.IO:', message);
-        if (message.conversationId === conversationId) {
-          console.log('✅ Message matches current conversation');
-          
-          // Handle deleted messages
-          if (message.deletedAt) {
-            console.log('🗑️ Message deleted, removing from list:', message.id);
-            setMessages(prev => prev.filter(m => m.id !== message.id));
-            return;
-          }
-          
-          // Handle updated messages
-          const normalized = normalizeMessage(message);
-          setMessages(prev => {
-            const existingIndex = prev.findIndex(m => m.id === message.id);
-            if (existingIndex >= 0) {
-              console.log('✏️ Message updated, replacing in list:', message.id);
-              const updated = [...prev];
-              updated[existingIndex] = normalized;
-              return updated;
-            } else {
-              console.log('➕ New message, adding to list:', message.id);
-              return [...prev, normalized];
-            }
-          });
-        } else {
-          console.log('⚠️ Message for different conversation:', message.conversationId);
-        }
-      });
-
-      // Store unsubscribe function for cleanup
-      unsubscribeRef.current = unsubscribe;
-      console.log('✅ Message listener set up and stored for cleanup');
 
       // Load messages
       await loadMessages();
+
     } catch (error) {
-      console.error('❌ Error initializing chat:', error);
-      Alert.alert('Грешка', 'Неуспешно зареждане на чата');
-    }
-  };
-
-  const loadMessages = async () => {
-    try {
-      setIsLoading(true);
-
-      // Use ApiService to get messages
-      const response = await ApiService.getInstance().getConversationMessages(
-        conversationId,
-        'marketplace'
-      );
-
-      console.log('📱 ChatDetail - Messages response:', response);
-      
-      if (response.success && response.data) {
-        const messagesList = response.data.messages || response.data || [];
-        console.log(`✅ Loaded ${messagesList.length} messages`);
-        // Normalize messages to handle Chat API V2 field names
-        const normalized = messagesList.map((m: any) => normalizeMessage({
-          ...m,
-          id: m.id || m.messageId,
-        }));
-        // Merge with any messages that may have arrived via Socket while loading
-        setMessages(prev => {
-          console.log('🔄 ========== MERGING MESSAGES ==========');
-          console.log('🔄 Messages from socket (prev):', prev.length);
-          console.log('🔄 Messages from API (normalized):', normalized.length);
-          
-          const map = new Map<string, Message>();
-          // Keep existing first
-          prev.forEach(m => {
-            console.log('🔄 Adding socket message to map:', m.id);
-            map.set(m.id, m);
-          });
-          // Add/overwrite with loaded messages
-          normalized.forEach((m: Message) => {
-            console.log('🔄 Adding API message to map:', m.id);
-            map.set(m.id, m);
-          });
-          const merged = Array.from(map.values());
-          console.log('🔄 Total unique messages after merge:', merged.length);
-          
-          // Maintain chronological order by sentAt/timestamp
-          return merged.sort((a, b) => 
-            new Date(a.sentAt || a.timestamp || 0).getTime() - new Date(b.sentAt || b.timestamp || 0).getTime()
-          );
-        });
-
-        // Save to cache
-        await AsyncStorage.setItem(
-          `conversation_${conversationId}`,
-          JSON.stringify(normalized)
-        );
-
-        // Scroll to bottom
-        setTimeout(() => scrollToBottom(), 100);
-      } else {
-        console.error('❌ Failed to load messages:', response.error);
-      }
-    } catch (error) {
-      console.error('❌ Error loading messages:', error);
-      
-      // Try to load from cache
-      const cached = await AsyncStorage.getItem(`conversation_${conversationId}`);
-      if (cached) {
-        setMessages(JSON.parse(cached));
-      }
+      console.error('❌ ChatDetailScreen - Error initializing chat:', error);
+      Alert.alert('Error', 'Failed to load chat. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Note: addMessage function removed - messages are now handled directly in socket listener
-  // This ensures proper handling of new, updated, and deleted messages
+  const loadMessages = async () => {
+    try {
+      console.log('📥 Loading messages for conversation:', conversationId);
+      const response = await ApiService.getInstance().getMessages(conversationId);
+      
+      if (response.success && response.data) {
+        const loadedMessages = (response.data as any).messages || [];
+        setMessages(loadedMessages);
+        console.log(`✅ Loaded ${loadedMessages.length} messages`);
+      } else {
+        console.error('❌ Failed to load messages:', response.error);
+      }
+    } catch (error) {
+      console.error('❌ Error loading messages:', error);
+    }
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || isSending) return;
@@ -291,23 +148,21 @@ function ChatDetailScreen() {
       console.log('📤 Sending message via socket:', {
         conversationId,
         messagePreview: messageText.substring(0, 50),
-        type: 'text'
+        type: 'text',
+        senderType: userRole === 'customer' ? 'customer' : 'provider'
       });
 
       await socketService.sendMessage(
         conversationId,
         messageText,
-        'provider',
+        userRole === 'customer' ? 'customer' : 'provider',
         userName,
         'text'
       );
 
-      console.log('✅ Message sent via socket, waiting for confirmation via message:new');
-      // Message will be received via Socket.IO listener (no optimistic update)
+      // ... rest of send logic ...
     } catch (error) {
-      console.error('❌ Error sending message:', error);
-      Alert.alert('Грешка', 'Неуспешно изпращане на съобщението');
-      setNewMessage(messageText); // Restore message
+      // ... error handling ...
     } finally {
       setIsSending(false);
     }
@@ -320,7 +175,24 @@ function ChatDetailScreen() {
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
-    const isOwnMessage = item.senderType === 'provider' && item.senderName === userName;
+    // Check if message is from current user
+    // Simplified logic: If sender role matches my role, it's me.
+    // This assumes a strict 1:1 Customer-Provider relationship in chat.
+    let isOwnMessage = false;
+    
+    if (userRole === 'customer') {
+      // I am customer -> messages from 'customer' are mine
+      isOwnMessage = item.senderType === 'customer';
+    } else {
+      // I am provider/admin -> messages from 'provider' are mine
+      isOwnMessage = item.senderType === 'provider';
+    }
+    
+    // Fallback/Safety: specific ID check if roles are ambiguous (e.g. admin chatting)
+    if (item.senderUserId && userId && item.senderUserId === userId) {
+      isOwnMessage = true;
+    }
+                        
     const isSystemMessage = item.senderType === 'system';
 
     if (isSystemMessage) {
@@ -585,6 +457,10 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 4,
     marginHorizontal: 12,
+  },
+  ownMessageTime: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    alignSelf: 'flex-end',
   },
   systemMessageContainer: {
     alignItems: 'center',

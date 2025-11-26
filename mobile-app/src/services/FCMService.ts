@@ -10,6 +10,7 @@ class FCMService {
   private static instance: FCMService;
   private initialized: boolean = false;
   private navigationRef: any = null;
+  private messageUnsubscribe: (() => void) | null = null;
 
   private constructor() {}
 
@@ -282,8 +283,24 @@ class FCMService {
    * Setup foreground message handler
    */
   private setupForegroundHandler(): void {
-    messaging().onMessage(async remoteMessage => {
+    // Clean up existing listener if any
+    if (this.messageUnsubscribe) {
+      console.log('🔄 Cleaning up existing FCM foreground listener');
+      this.messageUnsubscribe();
+      this.messageUnsubscribe = null;
+    }
+
+    console.log('✅ Setting up new FCM foreground listener');
+    this.messageUnsubscribe = messaging().onMessage(async remoteMessage => {
       console.log('📨 Foreground FCM message received:', remoteMessage);
+
+      // Check if this is a chat message and SocketIO is connected
+      // If so, SocketIO will handle the notification (with better UI/MessagingStyle)
+      const isSocketConnected = SocketIOService.getInstance().isConnected();
+      if (remoteMessage.data?.type === 'chat_message' && isSocketConnected) {
+        console.log('🚫 FCM - Ignoring chat_message in foreground (handled by SocketIO)');
+        return;
+      }
 
       // Display notification using notifee
       await this.displayNotification(remoteMessage);
@@ -629,22 +646,45 @@ class FCMService {
   }
 
   /**
-   * Delete token from backend (on logout)
+   * Delete/deactivate token from backend (on logout)
    */
   async deleteToken(): Promise<void> {
     try {
       const token = await AsyncStorage.getItem('fcm_token');
-      if (!token) return;
+      if (!token) {
+        console.log('⚠️ No FCM token to deactivate');
+        return;
+      }
 
-      console.log('🗑️ Deleting FCM token from backend...');
+      console.log('🔒 Deactivating FCM token on backend...');
 
-      // Get token ID from backend first (would need to store this)
-      // For now, we'll just delete the FCM token itself
+      // Deactivate token on backend BEFORE clearing local storage
+      // This ensures the notification won't be sent to this device for the old user
+      try {
+        const response = await ApiService.getInstance().makeRequest(
+          '/device-tokens/deactivate',
+          {
+            method: 'POST',
+            body: JSON.stringify({ token }),
+          }
+        );
+        
+        if (response.success) {
+          console.log('✅ FCM token deactivated on backend');
+        } else {
+          console.warn('⚠️ Failed to deactivate FCM token on backend:', response.error);
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Error deactivating FCM token on backend:', backendError);
+        // Continue with local cleanup even if backend fails
+      }
+
+      // Delete the FCM token locally (this generates a new token on next getToken())
       await messaging().deleteToken();
       await AsyncStorage.removeItem('fcm_token');
       await AsyncStorage.removeItem('fcm_token_registered');
 
-      console.log('✅ FCM token deleted');
+      console.log('✅ FCM token deleted locally');
     } catch (error) {
       console.error('❌ Error deleting FCM token:', error);
     }

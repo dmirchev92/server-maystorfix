@@ -77,9 +77,16 @@ function LoginForm() {
         // Show success message
         alert('Успешен вход!')
 
+        // Redirect based on user role (read from localStorage as login stores it there)
+        const userData = localStorage.getItem('user_data')
+        const userRole = userData ? JSON.parse(userData).role : null
+        const redirectUrl = (userRole === 'service_provider' || userRole === 'tradesperson')
+          ? '/provider/dashboard' 
+          : '/'
+        
         // Wait a moment for auth state to update, then redirect
         setTimeout(() => {
-          router.push('/')
+          router.push(redirectUrl)
         }, 500)
         
       } else {
@@ -104,7 +111,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 overflow-auto">
       {/* Industrial background elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-lg blur-3xl"></div>
@@ -212,9 +219,9 @@ function LoginForm() {
               </div>
 
               <div className="text-sm">
-                <a href="#" className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                <Link href="/auth/forgot-password" className="font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
                   Забравена парола?
-                </a>
+                </Link>
               </div>
             </div>
 

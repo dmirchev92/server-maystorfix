@@ -21,24 +21,52 @@ export function SocketProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
   const { isAuthenticated } = useAuth()
 
-  // Initialize socket once on mount
+  // Initialize socket when authentication state changes
   useEffect(() => {
+    // If not authenticated, disconnect existing socket if any
+    if (!isAuthenticated) {
+      if (socket) {
+        console.log('🔒 User logged out - disconnecting socket')
+        socket.disconnect()
+        setSocket(null)
+        setIsConnected(false)
+      }
+      return
+    }
+
+    // If already connected and socket exists, check if we need to reconnect (e.g. token changed)
+    // For now, we'll assume if isAuthenticated changed to true, we should reconnect
+    if (socket && socket.connected) {
+       // Optional: check if token in socket.auth matches current token
+       // But simpler to just let it be if we assume this effect only runs on auth change
+       // actually, if we switch users, isAuthenticated might stay true if we go from User A -> User B directly?
+       // No, usually we go via logout (isAuthenticated=false).
+       // If we support hot-swapping users, we should check user.id
+    }
+
     // Create Socket.IO connection to /chat namespace
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'
     const socketUrl = apiUrl.replace('/api/v1', '')
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+
+    if (!token) {
+      console.log('⚠️ Authenticated but no token found in localStorage - skipping socket connection')
+      return
+    }
     
     console.log('🔌 Connecting to Socket.IO /chat namespace:', `${socketUrl}/chat`)
     
     const socketInstance = io(`${socketUrl}/chat`, {
       auth: {
-        token: localStorage.getItem('auth_token') || localStorage.getItem('token')
+        token
       },
       transports: ['websocket', 'polling'],
       timeout: 10000,
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      path: '/socket.io'
+      path: '/socket.io',
+      forceNew: true // Ensure new connection
     })
 
     socketInstance.on('connect', () => {
@@ -63,12 +91,12 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     setSocket(socketInstance)
 
-    // Cleanup only on unmount (when browser closes or navigates away)
+    // Cleanup on unmount or auth change
     return () => {
-      console.log('🧹 SocketContext unmounting - disconnecting socket')
+      console.log('🧹 SocketContext cleanup - disconnecting socket')
       socketInstance.disconnect()
     }
-  }, []) // Empty deps - only run once on mount
+  }, [isAuthenticated]) // Re-run when auth state changes
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

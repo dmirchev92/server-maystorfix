@@ -649,4 +649,149 @@ router.post('/logout',
   }
 );
 
+/**
+ * GET /api/v1/auth/verify-email
+ * Verify email address using token
+ */
+router.get('/verify-email',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        throw new ServiceTextProError('Verification token is required', 'INVALID_TOKEN', 400);
+      }
+
+      const result = await authService.verifyEmail(token);
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          message: 'Email verified successfully',
+          user: result.user
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        },
+        gdpr: {
+          dataProcessingBasis: DataProcessingBasis.CONSENT,
+          retentionPeriod: `${config.gdpr.dataRetention.businessDataMonths} months`,
+          rightsInformation: config.gdpr.urls.privacyPolicy
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/v1/auth/resend-verification
+ * Resend verification email
+ */
+router.post('/resend-verification',
+  authLimiter,
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Valid email is required'),
+  handleValidationErrors,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email } = req.body;
+
+      await authService.resendVerificationEmail(email, req.ip);
+
+      // Always return success for security (don't reveal if email exists)
+      const response: APIResponse = {
+        success: true,
+        data: {
+          message: 'If the email exists and is not verified, a verification link has been sent.'
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        },
+        gdpr: {
+          dataProcessingBasis: DataProcessingBasis.CONSENT,
+          retentionPeriod: '24 hours for verification token validity',
+          rightsInformation: config.gdpr.urls.privacyPolicy
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      // Handle specific error for already verified email
+      if (error instanceof ServiceTextProError && error.code === 'EMAIL_ALREADY_VERIFIED') {
+        const response: APIResponse = {
+          success: false,
+          error: {
+            code: error.code,
+            message: 'Email is already verified'
+          },
+          metadata: {
+            timestamp: new Date(),
+            requestId: (req as any).requestId,
+            version: config.app.version
+          }
+        };
+        return res.status(400).json(response);
+      }
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/v1/auth/test-email
+ * Test email configuration (admin only)
+ */
+router.post('/test-email',
+  authenticateToken,
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Valid email is required'),
+  handleValidationErrors,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Only allow admins to test email
+      if (req.user?.role !== 'admin') {
+        throw new ServiceTextProError('Admin access required', 'FORBIDDEN', 403);
+      }
+
+      const { email } = req.body;
+      
+      // Import EmailService dynamically to avoid circular dependency
+      const EmailService = require('../services/EmailService').default;
+      const success = await EmailService.sendTestEmail(email);
+
+      const response: APIResponse = {
+        success,
+        data: {
+          message: success ? 'Test email sent successfully' : 'Failed to send test email',
+          configured: EmailService.isServiceConfigured()
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export default router;

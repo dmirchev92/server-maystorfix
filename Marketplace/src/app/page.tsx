@@ -3,7 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { Hero } from '@/components/Hero'
 import { ServiceCategories } from '@/components/ServiceCategories'
 import { Footer } from '@/components/Footer'
@@ -12,6 +13,15 @@ import PendingSurveys from '@/components/PendingSurveys'
 
 export default function HomePage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { user, isAuthenticated } = useAuth()
+  
+  // Redirect Service Providers to their dashboard
+  useEffect(() => {
+    if (isAuthenticated && user?.role === 'service_provider') {
+      router.replace('/provider/dashboard')
+    }
+  }, [isAuthenticated, user, router])
   
   useEffect(() => {
     // Check if we should auto-open chat from SMS link

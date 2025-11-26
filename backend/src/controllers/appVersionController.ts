@@ -1,4 +1,26 @@
 import { Request, Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+
+// Path to version config file
+const VERSION_CONFIG_PATH = path.join(__dirname, '../../config/app-version.json');
+
+// Default version info
+const DEFAULT_VERSION_INFO = {
+  latestVersion: '1.0.0',
+  minimumVersion: '1.0.0',
+  downloadUrl: 'https://maystorfix.com/downloads/ServiceTextPro-latest.apk',
+  updateRequired: false,
+  releaseNotes: {
+    bg: 'Нова версия с подобрения и поправки',
+    en: 'New version with improvements and fixes'
+  },
+  features: [
+    'Нови функции',
+    'Подобрения в производителността',
+    'Поправки на грешки'
+  ]
+};
 
 /**
  * GET /api/v1/app/version
@@ -6,22 +28,31 @@ import { Request, Response } from 'express';
  */
 export const getAppVersion = async (req: Request, res: Response): Promise<void> => {
   try {
-    // You can update these values when you release a new version
-    const versionInfo = {
-      latestVersion: '0.0.1', // Update this when you release new APK (set lower than current for testing)
-      minimumVersion: '0.0.1', // Minimum version that still works
-      downloadUrl: 'https://maystorfix.com/downloads/ServiceTextPro-latest.apk',
-      updateRequired: false, // Set to true to force update
-      releaseNotes: {
-        bg: 'Нова версия с подобрения и поправки',
-        en: 'New version with improvements and fixes'
-      },
-      features: [
-        'Управление на специализации',
-        'Подобрения в чата',
-        'Поправка на push известията'
-      ]
-    };
+    let versionInfo = DEFAULT_VERSION_INFO;
+
+    // Try to read from config file
+    if (fs.existsSync(VERSION_CONFIG_PATH)) {
+      try {
+        const configData = fs.readFileSync(VERSION_CONFIG_PATH, 'utf8');
+        versionInfo = { ...DEFAULT_VERSION_INFO, ...JSON.parse(configData) };
+        console.log('📱 App version loaded from config:', versionInfo.latestVersion);
+      } catch (parseError) {
+        console.error('Error parsing version config, using defaults:', parseError);
+      }
+    } else {
+      console.log('📱 Version config not found, using defaults');
+      // Create default config file
+      try {
+        const configDir = path.dirname(VERSION_CONFIG_PATH);
+        if (!fs.existsSync(configDir)) {
+          fs.mkdirSync(configDir, { recursive: true });
+        }
+        fs.writeFileSync(VERSION_CONFIG_PATH, JSON.stringify(DEFAULT_VERSION_INFO, null, 2));
+        console.log('📱 Created default version config at:', VERSION_CONFIG_PATH);
+      } catch (writeError) {
+        console.error('Error creating version config:', writeError);
+      }
+    }
 
     res.json({
       success: true,

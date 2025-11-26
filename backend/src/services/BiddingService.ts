@@ -331,7 +331,7 @@ export class BiddingService {
             caseId,
             customerId,
             providerName,
-            fullPointsCost
+            proposedBudgetRange // Send the proposed price, not points
           );
         }
       } catch (notificationError) {

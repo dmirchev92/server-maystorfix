@@ -28,7 +28,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, onViewChang
                   {stats.available || 0}
                 </p>
               </div>
-              <div className="p-4 rounded-2xl transition-all duration-300 group-hover:scale-110 bg-gradient-to-br from-green-500/20 to-green-400/20 border border-green-400/30">
+              <div className="p-4 rounded-2xl transition-all duration-300 md:group-hover:scale-110 bg-gradient-to-br from-green-500/20 to-green-400/20 border border-green-400/30">
                 <span className="text-3xl">📋</span>
               </div>
             </div>
@@ -52,7 +52,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, onViewChang
                   {stats.accepted || 0}
                 </p>
               </div>
-              <div className="p-4 rounded-2xl transition-all duration-300 group-hover:scale-110 bg-gradient-to-br from-blue-500/20 to-blue-400/20 border border-blue-400/30">
+              <div className="p-4 rounded-2xl transition-all duration-300 md:group-hover:scale-110 bg-gradient-to-br from-blue-500/20 to-blue-400/20 border border-blue-400/30">
                 <span className="text-3xl">✅</span>
               </div>
             </div>
@@ -76,7 +76,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, onViewChang
                   {stats.declined || 0}
                 </p>
               </div>
-              <div className="p-4 rounded-2xl transition-all duration-300 group-hover:scale-110 bg-gradient-to-br from-red-500/20 to-red-400/20 border border-red-400/30">
+              <div className="p-4 rounded-2xl transition-all duration-300 md:group-hover:scale-110 bg-gradient-to-br from-red-500/20 to-red-400/20 border border-red-400/30">
                 <span className="text-3xl">🚫</span>
               </div>
             </div>
@@ -100,7 +100,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats, onViewChang
                   {stats.completed || 0}
                 </p>
               </div>
-              <div className="p-4 rounded-2xl transition-all duration-300 group-hover:scale-110 bg-gradient-to-br from-purple-500/20 to-purple-400/20 border border-purple-400/30">
+              <div className="p-4 rounded-2xl transition-all duration-300 md:group-hover:scale-110 bg-gradient-to-br from-purple-500/20 to-purple-400/20 border border-purple-400/30">
                 <span className="text-3xl">🏁</span>
               </div>
             </div>

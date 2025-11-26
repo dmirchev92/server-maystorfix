@@ -12,6 +12,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import xss from 'xss';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 
@@ -41,6 +42,7 @@ import * as notificationController from './controllers/notificationController';
 import * as reviewController from './controllers/reviewController';
 import * as deviceTokenController from './controllers/deviceTokenController';
 import * as uploadController from './controllers/uploadController';
+import * as locationController from './controllers/locationController';
 import { authenticateToken } from './middleware/auth';
 import { checkTrialStatus, addTrialInfo } from './middleware/trialCheck';
 import trialCleanupService from './services/TrialCleanupService';
@@ -49,6 +51,7 @@ import { DatabaseFactory } from './models/DatabaseFactory';
 import { BidSelectionReminderJob } from './jobs/BidSelectionReminderJob';
 import { LocationSearchJob } from './jobs/LocationSearchJob';
 import { ScreenshotCleanupJob } from './jobs/ScreenshotCleanupJob';
+import SubscriptionReminderService from './services/SubscriptionReminderService';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
 
@@ -192,6 +195,18 @@ class ServiceTextProServer {
       next();
     }, express.static(uploadsDir));
 
+    // Serve app downloads (APK files) statically from /var/www/servicetextpro/downloads
+    const downloadsDir = path.join(process.cwd(), '..', 'downloads');
+    if (!fs.existsSync(downloadsDir)) {
+      fs.mkdirSync(downloadsDir, { recursive: true });
+    }
+    this.app.use('/downloads', (req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET');
+      res.header('Content-Disposition', 'attachment');
+      next();
+    }, express.static(downloadsDir));
+
     // Request parsing
     this.app.use(express.json({ 
       limit: '10mb',
@@ -201,6 +216,34 @@ class ServiceTextProServer {
       }
     }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // XSS Sanitization middleware - sanitize request body strings
+    this.app.use((req: Request, res: Response, next: NextFunction) => {
+      const sanitizeObject = (obj: any): any => {
+        if (typeof obj === 'string') {
+          return xss(obj);
+        }
+        if (Array.isArray(obj)) {
+          return obj.map(sanitizeObject);
+        }
+        if (obj && typeof obj === 'object') {
+          const sanitized: any = {};
+          for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+              sanitized[key] = sanitizeObject(obj[key]);
+            }
+          }
+          return sanitized;
+        }
+        return obj;
+      };
+
+      // Only sanitize body (query is read-only in Express)
+      if (req.body) {
+        req.body = sanitizeObject(req.body);
+      }
+      next();
+    });
 
     // Request logging with GDPR compliance
     this.app.use(morgan('combined', {
@@ -452,6 +495,12 @@ class ServiceTextProServer {
     this.app.get('/api/v1/marketplace/categories', marketplaceController.getServiceCategories);
     this.app.get('/api/v1/marketplace/locations/cities', marketplaceController.getCities);
     this.app.get('/api/v1/marketplace/locations/neighborhoods', marketplaceController.getNeighborhoods);
+    
+    // Location routes (GeoNames-powered)
+    this.app.get('/api/v1/locations/cities', locationController.getCities);
+    this.app.get('/api/v1/locations/neighborhoods/:city', locationController.getNeighborhoods);
+    this.app.get('/api/v1/locations/search', locationController.searchLocations);
+    this.app.get('/api/v1/locations/all', locationController.getAllLocations);
     this.app.post('/api/v1/marketplace/inquiries', marketplaceController.createInquiry);
     this.app.get('/api/v1/marketplace/inquiries', marketplaceController.getInquiries);
     this.app.post('/api/v1/marketplace/reviews', marketplaceController.addReview);
@@ -491,6 +540,7 @@ class ServiceTextProServer {
     // Device token routes (for push notifications)
     logger.info('🔥 ABOUT TO REGISTER DEVICE TOKEN ROUTES');
     this.app.post('/api/v1/device-tokens/register', authenticateToken, deviceTokenController.registerDeviceToken);
+    this.app.post('/api/v1/device-tokens/deactivate', authenticateToken, deviceTokenController.deactivateDeviceToken);
     this.app.delete('/api/v1/device-tokens/:tokenId', authenticateToken, deviceTokenController.deleteDeviceToken);
     this.app.get('/api/v1/device-tokens', authenticateToken, deviceTokenController.getUserDeviceTokens);
     this.app.post('/api/v1/device-tokens/test', authenticateToken, deviceTokenController.testPushNotification);
@@ -532,6 +582,11 @@ class ServiceTextProServer {
     this.app.post('/api/v1/tracking/update', authenticateToken, trackingController.updateLocation);
     this.app.delete('/api/v1/tracking/location', authenticateToken, trackingController.clearLocation);
     this.app.get('/api/v1/tracking/case/:caseId', authenticateToken, trackingController.getCaseTracking);
+    
+    // Location schedule routes
+    this.app.get('/api/v1/tracking/schedule', authenticateToken, trackingController.getLocationSchedule);
+    this.app.put('/api/v1/tracking/schedule', authenticateToken, trackingController.updateLocationSchedule);
+    this.app.get('/api/v1/tracking/schedule/check', authenticateToken, trackingController.checkLocationSchedule);
 
     // Declined cases routes
     this.app.get('/api/v1/cases/declined/:providerId', authenticateToken, caseController.getDeclinedCases);
@@ -1165,6 +1220,10 @@ private async initializeNotificationJobs(): Promise<void> {
     // Run initial notifications immediately
     await notificationJob.runNewCaseNotifications();
     logger.info('🔔 Initial new case notification check completed');
+
+    // Start subscription reminder cron job
+    SubscriptionReminderService.startCronJob();
+    logger.info('📧 Subscription reminder service initialized');
 
   } catch (error) {
     logger.error('❌ Failed to initialize notification jobs:', error);

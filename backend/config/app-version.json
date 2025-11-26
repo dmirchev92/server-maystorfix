@@ -1,0 +1,15 @@
+{
+  "latestVersion": "1.4",
+  "minimumVersion": "1.0.0",
+  "downloadUrl": "https://maystorfix.com/downloads/ServiceTextPro-latest.apk",
+  "updateRequired": false,
+  "releaseNotes": {
+    "bg": "Версия 1.4:\n• Ново табло с бърз преглед на статистики\n• Бързи действия за навигация\n• SMS шаблони (Латиница/Кирилица)\n• Информация за SMS кодиране",
+    "en": "Version 1.4:\n• New dashboard with quick stats overview\n• Quick action navigation\n• SMS templates (Latin/Cyrillic)\n• SMS encoding information"
+  },
+  "features": [
+    "Ново табло",
+    "SMS шаблони",
+    "SMS кодиране"
+  ]
+}

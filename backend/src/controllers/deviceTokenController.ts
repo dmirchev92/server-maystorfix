@@ -178,6 +178,59 @@ export const getUserDeviceTokens = async (req: Request, res: Response): Promise<
 };
 
 /**
+ * Deactivate a device token by its value (for logout)
+ * POST /api/v1/device-tokens/deactivate
+ */
+export const deactivateDeviceToken = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { token } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'User not authenticated',
+        },
+      });
+      return;
+    }
+
+    if (!token) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'BAD_REQUEST',
+          message: 'Token is required',
+        },
+      });
+      return;
+    }
+
+    logger.info('🔒 Deactivating device token on logout', { userId, tokenPreview: token.substring(0, 20) + '...' });
+
+    await fcmService.deactivateTokenByValue(token, userId);
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Device token deactivated successfully',
+      },
+    });
+  } catch (error) {
+    logger.error('❌ Error deactivating device token:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to deactivate device token',
+      },
+    });
+  }
+};
+
+/**
  * Test push notification endpoint (for testing only)
  * POST /api/v1/device-tokens/test
  */

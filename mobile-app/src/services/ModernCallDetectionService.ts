@@ -17,6 +17,7 @@ interface MissedCallEvent {
   formattedTime: string;
   source: string;
   type: string;
+  duration?: number;
 }
 
 interface CallDetectionStats {

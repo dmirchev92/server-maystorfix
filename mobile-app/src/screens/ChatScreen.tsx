@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -26,6 +27,7 @@ function ChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userId, setUserId] = useState<string>('');
+  const [userRole, setUserRole] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   // Socket.IO is now initialized globally in App.tsx
@@ -35,6 +37,22 @@ function ChatScreen() {
   useFocusEffect(
     React.useCallback(() => {
       console.log('📱 ChatScreen - Screen focused, loading conversations');
+      
+      // Pre-load userId from storage to avoid "userId missing" errors
+      AsyncStorage.getItem('user').then(userJson => {
+        if (userJson) {
+            const parsed = JSON.parse(userJson);
+            // Handle both wrapped {user: {...}} and unwrapped {...} formats
+            const user = parsed.user || parsed;
+            
+            if (user && user.id) {
+                console.log('📱 ChatScreen - Pre-loaded user ID:', user.id);
+                setUserId(user.id);
+                setUserRole(user.role);
+            }
+        }
+      });
+
       loadConversations();
       
       // Set up socket listener for conversation updates
@@ -122,7 +140,7 @@ function ChatScreen() {
       const userResponse = await ApiService.getInstance().getCurrentUser();
       console.log('📱 ChatScreen - User response:', userResponse);
       
-      const userData: any = userResponse.data?.user || userResponse.data;
+      const userData: any = (userResponse.data as any)?.user || userResponse.data;
       console.log('📱 ChatScreen - User data:', userData);
 
       if (!userData || !userData.id) {
@@ -132,6 +150,17 @@ function ChatScreen() {
         return;
       }
 
+      // Update state and storage with fresh user data
+      setUserId(userData.id);
+      if (userData.role) {
+        setUserRole(userData.role);
+      }
+      
+      // Persist to storage to ensure handleConversationPress works even if state was lost
+      AsyncStorage.setItem('user', JSON.stringify(userData)).catch(err => 
+        console.error('Failed to update user in storage:', err)
+      );
+
       // Load conversations from API using Chat API V2 (authenticated user)
       console.log('📱 ChatScreen - Loading conversations via Chat API V2');
       const response = await ApiService.getInstance().getConversations();
@@ -140,7 +169,7 @@ function ChatScreen() {
       
       if (response.success && response.data) {
         // Chat API V2 returns: { success: true, data: { conversations: [...] } }
-        const conversationsList = response.data.conversations || [];
+        const conversationsList = (response.data as any).conversations || [];
         
         console.log(`✅ Loaded ${conversationsList.length} conversations`);
         
@@ -193,12 +222,89 @@ function ChatScreen() {
     });
   };
 
-  const handleConversationPress = (conversation: Conversation) => {
-    navigation.navigate('ChatDetail', {
-      conversationId: conversation.id,
-      providerId: conversation.providerId,
-      providerName: conversation.customerName || 'Customer',
+  const handleConversationPress = async (conversation: Conversation) => {
+    let currentUserId = userId;
+    
+    if (!currentUserId) {
+      console.log('⚠️ userId missing in state, trying to fetch from storage...');
+      try {
+        const userJson = await AsyncStorage.getItem('user');
+        console.log('📱 ChatScreen - Storage "user" content:', userJson);
+        
+        if (userJson) {
+          const parsed = JSON.parse(userJson);
+          // Handle both wrapped {user: {...}} and unwrapped {...} formats
+          const user = parsed.user || parsed;
+          
+          if (user && user.id) {
+             console.log('✅ Found user in storage:', user.id);
+             currentUserId = user.id;
+             setUserId(user.id);
+             setUserRole(user.role);
+          } else {
+             console.error('❌ User object in storage missing ID:', user);
+          }
+        } else {
+           console.error('❌ Storage "user" key is empty');
+        }
+      } catch (storageError) {
+        console.error('❌ Error reading user from storage:', storageError);
+      }
+    }
+
+    // Last resort: Try to fetch from API if we have a token
+    if (!currentUserId) {
+       console.log('⚠️ userId still missing, attempting API fetch as last resort...');
+       try {
+         const userResponse = await ApiService.getInstance().getCurrentUser();
+         const userData: any = (userResponse.data as any)?.user || userResponse.data;
+         if (userData && userData.id) {
+            console.log('✅ Fetched user via API just in time:', userData.id);
+            currentUserId = userData.id;
+            setUserId(userData.id);
+            AsyncStorage.setItem('user', JSON.stringify(userData));
+         }
+       } catch (apiError) {
+          console.error('❌ Failed to fetch user via API in handleConversationPress:', apiError);
+       }
+    }
+
+    if (!currentUserId) {
+      console.error('❌ Cannot handle press: userId is missing even after storage check and API fallback');
+      // Show alert to user
+      Alert.alert('Error', 'Unable to identify user. Please try logging out and back in.');
+      return;
+    }
+
+    // Determine who the OTHER person is
+    // If I am the provider (providerId matches my ID), I'm talking to the customer
+    const isMeProvider = conversation.providerId === currentUserId;
+    
+    // If I am the provider, target is customer. If I am customer, target is provider.
+    const targetName = isMeProvider ? (conversation.customerName || 'Клиент') : (conversation.providerName || 'Доставчик');
+    const targetId = isMeProvider ? conversation.customerId : conversation.providerId;
+
+    console.log('📱 Opening chat with:', {
+      myId: currentUserId,
+      isMeProvider,
+      targetName,
+      targetId,
+      conversationId: conversation.id
     });
+
+    try {
+      console.log('👉 Navigating to ChatDetail...');
+      // Cast to any to bypass strict type checking for root stack navigation
+      (navigation as any).navigate('ChatDetail', {
+        conversationId: conversation.id,
+        providerId: targetId || '',
+        providerName: targetName || '',
+      });
+      console.log('✅ Navigation command dispatched');
+    } catch (navError) {
+      console.error('❌ Navigation failed:', navError);
+      Alert.alert('Error', 'Failed to open chat. Please try again.');
+    }
   };
 
   const handleRefresh = () => {
@@ -224,7 +330,22 @@ function ChatScreen() {
     return `${Math.floor(diffMins / 1440)}д`;
   };
 
-  const renderConversationItem = ({ item }: { item: Conversation }) => (
+  const renderConversationItem = ({ item }: { item: Conversation }) => {
+    // Determine display name based on who I am
+    // Note: We might not have userId immediately on first render if it's loading, 
+    // so we fallback to showing "Chat" or try to infer. 
+    // Ideally we rely on `userRole` state.
+    
+    let displayName = 'Chat';
+    if (userId) {
+        const isMeProvider = item.providerId === userId;
+        displayName = isMeProvider ? (item.customerName || 'Клиент') : (item.providerName || 'Доставчик');
+    } else {
+        // Fallback if userId not loaded yet (should be rare due to isLoading)
+        displayName = item.providerName || item.customerName || 'Chat';
+    }
+
+    return (
     <TouchableOpacity
       style={styles.conversationItem}
       onPress={() => handleConversationPress(item)}
@@ -232,7 +353,7 @@ function ChatScreen() {
       <View style={styles.avatarContainer}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
-            {(item.customerName || 'C').charAt(0).toUpperCase()}
+            {displayName.charAt(0).toUpperCase()}
           </Text>
         </View>
         {(item.unreadCount || 0) > 0 && (
@@ -245,7 +366,7 @@ function ChatScreen() {
       <View style={styles.conversationContent}>
         <View style={styles.conversationHeader}>
           <Text style={styles.providerName} numberOfLines={1}>
-            {item.customerName || 'Customer'}
+            {displayName}
           </Text>
           <Text style={styles.timestamp}>
             {formatTime(item.lastMessageAt)}
@@ -254,11 +375,12 @@ function ChatScreen() {
         <Text style={styles.lastMessage} numberOfLines={2}>
           {typeof item.lastMessage === 'string' 
             ? item.lastMessage 
-            : item.lastMessage?.body || item.lastMessage?.message || 'Няма съобщения'}
+            : (item.lastMessage as any)?.body || (item.lastMessage as any)?.message || 'Няма съобщения'}
         </Text>
       </View>
     </TouchableOpacity>
   );
+  };
 
   if (isLoading && conversations.length === 0) {
     return (

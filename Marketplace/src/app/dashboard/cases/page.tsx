@@ -301,21 +301,21 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-white mb-2">
+            <h1 className="text-2xl sm:text-4xl font-bold text-white mb-1 sm:mb-2">
               Управление на заявки
             </h1>
-            <p className="text-slate-300 text-lg">
+            <p className="text-slate-300 text-sm sm:text-lg">
               {user.role === 'customer' ? 'Вашите заявки за услуги' : 'Заявки за вашите услуги'}
             </p>
           </div>
-          <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-400/40 rounded-xl px-6 py-4">
+          <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-400/40 rounded-xl px-4 sm:px-6 py-3 sm:py-4 self-start sm:self-auto">
             <div className="text-center">
-              <p className="text-sm text-slate-300 mb-1">Налични точки</p>
-              <p className="text-3xl font-bold text-white">{pointsBalance}</p>
+              <p className="text-xs sm:text-sm text-slate-300 mb-1">Налични точки</p>
+              <p className="text-2xl sm:text-3xl font-bold text-white">{pointsBalance}</p>
               <p className="text-xs text-slate-400 mt-1">за наддаване</p>
             </div>
           </div>
@@ -323,36 +323,36 @@ export default function DashboardPage() {
 
         {/* View Mode Toggle Buttons */}
         {(user.role === 'tradesperson' || user.role === 'service_provider') && (
-          <div className="flex items-center justify-center space-x-4 mb-8">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 mb-8 px-2">
             <button
               onClick={() => handleViewChange('available', '')}
-              className={`px-6 py-4 rounded-xl font-semibold text-base transition-all duration-300 transform hover:scale-105 ${
+              className={`px-3 sm:px-6 py-2 sm:py-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ${
                 filters.viewMode === 'available'
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                   : 'bg-white/10 text-slate-300 hover:bg-white/20 border border-white/20'
               }`}
             >
-              📋 Налични заявки
+              📋 Налични
             </button>
             <button
               onClick={() => handleViewChange('assigned', '')}
-              className={`px-6 py-4 rounded-xl font-semibold text-base transition-all duration-300 transform hover:scale-105 ${
+              className={`px-3 sm:px-6 py-2 sm:py-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ${
                 filters.viewMode === 'assigned'
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                   : 'bg-white/10 text-slate-300 hover:bg-white/20 border border-white/20'
               }`}
             >
-              ✅ Моите заявки
+              ✅ Моите
             </button>
             <button
               onClick={() => handleViewChange('bids', '')}
-              className={`px-6 py-4 rounded-xl font-semibold text-base transition-all duration-300 transform hover:scale-105 ${
+              className={`px-3 sm:px-6 py-2 sm:py-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ${
                 filters.viewMode === 'bids'
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/50'
                   : 'bg-white/10 text-slate-300 hover:bg-white/20 border border-white/20'
               }`}
             >
-              💰 Моите кандидатури
+              💰 Кандидатури
             </button>
           </div>
         )}

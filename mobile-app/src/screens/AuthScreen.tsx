@@ -9,7 +9,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
 import ApiService from '../services/ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,8 +20,14 @@ interface AuthScreenProps {
   onAuthSuccess: (user: any) => void;
 }
 
+type UserType = 'customer' | 'provider';
+
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordSubmitted, setForgotPasswordSubmitted] = useState(false);
+  const [userType, setUserType] = useState<UserType>('customer');
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -141,9 +149,41 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     return hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar && hasMinLength;
   };
 
+  const handleForgotPassword = async () => {
+    if (!forgotPasswordEmail.trim()) {
+      Alert.alert('Грешка', 'Моля въведете имейл адрес');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(forgotPasswordEmail.trim())) {
+      Alert.alert('Грешка', 'Моля въведете валиден имейл адрес');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await ApiService.getInstance().requestPasswordReset(forgotPasswordEmail.trim());
+      // Always show success for security
+      setForgotPasswordSubmitted(true);
+    } catch (error) {
+      // Still show success for security
+      setForgotPasswordSubmitted(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleRegister = async () => {
-    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.firstName || !formData.lastName || !formData.phoneNumber || !formData.companyName || !formData.serviceCategory) {
-      Alert.alert('Грешка', 'Моля попълнете всички полета');
+    // Common validation
+    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.firstName || !formData.lastName || !formData.phoneNumber) {
+      Alert.alert('Грешка', 'Моля попълнете всички задължителни полета');
+      return;
+    }
+
+    // Provider-specific validation
+    if (userType === 'provider' && (!formData.companyName || !formData.serviceCategory)) {
+      Alert.alert('Грешка', 'Моля попълнете име на компанията и категория услуги');
       return;
     }
 
@@ -164,17 +204,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
     setLoading(true);
     try {
-      const response = await ApiService.getInstance().register({
+      const registrationData: any = {
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
         phoneNumber: formData.phoneNumber,
-        serviceCategory: formData.serviceCategory,
-        companyName: formData.companyName,
-        role: 'tradesperson',
+        role: userType === 'provider' ? 'tradesperson' : 'customer',
         gdprConsents: ['essential_service'],
-      });
+      };
+
+      // Add provider-specific fields
+      if (userType === 'provider') {
+        registrationData.serviceCategory = formData.serviceCategory;
+        registrationData.companyName = formData.companyName;
+      }
+
+      const response = await ApiService.getInstance().register(registrationData);
 
       console.log('Registration response:', JSON.stringify(response, null, 2));
 
@@ -205,240 +251,410 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     }
   };
 
-  return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Text style={styles.icon}>💻</Text>
-          </View>
-          <Text style={styles.title}>
-            {isLogin ? 'Влезте в ServiceText Pro' : 'Създайте ServiceText Pro акаунт'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {isLogin ? 'Добре дошли отново!' : 'Започнете пътуването си с нас днес.'}
-          </Text>
+  // Forgot Password - Success Screen
+  if (isForgotPassword && forgotPasswordSubmitted) {
+    return (
+      <LinearGradient colors={['#0f172a', '#1e293b', '#312e81']} style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <View style={styles.flex1}>
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <View style={styles.header}>
+              <View style={[styles.iconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.2)', borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
+                <Text style={styles.icon}>✉️</Text>
+              </View>
+              <Text style={styles.title}>Проверете имейла си</Text>
+              <Text style={styles.subtitle}>
+                Ако съществува акаунт с имейл {forgotPasswordEmail}, ще получите линк за възстановяване на паролата.
+              </Text>
+            </View>
+
+            <View style={styles.form}>
+              <View style={styles.infoBox}>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoIcon}>📧</Text>
+                  <Text style={styles.infoText}>Линкът е валиден <Text style={styles.bold}>1 час</Text></Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoIcon}>📥</Text>
+                  <Text style={styles.infoText}>Проверете и папката <Text style={styles.bold}>Спам</Text></Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={styles.modernButton}
+                onPress={() => {
+                  setIsForgotPassword(false);
+                  setForgotPasswordSubmitted(false);
+                  setForgotPasswordEmail('');
+                }}
+              >
+                <Text style={styles.modernButtonText}>🔓 Обратно към вход</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.switchContainer}
+                onPress={() => {
+                  setForgotPasswordSubmitted(false);
+                  setForgotPasswordEmail('');
+                }}
+              >
+                <Text style={styles.switchLink}>Опитайте с друг имейл</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
+      </LinearGradient>
+    );
+  }
 
-        <View style={styles.form}>
-          {!isLogin && (
-            <>
-              <View style={styles.row}>
-                <View style={styles.halfWidth}>
-                  <Text style={styles.fieldLabel}>Име</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    placeholder="Иван"
-                    placeholderTextColor="#9CA3AF"
-                    value={formData.firstName}
-                    onChangeText={(value) => handleInputChange('firstName', value)}
-                    autoCapitalize="words"
-                  />
-                </View>
-                <View style={styles.halfWidth}>
-                  <Text style={styles.fieldLabel}>Фамилия</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    placeholder="Петров"
-                    placeholderTextColor="#9CA3AF"
-                    value={formData.lastName}
-                    onChangeText={(value) => handleInputChange('lastName', value)}
-                    autoCapitalize="words"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Имейл адрес</Text>
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder="ivan@example.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.email}
-                  onChangeText={(value) => handleInputChange('email', value)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Име на компанията</Text>
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder="Вашата компания ООД"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.companyName}
-                  onChangeText={(value) => handleInputChange('companyName', value)}
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Телефон</Text>
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder="+359xxxxxxxxx"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.phoneNumber}
-                  onChangeText={(value) => handleInputChange('phoneNumber', value)}
-                  keyboardType="phone-pad"
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Индустрия</Text>
-                <View style={styles.modernPickerWrapper}>
-                  <Picker
-                    selectedValue={formData.serviceCategory}
-                    onValueChange={(value) => handleInputChange('serviceCategory', value)}
-                    style={styles.modernPicker}
-                  >
-                    <Picker.Item label="Изберете вашата индустрия" value="" />
-                    {serviceCategories.map((category) => (
-                      <Picker.Item
-                        key={category.id}
-                        label={category.name}
-                        value={category.id}
-                      />
-                    ))}
-                  </Picker>
-                </View>
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Парола</Text>
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.password}
-                  onChangeText={(value) => handleInputChange('password', value)}
-                  secureTextEntry
-                  onFocus={() => setShowPasswordHint(true)}
-                  onBlur={() => setShowPasswordHint(false)}
-                />
-                {showPasswordHint && (
-                  <Text style={styles.passwordHint}>
-                    Паролата трябва да съдържа поне 8 символа, главна буква, малка буква, цифра и специален символ
-                  </Text>
-                )}
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Потвърдете паролата</Text>
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.confirmPassword}
-                  onChangeText={(value) => handleInputChange('confirmPassword', value)}
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.checkboxContainer}>
-                <TouchableOpacity
-                  style={styles.checkboxRow}
-                  onPress={() => setAcceptTerms(!acceptTerms)}
-                >
-                  <View style={[styles.modernCheckbox, acceptTerms && styles.modernCheckboxChecked]}>
-                    {acceptTerms && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={styles.checkboxText}>
-                    Съгласявам се с <Text style={styles.linkText}>Условията и правилата</Text>
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.checkboxRow}
-                  onPress={() => setReceiveUpdates(!receiveUpdates)}
-                >
-                  <View style={[styles.modernCheckbox, receiveUpdates && styles.modernCheckboxChecked]}>
-                    {receiveUpdates && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={styles.checkboxText}>
-                    Получавайте бюлетин и актуализации
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-
-          {isLogin && (
-            <>
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Имейл адрес</Text>
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder="ivan@example.com"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.email}
-                  onChangeText={(value) => handleInputChange('email', value)}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-
-              <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Парола</Text>
-                <TextInput
-                  style={styles.modernInput}
-                  placeholder="••••••••"
-                  placeholderTextColor="#9CA3AF"
-                  value={formData.password}
-                  onChangeText={(value) => handleInputChange('password', value)}
-                  secureTextEntry
-                />
-              </View>
-            </>
-          )}
-
-          <TouchableOpacity
-            style={[styles.modernButton, loading && styles.buttonDisabled]}
-            onPress={isLogin ? handleLogin : handleRegister}
-            disabled={loading}
-          >
-            <Text style={styles.modernButtonText}>
-              👤 {loading ? 'Зареждане...' : (isLogin ? 'Влезте' : 'Създайте акаунт')}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Remember Me */}
-          {isLogin && (
+  // Forgot Password - Form Screen
+  if (isForgotPassword) {
+    return (
+      <LinearGradient colors={['#0f172a', '#1e293b', '#312e81']} style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        <KeyboardAvoidingView 
+          style={styles.flex1} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <ScrollView contentContainerStyle={styles.scrollContainer}>
             <TouchableOpacity
-              style={styles.rememberRow}
-              onPress={() => setRememberMe(!rememberMe)}
-              activeOpacity={0.7}
+              style={styles.backButton}
+              onPress={() => setIsForgotPassword(false)}
             >
-              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
-                {rememberMe && <Text style={styles.checkboxMark}>✓</Text>}
-              </View>
-              <Text style={styles.rememberText}>Запомни ме</Text>
+              <Text style={styles.backButtonText}>← Назад</Text>
             </TouchableOpacity>
-          )}
 
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchText}>
-              {isLogin ? 'Нямате акаунт? ' : 'Вече имате акаунт? '}
+            <View style={styles.header}>
+              <View style={styles.iconContainer}>
+                <Text style={styles.icon}>🔑</Text>
+              </View>
+              <Text style={styles.title}>Забравена парола</Text>
+              <Text style={styles.subtitle}>
+                Въведете имейла си и ще ви изпратим линк за възстановяване
+              </Text>
+            </View>
+
+            <View style={styles.form}>
+              <View style={styles.fieldContainer}>
+                <Text style={styles.fieldLabel}>Имейл адрес</Text>
+                <TextInput
+                  style={styles.modernInput}
+                  placeholder="ivan@example.com"
+                  placeholderTextColor="#64748b"
+                  value={forgotPasswordEmail}
+                  onChangeText={setForgotPasswordEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!loading}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.modernButton, loading && styles.buttonDisabled]}
+                onPress={handleForgotPassword}
+                disabled={loading}
+              >
+                <Text style={styles.modernButtonText}>
+                  {loading ? '⏳ Изпращане...' : '📧 Изпратете линк'}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={styles.switchContainer}>
+                <TouchableOpacity onPress={() => setIsForgotPassword(false)}>
+                  <Text style={styles.switchLink}>Обратно към вход</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    );
+  }
+
+  return (
+    <LinearGradient colors={['#0f172a', '#1e293b', '#312e81']} style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      <KeyboardAvoidingView 
+        style={styles.flex1} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <Text style={styles.icon}>🔧</Text>
+            </View>
+            <Text style={styles.title}>
+              {isLogin ? 'Влезте в ServiceText Pro' : 'Създайте акаунт'}
             </Text>
-            <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
-              <Text style={styles.switchLink}>
-                {isLogin ? 'Регистрирайте се' : 'Влезте'}
+            <Text style={styles.subtitle}>
+              {isLogin ? 'Добре дошли отново!' : 'Започнете пътуването си с нас днес.'}
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+            {/* User Type Selection - Only show for registration */}
+            {!isLogin && (
+              <View style={styles.userTypeContainer}>
+                <Text style={styles.fieldLabel}>Регистрирай се като:</Text>
+                <View style={styles.userTypeButtons}>
+                  <TouchableOpacity
+                    style={[styles.userTypeBtn, userType === 'customer' && styles.userTypeBtnActive]}
+                    onPress={() => setUserType('customer')}
+                  >
+                    <Text style={styles.userTypeIcon}>👤</Text>
+                    <Text style={[styles.userTypeBtnText, userType === 'customer' && styles.userTypeBtnTextActive]}>
+                      Клиент
+                    </Text>
+                    <Text style={styles.userTypeDesc}>Търся услуги</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.userTypeBtn, userType === 'provider' && styles.userTypeBtnActive]}
+                    onPress={() => setUserType('provider')}
+                  >
+                    <Text style={styles.userTypeIcon}>🔧</Text>
+                    <Text style={[styles.userTypeBtnText, userType === 'provider' && styles.userTypeBtnTextActive]}>
+                      Специалист
+                    </Text>
+                    <Text style={styles.userTypeDesc}>Предлагам услуги</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
+            {!isLogin && (
+              <>
+                <View style={styles.row}>
+                  <View style={styles.halfWidth}>
+                    <Text style={styles.fieldLabel}>Име *</Text>
+                    <TextInput
+                      style={styles.modernInput}
+                      placeholder="Иван"
+                      placeholderTextColor="#64748b"
+                      value={formData.firstName}
+                      onChangeText={(value) => handleInputChange('firstName', value)}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                  <View style={styles.halfWidth}>
+                    <Text style={styles.fieldLabel}>Фамилия *</Text>
+                    <TextInput
+                      style={styles.modernInput}
+                      placeholder="Петров"
+                      placeholderTextColor="#64748b"
+                      value={formData.lastName}
+                      onChangeText={(value) => handleInputChange('lastName', value)}
+                      autoCapitalize="words"
+                    />
+                  </View>
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Имейл адрес *</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    placeholder="ivan@example.com"
+                    placeholderTextColor="#64748b"
+                    value={formData.email}
+                    onChangeText={(value) => handleInputChange('email', value)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Телефон *</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    placeholder="+359xxxxxxxxx"
+                    placeholderTextColor="#64748b"
+                    value={formData.phoneNumber}
+                    onChangeText={(value) => handleInputChange('phoneNumber', value)}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+
+                {/* Provider-specific fields */}
+                {userType === 'provider' && (
+                  <>
+                    <View style={styles.fieldContainer}>
+                      <Text style={styles.fieldLabel}>Име на компанията *</Text>
+                      <TextInput
+                        style={styles.modernInput}
+                        placeholder="Вашата компания ООД"
+                        placeholderTextColor="#64748b"
+                        value={formData.companyName}
+                        onChangeText={(value) => handleInputChange('companyName', value)}
+                      />
+                    </View>
+
+                    <View style={styles.fieldContainer}>
+                      <Text style={styles.fieldLabel}>Категория услуги *</Text>
+                      <View style={styles.modernPickerWrapper}>
+                        <Picker
+                          selectedValue={formData.serviceCategory}
+                          onValueChange={(value) => handleInputChange('serviceCategory', value)}
+                          style={styles.modernPicker}
+                          dropdownIconColor="#818cf8"
+                        >
+                          <Picker.Item label="Изберете категория" value="" color="#64748b" />
+                          {serviceCategories.map((category) => (
+                            <Picker.Item
+                              key={category.id}
+                              label={category.name}
+                              value={category.id}
+                              color="#1e293b"
+                            />
+                          ))}
+                        </Picker>
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Парола *</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    placeholder="••••••••"
+                    placeholderTextColor="#64748b"
+                    value={formData.password}
+                    onChangeText={(value) => handleInputChange('password', value)}
+                    secureTextEntry
+                    onFocus={() => setShowPasswordHint(true)}
+                    onBlur={() => setShowPasswordHint(false)}
+                  />
+                  {showPasswordHint && (
+                    <Text style={styles.passwordHint}>
+                      Мин. 8 символа, главна буква, малка буква, цифра и специален символ
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Потвърдете паролата *</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    placeholder="••••••••"
+                    placeholderTextColor="#64748b"
+                    value={formData.confirmPassword}
+                    onChangeText={(value) => handleInputChange('confirmPassword', value)}
+                    secureTextEntry
+                  />
+                </View>
+
+                <View style={styles.checkboxContainer}>
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setAcceptTerms(!acceptTerms)}
+                  >
+                    <View style={[styles.modernCheckbox, acceptTerms && styles.modernCheckboxChecked]}>
+                      {acceptTerms && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxText}>
+                      Съгласявам се с <Text style={styles.linkText}>Условията и правилата</Text>
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.checkboxRow}
+                    onPress={() => setReceiveUpdates(!receiveUpdates)}
+                  >
+                    <View style={[styles.modernCheckbox, receiveUpdates && styles.modernCheckboxChecked]}>
+                      {receiveUpdates && <Text style={styles.checkmark}>✓</Text>}
+                    </View>
+                    <Text style={styles.checkboxText}>
+                      Получавайте бюлетин и актуализации
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {isLogin && (
+              <>
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Имейл адрес</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    placeholder="ivan@example.com"
+                    placeholderTextColor="#64748b"
+                    value={formData.email}
+                    onChangeText={(value) => handleInputChange('email', value)}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.fieldLabel}>Парола</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    placeholder="••••••••"
+                    placeholderTextColor="#64748b"
+                    value={formData.password}
+                    onChangeText={(value) => handleInputChange('password', value)}
+                    secureTextEntry
+                  />
+                </View>
+              </>
+            )}
+
+            <TouchableOpacity
+              style={[styles.modernButton, loading && styles.buttonDisabled]}
+              onPress={isLogin ? handleLogin : handleRegister}
+              disabled={loading}
+            >
+              <Text style={styles.modernButtonText}>
+                {loading ? '⏳ Зареждане...' : (isLogin ? '🔓 Влезте' : '✨ Създайте акаунт')}
               </Text>
             </TouchableOpacity>
+
+            {/* Remember Me & Forgot Password */}
+            {isLogin && (
+              <>
+                <TouchableOpacity
+                  style={styles.rememberRow}
+                  onPress={() => setRememberMe(!rememberMe)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.modernCheckbox, rememberMe && styles.modernCheckboxChecked]}>
+                    {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                  <Text style={styles.checkboxText}>Запомни ме</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.forgotPasswordBtn}
+                  onPress={() => setIsForgotPassword(true)}
+                >
+                  <Text style={styles.forgotPasswordLink}>Забравена парола?</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchText}>
+                {isLogin ? 'Нямате акаунт? ' : 'Вече имате акаунт? '}
+              </Text>
+              <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+                <Text style={styles.switchLink}>
+                  {isLogin ? 'Регистрирайте се' : 'Влезте'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+  },
+  flex1: {
+    flex: 1,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -450,49 +666,85 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
+    width: 72,
+    height: 72,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   icon: {
-    fontSize: 32,
+    fontSize: 36,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#111827',
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#ffffff',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#94a3b8',
     textAlign: 'center',
   },
   form: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  // User Type Selection Styles
+  userTypeContainer: {
+    marginBottom: 24,
+  },
+  userTypeButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  userTypeBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  userTypeBtnActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: '#818cf8',
+  },
+  userTypeIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  userTypeBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  userTypeBtnTextActive: {
+    color: '#ffffff',
+  },
+  userTypeDesc: {
+    fontSize: 12,
+    color: '#64748b',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 16,
+    gap: 12,
   },
   halfWidth: {
-    flex: 0.48,
+    flex: 1,
   },
   fieldContainer: {
     marginBottom: 16,
@@ -500,32 +752,33 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
+    color: '#e2e8f0',
+    marginBottom: 8,
   },
   modernInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 10,
+    padding: 14,
     fontSize: 16,
-    backgroundColor: '#FFFFFF',
-    color: '#111827',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#ffffff',
   },
   modernPickerWrapper: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
   },
   modernPicker: {
-    height: 48,
-    color: '#111827',
+    height: 50,
+    color: '#ffffff',
   },
   passwordHint: {
     fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
+    color: '#818cf8',
+    marginTop: 6,
     lineHeight: 16,
   },
   checkboxContainer: {
@@ -538,47 +791,47 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modernCheckbox: {
-    width: 16,
-    height: 16,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 3,
-    marginRight: 8,
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
+    marginRight: 10,
     marginTop: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent',
   },
   modernCheckboxChecked: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
+    backgroundColor: '#818cf8',
+    borderColor: '#818cf8',
   },
   checkmark: {
-    color: '#FFFFFF',
-    fontSize: 10,
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   checkboxText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#cbd5e1',
     flex: 1,
     lineHeight: 20,
   },
   linkText: {
-    color: '#6366F1',
+    color: '#818cf8',
     textDecorationLine: 'underline',
   },
   modernButton: {
-    backgroundColor: '#6366F1',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#6366f1',
+    borderRadius: 10,
+    padding: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 16,
   },
   modernButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: '#ffffff',
+    fontSize: 17,
     fontWeight: '600',
   },
   switchContainer: {
@@ -589,78 +842,50 @@ const styles = StyleSheet.create({
   },
   switchText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#94a3b8',
   },
   switchLink: {
     fontSize: 14,
-    color: '#6366F1',
-    fontWeight: '500',
+    color: '#818cf8',
+    fontWeight: '600',
   },
-  // Legacy styles for compatibility
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  button: {
-    backgroundColor: '#3498db',
-    borderRadius: 8,
-    padding: 15,
-    alignItems: 'center',
-    marginTop: 10,
-  },
+  // Legacy/utility styles
   buttonDisabled: {
-    backgroundColor: '#bdc3c7',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  switchButton: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  switchButtonText: {
-    color: '#3498db',
-    fontSize: 16,
+    opacity: 0.6,
   },
   rememberRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 15,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 8,
   },
   checkbox: {
     width: 20,
     height: 20,
     borderWidth: 2,
-    borderColor: '#3498db',
-    borderRadius: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 4,
     marginRight: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#3498db',
+    backgroundColor: '#818cf8',
+    borderColor: '#818cf8',
   },
   checkboxMark: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   rememberText: {
-    fontSize: 16,
-    color: '#2c3e50',
+    fontSize: 14,
+    color: '#cbd5e1',
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2c3e50',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#e2e8f0',
     marginBottom: 8,
     marginTop: 10,
   },
@@ -674,5 +899,57 @@ const styles = StyleSheet.create({
   picker: {
     height: 50,
     color: '#2c3e50',
+  },
+  // Forgot Password styles
+  loginOptionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  forgotPasswordBtn: {
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  forgotPasswordLink: {
+    fontSize: 14,
+    color: '#818cf8',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#94a3b8',
+  },
+  infoBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  infoIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+  bold: {
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });

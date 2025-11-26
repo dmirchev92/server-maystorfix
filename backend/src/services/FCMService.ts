@@ -388,6 +388,49 @@ export class FCMService {
   async getUserTokens(userId: string): Promise<DeviceToken[]> {
     return this.getUserDeviceTokens(userId);
   }
+
+  /**
+   * Deactivate a device token by its value (for logout)
+   * This deactivates the token regardless of which user it's assigned to,
+   * because the physical device is logging out and shouldn't receive any notifications
+   */
+  async deactivateTokenByValue(token: string, userId: string): Promise<void> {
+    try {
+      logger.info('🔒 Deactivating device token by value', { userId, tokenPreview: token.substring(0, 20) + '...' });
+
+      if (this.isPostgreSQL) {
+        // Deactivate token regardless of user_id - the device is logging out
+        const result = await this.db.query(
+          'UPDATE device_tokens SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE token = $1 RETURNING id, user_id',
+          [token]
+        );
+        if (result && result.length > 0) {
+          logger.info('✅ Device token deactivated', { 
+            tokenId: result[0].id, 
+            wasAssignedTo: result[0].user_id,
+            requestedBy: userId 
+          });
+        } else {
+          logger.warn('⚠️ No token found to deactivate');
+        }
+      } else {
+        await new Promise<void>((resolve, reject) => {
+          this.db.db.run(
+            'UPDATE device_tokens SET is_active = 0, updated_at = ? WHERE token = ?',
+            [new Date().toISOString(), token],
+            (err: Error | null) => {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+        logger.info('✅ Device token deactivated');
+      }
+    } catch (error) {
+      logger.error('❌ Error deactivating device token:', error);
+      throw error;
+    }
+  }
 }
 
 export default FCMService;

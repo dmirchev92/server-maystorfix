@@ -154,13 +154,22 @@ const ConsentScreen: React.FC = () => {
   };
 
   const openPrivacyPolicy = () => {
-    // TODO: Open privacy policy URL
-    Linking.openURL('https://servicetextpro.com/privacy');
+    Linking.openURL('https://maystorfix.com/privacy-policy');
+  };
+
+  const openTerms = () => {
+    Linking.openURL('https://maystorfix.com/terms');
   };
 
   const openDataRights = () => {
-    // TODO: Navigate to data rights screen
-    Alert.alert('Права на данните', 'Тук можете да упражните правата си за достъп, изтриване и пренос на данни.');
+    Alert.alert(
+      'Вашите права по GDPR',
+      '✓ Достъп до данните си\n✓ Коригиране на неточни данни\n✓ Изтриване ("право да бъдеш забравен")\n✓ Преносимост на данните\n✓ Оттегляне на съгласие\n\nЗа упражняване на правата си:\ndpo@maystorfix.com',
+      [
+        { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:dpo@maystorfix.com') },
+        { text: 'OK' }
+      ]
+    );
   };
 
   return (
@@ -220,9 +229,16 @@ const ConsentScreen: React.FC = () => {
 
         <TouchableOpacity
           style={styles.actionButton}
+          onPress={openTerms}
+        >
+          <Text style={styles.actionButtonText}>📄 Общи условия</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
           onPress={openDataRights}
         >
-          <Text style={styles.actionButtonText}>🔒 Права на данните</Text>
+          <Text style={styles.actionButtonText}>🔒 Права по GDPR</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -238,7 +254,7 @@ const ConsentScreen: React.FC = () => {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          За въпроси относно поверителността, моля свържете се с нас на privacy@servicetextpro.com
+          За въпроси относно поверителността: dpo@maystorfix.com
         </Text>
       </View>
     </ScrollView>

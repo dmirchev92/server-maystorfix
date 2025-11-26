@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { sofiaNeighborhoods } from './NeighborhoodSelect'
+import { CitySelect, SimpleNeighborhoodSelect } from './LocationSelect'
 import { requiresSquareMeters } from '@/constants/serviceMetrics'
 import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
 import { BUDGET_RANGES } from '@/constants/budgetRanges'
@@ -379,49 +379,36 @@ export default function UnifiedCaseModal({
                 <LocationPicker onLocationSelect={handleLocationSelect} />
               </div>
 
-              {/* Location: City */}
+              {/* Location: City - Dynamic from API */}
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-2">
                   Град <span className="text-red-500">*</span>
                 </label>
-                <select
+                <CitySelect
                   value={formData.city || ''}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    // Update city and reset neighborhood when city changes
-                    handleInputChange('city', val)
+                  onChange={(value) => {
+                    handleInputChange('city', value)
                     handleInputChange('neighborhood', '')
                   }}
                   required
+                  placeholder="Изберете град"
                   className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Изберете град</option>
-                  <option value="София">София</option>
-                  <option value="Пловдив">Пловдив</option>
-                  <option value="Варна">Варна</option>
-                  <option value="Бургас">Бургас</option>
-                </select>
+                />
               </div>
 
-              {/* Neighborhood (only for Sofia) */}
-              {formData.city === 'София' && (
+              {/* Neighborhood - Dynamic based on selected city */}
+              {formData.city && (
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">
-                    Квартал <span className="text-red-500">*</span>
+                    Квартал
                   </label>
-                  <select
+                  <SimpleNeighborhoodSelect
+                    city={formData.city}
                     value={formData.neighborhood || ''}
-                    onChange={(e) => handleInputChange('neighborhood', e.target.value)}
-                    required={formData.city === 'София'}
+                    onChange={(value) => handleInputChange('neighborhood', value)}
+                    placeholder="Изберете квартал"
                     className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Изберете квартал</option>
-                    {sofiaNeighborhoods.map((neighborhood) => (
-                      <option key={neighborhood} value={neighborhood}>
-                        {neighborhood}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               )}
 

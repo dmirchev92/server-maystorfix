@@ -9,7 +9,7 @@ import { Header } from '@/components/Header'
 import UnifiedCaseModal from '@/components/UnifiedCaseModal'
 import { Footer } from '@/components/Footer'
 import { apiClient } from '@/lib/api'
-import { sofiaNeighborhoods } from '@/components/NeighborhoodSelect'
+import { CitySelect, SimpleNeighborhoodSelect } from '@/components/LocationSelect'
 
 interface ServiceProvider {
   id: string
@@ -384,12 +384,7 @@ export default function SearchPage() {
     { value: 'appliance_repair', label: 'Ремонт на уреди' },
   ]
 
-  const cities = [
-    { value: 'София', label: 'София' },
-    { value: 'Пловдив', label: 'Пловдив' },
-    { value: 'Варна', label: 'Варна' },
-    { value: 'Бургас', label: 'Бургас' },
-  ]
+  // Cities are now fetched dynamically from the API
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden">
@@ -470,43 +465,32 @@ export default function SearchPage() {
               </select>
             </div>
 
-            {/* City Filter */}
+            {/* City Filter - Dynamic from API */}
             <div>
               <label className="block text-sm font-medium text-white mb-2">
                 Град
               </label>
-              <select
+              <CitySelect
                 value={filters.city}
-                onChange={(e) => handleFilterChange({ ...filters, city: e.target.value, neighborhood: '' })}
+                onChange={(value) => handleFilterChange({ ...filters, city: value, neighborhood: '' })}
+                placeholder="Изберете град"
                 className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="">Изберете град</option>
-                {cities.map((city) => (
-                  <option key={city.value} value={city.value}>
-                    {city.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
-            {/* Neighborhood Filter (only for Sofia) */}
-            {filters.city === 'София' && (
+            {/* Neighborhood Filter - Dynamic based on selected city */}
+            {filters.city && (
               <div>
                 <label className="block text-sm font-medium text-white mb-2">
                   Квартал
                 </label>
-                <select
+                <SimpleNeighborhoodSelect
+                  city={filters.city}
                   value={filters.neighborhood}
-                  onChange={(e) => handleFilterChange({ ...filters, neighborhood: e.target.value })}
+                  onChange={(value) => handleFilterChange({ ...filters, neighborhood: value })}
+                  placeholder="Всички квартали"
                   className="w-full px-4 py-3 bg-slate-700 border border-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Всички квартали</option>
-                  {sofiaNeighborhoods.map((neighborhood) => (
-                    <option key={neighborhood} value={neighborhood}>
-                      {neighborhood}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             )}
           </div>

@@ -32,7 +32,7 @@
   }
 }
 
-body {
+html, body {
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
       to bottom,
@@ -40,6 +40,22 @@ body {
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
+  /* Prevent horizontal scroll and fix mobile touch scrolling */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Prevent pull-to-refresh and overscroll bounce */
+  overscroll-behavior: none;
+}
+
+/* Fix touch scrolling on iOS */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure main content scrolls properly */
+main, .min-h-screen {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
 }
 
 /* Custom Bulgarian styling */
@@ -90,10 +106,35 @@ body {
   animation: scroll 30s linear infinite;
 }
 
-/* Force dark text in form inputs regardless of color scheme */
-input, textarea, select {
-  color: #111827 !important;
-  -webkit-text-fill-color: #111827 !important;
+/* Force dark text in form inputs on light backgrounds */
+input:not(.text-white):not(.dark-input), textarea:not(.text-white):not(.dark-textarea) {
+  color: #111827;
+  -webkit-text-fill-color: #111827;
+}
+
+/* Allow white text for dark-themed inputs/textareas */
+input.dark-input, textarea.dark-textarea,
+input[style*="color: #ffffff"], textarea[style*="color: #ffffff"],
+.bg-slate-800 input, .bg-slate-800 textarea,
+.bg-slate-900 input, .bg-slate-900 textarea {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Force white text in dark-themed selects */
+select.text-white,
+select.bg-slate-700,
+select.bg-slate-700\/50,
+select[style*="background"] {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+select.text-white option,
+select.bg-slate-700 option,
+select.bg-slate-700\/50 option {
+  color: #ffffff !important;
+  background-color: #1e293b !important;
 }
 
 input::placeholder, textarea::placeholder {

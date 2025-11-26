@@ -76,3 +76,23 @@ mobile-app/ios/build/
 mobile-app/node_modules/
 *.hprof
 *.7z
+
+# Large files / Backups
+*.tar.gz
+*.sql
+backend/database.sqlite
+backend/backups/
+downloads/*.apk
+
+# Log dumps
+live_logs.txt
+live_tail.txt
+logs_dump.txt
+pm2_dump.txt
+
+# Secrets
+mobile-app/android/secrets.properties
+mobile-app/android/local.defaults.properties
+
+# Build info
+Marketplace/tsconfig.tsbuildinfo

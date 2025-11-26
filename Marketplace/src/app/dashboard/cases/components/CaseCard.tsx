@@ -56,8 +56,8 @@ export const CaseCard: React.FC<CaseCardProps> = ({
       className="group bg-white/5 border-l-4 border-l-indigo-500"
     >
       <CardContent>
-        {/* Salesforce-style compact header */}
-        <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
+        {/* Salesforce-style compact header - stacks on mobile */}
+        <div className="px-4 sm:px-5 py-3 border-b border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Category Icon */}
             <div className="flex-shrink-0 w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center border border-indigo-400/30">
@@ -94,9 +94,9 @@ export const CaseCard: React.FC<CaseCardProps> = ({
           </div>
           
           {/* Action buttons */}
-          <div className="flex-shrink-0 ml-4">
+          <div className="flex-shrink-0 sm:ml-4 w-full sm:w-auto">
             {isProvider ? (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {/* If case is assigned to me */}
                 {caseData.provider_id === user.id ? (
                   <>
@@ -229,8 +229,8 @@ export const CaseCard: React.FC<CaseCardProps> = ({
         </div>
 
         {/* Details Grid */}
-        <div className="px-5 py-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+        <div className="px-4 sm:px-5 py-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-x-4 sm:gap-x-6 gap-y-3 sm:gap-y-4">
             {caseData.budget && (
               <div>
                 <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">
@@ -358,7 +358,7 @@ export const CaseCard: React.FC<CaseCardProps> = ({
                     <img
                       src={screenshot.url}
                       alt={`Screenshot ${index + 1}`}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      className="w-full h-full object-cover md:group-hover:scale-110 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all flex items-center justify-center">
                       <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-xs">
