@@ -31,8 +31,9 @@ interface ReferredUser {
 
 interface ReferralReward {
   id: string;
-  rewardType: 'discount_10' | 'discount_50' | 'free_month';
+  rewardType: 'signup_bonus' | 'referrer_signup_bonus' | 'clicks_50_bonus' | 'aggregate_5x50_bonus';
   rewardValue: number;
+  pointsAwarded: number;
   clicksRequired: number;
   clicksAchieved: number;
   earnedAt: string;
@@ -113,16 +114,18 @@ const ReferralDashboardScreen: React.FC = () => {
     }
   };
 
-  const getRewardTypeText = (type: string) => {
+  const getRewardTypeText = (type: string, points?: number) => {
     switch (type) {
-      case 'discount_10':
-        return '10% отстъпка';
-      case 'discount_50':
-        return '50% отстъпка';
-      case 'free_month':
-        return 'Безплатен месец';
+      case 'signup_bonus':
+        return `+${points || 5} точки (регистрация)`;
+      case 'referrer_signup_bonus':
+        return `+${points || 5} точки (препоръка)`;
+      case 'clicks_50_bonus':
+        return `+${points || 10} точки (50 клика)`;
+      case 'aggregate_5x50_bonus':
+        return `+${points || 100} точки (5 препоръки)`;
       default:
-        return type;
+        return `+${points || 0} точки`;
     }
   };
 
@@ -270,7 +273,7 @@ const ReferralDashboardScreen: React.FC = () => {
               <View key={reward.id} style={styles.rewardCard}>
                 <View style={styles.rewardHeader}>
                   <Text style={styles.rewardType}>
-                    {getRewardTypeText(reward.rewardType)}
+                    {getRewardTypeText(reward.rewardType, reward.pointsAwarded || reward.rewardValue)}
                   </Text>
                   <View 
                     style={[
@@ -300,21 +303,24 @@ const ReferralDashboardScreen: React.FC = () => {
 
       {/* Reward Tiers Info */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>🏆 Нива на награди</Text>
+        <Text style={styles.cardTitle}>🏆 Награди с точки</Text>
         <View style={styles.tiersList}>
           <View style={styles.tierItem}>
-            <Text style={styles.tierClicks}>50 кликове</Text>
-            <Text style={styles.tierReward}>→ 10% отстъпка</Text>
+            <Text style={styles.tierClicks}>📝 Регистрация</Text>
+            <Text style={styles.tierReward}>→ +5 точки (и за двамата)</Text>
           </View>
           <View style={styles.tierItem}>
-            <Text style={styles.tierClicks}>100 кликове</Text>
-            <Text style={styles.tierReward}>→ 50% отстъпка</Text>
+            <Text style={styles.tierClicks}>👆 50 клика на профил</Text>
+            <Text style={styles.tierReward}>→ +10 точки</Text>
           </View>
           <View style={styles.tierItem}>
-            <Text style={styles.tierClicks}>500 кликове</Text>
-            <Text style={styles.tierReward}>→ Безплатен месец</Text>
+            <Text style={styles.tierClicks}>🎯 5 препоръки × 50 клика</Text>
+            <Text style={styles.tierReward}>→ +100 точки бонус</Text>
           </View>
         </View>
+        <Text style={[styles.emptySubtext, { marginTop: 12, textAlign: 'center' }]}>
+          💡 Точките се използват за наддаване на заявки
+        </Text>
       </View>
     </ScrollView>
   );

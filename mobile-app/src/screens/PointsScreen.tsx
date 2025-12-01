@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
 
@@ -28,6 +29,7 @@ interface PointsBalance {
   total_spent: number;
   last_reset?: string;
   monthly_allowance: number;
+  subscription_tier?: string;
 }
 
 const PointsScreen: React.FC = () => {
@@ -36,12 +38,35 @@ const PointsScreen: React.FC = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
+
+  // Helper function to get tier display name
+  const getTierDisplayName = (tier: string) => {
+    switch (tier?.toLowerCase()) {
+      case 'pro': return 'Pro';
+      case 'normal': return 'Normal';
+      default: return 'Free';
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
       fetchData();
+      loadUserTier();
     }, [])
   );
+
+  const loadUserTier = async () => {
+    try {
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        setSubscriptionTier(user.subscription_tier_id || 'free');
+      }
+    } catch (error) {
+      console.error('Error loading user tier:', error);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -159,7 +184,7 @@ const PointsScreen: React.FC = () => {
 
         <View style={styles.subscriptionInfo}>
           <Text style={styles.subscriptionText}>
-            📦 Free план
+            📦 {getTierDisplayName(subscriptionTier)} план
           </Text>
           <Text style={styles.subscriptionText}>
             🔄 {balance?.monthly_allowance || 50} точки/месец

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
+import { AuthBus } from '../utils/AuthBus';
 import theme from '../styles/theme';
 
 interface SubscriptionTier {
@@ -105,6 +106,9 @@ export default function SubscriptionScreen() {
               );
 
               if (response.success) {
+                // Emit userUpdated event to refresh user data across the app (badge update)
+                AuthBus.emit('userUpdated');
+                
                 Alert.alert(
                   'Успех!',
                   'Вашата заявка за надстройване е приета. Нашият екип ще се свърже с вас за финализиране на плащането.',

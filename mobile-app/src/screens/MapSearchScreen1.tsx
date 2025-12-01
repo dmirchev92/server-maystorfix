@@ -136,7 +136,7 @@ const MapSearchScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('❌ MapSearchScreen - Error fetching providers:', error);
-      setFetchError('Connection error');
+      setFetchError('Грешка при връзката');
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +158,7 @@ const MapSearchScreen: React.FC = () => {
       },
       (error) => {
         console.error(error);
-        Alert.alert('Location Error', 'Could not determine your location.');
+        Alert.alert('Грешка с локацията', 'Не успяхме да определим вашето местоположение.');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );

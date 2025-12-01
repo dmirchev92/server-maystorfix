@@ -257,6 +257,8 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       WHERE u.role = 'tradesperson' 
         AND (spp.is_active = TRUE OR spp.is_active IS NULL)
         AND (u.subscription_tier_id != 'free' OR u.trial_expired = FALSE OR u.trial_expired IS NULL)
+        AND spp.latitude IS NOT NULL 
+        AND spp.longitude IS NOT NULL
     `;
 
     if (city) {

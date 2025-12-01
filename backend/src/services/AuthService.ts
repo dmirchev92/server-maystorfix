@@ -37,7 +37,9 @@ export interface RegisterData {
   phoneNumber: string;
   serviceCategory?: string;
   companyName?: string;
+  city?: string;
   neighborhood?: string;
+  address?: string;
   role: UserRole;
   businessId?: string;
   subscription_tier_id?: string;
@@ -236,9 +238,9 @@ export class AuthService {
             description: 'Professional service provider. Profile completion pending.',
             experienceYears: 0,
             hourlyRate: 0,
-            city: 'София', // Default to Sofia, user can update
+            city: userData.city || 'София', // Use user-provided city or default to Sofia
             neighborhood: userData.neighborhood || '',
-            address: '',
+            address: userData.address || '',
             latitude: null,
             longitude: null,
             phoneNumber: savedUser.phoneNumber,
@@ -252,7 +254,9 @@ export class AuthService {
           logger.info('🔍 Profile data to be saved', {
             businessName: defaultProfileData.businessName,
             serviceCategory: defaultProfileData.serviceCategory,
-            neighborhood: defaultProfileData.neighborhood
+            city: defaultProfileData.city,
+            neighborhood: defaultProfileData.neighborhood,
+            address: defaultProfileData.address
           });
 
           await this.database.createOrUpdateProviderProfile(savedUser.id, defaultProfileData);
@@ -261,6 +265,28 @@ export class AuthService {
             userId: savedUser.id,
             businessName: defaultProfileData.businessName
           });
+
+          // Also populate provider_service_categories table for notification matching
+          if (defaultProfileData.serviceCategory) {
+            try {
+              const categoryId = require('uuid').v4();
+              await this.database.query(
+                `INSERT INTO provider_service_categories (id, provider_id, category_id, created_at)
+                 VALUES ($1, $2, $3, NOW())
+                 ON CONFLICT (provider_id, category_id) DO NOTHING`,
+                [categoryId, savedUser.id, defaultProfileData.serviceCategory]
+              );
+              logger.info('Added provider service category', {
+                userId: savedUser.id,
+                category: defaultProfileData.serviceCategory
+              });
+            } catch (catError) {
+              logger.warn('Could not add provider service category (non-critical)', {
+                userId: savedUser.id,
+                error: catError instanceof Error ? catError.message : 'Unknown'
+              });
+            }
+          }
         } catch (profileError) {
           // Don't fail registration if profile creation fails, just log it
           logger.error('Failed to auto-create service provider profile', {
@@ -910,5 +936,27 @@ export class AuthService {
     }
 
     await this.sendVerificationEmail(user.id, ipAddress);
+  }
+
+  /**
+   * Verify user password (for account deletion confirmation)
+   */
+  public async verifyPassword(userId: string, password: string): Promise<boolean> {
+    try {
+      const rows = await this.database.query(
+        `SELECT password_hash FROM users WHERE id = $1`,
+        [userId]
+      );
+
+      if (!rows || rows.length === 0) {
+        return false;
+      }
+
+      const passwordHash = rows[0].password_hash;
+      return await bcrypt.compare(password, passwordHash);
+    } catch (error) {
+      logger.error('Error verifying password', { userId, error });
+      return false;
+    }
   }
 }

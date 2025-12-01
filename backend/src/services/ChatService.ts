@@ -223,7 +223,7 @@ export class ChatService {
           
           // Send push notification
           await this.fcmService.sendNotificationToUser(recipientId, {
-            title: `New message from ${senderName}`,
+            title: senderName,
             body: data.body.length > 100 ? data.body.substring(0, 100) + '...' : data.body,
             data: {
               type: 'chat_message',

@@ -327,7 +327,8 @@ export default function SearchPage() {
             `${selectedProvider?.first_name || ''} ${selectedProvider?.last_name || ''}`.trim() || 
             'Специалист'
           : null,
-        isOpenCase: formData.assignmentType === 'open'
+        isOpenCase: formData.assignmentType === 'open',
+        chatSource: 'searchchat' // Cases from /search page count as "Уеб Заявки"
       }
 
       console.log('Creating case with data:', caseData)

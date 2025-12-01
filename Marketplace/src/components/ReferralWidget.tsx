@@ -38,7 +38,8 @@ interface ReferralReward {
   referralId?: string
   rewardType: string
   status: string
-  smsSent?: boolean
+  pointsAwarded?: number
+  rewardValue?: number
 }
 
 export default function ReferralWidget() {
@@ -49,7 +50,6 @@ export default function ReferralWidget() {
   const [showReferredUsers, setShowReferredUsers] = useState(false)
   const [referredUsers, setReferredUsers] = useState<ReferredUser[]>([])
   const [rewards, setRewards] = useState<ReferralReward[]>([])
-  const [sendingSMS, setSendingSMS] = useState<string | null>(null)
 
   useEffect(() => {
     if (isAuthenticated && user && (user.role === 'service_provider' || user.role === 'tradesperson')) {
@@ -76,14 +76,11 @@ export default function ReferralWidget() {
         }, null)
         
         const bestReferralClicks = bestReferral?.validClicks || 0
-        let nextReward = { current: bestReferralClicks, target: 50, rewardType: '10% отстъпка' }
+        // New points system: 10 points at 50 clicks
+        let nextReward = { current: bestReferralClicks, target: 50, rewardType: '+10 точки' }
         
-        if (bestReferralClicks >= 500) {
-          nextReward = { current: bestReferralClicks, target: 500, rewardType: 'Постигнато максимално ниво!' }
-        } else if (bestReferralClicks >= 100) {
-          nextReward = { current: bestReferralClicks, target: 500, rewardType: 'Безплатен месец' }
-        } else if (bestReferralClicks >= 50) {
-          nextReward = { current: bestReferralClicks, target: 100, rewardType: '50% отстъпка' }
+        if (bestReferralClicks >= 50) {
+          nextReward = { current: bestReferralClicks, target: 50, rewardType: '✅ +10 точки спечелени' }
         }
 
         setStats({
@@ -106,39 +103,6 @@ export default function ReferralWidget() {
       console.error('Error fetching referral stats:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const claimReward = async (rewardId: string) => {
-    try {
-      setSendingSMS(rewardId)
-      
-      // Generate claim token
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/generate-claim-token`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ rewardId })
-        }
-      )
-      
-      const result = await response.json()
-      
-      if (result.success && result.token) {
-        // Redirect to claim page
-        window.location.href = `/claim-sms/${result.token}`
-      } else {
-        alert('❌ Грешка: ' + result.error)
-        setSendingSMS(null)
-      }
-    } catch (error) {
-      console.error('Error generating claim token:', error)
-      alert('❌ Неуспешно генериране на линк')
-      setSendingSMS(null)
     }
   }
 
@@ -252,21 +216,13 @@ export default function ReferralWidget() {
                 // Calculate progress for this referral
                 const validClicks = user.validClicks
                 let nextTarget = 50
-                let nextRewardLabel = '10% отстъпка'
+                let nextRewardLabel = '+10 точки'
                 let progressColor = 'bg-green-500'
                 
-                if (validClicks >= 500) {
-                  nextTarget = 500
-                  nextRewardLabel = 'Максимално ниво!'
-                  progressColor = 'bg-purple-500'
-                } else if (validClicks >= 100) {
-                  nextTarget = 500
-                  nextRewardLabel = 'Безплатен месец'
-                  progressColor = 'bg-purple-500'
-                } else if (validClicks >= 50) {
-                  nextTarget = 100
-                  nextRewardLabel = '50% отстъпка'
-                  progressColor = 'bg-yellow-500'
+                if (validClicks >= 50) {
+                  nextTarget = 50
+                  nextRewardLabel = '✅ +10 точки спечелени'
+                  progressColor = 'bg-green-500'
                 }
                 
                 const progressPercentage = Math.min((validClicks / nextTarget) * 100, 100)
@@ -319,53 +275,12 @@ export default function ReferralWidget() {
                       <p className="text-xs text-slate-400">{nextRewardLabel}</p>
                     </div>
 
-                    {/* SMS Reward Button (if 50+ clicks) */}
-                    {(() => {
-                      if (validClicks >= 50) {
-                        // Debug logging
-                        console.log('🔍 Checking reward for referral:', user.referralId, 'validClicks:', validClicks)
-                        console.log('🔍 Available rewards:', rewards)
-                        
-                        // Find the reward for this referral
-                        const reward = rewards.find(r => 
-                          r.referralId === user.referralId && 
-                          r.rewardType === 'sms_30' && 
-                          r.status === 'earned' &&
-                          !r.smsSent
-                        )
-                        
-                        console.log('🔍 Found reward:', reward)
-                        
-                        if (reward) {
-                          return (
-                            <button
-                              onClick={() => claimReward(reward.id)}
-                              disabled={sendingSMS === reward.id}
-                              className="mt-3 w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                            >
-                              {sendingSMS === reward.id ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                  <span>Зареждане...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span>🎁</span>
-                                  <span>Получи 30 SMS</span>
-                                </>
-                              )}
-                            </button>
-                          )
-                        } else if (rewards.some(r => r.referralId === user.referralId && r.rewardType === 'sms_30' && (r.status === 'applied' || r.smsSent))) {
-                          return (
-                            <div className="mt-3 w-full bg-blue-600/20 border border-blue-400/30 text-blue-300 px-3 py-2 rounded-lg text-sm text-center">
-                              ✅ Наградата е получена
-                            </div>
-                          )
-                        }
-                      }
-                      return null
-                    })()}
+                    {/* Points Reward Status (if 50+ clicks) */}
+                    {validClicks >= 50 && (
+                      <div className="mt-3 w-full bg-green-600/20 border border-green-400/30 text-green-300 px-3 py-2 rounded-lg text-sm text-center">
+                        🎯 +10 точки добавени към баланса
+                      </div>
+                    )}
                   </div>
                 )
               })}

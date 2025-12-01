@@ -21,7 +21,7 @@ import { launchImageLibrary, launchCamera, Asset } from 'react-native-image-pick
 import ApiService from '../services/ApiService';
 import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
 
-// Budget ranges matching web
+// Budget ranges matching web (up to 10k)
 const BUDGET_RANGES = [
   { value: '1-250', label: '1-250 лв' },
   { value: '250-500', label: '250-500 лв' },
@@ -29,8 +29,55 @@ const BUDGET_RANGES = [
   { value: '750-1000', label: '750-1000 лв' },
   { value: '1000-1500', label: '1000-1500 лв' },
   { value: '1500-2000', label: '1500-2000 лв' },
-  { value: '2000+', label: '2000+ лв' },
+  { value: '2000-3000', label: '2000-3000 лв' },
+  { value: '3000-4000', label: '3000-4000 лв' },
+  { value: '4000-5000', label: '4000-5000 лв' },
+  { value: '5000-7500', label: '5000-7500 лв' },
+  { value: '7500-10000', label: '7500-10000 лв' },
+  { value: '10000+', label: '10000+ лв' },
 ];
+
+// City name mapping (English to Bulgarian)
+const CITY_NAME_MAP: { [key: string]: string } = {
+  'Sofia': 'София',
+  'Plovdiv': 'Пловдив',
+  'Varna': 'Варна',
+  'Burgas': 'Бургас',
+  'Ruse': 'Русе',
+  'Stara Zagora': 'Стара Загора',
+  'Pleven': 'Плевен',
+  'Sliven': 'Сливен',
+  'Dobrich': 'Добрич',
+  'Shumen': 'Шумен',
+  'Pernik': 'Перник',
+  'Haskovo': 'Хасково',
+  'Yambol': 'Ямбол',
+  'Pazardzhik': 'Пазарджик',
+  'Blagoevgrad': 'Благоевград',
+  'Veliko Tarnovo': 'Велико Търново',
+  'Vratsa': 'Враца',
+  'Gabrovo': 'Габрово',
+  'Asenovgrad': 'Асеновград',
+  'Vidin': 'Видин',
+  'Kazanlak': 'Казанлък',
+  'Kyustendil': 'Кюстендил',
+  'Montana': 'Монтана',
+  'Dimitrovgrad': 'Димитровград',
+  'Lovech': 'Ловеч',
+  'Silistra': 'Силистра',
+  'Targovishte': 'Търговище',
+  'Dupnitsa': 'Дупница',
+  'Smolyan': 'Смолян',
+  'Petrich': 'Петрич',
+  'Sandanski': 'Сандански',
+  'Samokov': 'Самоков',
+  'Sevlievo': 'Севлиево',
+  'Karlovo': 'Карлово',
+  'Velingrad': 'Велинград',
+  'Troyan': 'Троян',
+  'Botevgrad': 'Ботевград',
+  'Gotse Delchev': 'Гоце Делчев',
+};
 
 // Fallback static data (used while loading from API)
 const FALLBACK_CITIES = [
@@ -209,14 +256,89 @@ export default function CreateCaseScreen() {
 
   const getCurrentLocation = () => {
     Geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
+        const { latitude, longitude } = position.coords;
         setFormData(prev => ({
           ...prev,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
+          latitude,
+          longitude,
         }));
+        
+        // Auto-detect city and neighborhood from coordinates
+        try {
+          // Use Google reverse geocoding to get city and neighborhood directly
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A&language=bg`;
+          const geoResponse = await fetch(geocodeUrl);
+          const geoData = await geoResponse.json();
+          
+          let detectedCity = '';
+          let detectedNeighborhood = '';
+          let detectedSublocality = '';
+          
+          if (geoData.results?.[0]?.address_components) {
+            for (const comp of geoData.results[0].address_components) {
+              // City
+              if (comp.types.includes('locality')) {
+                const cityName = comp.long_name;
+                detectedCity = CITY_NAME_MAP[cityName] || cityName;
+              }
+              // Fallback for Sofia
+              if (comp.types.includes('administrative_area_level_1') && !detectedCity) {
+                const areaName = comp.long_name;
+                if (areaName === 'Sofia City Province' || areaName === 'Sofia-City') {
+                  detectedCity = 'София';
+                }
+              }
+              // Neighborhood type is most specific - prioritize it
+              if (comp.types.includes('neighborhood')) {
+                detectedNeighborhood = comp.long_name;
+              }
+              // Sublocality is broader (district) - use only as fallback
+              if (comp.types.includes('sublocality_level_1') || comp.types.includes('sublocality')) {
+                detectedSublocality = comp.long_name;
+              }
+            }
+          }
+          
+          // Prioritize neighborhood over sublocality
+          const finalCity = detectedCity || '';
+          const finalNeighborhood = detectedNeighborhood || detectedSublocality || '';
+          
+          // Update form with detected location
+          if (finalCity || finalNeighborhood) {
+            // First set city, then neighborhoods will load via useEffect
+            setFormData(prev => ({
+              ...prev,
+              city: finalCity || prev.city,
+              neighborhood: '', // Reset neighborhood while city changes
+            }));
+            
+            // After a short delay to allow neighborhoods to load, set the neighborhood
+            if (detectedNeighborhood) {
+              setTimeout(() => {
+                setFormData(prev => ({
+                  ...prev,
+                  neighborhood: detectedNeighborhood,
+                }));
+              }, 500);
+            }
+            
+            // Show user what was detected
+            Alert.alert(
+              '📍 Местоположение открито',
+              `Град: ${finalCity || 'Неизвестен'}\nКвартал: ${detectedNeighborhood || 'Неизвестен'}`,
+              [{ text: 'OK' }]
+            );
+          }
+        } catch (error) {
+          console.log('Auto-detect location error:', error);
+          // Continue without auto-detection, user can still select manually
+        }
       },
-      (error) => console.log('Location error:', error.message),
+      (error) => {
+        console.log('Location error:', error.message);
+        Alert.alert('Грешка', 'Не можахме да определим местоположението ви');
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   };

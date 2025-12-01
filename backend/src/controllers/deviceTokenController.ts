@@ -252,8 +252,8 @@ export const testPushNotification = async (req: Request, res: Response): Promise
     logger.info('🧪 Sending test push notification', { userId });
 
     const result = await fcmService.sendNotificationToUser(userId, {
-      title: 'Test Notification',
-      body: 'This is a test push notification from ServiceTextPro',
+      title: 'Тестово известие',
+      body: 'Това е тестово известие от ServiceTextPro',
       data: {
         type: 'test',
         timestamp: new Date().toISOString(),
@@ -263,7 +263,7 @@ export const testPushNotification = async (req: Request, res: Response): Promise
     res.json({
       success: true,
       data: {
-        message: 'Test notification sent',
+        message: 'Тестовото известие е изпратено',
         result,
       },
     });

@@ -29,12 +29,12 @@ interface RouteParams {
 }
 
 function ChatDetailScreen() {
-  console.log('🚀 ChatDetailScreen - Component Mounting');
   const route = useRoute();
   const navigation = useNavigation();
-  console.log('🚀 ChatDetailScreen - Params:', route.params);
-  const { conversationId, providerId, providerName } = route.params as RouteParams;
+  const { conversationId: initialConversationId, providerId, providerName } = route.params as RouteParams;
 
+  // Use state for the actual conversation ID (may change if we create a new conversation)
+  const [actualConversationId, setActualConversationId] = useState(initialConversationId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -42,30 +42,53 @@ function ChatDetailScreen() {
   const [userId, setUserId] = useState('');
   const [userRole, setUserRole] = useState<'tradesperson' | 'customer' | 'admin'>('tradesperson');
   const [userName, setUserName] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [showCaseModal, setShowCaseModal] = useState(false);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [surveyCaseId, setSurveyCaseId] = useState('');
+  const [isNewConversation, setIsNewConversation] = useState(initialConversationId.startsWith('new_'));
+  
+  // Use refs to track initialization
+  const isInitialized = useRef(false);
+  const mountCount = useRef(0);
   
   const flatListRef = useRef<FlatList>(null);
   const socketService = SocketIOService.getInstance();
   const unsubscribeRef = useRef<(() => void) | null>(null);
 
-  // ... normalizeMessage helper ...
-
   useEffect(() => {
-    initializeChat();
+    mountCount.current += 1;
+    console.log('🚀 ChatDetailScreen - Mount #' + mountCount.current, { initialConversationId, actualConversationId, isNewConversation });
     
-    // Join conversation room
-    console.log('🔌 ChatDetailScreen - Joining conversation room:', conversationId);
-    socketService.joinConversation(conversationId);
+    // Only initialize once
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      initializeChat();
+    }
+    
+    return () => {
+      console.log('🧹 ChatDetailScreen - Unmounting');
+    };
+  }, []);
+
+  // Handle socket room joining when actualConversationId changes
+  useEffect(() => {
+    // Don't join room if it's still a "new_" conversation
+    if (actualConversationId.startsWith('new_')) {
+      console.log('⏳ Waiting for real conversation ID before joining room...');
+      return;
+    }
+
+    console.log('🔌 ChatDetailScreen - Joining conversation room:', actualConversationId);
+    socketService.joinConversation(actualConversationId);
 
     // Listen for new messages
     const unsubscribeMessage = socketService.onNewMessage((message: any) => {
       console.log('💬 ChatDetailScreen - New message received:', message);
       
       // Only add if it belongs to this conversation
-      if (message.conversationId === conversationId) {
+      if (message.conversationId === actualConversationId) {
         setMessages(prev => {
             // Avoid duplicates
             if (prev.some(m => m.id === message.id)) return prev;
@@ -79,14 +102,14 @@ function ChatDetailScreen() {
     });
 
     return () => {
-      console.log('🧹 ChatDetailScreen - Unmounting, leaving conversation');
-      socketService.leaveConversation(conversationId);
+      console.log('🧹 ChatDetailScreen - Leaving conversation:', actualConversationId);
+      socketService.leaveConversation(actualConversationId);
       unsubscribeMessage();
     };
-  }, [conversationId]);
+  }, [actualConversationId]);
 
   const initializeChat = async () => {
-    console.log('🚀 ChatDetailScreen - Initializing chat for conversation:', conversationId);
+    console.log('🚀 ChatDetailScreen - Initializing chat for conversation:', initialConversationId);
     try {
       // Get current user
       console.log('👤 Getting current user...');
@@ -97,37 +120,65 @@ function ChatDetailScreen() {
       if (userData) {
         setUserId(userData.id);
         setUserRole(userData.role);
-        setUserName(`${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User');
+        const name = `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'User';
+        setUserName(name);
+        setUserEmail(userData.email || '');
         setCustomerPhone(userData.phoneNumber || userData.phone_number || '');
       
         // Initialize Socket.IO if not already connected
         const token = await AsyncStorage.getItem('auth_token');
         if (token && !socketService.isConnected()) {
-          // ... connection logic ...
           await socketService.connect(token, userData.id);
+        }
+
+        // If this is a new conversation, create it now
+        if (initialConversationId.startsWith('new_')) {
+          console.log('📝 Creating new conversation with provider:', providerId);
+          const createResponse = await ApiService.getInstance().createConversation({
+            providerId: providerId,
+            customerName: name,
+            customerEmail: userData.email || 'unknown@customer.com',
+            customerPhone: userData.phoneNumber || userData.phone_number,
+            chatSource: 'searchchat'
+          });
+          
+          if (createResponse.success && createResponse.data) {
+            const realConversationId = (createResponse.data as any).conversation?.id || (createResponse.data as any).id;
+            console.log('✅ Created conversation with ID:', realConversationId);
+            setActualConversationId(realConversationId);
+            setIsNewConversation(false);
+            // Load messages for the new conversation
+            await loadMessagesForConversation(realConversationId);
+          } else {
+            console.error('❌ Failed to create conversation:', createResponse.error);
+            Alert.alert('Грешка', 'Не успяхме да създадем чат. Моля, опитайте отново.');
+          }
+        } else {
+          // Load messages for existing conversation
+          await loadMessagesForConversation(initialConversationId);
         }
       }
 
-      // Load messages
-      await loadMessages();
-
     } catch (error) {
       console.error('❌ ChatDetailScreen - Error initializing chat:', error);
-      Alert.alert('Error', 'Failed to load chat. Please try again.');
+      Alert.alert('Грешка', 'Не успяхме да заредим чата. Моля, опитайте отново.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadMessages = async () => {
+  const loadMessagesForConversation = async (convId: string) => {
     try {
-      console.log('📥 Loading messages for conversation:', conversationId);
-      const response = await ApiService.getInstance().getMessages(conversationId);
+      console.log('📥 Loading messages for conversation:', convId);
+      const response = await ApiService.getInstance().getMessages(convId);
       
       if (response.success && response.data) {
         const loadedMessages = (response.data as any).messages || [];
         setMessages(loadedMessages);
         console.log(`✅ Loaded ${loadedMessages.length} messages`);
+        
+        // Mark messages as read when entering the conversation
+        await markMessagesAsReadForConversation(convId);
       } else {
         console.error('❌ Failed to load messages:', response.error);
       }
@@ -136,24 +187,58 @@ function ChatDetailScreen() {
     }
   };
 
+  const markMessagesAsReadForConversation = async (convId: string) => {
+    try {
+      // Get the user role to determine senderType
+      const userJson = await AsyncStorage.getItem('user');
+      if (!userJson) return;
+      
+      const parsed = JSON.parse(userJson);
+      const user = parsed.user || parsed;
+      const role = user.role;
+      
+      // Determine senderType (opposite of what we are - we're reading their messages)
+      const senderType = role === 'customer' ? 'customer' : 'provider';
+      
+      console.log('✅ Marking messages as read for conversation:', convId, 'senderType:', senderType);
+      const response = await ApiService.getInstance().markMessagesAsRead(convId, senderType);
+      
+      if (response.success) {
+        console.log('✅ Messages marked as read successfully');
+      } else {
+        console.warn('⚠️ Failed to mark messages as read:', response.error);
+      }
+    } catch (error) {
+      console.error('❌ Error marking messages as read:', error);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!newMessage.trim() || isSending) return;
+    
+    // Don't allow sending to new_ conversations (should be created first)
+    if (actualConversationId.startsWith('new_')) {
+      console.warn('⚠️ Cannot send message - conversation not yet created');
+      Alert.alert('Моля изчакайте', 'Чатът се създава...');
+      return;
+    }
 
     const messageText = newMessage.trim();
     setNewMessage('');
     setIsSending(true);
+    Keyboard.dismiss();
 
     try {
       // Send via socket only (matches web app implementation)
       console.log('📤 Sending message via socket:', {
-        conversationId,
+        conversationId: actualConversationId,
         messagePreview: messageText.substring(0, 50),
         type: 'text',
         senderType: userRole === 'customer' ? 'customer' : 'provider'
       });
 
       await socketService.sendMessage(
-        conversationId,
+        actualConversationId,
         messageText,
         userRole === 'customer' ? 'customer' : 'provider',
         userName,
@@ -349,7 +434,7 @@ function ChatDetailScreen() {
         onClose={() => setShowCaseModal(false)}
         providerId={providerId}
         providerName={providerName}
-        conversationId={conversationId}
+        conversationId={actualConversationId}
         customerPhone={customerPhone}
       />
 

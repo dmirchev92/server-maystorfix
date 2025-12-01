@@ -24,14 +24,14 @@ interface SMSStats {
   filterKnownContacts: boolean;
 }
 
-interface SMSLimitStatus {
+interface SMSPointsStatus {
   canSend: boolean;
-  monthlyLimit: number;
-  monthlyUsed: number;
-  monthlyRemaining: number;
-  addonRemaining: number;
-  totalRemaining: number;
+  pointsCost: number;
+  pointsBalance: number;
   tier: string;
+  reason?: string;
+  totalSmsSent?: number;
+  pointsSpentOnSMS?: number;
 }
 
 // SMS Templates
@@ -93,7 +93,7 @@ function SMSScreen() {
   const [autoRefreshInterval, setAutoRefreshInterval] = useState<any>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<'latin' | 'bulgarian' | 'custom'>('latin');
   const [customText, setCustomText] = useState('');
-  const [smsLimitStatus, setSmsLimitStatus] = useState<SMSLimitStatus | null>(null);
+  const [smsPointsStatus, setSmsPointsStatus] = useState<SMSPointsStatus | null>(null);
   const [saving, setSaving] = useState(false);
 
   const smsService = SMSService.getInstance();
@@ -232,21 +232,21 @@ function SMSScreen() {
         setCustomText(config.message);
       }
       
-      // Load SMS limit status
-      await loadSMSLimitStatus();
+      // Load SMS points status
+      await loadSMSPointsStatus();
     } catch (error) {
       console.error('❌ Error loading SMS data:', error);
     }
   };
 
-  const loadSMSLimitStatus = async () => {
+  const loadSMSPointsStatus = async () => {
     try {
       const response = await ApiService.getInstance().makeRequest('/sms/limit-status');
       if (response.success && response.data) {
-        setSmsLimitStatus(response.data as SMSLimitStatus);
+        setSmsPointsStatus(response.data as SMSPointsStatus);
       }
     } catch (error) {
-      console.error('Error loading SMS limit status:', error);
+      console.error('Error loading SMS points status:', error);
     }
   };
 
@@ -578,41 +578,41 @@ function SMSScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* SMS Limit Widget */}
-      {smsLimitStatus && (
+      {/* SMS Points Widget */}
+      {smsPointsStatus && (
         <View style={styles.smsLimitCard}>
           <View style={styles.smsLimitHeader}>
-            <Text style={styles.smsLimitTitle}>📱 SMS Лимит & Баланс</Text>
+            <Text style={styles.smsLimitTitle}>💎 SMS & Точки</Text>
             <View style={[styles.tierBadge, 
-              smsLimitStatus.tier === 'pro' ? styles.tierPro : 
-              smsLimitStatus.tier === 'normal' ? styles.tierNormal : styles.tierFree
+              smsPointsStatus.tier === 'pro' ? styles.tierPro : 
+              smsPointsStatus.tier === 'normal' ? styles.tierNormal : styles.tierFree
             ]}>
               <Text style={styles.tierBadgeText}>
-                {smsLimitStatus.tier === 'pro' ? '⭐ PRO' : smsLimitStatus.tier === 'normal' ? '💼 NORMAL' : '🆓 FREE'}
+                {smsPointsStatus.tier === 'pro' ? '⭐ PRO' : smsPointsStatus.tier === 'normal' ? '💼 NORMAL' : '🆓 FREE'}
               </Text>
             </View>
           </View>
           <View style={styles.smsLimitRow}>
-            <Text style={styles.smsLimitLabel}>Месечен лимит:</Text>
-            <Text style={styles.smsLimitValue}>{smsLimitStatus.monthlyUsed} / {smsLimitStatus.monthlyLimit} използвани</Text>
+            <Text style={styles.smsLimitLabel}>Цена на SMS:</Text>
+            <Text style={styles.smsLimitValue}>
+              {smsPointsStatus.pointsCost} {smsPointsStatus.pointsCost === 1 ? 'точка' : 'точки'}
+            </Text>
           </View>
-          <View style={styles.smsLimitProgressBar}>
-            <View 
-              style={[
-                styles.smsLimitProgressFill,
-                { width: `${Math.min((smsLimitStatus.monthlyUsed / smsLimitStatus.monthlyLimit) * 100, 100)}%` },
-                smsLimitStatus.monthlyRemaining === 0 ? styles.progressDanger :
-                smsLimitStatus.monthlyRemaining <= 3 ? styles.progressWarning : styles.progressSuccess
-              ]} 
-            />
+          <View style={styles.smsLimitRow}>
+            <Text style={styles.smsLimitLabel}>Баланс точки:</Text>
+            <Text style={[styles.smsLimitValue, { color: smsPointsStatus.canSend ? '#4ade80' : '#ef4444' }]}>
+              {smsPointsStatus.pointsBalance} точки
+            </Text>
           </View>
-          <View style={styles.smsLimitTotalRow}>
-            <Text style={styles.smsLimitTotalLabel}>Общо налични SMS:</Text>
-            <Text style={styles.smsLimitTotalValue}>{smsLimitStatus.totalRemaining}</Text>
-          </View>
-          {!smsLimitStatus.canSend && (
+          {smsPointsStatus.totalSmsSent !== undefined && (
+            <View style={styles.smsLimitRow}>
+              <Text style={styles.smsLimitLabel}>Изпратени SMS:</Text>
+              <Text style={styles.smsLimitValue}>{smsPointsStatus.totalSmsSent}</Text>
+            </View>
+          )}
+          {!smsPointsStatus.canSend && (
             <View style={styles.limitWarning}>
-              <Text style={styles.limitWarningText}>❌ Лимитът е изчерпан</Text>
+              <Text style={styles.limitWarningText}>❌ Недостатъчно точки</Text>
             </View>
           )}
         </View>
@@ -620,12 +620,12 @@ function SMSScreen() {
 
       {/* How It Works / Info Card */}
       <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>💡 Как работи системата?</Text>
+        <Text style={styles.infoTitle}>💡 Как работи SMS системата?</Text>
         <Text style={styles.infoText}>
-          • Месечен лимит: {smsLimitStatus?.monthlyLimit || 15} SMS се нулират на 1-во число всеки месец{'\n'}
-          • Закупени SMS: Нямат срок на валидност{'\n'}
-          • Приоритет: Първо се използват закупените SMS{'\n'}
-          • Цена: 15 SMS за 40 BGN
+          • SMS са неограничени - плащате с точки{'\n'}
+          • PRO потребители: 1 точка за SMS{'\n'}
+          • NORMAL потребители: 2 точки за SMS{'\n'}
+          • FREE потребители: Не могат да изпращат SMS
         </Text>
         
         {/* Encoding Explanation */}
@@ -646,7 +646,7 @@ function SMSScreen() {
               <Text style={styles.encodingGridDesc}>А-Я, емотикони, специални</Text>
             </View>
           </View>
-          <Text style={styles.encodingTip}>💡 Съвет: Използвайте латиница за по-евтини SMS!</Text>
+          <Text style={styles.encodingTip}>💡 Съвет: Използвайте латиница - по-малко символи = по-малко SMS сегменти!</Text>
         </View>
       </View>
 

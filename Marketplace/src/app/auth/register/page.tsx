@@ -86,6 +86,13 @@ function RegisterForm() {
     ]
   }
 
+  const validatePhoneNumber = (phone: string): boolean => {
+    // Accept +359 format or 0 format for Bulgarian numbers
+    const plusFormat = /^\+359[0-9]{8,9}$/
+    const zeroFormat = /^0[0-9]{8,9}$/
+    return plusFormat.test(phone) || zeroFormat.test(phone)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -115,6 +122,12 @@ function RegisterForm() {
 
     if (!formData.acceptTerms) {
       alert('Трябва да приемете условията за ползване')
+      return
+    }
+
+    // Phone number validation
+    if (!validatePhoneNumber(formData.phoneNumber)) {
+      alert('Телефонният номер трябва да започва с +359 или 0\n\nПримери:\n• 0888123456\n• +359888123456')
       return
     }
 
@@ -330,6 +343,26 @@ function RegisterForm() {
                 className="mt-1 appearance-none relative block w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="0889 123 456"
               />
+              {/* Phone number validation indicator */}
+              {formData.phoneNumber && (
+                <div className="mt-2 flex items-center text-xs">
+                  {validatePhoneNumber(formData.phoneNumber) ? (
+                    <>
+                      <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-green-500 font-medium">Валиден български номер</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 text-amber-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-amber-500">Номерът трябва да започва с +359 или 0 (напр. 0888123456)</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Service Provider specific fields */}

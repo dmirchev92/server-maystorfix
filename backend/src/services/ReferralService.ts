@@ -32,15 +32,17 @@ export interface ReferralReward {
   id: string;
   referrerUserId: string;
   referralId?: string; // Optional for aggregate rewards
-  rewardType: 'sms_30' | 'free_normal_month' | 'free_pro_month';
-  rewardValue: number; // 30 for SMS, 1 for free months
-  clicksRequired: number; // 50, 250, 500
+  rewardType: 'signup_bonus' | 'referrer_signup_bonus' | 'clicks_50_bonus' | 'aggregate_5x50_bonus';
+  rewardValue: number; // Points awarded
+  pointsAwarded: number; // Actual points given
+  clicksRequired: number; // 0 for signup, 50 for clicks bonus
   clicksAchieved: number;
   earnedAt: Date;
   appliedAt?: Date;
   expiresAt: Date;
   status: 'earned' | 'applied' | 'expired';
-  isAggregate: boolean; // true for 250/500 click rewards, false for individual 50 click rewards
+  isAggregate: boolean; // true for aggregate_5x50_bonus
+  referredUserId?: string; // The user who was referred
 }
 
 export interface ReferralStats {
@@ -59,15 +61,16 @@ export interface ReferralStats {
 }
 
 export interface AggregateReferralProgress {
-  totalValidClicks: number; // Sum of all valid clicks from all referrals that reached 50+
+  totalValidClicks: number; // Sum of all valid clicks from all referrals
   referralsAt50Plus: number; // Count of referrals with 50+ clicks
-  nextMilestone: 250 | 500 | null;
-  progressToNext: number; // Clicks needed to reach next milestone
+  nextMilestone: 5 | null; // 5 referrals needed for aggregate bonus
+  progressToNext: number; // Referrals needed to reach 5
   earnedRewards: {
-    sms30Count: number; // Number of 30 SMS rewards earned
-    freeNormalMonth: boolean;
-    freeProMonth: boolean;
+    signupBonusCount: number; // Number of 5pt signup bonuses earned
+    clicks50BonusCount: number; // Number of 10pt 50-click bonuses earned
+    aggregate5x50Bonus: boolean; // 100pt bonus for 5 referrals at 50+ clicks
   };
+  totalPointsEarned: number; // Total points earned from referrals
 }
 
 export class ReferralService {
@@ -84,6 +87,30 @@ export class ReferralService {
   private generateReferralCode(): string {
     // Generate 8-character alphanumeric code
     return crypto.randomBytes(4).toString('hex').toUpperCase();
+  }
+
+  /**
+   * Add points to a user's balance
+   */
+  private async addPointsToUser(userId: string, points: number, reason: string): Promise<boolean> {
+    return new Promise((resolve, reject) => {
+      this.db.db.run(
+        `UPDATE users 
+         SET points_balance = COALESCE(points_balance, 0) + ?,
+             points_total_earned = COALESCE(points_total_earned, 0) + ?
+         WHERE id = ?`,
+        [points, points, userId],
+        (err: any) => {
+          if (err) {
+            console.error(`❌ Error adding ${points} points to user ${userId}:`, err);
+            resolve(false);
+          } else {
+            console.log(`✅ Added ${points} points to user ${userId} (${reason})`);
+            resolve(true);
+          }
+        }
+      );
+    });
   }
 
   /**
@@ -312,6 +339,7 @@ export class ReferralService {
 
   /**
    * Check and award rewards based on click milestones
+   * New system: 10 points when referral reaches 50 clicks
    */
   private async checkAndAwardRewards(referrerUserId: string, referralId: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -327,15 +355,15 @@ export class ReferralService {
 
           const totalClicks = row.totalClicks || 0;
           
-          // Individual referral reward: 30 SMS at 50 clicks
-          const individualReward = { clicks: 50, type: 'sms_30', value: 30, isAggregate: false };
+          // Individual referral reward: 10 points at 50 clicks
+          const individualReward = { clicks: 50, type: 'clicks_50_bonus', value: 10, isAggregate: false };
           
-          // Check if this referral reached 50 clicks and award SMS
+          // Check if this referral reached 50 clicks and award points
           if (totalClicks >= individualReward.clicks) {
             this.awardIndividualReward(referrerUserId, referralId, individualReward, totalClicks);
           }
           
-          // Check aggregate rewards (across all referrals)
+          // Check aggregate rewards (100 points when 5 referrals reach 50 clicks)
           this.checkAggregateRewards(referrerUserId);
 
           resolve();
@@ -345,7 +373,7 @@ export class ReferralService {
   }
 
   /**
-   * Award individual referral reward (30 SMS at 50 clicks)
+   * Award individual referral reward (10 points at 50 clicks)
    */
   private async awardIndividualReward(
     referrerUserId: string,
@@ -358,7 +386,7 @@ export class ReferralService {
       this.db.db.get(
         'SELECT id FROM referral_rewards WHERE referrer_user_id = ? AND referral_id = ? AND reward_type = ? AND is_aggregate = FALSE',
         [referrerUserId, referralId, reward.type],
-        (checkErr, existingReward) => {
+        async (checkErr, existingReward) => {
           if (checkErr) {
             console.error('Error checking existing individual reward:', checkErr);
             resolve();
@@ -366,19 +394,22 @@ export class ReferralService {
           }
 
           if (!existingReward) {
-            // Award new reward
+            // Award points to user
+            await this.addPointsToUser(referrerUserId, reward.value, `referral ${referralId} reached ${reward.clicks} clicks`);
+            
+            // Create reward record
             const rewardId = this.generateId();
             const expiresAt = new Date();
             expiresAt.setMonth(expiresAt.getMonth() + 6); // 6 months expiry
 
             this.db.db.run(
-              'INSERT INTO referral_rewards (id, referrer_user_id, referral_id, reward_type, reward_value, clicks_required, clicks_achieved, expires_at, is_aggregate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-              [rewardId, referrerUserId, referralId, reward.type, reward.value, reward.clicks, totalClicks, expiresAt.toISOString(), reward.isAggregate ? 1 : 0],
+              'INSERT INTO referral_rewards (id, referrer_user_id, referral_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, expires_at, status, is_aggregate, points_awarded) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)',
+              [rewardId, referrerUserId, referralId, reward.type, reward.value, reward.clicks, totalClicks, expiresAt.toISOString(), 'applied', reward.isAggregate ? 1 : 0, reward.value],
               (insertErr) => {
                 if (insertErr) {
                   console.error('Error inserting individual reward:', insertErr);
                 } else {
-                  console.log(`✅ Awarded ${reward.value} SMS to user ${referrerUserId} for referral ${referralId}`);
+                  console.log(`✅ Awarded ${reward.value} points to user ${referrerUserId} for referral ${referralId} reaching ${totalClicks} clicks`);
                 }
                 resolve();
               }
@@ -392,7 +423,7 @@ export class ReferralService {
   }
 
   /**
-   * Check and award aggregate rewards (250 clicks = Normal month, 500 clicks = Pro month)
+   * Check and award aggregate rewards (100 points when 5 referrals reach 50+ clicks each)
    */
   private async checkAggregateRewards(referrerUserId: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -405,60 +436,59 @@ export class ReferralService {
          GROUP BY r.id
          HAVING COUNT(rc.id) >= 50`,
         [referrerUserId],
-        (err, referrals: any[]) => {
+        async (err, referrals: any[]) => {
           if (err) {
             console.error('Error getting aggregate referral data:', err);
             resolve();
             return;
           }
 
-          const totalAggregateClicks = referrals.reduce((sum, ref) => sum + parseInt(ref.valid_clicks || 0), 0);
           const referralsAt50Plus = referrals.length;
 
-          console.log(`[AGGREGATE] User ${referrerUserId}: ${referralsAt50Plus} referrals with 50+ clicks, total ${totalAggregateClicks} clicks`);
+          console.log(`[AGGREGATE] User ${referrerUserId}: ${referralsAt50Plus} referrals with 50+ clicks`);
 
-          const aggregateRewards = [
-            { clicks: 250, type: 'free_normal_month', value: 1, referralsNeeded: 5 },
-            { clicks: 500, type: 'free_pro_month', value: 1, referralsNeeded: 10 }
-          ];
-
-          // Check each aggregate milestone
-          for (const reward of aggregateRewards) {
-            if (totalAggregateClicks >= reward.clicks && referralsAt50Plus >= reward.referralsNeeded) {
-              // Check if reward already exists
-              this.db.db.get(
-                'SELECT id FROM referral_rewards WHERE referrer_user_id = ? AND reward_type = ? AND is_aggregate = TRUE',
-                [referrerUserId, reward.type],
-                (checkErr, existingReward) => {
-                  if (checkErr) {
-                    console.error('Error checking existing aggregate reward:', checkErr);
-                    return;
-                  }
-
-                  if (!existingReward) {
-                    // Award new aggregate reward
-                    const rewardId = this.generateId();
-                    const expiresAt = new Date();
-                    expiresAt.setMonth(expiresAt.getMonth() + 6); // 6 months expiry
-
-                    this.db.db.run(
-                      'INSERT INTO referral_rewards (id, referrer_user_id, referral_id, reward_type, reward_value, clicks_required, clicks_achieved, expires_at, is_aggregate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                      [rewardId, referrerUserId, null, reward.type, reward.value, reward.clicks, totalAggregateClicks, expiresAt.toISOString(), 1],
-                      (insertErr) => {
-                        if (insertErr) {
-                          console.error('Error inserting aggregate reward:', insertErr);
-                        } else {
-                          console.log(`✅ Awarded ${reward.type} to user ${referrerUserId} (${referralsAt50Plus} referrals, ${totalAggregateClicks} total clicks)`);
-                        }
-                      }
-                    );
-                  }
+          // Aggregate reward: 100 points when 5 referrals reach 50+ clicks
+          if (referralsAt50Plus >= 5) {
+            // Check if reward already exists
+            this.db.db.get(
+              'SELECT id FROM referral_rewards WHERE referrer_user_id = ? AND reward_type = ? AND is_aggregate = TRUE',
+              [referrerUserId, 'aggregate_5x50_bonus'],
+              async (checkErr, existingReward) => {
+                if (checkErr) {
+                  console.error('Error checking existing aggregate reward:', checkErr);
+                  resolve();
+                  return;
                 }
-              );
-            }
-          }
 
-          resolve();
+                if (!existingReward) {
+                  // Award 100 points
+                  await this.addPointsToUser(referrerUserId, 100, `5 referrals reached 50+ clicks each`);
+                  
+                  // Create reward record
+                  const rewardId = this.generateId();
+                  const expiresAt = new Date();
+                  expiresAt.setMonth(expiresAt.getMonth() + 6);
+
+                  this.db.db.run(
+                    'INSERT INTO referral_rewards (id, referrer_user_id, referral_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, expires_at, status, is_aggregate, points_awarded) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?)',
+                    [rewardId, referrerUserId, null, 'aggregate_5x50_bonus', 100, 50, referralsAt50Plus, expiresAt.toISOString(), 'applied', 1, 100],
+                    (insertErr) => {
+                      if (insertErr) {
+                        console.error('Error inserting aggregate reward:', insertErr);
+                      } else {
+                        console.log(`✅ Awarded 100 points to user ${referrerUserId} for having ${referralsAt50Plus} referrals at 50+ clicks`);
+                      }
+                      resolve();
+                    }
+                  );
+                } else {
+                  resolve();
+                }
+              }
+            );
+          } else {
+            resolve();
+          }
         }
       );
     });
@@ -639,7 +669,7 @@ export class ReferralService {
 
   /**
    * Get aggregate referral progress for display
-   * Shows: 130|250|500 format (current clicks | Normal milestone | Pro milestone)
+   * Shows progress toward 5 referrals at 50+ clicks for 100pt bonus
    */
   async getAggregateProgress(userId: string): Promise<AggregateReferralProgress> {
     return new Promise((resolve, reject) => {
@@ -657,15 +687,15 @@ export class ReferralService {
             return;
           }
 
-          // Calculate total clicks from ALL referrals (for display)
+          // Calculate total clicks from ALL referrals
           const totalValidClicks = allReferrals.reduce((sum, ref) => sum + parseInt(ref.valid_clicks || 0), 0);
           
-          // Count how many referrals have reached 50+ clicks (for rewards)
+          // Count how many referrals have reached 50+ clicks
           const referralsAt50Plus = allReferrals.filter(ref => parseInt(ref.valid_clicks || 0) >= 50).length;
 
           // Check earned rewards
           this.db.db.all(
-            'SELECT reward_type, COUNT(*) as count FROM referral_rewards WHERE referrer_user_id = ? AND status IN (?, ?) GROUP BY reward_type',
+            'SELECT reward_type, COUNT(*) as count, SUM(COALESCE(points_awarded, 0)) as total_points FROM referral_rewards WHERE referrer_user_id = ? AND status IN (?, ?) GROUP BY reward_type',
             [userId, 'earned', 'applied'],
             (rewardErr, rewards: any[]) => {
               if (rewardErr) {
@@ -673,32 +703,28 @@ export class ReferralService {
                 return;
               }
 
-              const sms30Count = rewards.find(r => r.reward_type === 'sms_30')?.count || 0;
-              const freeNormalMonth = rewards.some(r => r.reward_type === 'free_normal_month');
-              const freeProMonth = rewards.some(r => r.reward_type === 'free_pro_month');
+              const signupBonusCount = (rewards.find(r => r.reward_type === 'referrer_signup_bonus')?.count || 0);
+              const clicks50BonusCount = (rewards.find(r => r.reward_type === 'clicks_50_bonus')?.count || 0);
+              const aggregate5x50Bonus = rewards.some(r => r.reward_type === 'aggregate_5x50_bonus');
+              
+              // Calculate total points earned from referrals
+              const totalPointsEarned = rewards.reduce((sum, r) => sum + parseInt(r.total_points || 0), 0);
 
-              // Determine next milestone
-              let nextMilestone: 250 | 500 | null = null;
-              let progressToNext = 0;
-
-              if (!freeProMonth) {
-                nextMilestone = 500;
-                progressToNext = 500 - totalValidClicks;
-              } else if (!freeNormalMonth) {
-                nextMilestone = 250;
-                progressToNext = 250 - totalValidClicks;
-              }
+              // Determine next milestone (5 referrals at 50+ clicks)
+              let nextMilestone: 5 | null = aggregate5x50Bonus ? null : 5;
+              let progressToNext = aggregate5x50Bonus ? 0 : Math.max(0, 5 - referralsAt50Plus);
 
               resolve({
                 totalValidClicks,
                 referralsAt50Plus,
                 nextMilestone,
-                progressToNext: Math.max(0, progressToNext),
+                progressToNext,
                 earnedRewards: {
-                  sms30Count,
-                  freeNormalMonth,
-                  freeProMonth
-                }
+                  signupBonusCount,
+                  clicks50BonusCount,
+                  aggregate5x50Bonus
+                },
+                totalPointsEarned
               });
             }
           );
@@ -927,23 +953,16 @@ export class ReferralService {
   }
 
   /**
-   * Award signup bonus when someone registers via referral with NORMAL or PRO tier
-   * Both referrer and referee get 15 SMS
+   * Award signup bonus when someone registers via referral
+   * Both referrer and referred get 5 POINTS (not SMS)
    */
   async awardSignupBonus(referralCode: string, referredUserId: string, subscriptionTier: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      // Only award for NORMAL or PRO tiers
-      if (subscriptionTier !== 'normal' && subscriptionTier !== 'pro') {
-        console.log(`ℹ️ No signup bonus for tier: ${subscriptionTier}`);
-        resolve();
-        return;
-      }
-
       // Find the referrer by referral code
       this.db.db.get(
         'SELECT user_id FROM sp_referral_codes WHERE referral_code = ?',
         [referralCode],
-        (err, row: any) => {
+        async (err, row: any) => {
           if (err) {
             console.error('Error finding referrer:', err);
             reject(err);
@@ -960,108 +979,71 @@ export class ReferralService {
 
           console.log(`🎁 Awarding signup bonus: ${subscriptionTier} tier registration`);
           console.log(`   Referrer: ${referrerUserId}`);
-          console.log(`   Referee: ${referredUserId}`);
+          console.log(`   Referred: ${referredUserId}`);
 
           // Find the referral ID
           this.db.db.get(
             'SELECT id FROM sp_referrals WHERE referrer_user_id = ? AND referred_user_id = ?',
             [referrerUserId, referredUserId],
-            (refErr, referralRow: any) => {
+            async (refErr, referralRow: any) => {
               const referralId = referralRow?.id;
 
-              // Award 15 SMS to referrer
-              this.db.db.run(
-                `INSERT INTO sp_sms_packages (id, user_id, package_type, sms_count, price, currency, purchased_at, sms_used, sms_remaining, status, expires_at)
-                 VALUES (?, ?, ?, ?, ?, ?, NOW(), 0, ?, ?, NOW() + INTERVAL '1 year')`,
-                [
-                  'signup_bonus_referrer_' + this.generateId(),
-                  referrerUserId,
-                  'signup_bonus',
-                  15,
-                  0,
-                  'BGN',
-                  15,
-                  'active'
-                ],
-                (referrerErr) => {
-                  if (referrerErr) {
-                    console.error('❌ Error awarding SMS to referrer:', referrerErr);
-                  } else {
-                    console.log(`✅ Awarded 15 SMS to referrer: ${referrerUserId}`);
-                    
-                    // Create reward record for referrer
-                    if (referralId) {
-                      this.db.db.run(
-                        `INSERT INTO referral_rewards (id, referral_id, referrer_user_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, status, is_aggregate)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
-                        [
-                          'reward_signup_referrer_' + this.generateId(),
-                          referralId,
-                          referrerUserId,
-                          'signup_bonus_15',
-                          15,
-                          0,
-                          0,
-                          'applied',
-                          false
-                        ],
-                        (rewardErr) => {
-                          if (rewardErr) console.error('Error creating referrer reward record:', rewardErr);
-                        }
-                      );
-                    }
+              // Award 5 points to referrer
+              await this.addPointsToUser(referrerUserId, 5, `referred user ${referredUserId} signed up`);
+              
+              // Create reward record for referrer
+              if (referralId) {
+                this.db.db.run(
+                  `INSERT INTO referral_rewards (id, referral_id, referrer_user_id, referred_user_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, status, is_aggregate, points_awarded)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)`,
+                  [
+                    'reward_signup_referrer_' + this.generateId(),
+                    referralId,
+                    referrerUserId,
+                    referredUserId,
+                    'referrer_signup_bonus',
+                    5,
+                    0,
+                    0,
+                    'applied',
+                    false,
+                    5
+                  ],
+                  (rewardErr) => {
+                    if (rewardErr) console.error('Error creating referrer reward record:', rewardErr);
                   }
+                );
+              }
 
-                  // Award 15 SMS to referee
-                  this.db.db.run(
-                    `INSERT INTO sp_sms_packages (id, user_id, package_type, sms_count, price, currency, purchased_at, sms_used, sms_remaining, status, expires_at)
-                     VALUES (?, ?, ?, ?, ?, ?, NOW(), 0, ?, ?, NOW() + INTERVAL '1 year')`,
-                    [
-                      'signup_bonus_referee_' + this.generateId(),
-                      referredUserId,
-                      'signup_bonus',
-                      15,
-                      0,
-                      'BGN',
-                      15,
-                      'active'
-                    ],
-                    (refereeErr) => {
-                      if (refereeErr) {
-                        console.error('❌ Error awarding SMS to referee:', refereeErr);
-                        reject(refereeErr);
-                      } else {
-                        console.log(`✅ Awarded 15 SMS to referee: ${referredUserId}`);
-                        
-                        // Create reward record for referee
-                        if (referralId) {
-                          this.db.db.run(
-                            `INSERT INTO referral_rewards (id, referral_id, referrer_user_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, status, is_aggregate)
-                             VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?)`,
-                            [
-                              'reward_signup_referee_' + this.generateId(),
-                              referralId,
-                              referredUserId,
-                              'signup_bonus_15',
-                              15,
-                              0,
-                              0,
-                              'applied',
-                              false
-                            ],
-                            (rewardErr) => {
-                              if (rewardErr) console.error('Error creating referee reward record:', rewardErr);
-                            }
-                          );
-                        }
-                        
-                        console.log(`🎉 Signup bonus complete! Both users received 15 SMS`);
-                        resolve();
-                      }
-                    }
-                  );
-                }
-              );
+              // Award 5 points to referred user
+              await this.addPointsToUser(referredUserId, 5, `signed up via referral from ${referrerUserId}`);
+              
+              // Create reward record for referred user
+              if (referralId) {
+                this.db.db.run(
+                  `INSERT INTO referral_rewards (id, referral_id, referrer_user_id, referred_user_id, reward_type, reward_value, clicks_required, clicks_achieved, earned_at, status, is_aggregate, points_awarded)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)`,
+                  [
+                    'reward_signup_referred_' + this.generateId(),
+                    referralId,
+                    referrerUserId,
+                    referredUserId,
+                    'signup_bonus',
+                    5,
+                    0,
+                    0,
+                    'applied',
+                    false,
+                    5
+                  ],
+                  (rewardErr) => {
+                    if (rewardErr) console.error('Error creating referred reward record:', rewardErr);
+                  }
+                );
+              }
+              
+              console.log(`🎉 Signup bonus complete! Both users received 5 points`);
+              resolve();
             }
           );
         }

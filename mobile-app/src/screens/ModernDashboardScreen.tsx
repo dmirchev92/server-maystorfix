@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
-  Switch,
   Dimensions,
   Image,
 } from 'react-native';
@@ -18,8 +17,19 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ModernCallDetectionService } from '../services/ModernCallDetectionService';
 import ApiService from '../services/ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import LocationTrackingService from '../services/LocationTrackingService';
+import { SMSService } from '../services/SMSService';
 import { AuthBus } from '../utils/AuthBus';
 import theme from '../styles/theme';
+
+// Location mode type for Option C selector
+type LocationMode = 'off' | 'always' | 'schedule';
+
+interface ScheduleSettings {
+  schedule_enabled: boolean;
+  start_time: string;
+  end_time: string;
+}
 
 const USE_NEW_DASHBOARD_UI = true;
 
@@ -48,6 +58,7 @@ interface User {
   role: string;
   businessId?: string;
   isGdprCompliant: boolean;
+  subscription_tier_id?: string;
 }
 
 interface DashboardStats {
@@ -57,6 +68,14 @@ interface DashboardStats {
   smsSent: number;
   smsChatCases?: number;
   searchChatCases?: number;
+}
+
+interface ProviderStats {
+  available: number;
+  accepted: number;
+  completedCases: number;
+  averageRating: number;
+  totalReviews: number;
 }
 
 interface CallDetectionStatus {
@@ -97,6 +116,22 @@ function ModernDashboardScreen() {
   const [isTogglingDetection, setIsTogglingDetection] = useState(false);
   const [serviceType, setServiceType] = useState<string>('Занаятчия');
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [providerStats, setProviderStats] = useState<ProviderStats | null>(null);
+  
+  // Location sharing state - Option C: 3-mode selector
+  const [locationMode, setLocationMode] = useState<LocationMode>('off');
+  const [isTogglingLocation, setIsTogglingLocation] = useState(false);
+  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettings | null>(null);
+  
+  // Legacy state for compatibility
+  const [isLocationEnabled, setIsLocationEnabled] = useState(false);
+  
+  // SMS Automation state
+  const [isSmsEnabled, setIsSmsEnabled] = useState(false);
+  const [isTogglingSms, setIsTogglingSms] = useState(false);
+  
+  // Automation Hub expansion state
+  const [isAutomationExpanded, setIsAutomationExpanded] = useState(true);
 
   const callDetectionService = ModernCallDetectionService.getInstance();
 
@@ -114,11 +149,14 @@ function ModernDashboardScreen() {
     useCallback(() => {
       // Refresh data when screen comes into focus
       console.log('🔄 useFocusEffect triggered', { hasUser: !!user, userId: user?.id });
+      loadLocationPreference(); // Always load location preference
+      loadSmsStatus(); // Always load SMS status
       if (user?.id) {
         console.log('🔄 Screen focused, refreshing data for user:', user.id);
         loadDashboardData();
         refreshCallDetectionStatus();
         loadRecentActivity();
+        loadProviderStats(user.id);
       } else {
         console.log('⚠️ useFocusEffect: User not loaded yet, skipping refresh');
       }
@@ -252,6 +290,32 @@ function ModernDashboardScreen() {
     );
   };
 
+  const loadProviderStats = async (userId: string) => {
+    try {
+      console.log('📊 Loading provider stats for user:', userId);
+      const [statsResponse, providerResponse] = await Promise.all([
+        ApiService.getInstance().makeRequest(`/cases/stats?providerId=${userId}`),
+        ApiService.getInstance().makeRequest(`/marketplace/providers/${userId}`)
+      ]);
+
+      const statsData: any = statsResponse.data || {};
+      const providerData: any = providerResponse.data || {};
+
+      const stats: ProviderStats = {
+        available: Number(statsData.available) || 0,
+        accepted: Number(statsData.accepted) || 0,
+        completedCases: Number(statsData.completed) || 0,
+        averageRating: Number(providerData.rating) || 0,
+        totalReviews: Number(providerData.totalReviews || providerData.total_reviews) || 0
+      };
+
+      console.log('✅ Provider stats loaded:', stats);
+      setProviderStats(stats);
+    } catch (error) {
+      console.error('❌ Error loading provider stats:', error);
+    }
+  };
+
   const loadUserData = async () => {
     try {
       console.log('👤 ========== loadUserData START ==========');
@@ -307,6 +371,7 @@ function ModernDashboardScreen() {
           role: userData.role || 'tradesperson',
           businessId: userData.businessId || userData.business_id,
           isGdprCompliant: userData.isGdprCompliant || userData.is_gdpr_compliant || false,
+          subscription_tier_id: userData.subscription_tier_id || 'free',
         };
         console.log('� Mapped user data:', mappedUser);
         console.log('👤 User ID that will be used for API calls:', mappedUser.id);
@@ -320,7 +385,7 @@ function ModernDashboardScreen() {
         console.log('👤 User state set successfully');
         console.log('👤 ========== loadUserData COMPLETE (REAL USER) ==========');
         
-        // Load service type and profile image from provider profile
+        // Load service type, profile image, and provider stats
         if (mappedUser.id) {
           try {
             const profileResponse = await ApiService.getInstance().makeRequest(`/marketplace/providers/${mappedUser.id}`);
@@ -336,6 +401,8 @@ function ModernDashboardScreen() {
                 setProfileImageUrl(profileData.profileImageUrl);
               }
             }
+            // Load provider stats
+            await loadProviderStats(mappedUser.id);
           } catch (error) {
             console.error('Error loading profile data:', error);
           }
@@ -529,6 +596,10 @@ function ModernDashboardScreen() {
       await refreshCallDetectionStatus();
       console.log('🔄 Refreshing recent activity...');
       await loadRecentActivity();
+      if (user?.id) {
+        console.log('🔄 Refreshing provider stats...');
+        await loadProviderStats(user.id);
+      }
       console.log('✅ ========== MANUAL REFRESH COMPLETE ==========');
     } catch (error) {
       console.error('❌ ========== MANUAL REFRESH ERROR ==========');
@@ -627,8 +698,131 @@ function ModernDashboardScreen() {
     }
   };
 
+  // Load location sharing preference and determine mode
+  const loadLocationPreference = async () => {
+    try {
+      // Get tracking preference
+      const enabled = await LocationTrackingService.getInstance().getTrackingPreference();
+      console.log('📍 Dashboard - Tracking preference:', enabled);
+      setIsLocationEnabled(enabled);
+      
+      // Get schedule settings
+      const scheduleResponse = await ApiService.getInstance().getLocationSchedule();
+      console.log('📍 Dashboard - Schedule response:', JSON.stringify(scheduleResponse, null, 2));
+      if (scheduleResponse.success && scheduleResponse.data) {
+        const schedule = scheduleResponse.data;
+        const newScheduleSettings = {
+          schedule_enabled: schedule.schedule_enabled,
+          start_time: schedule.start_time || '08:00',
+          end_time: schedule.end_time || '21:00',
+        };
+        console.log('📍 Dashboard - Setting schedule settings:', JSON.stringify(newScheduleSettings, null, 2));
+        setScheduleSettings(newScheduleSettings);
+        
+        // Determine location mode based on settings
+        if (!enabled) {
+          setLocationMode('off');
+        } else if (schedule.schedule_enabled) {
+          setLocationMode('schedule');
+        } else {
+          setLocationMode('always');
+        }
+        console.log('📍 Dashboard - Location mode set to:', !enabled ? 'off' : (schedule.schedule_enabled ? 'schedule' : 'always'));
+      } else {
+        // No schedule data, determine mode from enabled state only
+        setLocationMode(enabled ? 'always' : 'off');
+        console.log('📍 Dashboard - No schedule data, mode set to:', enabled ? 'always' : 'off');
+      }
+    } catch (error) {
+      console.error('Error loading location preference:', error);
+      setLocationMode('off');
+    }
+  };
+  
+  // Load SMS automation status
+  const loadSmsStatus = async () => {
+    try {
+      await SMSService.getInstance().refreshConfigFromAPI();
+      const stats = SMSService.getInstance().getStats();
+      setIsSmsEnabled(stats.isEnabled);
+    } catch (error) {
+      console.error('Error loading SMS status:', error);
+    }
+  };
 
-
+  // Handle location mode change (Option C - 3 mode selector)
+  const handleLocationModeChange = async (mode: LocationMode) => {
+    if (isTogglingLocation) return;
+    setIsTogglingLocation(true);
+    
+    try {
+      const previousMode = locationMode;
+      setLocationMode(mode);
+      
+      switch (mode) {
+        case 'off':
+          // Disable location tracking
+          await LocationTrackingService.getInstance().setTrackingPreference(false);
+          setIsLocationEnabled(false);
+          break;
+          
+        case 'always':
+          // Enable location tracking, disable schedule
+          await LocationTrackingService.getInstance().setTrackingPreference(true);
+          setIsLocationEnabled(true);
+          // ALWAYS disable schedule when in "always" mode (regardless of local state)
+          await ApiService.getInstance().updateLocationSchedule({ schedule_enabled: false });
+          setScheduleSettings(prev => prev ? { ...prev, schedule_enabled: false } : { schedule_enabled: false, start_time: '08:00', end_time: '21:00' });
+          break;
+          
+        case 'schedule':
+          // Enable location tracking with schedule
+          await LocationTrackingService.getInstance().setTrackingPreference(true);
+          setIsLocationEnabled(true);
+          // Enable schedule
+          await ApiService.getInstance().updateLocationSchedule({ schedule_enabled: true });
+          setScheduleSettings(prev => prev ? { ...prev, schedule_enabled: true } : { schedule_enabled: true, start_time: '08:00', end_time: '21:00' });
+          // Apply schedule immediately
+          await LocationTrackingService.getInstance().checkAndApplySchedule();
+          break;
+      }
+    } catch (error) {
+      console.error('Error changing location mode:', error);
+      Alert.alert('Грешка', 'Неуспешна промяна на настройките за локация');
+      // Revert on error
+      await loadLocationPreference();
+    } finally {
+      setIsTogglingLocation(false);
+    }
+  };
+  
+  // Toggle SMS automation
+  const handleToggleSms = async () => {
+    if (isTogglingSms) return;
+    setIsTogglingSms(true);
+    
+    try {
+      const newEnabled = !isSmsEnabled;
+      setIsSmsEnabled(newEnabled);
+      
+      const success = await SMSService.getInstance().toggleEnabled();
+      if (!success && newEnabled) {
+        // Toggle failed (likely permissions), revert
+        setIsSmsEnabled(false);
+        Alert.alert('Грешка', 'Нужни са разрешения за SMS');
+      }
+    } catch (error) {
+      console.error('Error toggling SMS:', error);
+      setIsSmsEnabled(!isSmsEnabled); // Revert
+    } finally {
+      setIsTogglingSms(false);
+    }
+  };
+  
+  // Legacy toggle for compatibility
+  const handleToggleLocation = async (value: boolean) => {
+    handleLocationModeChange(value ? 'always' : 'off');
+  };
 
 
   const handleLogoutPress = async () => {
@@ -678,7 +872,11 @@ function ModernDashboardScreen() {
         }
       >
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
+          <TouchableOpacity 
+            style={styles.headerLeft}
+            onPress={() => navigation.navigate('EditProfile')}
+            activeOpacity={0.7}
+          >
             <View style={styles.avatar}>
               {profileImageUrl ? (
                 <Image 
@@ -697,90 +895,231 @@ function ModernDashboardScreen() {
                 {user ? `${user.firstName} ${user.lastName}` : 'Зареждане...'}
               </Text>
               <View style={styles.serviceTypesContainer}>
-                <Text style={styles.userRole}>
-                  {serviceType}
-                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+                  <Text style={styles.userRole}>
+                    {serviceType}
+                  </Text>
+                  {/* Subscription Badge */}
+                  <View style={{
+                    backgroundColor: user?.subscription_tier_id === 'pro' ? 'rgba(168, 85, 247, 0.2)' :
+                                     user?.subscription_tier_id === 'normal' ? 'rgba(59, 130, 246, 0.2)' :
+                                     'rgba(148, 163, 184, 0.2)',
+                    borderWidth: 1,
+                    borderColor: user?.subscription_tier_id === 'pro' ? '#a855f7' :
+                                 user?.subscription_tier_id === 'normal' ? '#3b82f6' :
+                                 '#94a3b8',
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    borderRadius: 10,
+                  }}>
+                    <Text style={{
+                      fontSize: 10,
+                      fontWeight: '700',
+                      color: user?.subscription_tier_id === 'pro' ? '#c084fc' :
+                             user?.subscription_tier_id === 'normal' ? '#60a5fa' :
+                             '#94a3b8',
+                    }}>
+                      {user?.subscription_tier_id === 'pro' ? 'PRO' :
+                       user?.subscription_tier_id === 'normal' ? 'NORMAL' : 'FREE'}
+                    </Text>
+                  </View>
+                </View>
               </View>
+              <Text style={styles.profileHint}>Виж профила ›</Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.settingsIconButton} onPress={() => navigation.navigate('Settings')}>
             <Text style={styles.settingsIcon}>⚙️</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.statusContainer}>
-          <View style={styles.statusCard}>
-            <View style={styles.statusHeaderRow}>
-              <Text style={styles.sectionTitle}>Детекция на обаждания</Text>
-              <Switch
-                value={!!callDetectionStatus.isListening}
-                onValueChange={handleToggleDetectionSwitch}
+        {/* ==================== AUTOMATION HUB ==================== */}
+        <View style={styles.automationHub}>
+          {/* Hub Header */}
+          <TouchableOpacity 
+            style={styles.automationHubHeader}
+            onPress={() => setIsAutomationExpanded(!isAutomationExpanded)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.automationHubTitleRow}>
+              <Text style={styles.automationHubIcon}>⚡</Text>
+              <Text style={styles.automationHubTitle}>Автоматизация</Text>
+            </View>
+            <View style={styles.automationHubStatus}>
+              <View style={[
+                styles.automationStatusDot,
+                (callDetectionStatus.isListening || isSmsEnabled || locationMode !== 'off') 
+                  ? styles.statusDotActive 
+                  : styles.statusDotInactive
+              ]} />
+              <Text style={styles.automationStatusText}>
+                {[
+                  callDetectionStatus.isListening ? '📞' : '',
+                  isSmsEnabled ? '📱' : '',
+                  locationMode !== 'off' ? '📍' : ''
+                ].filter(Boolean).join(' ') || 'Изкл.'}
+              </Text>
+              <Text style={styles.automationExpandIcon}>
+                {isAutomationExpanded ? '▲' : '▼'}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Hub Content - Expandable */}
+          {isAutomationExpanded && (
+            <View style={styles.automationHubContent}>
+              
+              {/* 1. Call Detection Toggle */}
+              <TouchableOpacity 
+                style={styles.automationRow}
+                onPress={() => handleToggleDetectionSwitch(!callDetectionStatus.isListening)}
                 disabled={isTogglingDetection}
-              />
-            </View>
-            <View style={styles.chipsRow}>
-              <View style={[styles.chip, callDetectionStatus.isListening ? styles.chipSuccess : styles.chipDanger]}>
-                <Text style={styles.chipText}>
-                  {callDetectionStatus.isListening ? 'Активна' : 'Неактивна'}
-                </Text>
-              </View>
-              <View style={[styles.chip, callDetectionStatus.hasPermissions ? styles.chipSuccess : styles.chipWarning]}>
-                <Text style={styles.chipText}>
-                  {callDetectionStatus.hasPermissions ? 'Дадени' : 'Нужни'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
+                activeOpacity={0.7}
+              >
+                <Text style={styles.automationRowIcon}>📞</Text>
+                <View style={styles.automationRowText}>
+                  <Text style={styles.automationRowLabel}>Детекция обаждания</Text>
+                  <Text style={styles.automationRowStatus}>
+                    {callDetectionStatus.isListening ? 'Активна' : 'Неактивна'}
+                  </Text>
+                </View>
+                <View style={[
+                  styles.automationToggle,
+                  callDetectionStatus.isListening ? styles.toggleOn : styles.toggleOff
+                ]}>
+                  <View style={[
+                    styles.automationToggleKnob,
+                    callDetectionStatus.isListening ? styles.toggleKnobOn : styles.toggleKnobOff
+                  ]} />
+                </View>
+              </TouchableOpacity>
 
-        <View style={styles.kpiRowNew}>
-          <View style={[styles.kpiCard, styles.kpiWarning]} key={`missed-${stats.missedCalls}`}>
-            <Text style={styles.kpiValue}>{stats.missedCalls}</Text>
-            <View style={styles.kpiLabelRow}>
-              <View style={styles.redPhoneIcon}>
-                <Text style={styles.redPhoneText}>📞</Text>
+              {/* 2. Auto SMS Toggle */}
+              <TouchableOpacity 
+                style={styles.automationRow}
+                onPress={handleToggleSms}
+                disabled={isTogglingSms}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.automationRowIcon}>📱</Text>
+                <View style={styles.automationRowText}>
+                  <Text style={styles.automationRowLabel}>Авто SMS</Text>
+                  <Text style={styles.automationRowStatus}>
+                    {isSmsEnabled ? 'Активно' : 'Неактивно'}
+                  </Text>
+                </View>
+                <View style={[
+                  styles.automationToggle,
+                  isSmsEnabled ? styles.toggleOn : styles.toggleOff
+                ]}>
+                  <View style={[
+                    styles.automationToggleKnob,
+                    isSmsEnabled ? styles.toggleKnobOn : styles.toggleKnobOff
+                  ]} />
+                </View>
+              </TouchableOpacity>
+
+              {/* 3. Location - Option C: 3 Mode Selector */}
+              <View style={styles.locationSection}>
+                <View style={styles.locationHeader}>
+                  <Text style={styles.automationRowIcon}>📍</Text>
+                  <Text style={styles.automationRowLabel}>Споделяне на локация</Text>
+                </View>
+                
+                <View style={styles.locationModeSelector}>
+                  {/* Off */}
+                  <TouchableOpacity
+                    style={[
+                      styles.locationModeOption,
+                      locationMode === 'off' && styles.locationModeSelected
+                    ]}
+                    onPress={() => handleLocationModeChange('off')}
+                    disabled={isTogglingLocation}
+                  >
+                    <View style={[
+                      styles.locationModeRadio,
+                      locationMode === 'off' && styles.locationModeRadioSelected
+                    ]}>
+                      {locationMode === 'off' && <View style={styles.locationModeRadioInner} />}
+                    </View>
+                    <Text style={[
+                      styles.locationModeText,
+                      locationMode === 'off' && styles.locationModeTextSelected
+                    ]}>Изключено</Text>
+                  </TouchableOpacity>
+
+                  {/* Always On */}
+                  <TouchableOpacity
+                    style={[
+                      styles.locationModeOption,
+                      locationMode === 'always' && styles.locationModeSelected
+                    ]}
+                    onPress={() => handleLocationModeChange('always')}
+                    disabled={isTogglingLocation}
+                  >
+                    <View style={[
+                      styles.locationModeRadio,
+                      locationMode === 'always' && styles.locationModeRadioSelected
+                    ]}>
+                      {locationMode === 'always' && <View style={styles.locationModeRadioInner} />}
+                    </View>
+                    <Text style={[
+                      styles.locationModeText,
+                      locationMode === 'always' && styles.locationModeTextSelected
+                    ]}>Винаги вкл.</Text>
+                  </TouchableOpacity>
+
+                  {/* Schedule */}
+                  <TouchableOpacity
+                    style={[
+                      styles.locationModeOption,
+                      styles.locationModeOptionSchedule,
+                      locationMode === 'schedule' && styles.locationModeSelectedSchedule
+                    ]}
+                    onPress={() => handleLocationModeChange('schedule')}
+                    disabled={isTogglingLocation}
+                  >
+                    <View style={[
+                      styles.locationModeRadio,
+                      locationMode === 'schedule' && styles.locationModeRadioSelectedSchedule
+                    ]}>
+                      {locationMode === 'schedule' && <View style={styles.locationModeRadioInnerSchedule} />}
+                    </View>
+                    <View style={styles.locationScheduleContent}>
+                      <Text style={[
+                        styles.locationModeText,
+                        locationMode === 'schedule' && styles.locationModeTextSelectedSchedule
+                      ]}>По график</Text>
+                      {scheduleSettings && (
+                        <Text style={styles.locationScheduleTime}>
+                          {scheduleSettings.start_time} - {scheduleSettings.end_time}
+                        </Text>
+                      )}
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.locationScheduleEditBtn}
+                      onPress={() => navigation.navigate('LocationSchedule')}
+                    >
+                      <Text style={styles.locationScheduleEditText}>✏️</Text>
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
               </View>
-              <Text style={styles.kpiLabelText}>Пропуснати</Text>
+
+              {/* Full Settings Link */}
+              <TouchableOpacity 
+                style={styles.automationSettingsLink}
+                onPress={() => navigation.navigate('SMS')}
+              >
+                <Text style={styles.automationSettingsText}>⚙️ Пълни настройки за автоматизация</Text>
+                <Text style={styles.automationSettingsArrow}>›</Text>
+              </TouchableOpacity>
             </View>
-          </View>
-          <View style={[styles.kpiCard, styles.kpiSuccess]} key={`sms-${stats.smsSent}`}>
-            <Text style={styles.kpiValue}>{stats.smsSent}</Text>
-            <Text style={styles.kpiLabel}>
-              <Text style={styles.kpiIcon}>💬</Text> SMS Изпратени
-            </Text>
-          </View>
+          )}
         </View>
+        {/* ==================== END AUTOMATION HUB ==================== */}
 
-        {/* Chat Source Stats */}
-        <View style={styles.kpiRowNew}>
-          <TouchableOpacity 
-            style={[styles.kpiCard, styles.kpiSms]}
-            onLongPress={() => {
-              Alert.alert(
-                '📱 SMS Заявки',
-                'Заявки създадени от клиенти чрез SMS линк след пропуснато обаждане. Тези клиенти са се свързали с вас директно.',
-                [{ text: 'Разбрах' }]
-              );
-            }}
-          >
-            <Text style={styles.kpiValue}>{stats.smsChatCases || 0}</Text>
-            <Text style={styles.kpiLabel}>📱 SMS Заявки</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.kpiCard, styles.kpiSearch]}
-            onLongPress={() => {
-              Alert.alert(
-                '🌐 Уеб Заявки',
-                'Заявки създадени от клиенти които са ви намерили чрез търсачката на сайта. Нови потенциални клиенти.',
-                [{ text: 'Разбрах' }]
-              );
-            }}
-          >
-            <Text style={styles.kpiValue}>{stats.searchChatCases || 0}</Text>
-            <Text style={styles.kpiLabel}>🌐 Уеб Заявки</Text>
-          </TouchableOpacity>
-        </View>
-
+        {/* Quick Actions */}
         <View style={styles.navigationGrid}>
           <Text style={styles.navigationTitle}>Бързи действия</Text>
           <View style={styles.navigationRow}>
@@ -799,7 +1138,7 @@ function ModernDashboardScreen() {
           </View>
           <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('MyBids')}>
-              <Text style={styles.navIcon}>💰</Text>
+              <Text style={styles.navIcon}>🏷️</Text>
               <Text style={styles.navLabel}>Оферти</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Points')}>
@@ -812,15 +1151,24 @@ function ModernDashboardScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.navigationRow}>
-            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('IncomeDashboard')}>
-              <Text style={styles.navIcon}>📊</Text>
-              <Text style={styles.navLabel}>Табло</Text>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('MapSearch')}>
+              <Text style={styles.navIcon}>🗺️</Text>
+              <Text style={styles.navLabel}>Карта</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('IncomeDashboard')}>
+              <Text style={styles.navIcon}>📈</Text>
+              <Text style={styles.navLabel}>Приходи</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Statistics')}>
+              <Text style={styles.navIcon}>📊</Text>
+              <Text style={styles.navLabel}>Статистики</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Subscription')}>
               <Text style={styles.navIcon}>💳</Text>
               <Text style={styles.navLabel}>Абонамент</Text>
             </TouchableOpacity>
-            <View style={styles.navCardEmpty} />
           </View>
         </View>
 
@@ -873,7 +1221,11 @@ function ModernDashboardScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.userInfo}>
+        <TouchableOpacity 
+          style={styles.userInfo}
+          onPress={() => navigation.navigate('EditProfile')}
+          activeOpacity={0.7}
+        >
           <Text style={styles.welcomeText}>Добре дошли,</Text>
           <Text style={styles.userName}>
             {user ? `${user.firstName} ${user.lastName}` : 'Зареждане...'}
@@ -881,7 +1233,8 @@ function ModernDashboardScreen() {
           <Text style={styles.userRole}>
             {user ? (user.role === 'tradesperson' ? 'Занаятчия' : user.role) : 'Зареждане...'}
           </Text>
-        </View>
+          <Text style={styles.profileHint}>Виж профила ›</Text>
+        </TouchableOpacity>
         <View style={styles.headerButtons}>
           <TouchableOpacity style={styles.testButton} onPress={testDatabaseConnection}>
             <Text style={styles.testButtonText}>Тест DB</Text>
@@ -1111,6 +1464,12 @@ const styles = StyleSheet.create({
     color: '#a5b4fc', // indigo-300 - accent for role
     fontSize: theme.typography.caption.fontSize,
     fontWeight: theme.fontWeight.medium,
+  },
+  profileHint: {
+    color: '#6366f1', // indigo-500 - clickable hint
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 4,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -1567,6 +1926,600 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     margin: theme.spacing.lg,
   },
+  // Provider Stats Section
+  providerStatsSection: {
+    padding: theme.spacing.lg,
+    paddingTop: 0,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  providerStatCard: {
+    width: '48%',
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  providerStatGreen: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+  },
+  providerStatBlue: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  providerStatPurple: {
+    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+  },
+  providerStatYellow: {
+    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+    borderColor: 'rgba(234, 179, 8, 0.3)',
+  },
+  providerStatPink: {
+    backgroundColor: 'rgba(236, 72, 153, 0.15)',
+    borderColor: 'rgba(236, 72, 153, 0.3)',
+  },
+  providerStatIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  providerStatIcon: {
+    fontSize: 20,
+  },
+  providerStatContent: {
+    flex: 1,
+  },
+  providerStatLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 2,
+  },
+  providerStatValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  // Map and Income Row
+  mapIncomeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    gap: theme.spacing.md,
+  },
+  mapIncomeCard: {
+    flex: 1,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  mapCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  incomeCard: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+  },
+  mapIncomeIcon: {
+    fontSize: 32,
+    marginBottom: theme.spacing.xs,
+  },
+  mapIncomeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  mapIncomeSubtitle: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  // Call Detection Simplified Styles
+  callDetectionRow: {
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+  },
+  callDetectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.xl,
+    borderWidth: 2,
+  },
+  callDetectionActive: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: '#22c55e',
+  },
+  callDetectionInactive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderColor: '#ef4444',
+  },
+  callDetectionNeutral: {
+    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+    borderColor: 'rgba(148, 163, 184, 0.3)',
+  },
+  navArrow: {
+    fontSize: 24,
+    color: '#94a3b8',
+    fontWeight: '300',
+  },
+  callDetectionIcon: {
+    fontSize: 28,
+    marginRight: theme.spacing.md,
+  },
+  callDetectionTextContainer: {
+    flex: 1,
+  },
+  callDetectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  callDetectionStatus: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  callDetectionIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  indicatorGreen: {
+    backgroundColor: '#22c55e',
+  },
+  indicatorRed: {
+    backgroundColor: '#ef4444',
+  },
+  // Stats Sections
+  statsSection: {
+    marginBottom: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  statsSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  statsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: theme.borderRadius.md,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  filterArrow: {
+    padding: 6,
+  },
+  filterArrowText: {
+    fontSize: 14,
+    color: '#94a3b8',
+  },
+  filterArrowDisabled: {
+    opacity: 0.3,
+  },
+  filterArrowTextDisabled: {
+    color: '#475569',
+  },
+  filterText: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    fontWeight: '500',
+    marginHorizontal: 8,
+    minWidth: 100,
+    textAlign: 'center',
+  },
+  statsCardsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  statsCard: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  statsCardOrange: {
+    borderColor: 'rgba(249, 115, 22, 0.4)',
+    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+  },
+  statsCardGreen: {
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+  },
+  statsCardIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  statsCardValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  statsCardLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  // Small stat cards (3 per row)
+  statsCardSmall: {
+    flex: 1,
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.sm,
+    alignItems: 'center',
+    borderWidth: 1,
+    minHeight: 80,
+  },
+  statsCardBlue: {
+    borderColor: 'rgba(59, 130, 246, 0.4)',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+  },
+  statsCardYellow: {
+    borderColor: 'rgba(234, 179, 8, 0.4)',
+    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+  },
+  statsCardPink: {
+    borderColor: 'rgba(236, 72, 153, 0.4)',
+    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+  },
+  statsCardTeal: {
+    borderColor: 'rgba(20, 184, 166, 0.4)',
+    backgroundColor: 'rgba(20, 184, 166, 0.1)',
+  },
+  statsCardPurple: {
+    borderColor: 'rgba(168, 85, 247, 0.4)',
+    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+  },
+  statsCardCyan: {
+    borderColor: 'rgba(6, 182, 212, 0.4)',
+    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+  },
+  statsCardIndigo: {
+    borderColor: 'rgba(99, 102, 241, 0.4)',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  },
+  statsCardIconSmall: {
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  statsCardValueSmall: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  statsCardLabelSmall: {
+    fontSize: 10,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  // Filter badge and button styles
+  filterBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    borderRadius: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.4)',
+  },
+  filterBadgeText: {
+    fontSize: 12,
+    color: '#60a5fa',
+    fontWeight: '500',
+  },
+  filterBadgeClose: {
+    fontSize: 12,
+    color: '#60a5fa',
+    marginLeft: 6,
+    fontWeight: '700',
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderRadius: 16,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  filterButtonIcon: {
+    fontSize: 14,
+    marginRight: 4,
+  },
+  filterButtonText: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthPickerModal: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 16,
+    width: '80%',
+    maxHeight: '60%',
+  },
+  monthPickerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  monthPickerScroll: {
+    maxHeight: 300,
+  },
+  monthPickerItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(148, 163, 184, 0.2)',
+  },
+  monthPickerItemText: {
+    fontSize: 16,
+    color: '#e2e8f0',
+    textAlign: 'center',
+  },
+  
+  // ==================== AUTOMATION HUB STYLES ====================
+  automationHub: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: 'rgba(30, 41, 59, 0.9)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    overflow: 'hidden',
+  },
+  automationHubHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  automationHubTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  automationHubIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  automationHubTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#e2e8f0',
+  },
+  automationHubStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  automationStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  statusDotActive: {
+    backgroundColor: '#22c55e',
+  },
+  statusDotInactive: {
+    backgroundColor: '#64748b',
+  },
+  automationStatusText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginRight: 8,
+  },
+  automationExpandIcon: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  automationHubContent: {
+    padding: 12,
+  },
+  automationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  automationRowIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  automationRowText: {
+    flex: 1,
+  },
+  automationRowLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#e2e8f0',
+  },
+  automationRowStatus: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  automationToggle: {
+    width: 48,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    padding: 2,
+  },
+  toggleOn: {
+    backgroundColor: '#22c55e',
+  },
+  toggleOff: {
+    backgroundColor: '#374151',
+  },
+  automationToggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+  },
+  toggleKnobOn: {
+    alignSelf: 'flex-end',
+  },
+  toggleKnobOff: {
+    alignSelf: 'flex-start',
+  },
+  
+  // Location Section with 3-mode selector
+  locationSection: {
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  locationModeSelector: {
+    gap: 8,
+  },
+  locationModeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(30, 41, 59, 0.6)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(100, 116, 139, 0.3)',
+  },
+  locationModeOptionSchedule: {
+    // Extra style for schedule option
+  },
+  locationModeSelected: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: 'rgba(34, 197, 94, 0.5)',
+  },
+  locationModeSelectedSchedule: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderColor: 'rgba(59, 130, 246, 0.5)',
+  },
+  locationModeRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#64748b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  locationModeRadioSelected: {
+    borderColor: '#22c55e',
+  },
+  locationModeRadioSelectedSchedule: {
+    borderColor: '#3b82f6',
+  },
+  locationModeRadioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#22c55e',
+  },
+  locationModeRadioInnerSchedule: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#3b82f6',
+  },
+  locationModeText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    fontWeight: '500',
+  },
+  locationModeTextSelected: {
+    color: '#22c55e',
+    fontWeight: '600',
+  },
+  locationModeTextSelectedSchedule: {
+    color: '#60a5fa',
+    fontWeight: '600',
+  },
+  locationScheduleContent: {
+    flex: 1,
+  },
+  locationScheduleTime: {
+    fontSize: 12,
+    color: '#60a5fa',
+    marginTop: 2,
+  },
+  locationScheduleEditBtn: {
+    padding: 8,
+  },
+  locationScheduleEditText: {
+    fontSize: 16,
+  },
+  
+  // Full Settings Link
+  automationSettingsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(100, 116, 139, 0.2)',
+  },
+  automationSettingsText: {
+    fontSize: 13,
+    color: '#6366f1',
+    fontWeight: '500',
+  },
+  automationSettingsArrow: {
+    fontSize: 16,
+    color: '#6366f1',
+    marginLeft: 4,
+  },
+  // ==================== END AUTOMATION HUB STYLES ====================
 });
 
 export default ModernDashboardScreen;

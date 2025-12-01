@@ -6,22 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   ActivityIndicator,
   Modal,
+  Alert,
 } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
-import { PointsBalance } from '../components/PointsBalance';
-
-interface DashboardStats {
-  available: number;
-  accepted: number;
-  completedCases: number;
-  averageRating: number;
-  totalReviews: number;
-}
 
 interface MonthlyIncome {
   month: string;
@@ -47,22 +38,9 @@ interface IncomeStats {
   paymentMethods: PaymentMethod[];
 }
 
-interface SMSLimitStatus {
-  canSend: boolean;
-  monthlyLimit: number;
-  monthlyUsed: number;
-  monthlyRemaining: number;
-  addonRemaining: number;
-  totalRemaining: number;
-  tier: string;
-}
-
 export default function DashboardScreen() {
-  const navigation = useNavigation<any>();
   const [user, setUser] = useState<any>(null);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [incomeStats, setIncomeStats] = useState<IncomeStats | null>(null);
-  const [smsLimitStatus, setSmsLimitStatus] = useState<SMSLimitStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -101,50 +79,11 @@ export default function DashboardScreen() {
         const rawData: any = response.data;
         const userData: any = rawData.user || rawData;
         setUser(userData);
-        
-        // Load dashboard stats after user is loaded
-        await loadDashboardStats(userData.id);
-        await loadSMSLimitStatus();
       }
     } catch (error) {
       console.error('Error loading user:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadDashboardStats = async (userId: string) => {
-    try {
-      const [statsResponse, providerResponse] = await Promise.all([
-        ApiService.getInstance().makeRequest(`/cases/stats?providerId=${userId}`),
-        ApiService.getInstance().makeRequest(`/marketplace/providers/${userId}`)
-      ]);
-
-      const statsData: any = statsResponse.data || {};
-      const providerData: any = providerResponse.data || {};
-
-      const dashboardStats: DashboardStats = {
-        available: Number(statsData.available) || 0,
-        accepted: Number(statsData.accepted) || 0,
-        completedCases: Number(statsData.completed) || 0,
-        averageRating: Number(providerData.rating) || 0,
-        totalReviews: Number(providerData.totalReviews || providerData.total_reviews) || 0
-      };
-
-      setStats(dashboardStats);
-    } catch (error) {
-      console.error('Error loading dashboard stats:', error);
-    }
-  };
-
-  const loadSMSLimitStatus = async () => {
-    try {
-      const response = await ApiService.getInstance().makeRequest('/sms/limit-status');
-      if (response.success && response.data) {
-        setSmsLimitStatus(response.data as SMSLimitStatus);
-      }
-    } catch (error) {
-      console.error('Error loading SMS limit status:', error);
     }
   };
 
@@ -209,11 +148,7 @@ export default function DashboardScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     if (user?.id) {
-      await Promise.all([
-        loadDashboardStats(user.id),
-        fetchIncomeStats(),
-        loadSMSLimitStatus()
-      ]);
+      await fetchIncomeStats();
     }
     setRefreshing(false);
   };
@@ -263,158 +198,14 @@ export default function DashboardScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Добре дошли, {user?.firstName || 'Потребител'}! 👋</Text>
-        <Text style={styles.headerSubtitle}>Управлявайте вашите заявки и следете статистиките си</Text>
+        <Text style={styles.headerTitle}>💰 Приходи</Text>
+        <Text style={styles.headerSubtitle}>Следете вашите приходи и статистики</Text>
       </View>
 
       <ScrollView
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {/* Stats Grid - Matching Web Design */}
-        {stats && (
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, styles.statGreen]}>
-              <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>📋</Text>
-              </View>
-              <View style={styles.statContent}>
-                <Text style={styles.statLabel}>Налични заявки</Text>
-                <Text style={styles.statValue}>{stats.available}</Text>
-              </View>
-            </View>
-
-            <View style={[styles.statCard, styles.statBlue]}>
-              <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>✅</Text>
-              </View>
-              <View style={styles.statContent}>
-                <Text style={styles.statLabel}>Приети</Text>
-                <Text style={styles.statValue}>{stats.accepted}</Text>
-              </View>
-            </View>
-
-            <View style={[styles.statCard, styles.statPurple]}>
-              <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>🏁</Text>
-              </View>
-              <View style={styles.statContent}>
-                <Text style={styles.statLabel}>Завършени</Text>
-                <Text style={styles.statValue}>{stats.completedCases}</Text>
-              </View>
-            </View>
-
-            <View style={[styles.statCard, styles.statYellow]}>
-              <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>⭐</Text>
-              </View>
-              <View style={styles.statContent}>
-                <Text style={styles.statLabel}>Оценка</Text>
-                <Text style={styles.statValue}>{Number(stats.averageRating || 0).toFixed(1)}</Text>
-              </View>
-            </View>
-
-            <View style={[styles.statCard, styles.statPink]}>
-              <View style={styles.statIconContainer}>
-                <Text style={styles.statIcon}>💬</Text>
-              </View>
-              <View style={styles.statContent}>
-                <Text style={styles.statLabel}>Отзиви</Text>
-                <Text style={styles.statValue}>{stats.totalReviews}</Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Quick Actions Grid */}
-        <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Бързи действия</Text>
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity 
-              style={[styles.quickActionCard, styles.quickActionIndigo]} 
-              onPress={() => navigation.navigate('Cases')}
-            >
-              <Text style={styles.quickActionIcon}>📋</Text>
-              <Text style={styles.quickActionLabel}>Заявки</Text>
-              <Text style={styles.quickActionSubtitle}>Управление</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.quickActionCard, styles.quickActionPink]} 
-              onPress={() => navigation.navigate('MyBids')}
-            >
-              <Text style={styles.quickActionIcon}>💰</Text>
-              <Text style={styles.quickActionLabel}>Оферти</Text>
-              <Text style={styles.quickActionSubtitle}>Моите оферти</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.quickActionCard, styles.quickActionCyan]} 
-              onPress={() => navigation.navigate('SMS')}
-            >
-              <Text style={styles.quickActionIcon}>📱</Text>
-              <Text style={styles.quickActionLabel}>SMS</Text>
-              <Text style={styles.quickActionSubtitle}>Настройки</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={[styles.quickActionCard, styles.quickActionPurple]} 
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <Text style={styles.quickActionIcon}>⚙️</Text>
-              <Text style={styles.quickActionLabel}>Профил</Text>
-              <Text style={styles.quickActionSubtitle}>Редактиране</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* SMS Balance Widget */}
-        {smsLimitStatus && (
-          <View style={styles.smsBalanceCard}>
-            <View style={styles.smsBalanceHeader}>
-              <Text style={styles.smsBalanceTitle}>📱 SMS Баланс</Text>
-              <View style={[styles.tierBadge, 
-                smsLimitStatus.tier === 'pro' ? styles.tierPro : 
-                smsLimitStatus.tier === 'normal' ? styles.tierNormal : styles.tierFree
-              ]}>
-                <Text style={styles.tierBadgeText}>
-                  {smsLimitStatus.tier === 'pro' ? '⭐ PRO' : smsLimitStatus.tier === 'normal' ? '💼 NORMAL' : '🆓 FREE'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.smsProgressContainer}>
-              <View style={styles.smsProgressRow}>
-                <Text style={styles.smsProgressLabel}>Месечни SMS:</Text>
-                <Text style={styles.smsProgressValue}>{smsLimitStatus.monthlyUsed}/{smsLimitStatus.monthlyLimit}</Text>
-              </View>
-              <View style={styles.smsProgressBar}>
-                <View 
-                  style={[
-                    styles.smsProgressFill,
-                    { width: `${smsLimitStatus.monthlyLimit > 0 ? Math.min((smsLimitStatus.monthlyUsed / smsLimitStatus.monthlyLimit) * 100, 100) : 0}%` },
-                    smsLimitStatus.monthlyRemaining === 0 ? styles.smsProgressDanger :
-                    smsLimitStatus.monthlyRemaining <= 3 ? styles.smsProgressWarning : styles.smsProgressSuccess
-                  ]} 
-                />
-              </View>
-            </View>
-            <View style={styles.smsTotalContainer}>
-              <Text style={styles.smsTotalLabel}>Общо налични:</Text>
-              <Text style={styles.smsTotalValue}>{smsLimitStatus.totalRemaining}</Text>
-            </View>
-            {!smsLimitStatus.canSend && (
-              <View style={styles.smsWarningContainer}>
-                <Text style={styles.smsWarningText}>❌ Лимитът е изчерпан</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Points Balance */}
-        <View style={styles.pointsSection}>
-          <PointsBalance />
-        </View>
-
         {incomeStats ? (
           <>
             {/* Main Income Card - Matching Web Design */}
@@ -866,6 +657,10 @@ const styles = StyleSheet.create({
   quickActionPurple: {
     backgroundColor: 'rgba(168, 85, 247, 0.15)',
     borderColor: 'rgba(168, 85, 247, 0.3)',
+  },
+  quickActionGreen: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
   quickActionIcon: {
     fontSize: 32,

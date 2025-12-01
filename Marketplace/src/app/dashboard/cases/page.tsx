@@ -354,6 +354,12 @@ export default function DashboardPage() {
             >
               💰 Кандидатури
             </button>
+            <a
+              href="/map"
+              className="px-3 sm:px-6 py-2 sm:py-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-lg shadow-emerald-500/50 hover:from-emerald-500 hover:to-green-500"
+            >
+              🗺️ Карта
+            </a>
           </div>
         )}
 

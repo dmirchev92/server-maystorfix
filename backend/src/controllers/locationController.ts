@@ -169,6 +169,113 @@ export const searchLocations = async (req: Request, res: Response) => {
 };
 
 /**
+ * Find nearest neighborhood based on coordinates
+ * Uses Haversine formula to calculate distance
+ */
+export const getNearestNeighborhood = async (req: Request, res: Response) => {
+  try {
+    const { lat, lng, city } = req.query;
+    const db = DatabaseFactory.getDatabase();
+    
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Latitude and longitude are required' }
+      });
+    }
+    
+    const latitude = parseFloat(lat as string);
+    const longitude = parseFloat(lng as string);
+    
+    if (isNaN(latitude) || isNaN(longitude)) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid coordinates' }
+      });
+    }
+    
+    // Map Bulgarian city names to English for parent_city lookup
+    const cityMapping: Record<string, string> = {
+      'София': 'Sofia',
+      'Пловдив': 'Plovdiv',
+      'Варна': 'Varna',
+      'Бургас': 'Burgas',
+      'Русе': 'Rousse',
+      'Стара Загора': 'Stara Zagora',
+    };
+    
+    // Build query - if city is provided, filter by it for better accuracy
+    let query = `
+      SELECT 
+        id, name, name_bg, parent_city, latitude, longitude,
+        (
+          6371 * acos(
+            cos(radians($1)) * cos(radians(latitude::float)) * cos(radians(longitude::float) - radians($2))
+            + sin(radians($1)) * sin(radians(latitude::float))
+          )
+        ) AS distance_km
+      FROM locations 
+      WHERE type = 'neighborhood' 
+        AND is_active = true
+        AND latitude IS NOT NULL 
+        AND longitude IS NOT NULL
+    `;
+    const params: any[] = [latitude, longitude];
+    
+    if (city) {
+      const cityStr = city as string;
+      const parentCity = cityMapping[cityStr] || cityStr;
+      query += ` AND (parent_city = $3 OR parent_city = $4)`;
+      params.push(cityStr, parentCity);
+    }
+    
+    query += ` ORDER BY distance_km ASC LIMIT 1`;
+    
+    const result = await db.query(query, params);
+    
+    if (result.length === 0) {
+      logger.info('📍 getNearestNeighborhood - No neighborhood found for coordinates:', { lat: latitude, lng: longitude, city });
+      return res.json({
+        success: true,
+        data: {
+          neighborhood: null,
+          message: 'No neighborhood found for these coordinates'
+        }
+      });
+    }
+    
+    const nearest = result[0];
+    logger.info('📍 getNearestNeighborhood - Found nearest:', { 
+      neighborhood: nearest.name_bg, 
+      distance_km: nearest.distance_km,
+      coordinates: { lat: latitude, lng: longitude }
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        neighborhood: {
+          value: nearest.name_bg || nearest.name,
+          label: nearest.name_bg || nearest.name,
+          name: nearest.name,
+          nameBg: nearest.name_bg,
+          parentCity: nearest.parent_city,
+          latitude: parseFloat(nearest.latitude),
+          longitude: parseFloat(nearest.longitude),
+          distanceKm: parseFloat(nearest.distance_km).toFixed(2)
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('❌ getNearestNeighborhood error:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Failed to find nearest neighborhood' }
+    });
+  }
+};
+
+/**
  * Get all locations (for initial load/caching)
  */
 export const getAllLocations = async (req: Request, res: Response) => {

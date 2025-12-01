@@ -62,7 +62,7 @@ export interface TierLimits {
   max_gallery_photos: number;
   max_certificates: number;
   monthly_case_responses: number;
-  monthly_sms_limit: number;
+  monthly_sms_limit?: number; // DEPRECATED: SMS is now unlimited, costs points instead
   search_ranking: 'standard' | 'enhanced' | 'premium';
   analytics_access: boolean;
   priority_support: boolean;
@@ -70,18 +70,24 @@ export interface TierLimits {
   premium_badge: boolean;
   bidding_enabled?: boolean;
   max_active_bids?: number;
-  // Points system for case access - Granular budget ranges
+  // Points system for case access - Granular budget ranges (up to 10k)
   points_monthly: number;
   max_case_budget: number;
-  points_cost_1_250: number;      // 1-250 BGN
-  points_cost_250_500: number;    // 250-500 BGN
-  points_cost_500_750: number;    // 500-750 BGN
-  points_cost_750_1000: number;   // 750-1000 BGN
-  points_cost_1000_1500: number;  // 1000-1500 BGN
-  points_cost_1500_2000: number;  // 1500-2000 BGN
-  points_cost_2000_3000: number;  // 2000-3000 BGN
-  points_cost_3000_4000: number;  // 3000-4000 BGN
-  points_cost_4000_5000: number;  // 4000-5000 BGN
+  points_cost_1_250: number;       // 1-250 BGN
+  points_cost_250_500: number;     // 250-500 BGN
+  points_cost_500_750: number;     // 500-750 BGN
+  points_cost_750_1000: number;    // 750-1000 BGN
+  points_cost_1000_1500: number;   // 1000-1500 BGN
+  points_cost_1500_2000: number;   // 1500-2000 BGN
+  points_cost_2000_3000: number;   // 2000-3000 BGN
+  points_cost_3000_4000: number;   // 3000-4000 BGN
+  points_cost_4000_5000: number;   // 4000-5000 BGN
+  points_cost_5000_7500: number;   // 5000-7500 BGN
+  points_cost_7500_10000: number;  // 7500-10000 BGN
+  // Extra points purchase price (BGN per point, null = cannot purchase)
+  extra_points_price?: number | null;
+  // SMS points cost per message
+  sms_points_cost?: number; // Points cost per SMS (Normal: 2, Pro: 1)
 }
 
 export interface SubscriptionTierData {

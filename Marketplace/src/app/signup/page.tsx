@@ -6,7 +6,8 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
-import NeighborhoodSelect from '@/components/NeighborhoodSelect'
+import LocationAutocomplete from '@/components/LocationAutocomplete'
+import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
 
 export default function SignupPage() {
   const searchParams = useSearchParams()
@@ -28,6 +29,8 @@ export default function SignupPage() {
     subscriptionTier: 'free' as 'free' | 'normal' | 'pro',
     agreeToTerms: false
   })
+  const [detectingLocation, setDetectingLocation] = useState(false)
+  const [locationDetected, setLocationDetected] = useState(false)
 
   useEffect(() => {
     const refCode = searchParams.get('ref')
@@ -65,6 +68,108 @@ export default function SignupPage() {
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }))
+  }
+
+  // City name mapping (English -> Bulgarian)
+  const cityNameMapping: Record<string, string> = {
+    'Sofia': 'София',
+    'Plovdiv': 'Пловдив',
+    'Varna': 'Варна',
+    'Burgas': 'Бургас',
+    'Rousse': 'Русе',
+    'Ruse': 'Русе',
+    'Stara Zagora': 'Стара Загора',
+    'Pleven': 'Плевен',
+    'Dobrich': 'Добрич',
+    'Sliven': 'Сливен',
+    'Shumen': 'Шумен',
+    'Pernik': 'Перник',
+    'Haskovo': 'Хасково',
+    'Yambol': 'Ямбол',
+    'Pazardzhik': 'Пазарджик',
+    'Blagoevgrad': 'Благоевград',
+    'Veliko Tarnovo': 'Велико Търново',
+    'Vratsa': 'Враца',
+    'Gabrovo': 'Габрово',
+  }
+
+  const detectLocation = async () => {
+    if (!navigator.geolocation) {
+      alert('Вашият браузър не поддържа геолокация')
+      return
+    }
+
+    setDetectingLocation(true)
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords
+        
+        try {
+          // Use Google reverse geocoding to get city and neighborhood directly
+          const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || 'AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A'
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}&language=bg`
+          const geoResponse = await fetch(geocodeUrl)
+          const geoData = await geoResponse.json()
+          
+          let detectedCity = ''
+          let detectedNeighborhood = ''
+          
+          if (geoData.results?.[0]?.address_components) {
+            for (const comp of geoData.results[0].address_components) {
+              // City
+              if (comp.types.includes('locality')) {
+                detectedCity = cityNameMapping[comp.long_name] || comp.long_name
+              }
+              // Fallback for Sofia
+              if (comp.types.includes('administrative_area_level_1') && !detectedCity) {
+                const areaName = comp.long_name
+                if (areaName === 'Sofia City Province' || areaName === 'Sofia-City' || areaName === 'София-град') {
+                  detectedCity = 'София'
+                }
+              }
+              // Neighborhood - check multiple types Google uses
+              if (comp.types.includes('sublocality_level_1') || 
+                  comp.types.includes('sublocality') || 
+                  comp.types.includes('neighborhood')) {
+                detectedNeighborhood = comp.long_name
+              }
+            }
+          }
+          
+          // Use Google's data directly - more accurate than our database coordinates
+          const finalCity = detectedCity || ''
+          const finalNeighborhood = detectedNeighborhood || ''
+          
+          // Update form
+          if (finalCity || finalNeighborhood) {
+            setFormData(prev => ({
+              ...prev,
+              city: finalCity || prev.city,
+              neighborhood: detectedNeighborhood || prev.neighborhood,
+            }))
+            setLocationDetected(true)
+          } else {
+            alert('Не успяхме да определим местоположението. Моля изберете ръчно.')
+          }
+        } catch (error) {
+          console.error('Location detection error:', error)
+          alert('Грешка при определяне на местоположението')
+        } finally {
+          setDetectingLocation(false)
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error)
+        setDetectingLocation(false)
+        if (error.code === error.PERMISSION_DENIED) {
+          alert('Моля, разрешете достъп до местоположението в браузъра си')
+        } else {
+          alert('Не можахме да определим местоположението ви')
+        }
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    )
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -200,25 +305,6 @@ export default function SignupPage() {
       setLoading(false)
     }
   }
-
-  const serviceCategories = [
-    { value: 'electrician', label: 'Електротехник' },
-    { value: 'plumber', label: 'Водопроводчик' },
-    { value: 'hvac', label: 'Климатик' },
-    { value: 'carpenter', label: 'Дърводелец' },
-    { value: 'painter', label: 'Бояджия' },
-    { value: 'locksmith', label: 'Ключар' },
-    { value: 'cleaner', label: 'Почистване' },
-    { value: 'gardener', label: 'Градинар' },
-    { value: 'handyman', label: 'Майстор за всичко' },
-    { value: 'appliance_repair', label: 'Ремонт на уреди' }
-  ]
-
-  const cities = [
-    'София', 'Пловдив', 'Варна', 'Бургас', 'Русе', 'Стара Загора', 
-    'Плевен', 'Добрич', 'Сливен', 'Шумен', 'Перник', 'Хасково',
-    'Ямбол', 'Пазарджик', 'Благоевград', 'Велико Търново', 'Враца', 'Габрово'
-  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
@@ -386,53 +472,78 @@ export default function SignupPage() {
                         className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent [&>option]:bg-slate-800 [&>option]:text-white"
                       >
                         <option value="">Изберете категория</option>
-                        {serviceCategories.map(category => (
+                        {SERVICE_CATEGORIES.map(category => (
                           <option key={category.value} value={category.value}>
                             {category.label}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-1">
-                        Град *
-                      </label>
-                      <select
-                        name="city"
-                        required
-                        value={formData.city}
-                        onChange={(e) => {
-                          handleInputChange(e)
-                          // Clear neighborhood when city changes
-                          if (e.target.value !== 'София') {
-                            setFormData(prev => ({ ...prev, neighborhood: '' }))
-                          }
-                        }}
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent [&>option]:bg-slate-800 [&>option]:text-white"
-                      >
-                        <option value="">Изберете град</option>
-                        {cities.map(city => (
-                          <option key={city} value={city}>
-                            {city}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
                   </div>
-                  {/* Neighborhood field - only for Sofia */}
-                  {formData.city === 'София' && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-300 mb-1">
-                        Квартал в София
-                      </label>
-                      <NeighborhoodSelect
-                        value={formData.neighborhood}
-                        onChange={(value) => setFormData(prev => ({ ...prev, neighborhood: value }))}
-                        placeholder="Изберете квартал"
-                        className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent [&>option]:bg-slate-800 [&>option]:text-white"
-                      />
-                    </div>
-                  )}
+                  
+                  {/* Location Section */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      📍 Местоположение *
+                    </label>
+                    
+                    {/* Google Places Autocomplete */}
+                    <LocationAutocomplete
+                      onLocationSelect={(location) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          city: location.city,
+                          neighborhood: location.neighborhood
+                        }))
+                        setLocationDetected(true)
+                      }}
+                      placeholder="Въведете адрес, квартал или град..."
+                      className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    
+                    <p className="text-slate-400 text-xs mt-2">
+                      💡 Започнете да пишете и изберете от предложенията на Google Maps
+                    </p>
+                    
+                    {/* Show detected location */}
+                    {locationDetected && formData.city && (
+                      <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-400">✓</span>
+                          <div className="text-sm">
+                            <span className="text-green-300 font-medium">
+                              {formData.city}
+                            </span>
+                            {formData.neighborhood && (
+                              <span className="text-green-200">
+                                {' • '}{formData.neighborhood}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Auto-detect GPS button */}
+                    <button
+                      type="button"
+                      onClick={detectLocation}
+                      disabled={detectingLocation}
+                      className="w-full mt-3 py-2 px-3 text-sm rounded-lg border border-white/20 text-slate-300 hover:bg-white/5 transition-all flex items-center justify-center gap-2"
+                    >
+                      {detectingLocation ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Определяне...
+                        </>
+                      ) : (
+                        <>🎯 Или използвай GPS местоположение</>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
 

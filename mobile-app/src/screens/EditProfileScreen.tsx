@@ -13,166 +13,32 @@ import {
   Dimensions,
   Modal,
   FlatList,
+  PermissionsAndroid,
+  Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import Geolocation from 'react-native-geolocation-service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiService } from '../services/ApiService';
 import theme from '../styles/theme';
 import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
 
+// Helper function to get auth token
+const getStoredToken = async (): Promise<string | null> => {
+  return await AsyncStorage.getItem('auth_token');
+};
+
+// City name mapping (English -> Bulgarian)
+const cityNameMapping: Record<string, string> = {
+  'Sofia': 'София',
+  'Plovdiv': 'Пловдив',
+  'Varna': 'Варна',
+  'Burgas': 'Бургас',
+  'Rousse': 'Русе',
+  'Stara Zagora': 'Стара Загора',
+};
+
 const { width } = Dimensions.get('window');
-
-// Sofia neighborhoods (exact same as web marketplace)
-const sofiaNeighborhoods = [
-  '7-и – 11-и километър',
-  'Абдовица',
-  'Аерогарата',
-  'Американски колеж (вилна зона)',
-  'БАН IV километър',
-  'Банишора',
-  'Барите',
-  'Батареята',
-  'Белите брези (квартал)',
-  'Бенковски (квартал)',
-  'Борово (квартал)',
-  'Ботунец',
-  'Ботунец 1',
-  'Ботунец 2',
-  'Бояна (квартал на София)',
-  'Бункера',
-  'Бъкстон',
-  'Васил Левски (квартал на София)',
-  'Витоша (квартал)',
-  'Воденицата',
-  'Военна рампа',
-  'Враждебна',
-  'Връбница-1',
-  'Връбница-2',
-  'Гевгелийски квартал',
-  'Гео Милев (квартал)',
-  'Горна баня',
-  'Горна баня (вилна зона)',
-  'Горубляне',
-  'Гоце Делчев (квартал)',
-  'Градина (квартал)',
-  'Група-Зоопарк',
-  'Гърдова глава',
-  'Дианабад',
-  'Дианабад (промишлена зона)',
-  'Димитър Миленков (квартал)',
-  'Долни Смърдан',
-  'Драгалевци',
-  'Дружба (квартал на София)',
-  'Друмо',
-  'Дървеница',
-  'Експериментален',
-  'Западен парк (квартал)',
-  'Захарна фабрика',
-  'Зона Б-18',
-  'Зона Б-19',
-  'Зона Б-5',
-  'Зона Б-5-3',
-  'Иван Вазов',
-  'Изгрев',
-  'Изток',
-  'Илинден',
-  'Илиянци',
-  'Искър',
-  'Канала',
-  'Карпузица',
-  'Килиите',
-  'Киноцентъра',
-  'Княжево',
-  'Красна поляна 1',
-  'Красна поляна 2',
-  'Красна поляна 3',
-  'Красно село',
-  'Кремиковци',
-  'Крива река',
-  'Кръстова вада',
-  'Лагера',
-  'Лев Толстой (жилищен комплекс)',
-  'Левски В',
-  'Левски Г',
-  'Лозенец (квартал на София)',
-  'Люлин (вилна зона)',
-  'Люлин (квартал)',
-  'Мала кория',
-  'Малинова долина',
-  'Малинова долина (жилищен комплекс)',
-  'Манастирски ливади',
-  'Манастирски ливади (жилищен комплекс)',
-  'Манастирски ливади - Б',
-  'Младост 1',
-  'Младост 1А',
-  'Младост 2',
-  'Младост 3',
-  'Младост 4',
-  'Могилата (вилна зона)',
-  'Модерно предградие',
-  'Модерно предградие (промишлена зона)',
-  'Надежда I',
-  'Надежда II',
-  'Надежда III',
-  'Надежда IV',
-  'Национален киноцентър',
-  'Нова махала – Враждебна',
-  'Нови силози',
-  'Обеля',
-  'Обеля 1',
-  'Обеля 2',
-  'Овча купел',
-  'Овча купел (жилищен комплекс)',
-  'Орландовци',
-  'Парк „Бакърени гробища"',
-  'Подлозище',
-  'Подуяне',
-  'Полигона (квартал)',
-  'Равнище (квартал)',
-  'Разсадник-Коньовица',
-  'Резиденция Бояна (квартал)',
-  'Република (квартал)',
-  'Република-2',
-  'Света Троица (квартал)',
-  'Свобода (квартал)',
-  'Секулица (квартал)',
-  'Сердика (жилищен комплекс)',
-  'Сеславци',
-  'Симеоново',
-  'Славия (квартал)',
-  'Слатина (промишлена зона)',
-  'Смърдана',
-  'Средец (промишлена зона)',
-  'Стрелбище (квартал)',
-  'Студентски град',
-  'Сухата река',
-  'Суходол (квартал)',
-  'Толева махала',
-  'Требич',
-  'Триъгълника-Надежда',
-  'Трънска махала',
-  'Факултета',
-  'Филиповци (жилищен комплекс)',
-  'Филиповци (квартал)',
-  'Фондови жилища',
-  'Фохар',
-  'Хаджи Димитър (жилищен комплекс)',
-  'Хаджи Димитър (промишлена зона)',
-  'Хиподрума',
-  'Хладилника',
-  'Хладилника (промишлена зона)',
-  'Христо Ботев (квартал на София)',
-  'Христо Смирненски (жилищен комплекс)',
-  'Център на София',
-  'Челопечене',
-  'Чепинско шосе',
-  'Черния кос',
-  'Черно конче',
-  'Южен парк (квартал)',
-  'Яворов (жилищен комплекс)',
-  'Япаджа'
-];
-
-const cities = ['София', 'Пловдив', 'Варна', 'Бургас'];
 
 const serviceCategories = SERVICE_CATEGORIES.map(cat => ({
   value: cat.value,
@@ -222,10 +88,147 @@ const EditProfileScreen: React.FC = () => {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+  
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  
+  // Location data from API
+  const [cities, setCities] = useState<string[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
 
   useEffect(() => {
     loadProfileData();
+    loadCities();
   }, []);
+
+  // Load neighborhoods when city changes
+  useEffect(() => {
+    if (profileData.city) {
+      loadNeighborhoods(profileData.city);
+    } else {
+      setNeighborhoods([]);
+    }
+  }, [profileData.city]);
+
+  const loadCities = async () => {
+    try {
+      const response = await ApiService.getInstance().getCities();
+      if (response.success && response.data?.cities) {
+        setCities(response.data.cities.map((c: any) => c.label || c.value));
+      }
+    } catch (error) {
+      console.error('Failed to load cities:', error);
+      // Fallback to default cities
+      setCities(['София', 'Пловдив', 'Варна', 'Бургас']);
+    }
+  };
+
+  const loadNeighborhoods = async (city: string) => {
+    try {
+      const response = await ApiService.getInstance().getNeighborhoods(city);
+      if (response.success && response.data?.neighborhoods) {
+        setNeighborhoods(response.data.neighborhoods.map((n: any) => n.label || n.value));
+      } else {
+        setNeighborhoods([]);
+      }
+    } catch (error) {
+      console.error('Failed to load neighborhoods:', error);
+      setNeighborhoods([]);
+    }
+  };
+
+  // Auto-detect location from GPS
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  
+  const detectLocation = async () => {
+    // Request permission on Android
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Достъп до местоположение',
+          message: 'Приложението се нуждае от достъп до вашето местоположение за автоматично определяне на града и квартала.',
+          buttonNeutral: 'Питай ме по-късно',
+          buttonNegative: 'Откажи',
+          buttonPositive: 'Разреши',
+        }
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert('Грешка', 'Нямате разрешение за достъп до местоположението');
+        return;
+      }
+    }
+
+    setDetectingLocation(true);
+    
+    Geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        
+        try {
+          // Use Google reverse geocoding to get city and neighborhood directly
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A&language=bg`;
+          const geoResponse = await fetch(geocodeUrl);
+          const geoData = await geoResponse.json();
+          
+          let detectedCity = '';
+          let detectedNeighborhood = '';
+          let detectedSublocality = '';
+          
+          if (geoData.results?.[0]?.address_components) {
+            for (const comp of geoData.results[0].address_components) {
+              // City
+              if (comp.types.includes('locality')) {
+                detectedCity = cityNameMapping[comp.long_name] || comp.long_name;
+              }
+              // Neighborhood type is most specific - prioritize it
+              if (comp.types.includes('neighborhood')) {
+                detectedNeighborhood = comp.long_name;
+              }
+              // Sublocality is broader (district) - use only as fallback
+              if (comp.types.includes('sublocality_level_1') || comp.types.includes('sublocality')) {
+                detectedSublocality = comp.long_name;
+              }
+            }
+          }
+          
+          // Prioritize neighborhood over sublocality
+          const finalCity = detectedCity || '';
+          const finalNeighborhood = detectedNeighborhood || detectedSublocality || '';
+          
+          // Update profile with detected location
+          if (finalCity || finalNeighborhood) {
+            setProfileData(prev => ({
+              ...prev,
+              city: finalCity || prev.city,
+              neighborhood: finalNeighborhood || prev.neighborhood,
+            }));
+            
+            Alert.alert(
+              '📍 Местоположение открито',
+              `Град: ${finalCity || 'Неизвестен'}\nКвартал: ${detectedNeighborhood || 'Неизвестен'}`,
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert('Внимание', 'Не успяхме да определим местоположението. Моля изберете ръчно.');
+          }
+        } catch (error) {
+          console.error('Auto-detect location error:', error);
+          Alert.alert('Грешка', 'Възникна проблем при определяне на местоположението');
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error.message);
+        setDetectingLocation(false);
+        Alert.alert('Грешка', 'Не можахме да определим местоположението ви. Проверете GPS настройките.');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  };
 
   const loadProfileData = async () => {
     try {
@@ -323,10 +326,7 @@ const EditProfileScreen: React.FC = () => {
   };
 
   const getNeighborhoods = () => {
-    if (profileData.city === 'София') {
-      return sofiaNeighborhoods;
-    }
-    return [];
+    return neighborhoods;
   };
 
   const handleImageUpload = async () => {
@@ -500,6 +500,15 @@ const EditProfileScreen: React.FC = () => {
       setError('Моля въведете телефонен номер');
       return;
     }
+    
+    // Phone number validation
+    const phone = profileData.phoneNumber.trim();
+    const plusFormat = /^\+359[0-9]{8,9}$/;
+    const zeroFormat = /^0[0-9]{8,9}$/;
+    if (!plusFormat.test(phone) && !zeroFormat.test(phone)) {
+      setError('Телефонният номер трябва да започва с +359 или 0 (напр. 0888123456 или +359888123456)');
+      return;
+    }
 
     try {
       setSaving(true);
@@ -515,7 +524,7 @@ const EditProfileScreen: React.FC = () => {
         profile: {
           firstName: profileData.firstName,
           lastName: profileData.lastName,
-          phoneNumber: profileData.phoneNumber,
+          phoneNumber: phone.startsWith('0') ? '+359' + phone.substring(1) : phone,
           businessName: profileData.businessName,
           serviceCategory: profileData.serviceCategory,
           description: profileData.description,
@@ -783,6 +792,19 @@ const EditProfileScreen: React.FC = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Локация</Text>
             
+            {/* Auto-detect location button */}
+            <TouchableOpacity
+              style={[styles.detectLocationButton, detectingLocation && styles.detectLocationButtonDisabled]}
+              onPress={detectLocation}
+              disabled={detectingLocation}
+            >
+              {detectingLocation ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Text style={styles.detectLocationButtonText}>📍 Открий автоматично</Text>
+              )}
+            </TouchableOpacity>
+            
             <View style={styles.formRow}>
               <View style={styles.formHalf}>
                 <Text style={styles.label}>Град</Text>
@@ -836,6 +858,35 @@ const EditProfileScreen: React.FC = () => {
               <Text style={styles.saveButtonText}>💾 Запази промените</Text>
             )}
           </TouchableOpacity>
+
+          {/* Delete Account Section */}
+          <View style={styles.dangerSection}>
+            <Text style={styles.dangerSectionTitle}>⚠️ Опасна зона</Text>
+            <TouchableOpacity
+              style={styles.deleteAccountButton}
+              onPress={() => {
+                Alert.alert(
+                  '⚠️ Изтриване на акаунт',
+                  'Сигурни ли сте, че искате да изтриете акаунта си?\n\n❌ Всички ваши данни ще бъдат изтрити завинаги\n❌ Всички заявки, чатове и история ще бъдат загубени\n❌ Това действие е необратимо!',
+                  [
+                    { text: 'Отказ', style: 'cancel' },
+                    {
+                      text: 'Продължи',
+                      style: 'destructive',
+                      onPress: () => {
+                        setShowDeleteModal(true);
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.deleteAccountButtonText}>🗑️ Изтрий акаунта ми</Text>
+            </TouchableOpacity>
+            <Text style={styles.dangerHint}>
+              Изтриването на акаунта е необратимо и всички данни ще бъдат загубени.
+            </Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -946,6 +997,93 @@ const EditProfileScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
             />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Account Password Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>🔐 Потвърдете изтриването</Text>
+            <Text style={styles.deleteModalSubtitle}>
+              Въведете паролата си за да потвърдите изтриването на акаунта:
+            </Text>
+            
+            <TextInput
+              style={styles.deletePasswordInput}
+              placeholder="Вашата парола"
+              placeholderTextColor="#64748B"
+              secureTextEntry
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              autoCapitalize="none"
+            />
+            
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelButton}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setDeletePassword('');
+                }}
+              >
+                <Text style={styles.deleteModalCancelText}>Отказ</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.deleteModalConfirmButton, deleting && { opacity: 0.6 }]}
+                disabled={deleting || !deletePassword}
+                onPress={async () => {
+                  if (!deletePassword) {
+                    Alert.alert('Грешка', 'Моля въведете парола');
+                    return;
+                  }
+                  setDeleting(true);
+                  try {
+                    const token = await getStoredToken();
+                    const response = await fetch('https://maystorfix.com/api/v1/auth/delete-account', {
+                      method: 'DELETE',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({ password: deletePassword }),
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                      setShowDeleteModal(false);
+                      setDeletePassword('');
+                      Alert.alert(
+                        'Акаунтът е изтрит',
+                        'Вашият акаунт беше изтрит успешно.',
+                        [{ text: 'OK', onPress: () => {
+                          const { AuthBus } = require('../utils/AuthBus');
+                          AuthBus.emit('logout');
+                        }}]
+                      );
+                    } else {
+                      Alert.alert('Грешка', result.error?.message || 'Неуспешно изтриване на акаунта');
+                    }
+                  } catch (error) {
+                    Alert.alert('Грешка', 'Възникна проблем при изтриването');
+                  } finally {
+                    setDeleting(false);
+                  }
+                }}
+              >
+                {deleting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.deleteModalConfirmText}>Изтрий акаунта</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1255,6 +1393,124 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: '#10B981',
     fontWeight: '700',
+  },
+  detectLocationButton: {
+    backgroundColor: '#6366F1',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  detectLocationButtonDisabled: {
+    opacity: 0.6,
+  },
+  detectLocationButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Danger Zone / Delete Account Styles
+  dangerSection: {
+    marginTop: 32,
+    padding: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  dangerSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#EF4444',
+    marginBottom: 12,
+  },
+  deleteAccountButton: {
+    backgroundColor: '#EF4444',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deleteAccountButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dangerHint: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  // Delete Modal Styles
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  deleteModalSubtitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  deletePasswordInput: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 16,
+    color: '#FFFFFF',
+    marginBottom: 20,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  deleteModalCancelButton: {
+    flex: 1,
+    backgroundColor: 'rgba(100, 116, 139, 0.3)',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    color: '#94A3B8',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteModalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#EF4444',
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  deleteModalConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

@@ -39,6 +39,7 @@ import { ChatSocketHandler } from './socket/chatSocket';
 import * as caseController from './controllers/caseController';
 import * as trackingController from './controllers/trackingController';
 import * as notificationController from './controllers/notificationController';
+import notificationPreferencesController from './controllers/notificationPreferencesController';
 import * as reviewController from './controllers/reviewController';
 import * as deviceTokenController from './controllers/deviceTokenController';
 import * as uploadController from './controllers/uploadController';
@@ -52,6 +53,7 @@ import { BidSelectionReminderJob } from './jobs/BidSelectionReminderJob';
 import { LocationSearchJob } from './jobs/LocationSearchJob';
 import { ScreenshotCleanupJob } from './jobs/ScreenshotCleanupJob';
 import SubscriptionReminderService from './services/SubscriptionReminderService';
+import * as freeInspectionController from './controllers/freeInspectionController';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
 
@@ -413,6 +415,168 @@ class ServiceTextProServer {
       }
     });
 
+    // Dashboard SMS stats endpoint (with month/year filter)
+    this.app.get('/api/v1/dashboard/sms-stats', async (req: Request, res: Response) => {
+      try {
+        const providerId = req.query.providerId as string;
+        const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
+        const year = parseInt(req.query.year as string) || new Date().getFullYear();
+        const db = DatabaseFactory.getDatabase() as any;
+        
+        // Calculate date range for the month
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const endMonth = month === 12 ? 1 : month + 1;
+        const endYear = month === 12 ? year + 1 : year;
+        const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
+        
+        logger.info('📊 SMS stats request for provider:', { providerId, month, year, startDate, endDate });
+        
+        let smsSent = 0;
+        let missedCallsCount = 0;
+        
+        if (providerId) {
+          // Get missed calls count for this provider in the specified month/year using date range
+          const missedCallsQuery = `
+            SELECT COUNT(*) as count
+            FROM missed_calls
+            WHERE user_id = $1
+            AND created_at >= $2::date
+            AND created_at < $3::date
+          `;
+          const missedCallsResult = await db.query(missedCallsQuery, [providerId, startDate, endDate]);
+          missedCallsCount = parseInt(missedCallsResult[0]?.count || 0);
+          
+          // Get SMS sent count - try sms_activity_log first, then fallback
+          try {
+            const smsSentQuery = `
+              SELECT COUNT(*) as count
+              FROM sms_activity_log
+              WHERE user_id = $1
+              AND timestamp >= $2::date
+              AND timestamp < $3::date
+              AND success = true
+            `;
+            const smsSentResult = await db.query(smsSentQuery, [providerId, startDate, endDate]);
+            smsSent = parseInt(smsSentResult[0]?.count || 0);
+          } catch (e) {
+            // Table might not exist - return 0 for historical data
+            smsSent = 0;
+          }
+          
+          logger.info(`📊 SMS Stats for provider ${providerId} (${month}/${year}): ${missedCallsCount} missed calls, ${smsSent} SMS sent`);
+        }
+        
+        res.json({
+          success: true,
+          data: {
+            missedCalls: missedCallsCount,
+            smsSent: smsSent,
+            month,
+            year
+          }
+        });
+      } catch (error) {
+        logger.error('❌ Error fetching SMS stats:', error);
+        res.json({
+          success: true,
+          data: { missedCalls: 0, smsSent: 0 }
+        });
+      }
+    });
+
+    // Dashboard cases stats endpoint (with month/year filter)
+    this.app.get('/api/v1/dashboard/cases-stats', async (req: Request, res: Response) => {
+      try {
+        const providerId = req.query.providerId as string;
+        const month = parseInt(req.query.month as string) || new Date().getMonth() + 1;
+        const year = parseInt(req.query.year as string) || new Date().getFullYear();
+        const db = DatabaseFactory.getDatabase() as any;
+        
+        // Calculate date range for the month
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const endMonth = month === 12 ? 1 : month + 1;
+        const endYear = month === 12 ? year + 1 : year;
+        const endDate = `${endYear}-${String(endMonth).padStart(2, '0')}-01`;
+        
+        logger.info('📊 Cases stats request for provider:', { providerId, month, year, startDate, endDate });
+        
+        let acceptedCases = 0;
+        let completedCases = 0;
+        let smsChatCases = 0;
+        let searchChatCases = 0;
+        
+        if (providerId) {
+          // Get accepted cases count - cases that were accepted in this month
+          const acceptedQuery = `
+            SELECT COUNT(*) as count
+            FROM marketplace_service_cases
+            WHERE provider_id = $1
+            AND status IN ('accepted', 'wip', 'completed')
+            AND created_at >= $2::date
+            AND created_at < $3::date
+          `;
+          const acceptedResult = await db.query(acceptedQuery, [providerId, startDate, endDate]);
+          acceptedCases = parseInt(acceptedResult[0]?.count || 0);
+          
+          // Get completed cases count - cases completed in this month (use completed_at if exists, else updated_at)
+          const completedQuery = `
+            SELECT COUNT(*) as count
+            FROM marketplace_service_cases
+            WHERE provider_id = $1
+            AND status = 'completed'
+            AND COALESCE(completed_at, updated_at) >= $2::date
+            AND COALESCE(completed_at, updated_at) < $3::date
+          `;
+          const completedResult = await db.query(completedQuery, [providerId, startDate, endDate]);
+          completedCases = parseInt(completedResult[0]?.count || 0);
+          
+          // Get SMS chat cases for this provider in the specified month/year
+          const smsChatQuery = `
+            SELECT COUNT(*) as count
+            FROM marketplace_service_cases
+            WHERE provider_id = $1
+            AND chat_source = 'smschat'
+            AND created_at >= $2::date
+            AND created_at < $3::date
+          `;
+          const smsChatResult = await db.query(smsChatQuery, [providerId, startDate, endDate]);
+          smsChatCases = parseInt(smsChatResult[0]?.count || 0);
+          
+          // Get search/web chat cases for this provider in the specified month/year
+          const searchChatQuery = `
+            SELECT COUNT(*) as count
+            FROM marketplace_service_cases
+            WHERE provider_id = $1
+            AND chat_source = 'searchchat'
+            AND created_at >= $2::date
+            AND created_at < $3::date
+          `;
+          const searchChatResult = await db.query(searchChatQuery, [providerId, startDate, endDate]);
+          searchChatCases = parseInt(searchChatResult[0]?.count || 0);
+          
+          logger.info(`📊 Cases Stats for provider ${providerId} (${month}/${year}): accepted=${acceptedCases}, completed=${completedCases}, sms=${smsChatCases}, web=${searchChatCases}`);
+        }
+        
+        res.json({
+          success: true,
+          data: {
+            acceptedCases,
+            completedCases,
+            smsChatCases,
+            searchChatCases,
+            month,
+            year
+          }
+        });
+      } catch (error) {
+        logger.error('❌ Error fetching cases stats:', error);
+        res.json({
+          success: true,
+          data: { acceptedCases: 0, completedCases: 0, smsChatCases: 0, searchChatCases: 0 }
+        });
+      }
+    });
+
     // GDPR-required privacy notice endpoint
     this.app.get('/api/v1/gdpr/privacy-notice', (req: Request, res: Response) => {
       res.json({
@@ -501,6 +665,7 @@ class ServiceTextProServer {
     this.app.get('/api/v1/locations/neighborhoods/:city', locationController.getNeighborhoods);
     this.app.get('/api/v1/locations/search', locationController.searchLocations);
     this.app.get('/api/v1/locations/all', locationController.getAllLocations);
+    this.app.get('/api/v1/locations/nearest-neighborhood', locationController.getNearestNeighborhood);
     this.app.post('/api/v1/marketplace/inquiries', marketplaceController.createInquiry);
     this.app.get('/api/v1/marketplace/inquiries', marketplaceController.getInquiries);
     this.app.post('/api/v1/marketplace/reviews', marketplaceController.addReview);
@@ -565,6 +730,7 @@ class ServiceTextProServer {
     this.app.get('/api/v1/cases', caseController.getCasesWithFilters);
     this.app.get('/api/v1/cases/stats', caseController.getCaseStats);
     this.app.get('/api/v1/cases/stats/chat-source', caseController.getCaseStatsByChatSource);
+    this.app.get('/api/v1/cases/map', authenticateToken, caseController.getCasesForMap); // Cases for map view
     this.app.get('/api/v1/cases/provider/:providerId', caseController.getProviderCases);
     this.app.get('/api/v1/cases/queue/:providerId', caseController.getAvailableCases);
     this.app.get('/api/v1/cases/:caseId', caseController.getCase);
@@ -605,6 +771,17 @@ class ServiceTextProServer {
     this.app.post('/api/v1/notifications/:notificationId/read', authenticateToken, notificationController.markAsRead);
     this.app.post('/api/v1/notifications/mark-all-read', authenticateToken, notificationController.markAllAsRead);
     this.app.post('/api/v1/notifications/test', authenticateToken, notificationController.createTestNotification);
+    
+    // Notification preferences routes
+    this.app.use('/api/v1/notification-preferences', notificationPreferencesController);
+
+    // Free Inspection routes
+    this.app.get('/api/v1/free-inspection/categories', freeInspectionController.getServiceCategories);
+    this.app.get('/api/v1/free-inspection/status', authenticateToken, freeInspectionController.getFreeInspectionStatus);
+    this.app.post('/api/v1/free-inspection/toggle', authenticateToken, freeInspectionController.toggleFreeInspection);
+    this.app.get('/api/v1/free-inspection/preferences', authenticateToken, freeInspectionController.getCustomerPreferences);
+    this.app.put('/api/v1/free-inspection/preferences', authenticateToken, freeInspectionController.updateCustomerPreferences);
+    this.app.get('/api/v1/free-inspection/providers', freeInspectionController.getProvidersForMap);
 
     // Review routes
     this.app.post('/api/v1/reviews', authenticateToken, reviewController.createReview);
@@ -1085,6 +1262,125 @@ private initializeWebSocket(): void {
         socketId: socket.id, 
         conversationId 
       });
+    });
+
+    socket.on('leave-conversation', (conversationId) => {
+      socket.leave(`conversation-${conversationId}`);
+      logger.info('Client left conversation', { 
+        socketId: socket.id, 
+        conversationId 
+      });
+    });
+
+    // Handle mark_read event from mobile app
+    socket.on('mark_read', async (data: { conversationId: string; messageId?: string }) => {
+      try {
+        const userId = (socket as any).userId;
+        if (!userId) {
+          logger.warn('mark_read: No userId on socket');
+          return;
+        }
+
+        const { conversationId } = data;
+        logger.info('Marking messages as read via socket', { 
+          socketId: socket.id, 
+          userId,
+          conversationId 
+        });
+
+        // Get database pool
+        const db = DatabaseFactory.getDatabase();
+        if (!('getPool' in db)) {
+          logger.error('mark_read: Database does not support pool access');
+          return;
+        }
+        const pool = (db as any).getPool();
+
+        // Get conversation to determine user role
+        const convResult = await pool.query(
+          `SELECT provider_id, customer_id FROM marketplace_chat_conversations WHERE id = $1`,
+          [conversationId]
+        );
+        
+        if (convResult.rows.length === 0) {
+          logger.warn('mark_read: Conversation not found', { conversationId });
+          return;
+        }
+
+        const conv = convResult.rows[0];
+        const isProvider = conv.provider_id === userId;
+        const userRole = isProvider ? 'provider' : 'customer';
+        const otherRole = isProvider ? 'customer' : 'provider';
+
+        // Mark messages as read (messages sent by the other party)
+        await pool.query(
+          `UPDATE marketplace_chat_messages 
+           SET is_read = true 
+           WHERE conversation_id = $1 
+             AND sender_type = $2 
+             AND is_read = false`,
+          [conversationId, otherRole]
+        );
+
+        logger.info('Messages marked as read', { conversationId, userRole, otherRole });
+
+        // Emit conversation:updated to both users with updated unread counts
+        const otherUserId = isProvider ? conv.customer_id : conv.provider_id;
+        
+        // Get unread count for current user (should be 0 now)
+        const myUnreadResult = await pool.query(
+          `SELECT COUNT(*) as count 
+           FROM marketplace_chat_messages 
+           WHERE conversation_id = $1 
+             AND sender_type = $2 
+             AND is_read = false
+             AND deleted_at IS NULL`,
+          [conversationId, otherRole]
+        );
+        const myUnreadCount = parseInt(myUnreadResult.rows[0].count, 10);
+
+        // Get unread count for other user
+        const otherUnreadResult = await pool.query(
+          `SELECT COUNT(*) as count 
+           FROM marketplace_chat_messages 
+           WHERE conversation_id = $1 
+             AND sender_type = $2 
+             AND is_read = false
+             AND deleted_at IS NULL`,
+          [conversationId, userRole]
+        );
+        const otherUnreadCount = parseInt(otherUnreadResult.rows[0].count, 10);
+
+        // Emit to current user
+        this.io.to(`user-${userId}`).emit('conversation:updated', {
+          conversationId,
+          unreadCount: myUnreadCount
+        });
+
+        // Emit to other user if exists
+        if (otherUserId) {
+          this.io.to(`user-${otherUserId}`).emit('conversation:updated', {
+            conversationId,
+            unreadCount: otherUnreadCount
+          });
+        }
+
+        // Also emit read receipt for specific message if provided
+        if (data.messageId) {
+          this.io.to(`conversation-${conversationId}`).emit('message_read', {
+            messageId: data.messageId,
+            readBy: userId
+          });
+        }
+
+        logger.info('Conversation updated events emitted', { 
+          conversationId,
+          myUnreadCount,
+          otherUnreadCount
+        });
+      } catch (error) {
+        logger.error('Error handling mark_read:', error);
+      }
     });
 
     // Handle user room joins for notifications

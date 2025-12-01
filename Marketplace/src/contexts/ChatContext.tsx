@@ -147,16 +147,23 @@ export function ChatProvider({
       // Handle presence in UI (can be implemented in components)
     })
 
-    // Listen for conversation updates
-    socket.on('conversation:updated', (data: { conversationId: string; lastMessageAt: string }) => {
+    // Listen for conversation updates (includes unread count changes)
+    socket.on('conversation:updated', (data: { conversationId: string; lastMessageAt?: string; lastMessage?: string; unreadCount?: number }) => {
       console.log('🔄 Conversation updated:', data)
       
       setConversations(prev =>
-        prev.map(conv =>
-          conv.id === data.conversationId
-            ? { ...conv, lastMessageAt: data.lastMessageAt }
-            : conv
-        )
+        prev.map(conv => {
+          if (conv.id !== data.conversationId) return conv
+          
+          // Build updates object - only update fields that are provided
+          const updates: { lastMessageAt?: string; unreadCount?: number } = {}
+          if (data.lastMessageAt !== undefined) updates.lastMessageAt = data.lastMessageAt
+          if (data.unreadCount !== undefined) updates.unreadCount = data.unreadCount
+          // Note: lastMessage from socket is a string, but the type expects Message object
+          // The full message is handled by message:new event, so we skip lastMessage here
+          
+          return { ...conv, ...updates }
+        })
       )
     })
 

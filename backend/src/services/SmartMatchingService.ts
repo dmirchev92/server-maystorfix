@@ -118,7 +118,7 @@ export class SmartMatchingService {
                   (6371 * acos(cos(radians($1)) * cos(radians(sp.latitude)) * cos(radians(sp.longitude) - radians($2)) + sin(radians($3)) * sin(radians(sp.latitude)))) AS distance
            FROM service_provider_profiles sp
            JOIN users u ON sp.user_id = u.id
-           WHERE sp.service_category = $4 
+           WHERE (sp.service_category = $4 OR sp.service_category = REPLACE($4, 'cat_', ''))
              AND u.status = 'active'
              AND u.subscription_tier_id = 'pro'
              -- AND sp.is_verified = true -- Relaxed for testing
@@ -233,7 +233,11 @@ export class SmartMatchingService {
    * Category matching score (0-100)
    */
   private calculateCategoryMatch(provider: Provider, caseData: Case): number {
-    if (provider.service_category === caseData.category) {
+    // Normalize categories by stripping cat_ prefix for comparison
+    const normalizedCaseCategory = caseData.category.replace('cat_', '');
+    const normalizedProviderCategory = provider.service_category.replace('cat_', '');
+    
+    if (normalizedProviderCategory === normalizedCaseCategory) {
       return 100;
     }
     
@@ -245,8 +249,8 @@ export class SmartMatchingService {
       'handyman': ['electrician', 'plumber', 'hvac', 'carpenter', 'painter']
     };
 
-    const related = relatedCategories[caseData.category] || [];
-    if (related.includes(provider.service_category)) {
+    const related = relatedCategories[normalizedCaseCategory] || [];
+    if (related.includes(normalizedProviderCategory)) {
       return 60; // Partial match for related services
     }
 

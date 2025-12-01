@@ -146,12 +146,29 @@ function AppContent() {
       await checkExistingSession();
     });
     
+    // Listen for userUpdated events (e.g., after subscription tier upgrade)
+    const unsubscribeUserUpdated = AuthBus.subscribe('userUpdated', async () => {
+      console.log('🔄 App.tsx - userUpdated event received, refreshing user data');
+      try {
+        const response = await ApiService.getInstance().getCurrentUser();
+        if (response.success && response.data) {
+          const userData = (response.data as any).user || response.data;
+          console.log('✅ User data refreshed:', userData.subscription_tier_id);
+          setCurrentUser(userData);
+          await AsyncStorage.setItem('user', JSON.stringify(userData));
+        }
+      } catch (error) {
+        console.error('❌ Failed to refresh user data:', error);
+      }
+    });
+    
     // Monitor app state changes (background/foreground)
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
       unsubscribe();
       unsubscribeLogin();
+      unsubscribeUserUpdated();
       subscription.remove();
     };
   }, []);

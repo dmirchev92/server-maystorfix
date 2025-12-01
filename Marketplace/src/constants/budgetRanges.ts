@@ -8,11 +8,14 @@ export const BUDGET_RANGES = [
   { value: '250-500', label: '250-500 лв', min: 250, max: 500 },
   { value: '500-750', label: '500-750 лв', min: 500, max: 750 },
   { value: '750-1000', label: '750-1000 лв', min: 750, max: 1000 },
-  { value: '1000-1250', label: '1000-1250 лв', min: 1000, max: 1250 },
-  { value: '1250-1500', label: '1250-1500 лв', min: 1250, max: 1500 },
-  { value: '1500-1750', label: '1500-1750 лв', min: 1500, max: 1750 },
-  { value: '1750-2000', label: '1750-2000 лв', min: 1750, max: 2000 },
-  { value: '2000+', label: '2000+ лв', min: 2000, max: null }
+  { value: '1000-1500', label: '1000-1500 лв', min: 1000, max: 1500 },
+  { value: '1500-2000', label: '1500-2000 лв', min: 1500, max: 2000 },
+  { value: '2000-3000', label: '2000-3000 лв', min: 2000, max: 3000 },
+  { value: '3000-4000', label: '3000-4000 лв', min: 3000, max: 4000 },
+  { value: '4000-5000', label: '4000-5000 лв', min: 4000, max: 5000 },
+  { value: '5000-7500', label: '5000-7500 лв', min: 5000, max: 7500 },
+  { value: '7500-10000', label: '7500-10000 лв', min: 7500, max: 10000 },
+  { value: '10000+', label: '10000+ лв', min: 10000, max: null }
 ] as const;
 
 export type BudgetRangeValue = typeof BUDGET_RANGES[number]['value'];

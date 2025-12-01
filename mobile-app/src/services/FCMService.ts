@@ -6,13 +6,107 @@ import ApiService from './ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SocketIOService from './SocketIOService';
 
+interface NotificationPreferences {
+  push_enabled: boolean;
+  push_new_cases: boolean;
+  push_chat_messages: boolean;
+  push_bid_won: boolean;
+  push_new_bids: boolean;
+  push_reviews: boolean;
+  push_points_subscription: boolean;
+}
+
 class FCMService {
   private static instance: FCMService;
   private initialized: boolean = false;
   private navigationRef: any = null;
   private messageUnsubscribe: (() => void) | null = null;
+  private notificationPreferences: NotificationPreferences | null = null;
+  private preferencesLastFetched: number = 0;
+  private PREFERENCES_CACHE_TTL = 60000; // 1 minute cache
 
   private constructor() {}
+
+  // Fetch notification preferences with caching
+  private async getNotificationPreferences(): Promise<NotificationPreferences | null> {
+    const now = Date.now();
+    if (this.notificationPreferences && (now - this.preferencesLastFetched) < this.PREFERENCES_CACHE_TTL) {
+      return this.notificationPreferences;
+    }
+
+    try {
+      const response = await ApiService.getInstance().get<NotificationPreferences>('/notification-preferences');
+      if (response.success && response.data) {
+        this.notificationPreferences = response.data;
+        this.preferencesLastFetched = now;
+        return this.notificationPreferences;
+      }
+    } catch (error) {
+      console.error('FCM - Failed to fetch notification preferences:', error);
+    }
+    return null;
+  }
+
+  // Check if notification should be shown based on type and preferences
+  private async shouldShowNotification(type: string): Promise<boolean> {
+    const prefs = await this.getNotificationPreferences();
+    
+    // Default to showing if preferences not loaded
+    if (!prefs) return true;
+    
+    // Check if push is enabled globally
+    if (!prefs.push_enabled) {
+      console.log('📱 FCM - Push notifications disabled globally');
+      return false;
+    }
+
+    // Check specific notification type
+    switch (type) {
+      case 'new_case_available':
+      case 'case_assigned':
+      case 'job_incoming':
+        if (!prefs.push_new_cases) {
+          console.log('📱 FCM - New cases notifications disabled');
+          return false;
+        }
+        break;
+      case 'chat_message':
+        if (!prefs.push_chat_messages) {
+          console.log('📱 FCM - Chat message notifications disabled');
+          return false;
+        }
+        break;
+      case 'bid_won':
+        if (!prefs.push_bid_won) {
+          console.log('📱 FCM - Bid won notifications disabled');
+          return false;
+        }
+        break;
+      case 'new_bid_placed':
+        if (!prefs.push_new_bids) {
+          console.log('📱 FCM - New bids notifications disabled');
+          return false;
+        }
+        break;
+      case 'rating_received':
+      case 'review':
+        if (!prefs.push_reviews) {
+          console.log('📱 FCM - Review notifications disabled');
+          return false;
+        }
+        break;
+      case 'points_low_warning':
+      case 'trial_expiring_soon':
+      case 'trial_expired':
+        if (!prefs.push_points_subscription) {
+          console.log('📱 FCM - Points/subscription notifications disabled');
+          return false;
+        }
+        break;
+    }
+
+    return true;
+  }
 
   public static getInstance(): FCMService {
     if (!FCMService.instance) {
@@ -294,11 +388,10 @@ class FCMService {
     this.messageUnsubscribe = messaging().onMessage(async remoteMessage => {
       console.log('📨 Foreground FCM message received:', remoteMessage);
 
-      // Check if this is a chat message and SocketIO is connected
-      // If so, SocketIO will handle the notification (with better UI/MessagingStyle)
-      const isSocketConnected = SocketIOService.getInstance().isConnected();
-      if (remoteMessage.data?.type === 'chat_message' && isSocketConnected) {
-        console.log('🚫 FCM - Ignoring chat_message in foreground (handled by SocketIO)');
+      // Always skip chat_message in foreground - SocketIO handles it with better UI
+      // This prevents duplicate notifications
+      if (remoteMessage.data?.type === 'chat_message') {
+        console.log('🚫 FCM - Skipping chat_message in foreground (SocketIO handles it)');
         return;
       }
 
@@ -436,13 +529,29 @@ class FCMService {
 
   /**
    * Display notification using notifee
+   * 
+   * NOTE: We now receive DATA-ONLY FCM messages (no 'notification' payload).
+   * The title and body are included in the 'data' object instead.
+   * This prevents Firebase from automatically displaying duplicate notifications.
    */
   private async displayNotification(remoteMessage: any): Promise<void> {
     try {
       const { notification, data } = remoteMessage;
 
-      if (!notification) {
-        console.warn('⚠️ No notification payload in FCM message');
+      // Support both data-only messages (new) and legacy notification+data messages
+      const title = notification?.title || data?.title;
+      const body = notification?.body || data?.body;
+
+      if (!title && !body) {
+        console.warn('⚠️ No notification content in FCM message (neither notification nor data payload has title/body)');
+        return;
+      }
+
+      // Check notification preferences before displaying
+      const notificationType = data?.type || 'unknown';
+      const shouldShow = await this.shouldShowNotification(notificationType);
+      if (!shouldShow) {
+        console.log(`📱 FCM - Skipping notification display for type: ${notificationType} (disabled by user)`);
         return;
       }
 
@@ -458,8 +567,8 @@ class FCMService {
 
       // Build notification config
       const notificationConfig: any = {
-        title: notification.title,
-        body: notification.body,
+        title,
+        body,
         data,
         android: {
           channelId,
@@ -485,7 +594,7 @@ class FCMService {
         // Set BigTextStyle to ensure actions are visible when expanded
         notificationConfig.android.style = {
           type: 1, // AndroidStyle.BIGTEXT
-          text: notification.body,
+          text: body, // Use body variable which handles data-only messages
         };
         
         // Add actions with launchActivity for proper Android compatibility

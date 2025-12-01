@@ -32,6 +32,8 @@ import MapSearchScreen from '../screens/MapSearchScreen';
 import SearchScreen from '../screens/SearchScreen';
 import CaseBidsScreen from '../screens/CaseBidsScreen';
 import LocationScheduleScreen from '../screens/LocationScheduleScreen';
+import StatisticsScreen from '../screens/StatisticsScreen';
+import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 
 
 // Import components
@@ -230,6 +232,27 @@ function ProviderTabNavigator() {
           headerTitle: 'График за локация',
           headerStyle: {
             backgroundColor: '#4F46E5',
+          },
+          headerTintColor: '#fff',
+        }}
+      />
+      <Tab.Screen
+        name="Statistics"
+        component={StatisticsScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+          headerShown: false,
+        }}
+      />
+      <Tab.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+          headerShown: true,
+          headerTitle: 'Настройки за известия',
+          headerStyle: {
+            backgroundColor: '#0F172A',
           },
           headerTintColor: '#fff',
         }}

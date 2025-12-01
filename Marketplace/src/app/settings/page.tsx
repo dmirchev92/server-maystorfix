@@ -30,7 +30,9 @@ export default function SettingsPage() {
   const { user, isAuthenticated, updateUser } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [activeSection, setActiveSection] = useState<'menu' | 'profile' | 'password'>('menu')
+  const [activeSection, setActiveSection] = useState<'menu' | 'profile' | 'password' | 'delete'>('menu')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -176,7 +178,7 @@ export default function SettingsPage() {
       const result = await response.json()
       
       if (!result.success) {
-        throw new Error(result.error?.message || 'Failed to update profile')
+        throw new Error(result.error?.message || 'Неуспешно актуализиране на профила')
       }
 
       console.log('✅ Profile updated successfully:', result)
@@ -429,7 +431,7 @@ export default function SettingsPage() {
                                   setSuccess('✅ Снимката е качена успешно!')
                                   setTimeout(() => setSuccess(''), 3000)
                                 } else {
-                                  throw new Error(result.error?.message || 'Failed to upload image')
+                                  throw new Error(result.error?.message || 'Неуспешно качване на снимката')
                                 }
                               } catch (err: any) {
                                 console.error('Error uploading image:', err)
@@ -544,7 +546,7 @@ export default function SettingsPage() {
                                   setSuccess('✅ Снимката е качена успешно!')
                                   setTimeout(() => setSuccess(''), 3000)
                                 } else {
-                                  throw new Error(result.error?.message || 'Failed to upload image')
+                                  throw new Error(result.error?.message || 'Неуспешно качване на снимката')
                                 }
                               } catch (err: any) {
                                 console.error('Error uploading gallery image:', err)
@@ -819,6 +821,77 @@ export default function SettingsPage() {
                 </button>
               </div>
             </form>
+
+            {/* Delete Account Section */}
+            <div className="mt-8 pt-6 border-t border-red-500/30">
+              <h3 className="text-lg font-semibold text-red-400 mb-4">⚠️ Опасна зона</h3>
+              <p className="text-sm text-slate-400 mb-4">
+                Изтриването на акаунта е необратимо. Всички ваши данни, заявки, чатове и история ще бъдат загубени завинаги.
+              </p>
+              
+              {!showDeleteConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 border border-red-500/30 rounded-lg transition-colors"
+                >
+                  🗑️ Изтрий акаунта ми
+                </button>
+              ) : (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 space-y-4">
+                  <p className="text-red-400 font-medium">
+                    Сигурни ли сте? Това действие не може да бъде отменено!
+                  </p>
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-2">
+                      Въведете паролата си за потвърждение:
+                    </label>
+                    <input
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      className="w-full px-4 py-2 bg-white/10 border border-red-500/30 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Вашата парола"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); }}
+                      className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg transition-colors"
+                    >
+                      Отказ
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!deletePassword || loading}
+                      onClick={async () => {
+                        if (!deletePassword) return;
+                        setLoading(true);
+                        try {
+                          const response = await apiClient.deleteAccount(deletePassword);
+                          if (response.data.success) {
+                            alert('Акаунтът ви беше изтрит успешно.');
+                            localStorage.removeItem('auth_token');
+                            localStorage.removeItem('user_data');
+                            router.push('/auth/login');
+                          } else {
+                            setError(response.data.error?.message || 'Грешка при изтриване на акаунта');
+                          }
+                        } catch (err: any) {
+                          setError(err.response?.data?.error?.message || 'Грешка при изтриване на акаунта');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Изтриване...' : 'Да, изтрий акаунта ми'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

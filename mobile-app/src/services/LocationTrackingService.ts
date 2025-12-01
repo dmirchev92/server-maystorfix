@@ -52,11 +52,16 @@ class LocationTrackingService {
    * Set tracking preference
    */
   public async setTrackingPreference(enabled: boolean): Promise<void> {
+    console.log('📍 ========== setTrackingPreference called ==========');
+    console.log('📍 Setting tracking preference to:', enabled);
     try {
       await AsyncStorage.setItem('tracking_enabled', enabled.toString());
+      console.log('📍 Saved to AsyncStorage');
       if (enabled) {
+        console.log('📍 Preference is enabled, calling startTracking...');
         this.startTracking();
       } else {
+        console.log('📍 Preference is disabled, calling stopTracking...');
         this.stopTracking();
       }
     } catch (error) {
@@ -111,14 +116,17 @@ class LocationTrackingService {
    * Start location tracking (respects schedule)
    */
   async startTracking(): Promise<void> {
+    console.log('📍 ========== startTracking called ==========');
     // Check preference first
     const enabled = await this.getTrackingPreference();
+    console.log('📍 Tracking preference enabled:', enabled);
     if (!enabled) {
-      console.log('📍 Tracking disabled by user preference');
+      console.log('📍 Tracking disabled by user preference, not starting');
       return;
     }
 
     // Start the schedule checker which will handle starting/stopping based on schedule
+    console.log('📍 Starting schedule checker...');
     this.startScheduleChecker();
   }
 
@@ -256,44 +264,67 @@ class LocationTrackingService {
    * Check the schedule and start/stop tracking accordingly
    */
   public async checkAndApplySchedule(): Promise<void> {
+    console.log('📅 ========== checkAndApplySchedule START ==========');
     try {
       // First check if user has tracking enabled at all
       const trackingEnabled = await this.getTrackingPreference();
+      console.log('📅 User tracking preference:', trackingEnabled);
+      console.log('📅 Current isTracking state:', this.isTracking);
+      
       if (!trackingEnabled) {
         console.log('📅 Tracking disabled by user preference, skipping schedule check');
         if (this.isTracking) {
+          console.log('📅 Was tracking, now stopping...');
           await this.stopTracking();
         }
+        console.log('📅 ========== checkAndApplySchedule END (disabled) ==========');
         return;
       }
 
       // Check schedule from backend
+      console.log('📅 Calling backend checkLocationSchedule...');
       const response = await ApiService.getInstance().checkLocationSchedule();
+      console.log('📅 Backend response:', JSON.stringify(response, null, 2));
       
       if (response.success && response.data) {
-        const { should_track, reason } = response.data;
-        console.log(`📅 Schedule check: should_track=${should_track}, reason=${reason}`);
+        const { should_track, reason, current_time, schedule_start, schedule_end } = response.data;
+        console.log('📅 Schedule check result:');
+        console.log('  - should_track:', should_track);
+        console.log('  - reason:', reason);
+        console.log('  - current_time:', current_time);
+        console.log('  - schedule_start:', schedule_start);
+        console.log('  - schedule_end:', schedule_end);
+        console.log('  - isTracking before:', this.isTracking);
         
         this.isScheduleActive = should_track;
         
         if (should_track && !this.isTracking) {
-          console.log('📅 Schedule allows tracking, starting...');
+          console.log('📅 ✅ Schedule allows tracking AND not currently tracking -> STARTING');
           await this.startTrackingInternal();
         } else if (!should_track && this.isTracking) {
-          console.log('📅 Schedule does not allow tracking, stopping...');
+          console.log('📅 ❌ Schedule does NOT allow tracking AND currently tracking -> STOPPING');
           await this.stopTrackingInternal();
+        } else if (should_track && this.isTracking) {
+          console.log('📅 ✅ Schedule allows tracking AND already tracking -> NO CHANGE');
+        } else {
+          console.log('📅 ❌ Schedule does NOT allow tracking AND not tracking -> NO CHANGE');
         }
+      } else {
+        console.log('📅 ⚠️ Backend response failed or no data:', response.error);
       }
     } catch (error) {
       console.error('❌ Error checking schedule:', error);
       // On error, default to allowing tracking if preference is enabled
       if (!this.isTracking) {
         const trackingEnabled = await this.getTrackingPreference();
+        console.log('📅 Error recovery - trackingEnabled:', trackingEnabled);
         if (trackingEnabled) {
+          console.log('📅 Error recovery - starting tracking...');
           await this.startTrackingInternal();
         }
       }
     }
+    console.log('📅 ========== checkAndApplySchedule END ==========');
   }
 
   /**

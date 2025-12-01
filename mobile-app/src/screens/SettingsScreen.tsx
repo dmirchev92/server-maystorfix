@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,15 @@ import {
   TouchableOpacity,
   Alert,
   SafeAreaView,
-  Switch,
   Linking,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../navigation/types';
 import { AuthBus } from '../utils/AuthBus';
-import LocationTrackingService from '../services/LocationTrackingService';
-import { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import ApiService from '../services/ApiService';
 
@@ -23,20 +23,59 @@ type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'S
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
-  const [isTrackingEnabled, setIsTrackingEnabled] = useState(true);
+  
+  // Free Inspection state (for providers only)
+  const [isProvider, setIsProvider] = useState(false);
+  const [freeInspectionActive, setFreeInspectionActive] = useState(false);
+  const [freeInspectionLoading, setFreeInspectionLoading] = useState(false);
 
+  // Check if user is a provider on mount
   useEffect(() => {
-    loadTrackingPreference();
+    const checkUserRole = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          const isProviderRole = user.role === 'tradesperson' || user.role === 'service_provider';
+          setIsProvider(isProviderRole);
+          
+          // Load free inspection status if provider
+          if (isProviderRole) {
+            const response = await ApiService.getInstance().getFreeInspectionStatus();
+            if (response.success && response.data) {
+              setFreeInspectionActive(response.data.freeInspectionActive || false);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking user role:', error);
+      }
+    };
+    checkUserRole();
   }, []);
 
-  const loadTrackingPreference = async () => {
-    const enabled = await LocationTrackingService.getInstance().getTrackingPreference();
-    setIsTrackingEnabled(enabled);
-  };
-
-  const toggleTracking = async (value: boolean) => {
-    setIsTrackingEnabled(value);
-    await LocationTrackingService.getInstance().setTrackingPreference(value);
+  // Handle free inspection toggle
+  const handleFreeInspectionToggle = async (value: boolean) => {
+    setFreeInspectionLoading(true);
+    try {
+      const response = await ApiService.getInstance().toggleFreeInspection(value);
+      if (response.success) {
+        setFreeInspectionActive(value);
+        Alert.alert(
+          value ? '✅ Безплатен оглед активиран' : '❌ Безплатен оглед деактивиран',
+          value 
+            ? 'Клиентите наблизо ще получат известие и ще могат да ви намерят на картата.' 
+            : 'Вече не се показвате като предлагащ безплатен оглед.'
+        );
+      } else {
+        Alert.alert('Грешка', 'Неуспешна промяна на статуса');
+      }
+    } catch (error) {
+      console.error('Error toggling free inspection:', error);
+      Alert.alert('Грешка', 'Неуспешна връзка със сървъра');
+    } finally {
+      setFreeInspectionLoading(false);
+    }
   };
 
   const handleEditProfile = () => {
@@ -99,31 +138,35 @@ const SettingsScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 Местоположение</Text>
-          <View style={styles.settingItem}>
-            <View>
-              <Text style={styles.settingItemText}>Споделяне на локация</Text>
-              <Text style={styles.settingItemSubtext}>За намиране на клиенти наблизо</Text>
+        {/* Free Inspection Section - Only for Providers */}
+        {isProvider && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🔧 Безплатен оглед</Text>
+            <View style={styles.settingItemToggle}>
+              <View style={styles.settingItemLeft}>
+                <Text style={styles.settingItemText}>Предлагам безплатен оглед</Text>
+                <Text style={styles.settingItemSubtext}>
+                  {freeInspectionActive 
+                    ? '🟢 Активен - клиентите ви виждат на картата' 
+                    : '⚪ Неактивен'}
+                </Text>
+              </View>
+              {freeInspectionLoading ? (
+                <ActivityIndicator size="small" color="#7C3AED" />
+              ) : (
+                <Switch
+                  value={freeInspectionActive}
+                  onValueChange={handleFreeInspectionToggle}
+                  trackColor={{ false: '#374151', true: '#7C3AED' }}
+                  thumbColor={freeInspectionActive ? '#FFFFFF' : '#9CA3AF'}
+                />
+              )}
             </View>
-            <Switch
-              value={isTrackingEnabled}
-              onValueChange={toggleTracking}
-              trackColor={{ false: '#767577', true: '#4F46E5' }}
-              thumbColor={isTrackingEnabled ? '#fff' : '#f4f3f4'}
-            />
+            <Text style={styles.freeInspectionInfo}>
+              Когато е активирано, клиентите наблизо ще получат известие и ще виждат маркера ви в лилаво на картата.
+            </Text>
           </View>
-          <TouchableOpacity 
-            style={styles.settingItem} 
-            onPress={() => navigation.navigate('LocationSchedule')}
-          >
-            <View>
-              <Text style={styles.settingItemText}>График за споделяне</Text>
-              <Text style={styles.settingItemSubtext}>Автоматично вкл./изкл. по часове</Text>
-            </View>
-            <Text style={styles.settingItemArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 Абонамент</Text>
@@ -135,12 +178,8 @@ const SettingsScreen: React.FC = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔔 Известия</Text>
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingItemText}>Push известия</Text>
-            <Text style={styles.settingItemArrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingItemText}>Email известия</Text>
+          <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('NotificationSettings')}>
+            <Text style={styles.settingItemText}>Настройки за известия</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
         </View>
@@ -176,8 +215,21 @@ const SettingsScreen: React.FC = () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>ℹ️ Информация</Text>
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => {
+            Alert.alert(
+              'MaystorFix',
+              'Версия: 1.0.0\n\nПлатформа за свързване на клиенти с майстори в България.\n\n📧 Контакт: info@maystorfix.com\n📞 Телефон: +359 888 123 456\n🌐 Уебсайт: maystorfix.com\n\n© 2025 MaystorFix. Всички права запазени.',
+              [
+                { text: 'Уебсайт', onPress: () => Linking.openURL('https://maystorfix.com') },
+                { text: 'Затвори' }
+              ]
+            );
+          }}>
             <Text style={styles.settingItemText}>За приложението</Text>
+            <Text style={styles.settingItemArrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('mailto:support@maystorfix.com')}>
+            <Text style={styles.settingItemText}>Свържи се с нас</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
         </View>
@@ -253,6 +305,25 @@ const styles = StyleSheet.create({
   settingItemArrow: {
     fontSize: 18,
     color: '#94A3B8',
+  },
+  settingItemToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.2)',
+  },
+  settingItemLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  freeInspectionInfo: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 8,
+    paddingHorizontal: 4,
+    lineHeight: 18,
   },
   logoutButton: {
     backgroundColor: '#EF4444',

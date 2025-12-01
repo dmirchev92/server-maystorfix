@@ -93,15 +93,14 @@ export default function UnifiedCaseModal({
     }))
   }
 
-  const handleLocationSelect = (location: { address: string, latitude: number, longitude: number, city?: string }) => {
+  const handleLocationSelect = (location: { address: string, latitude: number, longitude: number, city?: string, neighborhood?: string }) => {
     setFormData(prev => ({
       ...prev,
       latitude: location.latitude,
       longitude: location.longitude,
       formattedAddress: location.address,
       city: location.city || prev.city,
-      // Reset neighborhood if city changes to something other than Sofia (or just keep it, user can change)
-      neighborhood: (location.city && location.city !== 'София') ? '' : prev.neighborhood
+      neighborhood: location.neighborhood || prev.neighborhood
     }))
   }
 
@@ -160,18 +159,18 @@ export default function UnifiedCaseModal({
     
     if (mode === 'direct') {
       // Validate required fields for direct mode
-      if (!formData.description || !formData.preferredDate || !formData.phone || !formData.city || !formData.budget) {
+      if (!formData.description || !formData.preferredDate || !formData.phone || !formData.budget) {
         alert('Моля, попълнете всички задължителни полета')
+        return
+      }
+      // Require location from map
+      if (!formData.latitude || !formData.longitude) {
+        alert('Моля, изберете местоположение от картата')
         return
       }
       // Budget is now a range string (e.g., "250-500"), no numeric validation needed
       if (!formData.budget) {
         alert('Моля, изберете бюджет')
-        return
-      }
-      // Neighborhood required only when city is Sofia
-      if (formData.city === 'София' && !formData.neighborhood) {
-        alert('Моля, изберете квартал за град София')
         return
       }
       
@@ -374,42 +373,73 @@ export default function UnifiedCaseModal({
               {/* Location Map Picker */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-slate-200 mb-2">
-                  Местоположение (Изберете от картата)
+                  📍 Местоположение <span className="text-red-500">*</span>
                 </label>
                 <LocationPicker onLocationSelect={handleLocationSelect} />
+                
+                {/* Auto-detected location info */}
+                {(formData.city || formData.neighborhood) && (
+                  <div className="mt-3 p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+                    <p className="text-xs text-slate-400 mb-2">Автоматично открито:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.city && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          🏙️ {formData.city}
+                        </span>
+                      )}
+                      {formData.neighborhood && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                          📍 {formData.neighborhood}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Location: City - Dynamic from API */}
-              <div>
-                <label className="block text-sm font-medium text-slate-200 mb-2">
-                  Град <span className="text-red-500">*</span>
-                </label>
-                <CitySelect
-                  value={formData.city || ''}
-                  onChange={(value) => {
-                    handleInputChange('city', value)
-                    handleInputChange('neighborhood', '')
-                  }}
-                  required
-                  placeholder="Изберете град"
-                  className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              {/* Neighborhood - Dynamic based on selected city */}
-              {formData.city && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-200 mb-2">
-                    Квартал
-                  </label>
-                  <SimpleNeighborhoodSelect
-                    city={formData.city}
-                    value={formData.neighborhood || ''}
-                    onChange={(value) => handleInputChange('neighborhood', value)}
-                    placeholder="Изберете квартал"
-                    className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+              {/* Manual override if needed - collapsible */}
+              {!formData.city && (
+                <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <p className="text-sm text-yellow-300">
+                    ⚠️ Моля изберете местоположение от картата или въведете адрес в полето за търсене.
+                  </p>
                 </div>
+              )}
+
+              {/* Hidden fallback: Manual city selection (only if map detection failed) */}
+              {!formData.latitude && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-200 mb-2">
+                      Град <span className="text-red-500">*</span>
+                    </label>
+                    <CitySelect
+                      value={formData.city || ''}
+                      onChange={(value) => {
+                        handleInputChange('city', value)
+                        handleInputChange('neighborhood', '')
+                      }}
+                      required
+                      placeholder="Изберете град"
+                      className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {formData.city && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-200 mb-2">
+                        Квартал
+                      </label>
+                      <SimpleNeighborhoodSelect
+                        city={formData.city}
+                        value={formData.neighborhood || ''}
+                        onChange={(value) => handleInputChange('neighborhood', value)}
+                        placeholder="Изберете квартал"
+                        className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Description */}

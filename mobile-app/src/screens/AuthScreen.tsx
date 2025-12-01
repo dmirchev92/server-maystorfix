@@ -10,11 +10,30 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  ActivityIndicator,
+  PermissionsAndroid,
+  Modal,
+  FlatList,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
+import Geolocation from 'react-native-geolocation-service';
 import ApiService from '../services/ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// City name mapping (English -> Bulgarian)
+const CITY_NAME_MAP: Record<string, string> = {
+  'Sofia': 'София',
+  'Plovdiv': 'Пловдив',
+  'Varna': 'Варна',
+  'Burgas': 'Бургас',
+  'Rousse': 'Русе',
+  'Stara Zagora': 'Стара Загора',
+  'Pleven': 'Плевен',
+  'Sliven': 'Сливен',
+  'Dobrich': 'Добрич',
+  'Shumen': 'Шумен',
+};
 
 interface AuthScreenProps {
   onAuthSuccess: (user: any) => void;
@@ -38,12 +57,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     phoneNumber: '',
     companyName: '',
     serviceCategory: '',
+    city: '',
+    neighborhood: '',
+    address: '',
   });
+  
+  // Location state
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [cities, setCities] = useState<string[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [receiveUpdates, setReceiveUpdates] = useState(false);
   const [showPasswordHint, setShowPasswordHint] = useState(false);
   const [serviceCategories, setServiceCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedTier, setSelectedTier] = useState<'free' | 'normal' | 'pro'>('free');
+  const [showTierModal, setShowTierModal] = useState(false);
 
   useEffect(() => {
     // Load saved credentials if any
@@ -92,7 +125,206 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     
     loadSavedCredentials();
     loadServiceCategories();
+    loadCities();
   }, []);
+
+  // Load neighborhoods when city changes
+  useEffect(() => {
+    if (formData.city) {
+      loadNeighborhoods(formData.city);
+    } else {
+      setNeighborhoods([]);
+    }
+  }, [formData.city]);
+
+  const loadCities = async () => {
+    try {
+      const response = await ApiService.getInstance().getCities();
+      if (response.success && response.data?.cities) {
+        setCities(response.data.cities.map((c: any) => c.label || c.value));
+      }
+    } catch (error) {
+      console.error('Failed to load cities:', error);
+      setCities(['София', 'Пловдив', 'Варна', 'Бургас', 'Русе', 'Стара Загора']);
+    }
+  };
+
+  const loadNeighborhoods = async (city: string) => {
+    try {
+      const response = await ApiService.getInstance().getNeighborhoods(city);
+      if (response.success && response.data?.neighborhoods) {
+        setNeighborhoods(response.data.neighborhoods.map((n: any) => n.label || n.value));
+      } else {
+        setNeighborhoods([]);
+      }
+    } catch (error) {
+      console.error('Failed to load neighborhoods:', error);
+      setNeighborhoods([]);
+    }
+  };
+
+  // Google Places address autocomplete
+  const searchAddress = async (query: string) => {
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setShowAddressSuggestions(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&types=address&components=country:bg&language=bg&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A`
+      );
+      const data = await response.json();
+      if (data.predictions) {
+        setAddressSuggestions(data.predictions);
+        setShowAddressSuggestions(true);
+      }
+    } catch (error) {
+      console.error('Address search error:', error);
+    }
+  };
+
+  // Select address from suggestions
+  const selectAddress = async (placeId: string, description: string) => {
+    setShowAddressSuggestions(false);
+    setFormData(prev => ({ ...prev, address: description }));
+
+    try {
+      // Get place details to extract city and neighborhood
+      const detailsResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=address_components,geometry&language=bg&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A`
+      );
+      const detailsData = await detailsResponse.json();
+
+      if (detailsData.result?.geometry?.location) {
+        const { lat, lng } = detailsData.result.geometry.location;
+        
+        // Use REVERSE geocoding to get accurate neighborhood (same as GPS auto-detect)
+        const reverseGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A&language=bg`;
+        const reverseResponse = await fetch(reverseGeocodeUrl);
+        const reverseData = await reverseResponse.json();
+
+        let city = '';
+        let neighborhood = '';
+
+        if (reverseData.results?.[0]?.address_components) {
+          for (const comp of reverseData.results[0].address_components) {
+            // City
+            if (comp.types.includes('locality')) {
+              city = CITY_NAME_MAP[comp.long_name] || comp.long_name;
+            }
+            // Neighborhood - reverse geocoding has accurate neighborhood data
+            if (comp.types.includes('sublocality_level_1') || 
+                comp.types.includes('sublocality') || 
+                comp.types.includes('neighborhood')) {
+              neighborhood = comp.long_name;
+            }
+          }
+        }
+
+        setFormData(prev => ({
+          ...prev,
+          city: city || prev.city,
+          neighborhood: neighborhood || prev.neighborhood,
+        }));
+      }
+    } catch (error) {
+      console.error('Error getting place details:', error);
+    }
+  };
+
+  // Auto-detect location from GPS
+  const detectLocation = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Достъп до местоположение',
+          message: 'Приложението се нуждае от достъп до вашето местоположение за автоматично определяне на града и квартала.',
+          buttonNeutral: 'Питай ме по-късно',
+          buttonNegative: 'Откажи',
+          buttonPositive: 'Разреши',
+        }
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert('Грешка', 'Нямате разрешение за достъп до местоположението');
+        return;
+      }
+    }
+
+    setDetectingLocation(true);
+
+    Geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          // Use Google reverse geocoding
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A&language=bg`;
+          const geoResponse = await fetch(geocodeUrl);
+          const geoData = await geoResponse.json();
+
+          let detectedCity = '';
+          let detectedNeighborhood = '';
+          let detectedSublocality = '';
+          let detectedAddress = '';
+          
+          if (geoData.results?.[0]) {
+            detectedAddress = geoData.results[0].formatted_address || '';
+            
+            // Extract city and neighborhood directly from Google's address_components
+            for (const comp of geoData.results[0].address_components) {
+              // City
+              if (comp.types.includes('locality')) {
+                detectedCity = CITY_NAME_MAP[comp.long_name] || comp.long_name;
+              }
+              // Neighborhood type is most specific - prioritize it
+              if (comp.types.includes('neighborhood')) {
+                detectedNeighborhood = comp.long_name;
+              }
+              // Sublocality is broader (district) - use only as fallback
+              if (comp.types.includes('sublocality_level_1') || comp.types.includes('sublocality')) {
+                detectedSublocality = comp.long_name;
+              }
+            }
+          }
+
+          // Prioritize neighborhood over sublocality
+          const finalCity = detectedCity || 'София';
+          const finalNeighborhood = detectedNeighborhood || detectedSublocality;
+
+          if (finalCity || finalNeighborhood) {
+            setFormData(prev => ({
+              ...prev,
+              city: finalCity || prev.city,
+              neighborhood: finalNeighborhood || prev.neighborhood,
+              address: detectedAddress || prev.address,
+            }));
+
+            Alert.alert(
+              '📍 Местоположение открито',
+              `Град: ${finalCity || 'Неизвестен'}\nКвартал: ${finalNeighborhood || 'Неизвестен'}`,
+              [{ text: 'OK' }]
+            );
+          } else {
+            Alert.alert('Внимание', 'Не успяхме да определим местоположението. Моля изберете ръчно.');
+          }
+        } catch (error) {
+          console.error('Auto-detect location error:', error);
+          Alert.alert('Грешка', 'Възникна проблем при определяне на местоположението');
+        } finally {
+          setDetectingLocation(false);
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error.message);
+        setDetectingLocation(false);
+        Alert.alert('Грешка', 'Не можахме да определим местоположението ви. Проверете GPS настройките.');
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -149,6 +381,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     return hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar && hasMinLength;
   };
 
+  const validatePhoneNumber = (phone: string): boolean => {
+    // Accept +359 format or 0 format for Bulgarian numbers
+    const plusFormat = /^\+359[0-9]{8,9}$/;
+    const zeroFormat = /^0[0-9]{8,9}$/;
+    return plusFormat.test(phone) || zeroFormat.test(phone);
+  };
+
+  const formatPhoneNumber = (phone: string): string => {
+    // Convert 0 format to +359 format
+    if (phone.startsWith('0')) {
+      return '+359' + phone.substring(1);
+    }
+    return phone;
+  };
+
   const handleForgotPassword = async () => {
     if (!forgotPasswordEmail.trim()) {
       Alert.alert('Грешка', 'Моля въведете имейл адрес');
@@ -202,14 +449,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       return;
     }
 
+    // Phone number validation
+    if (!validatePhoneNumber(formData.phoneNumber)) {
+      Alert.alert(
+        'Невалиден телефонен номер',
+        'Телефонният номер трябва да започва с +359 или 0\n\nПримери:\n• 0888123456\n• +359888123456'
+      );
+      return;
+    }
+
     setLoading(true);
     try {
+      // Format phone number to +359 format
+      const formattedPhone = formatPhoneNumber(formData.phoneNumber);
+
       const registrationData: any = {
         email: formData.email,
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
+        phoneNumber: formattedPhone,
         role: userType === 'provider' ? 'tradesperson' : 'customer',
         gdprConsents: ['essential_service'],
       };
@@ -218,6 +477,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       if (userType === 'provider') {
         registrationData.serviceCategory = formData.serviceCategory;
         registrationData.companyName = formData.companyName;
+        registrationData.subscription_tier_id = selectedTier;
+        registrationData.city = formData.city;
+        registrationData.neighborhood = formData.neighborhood;
+        registrationData.address = formData.address;
       }
 
       const response = await ApiService.getInstance().register(registrationData);
@@ -245,7 +508,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       }
     } catch (error) {
       console.log('Registration error:', error);
-      Alert.alert('Грешка', `Възникна грешка при регистрацията: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      Alert.alert('Грешка', `Възникна грешка при регистрацията: ${error instanceof Error ? error.message : 'Неизвестна грешка'}`);
     } finally {
       setLoading(false);
     }
@@ -508,6 +771,113 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                         </Picker>
                       </View>
                     </View>
+
+                    {/* Tier Selection */}
+                    <View style={styles.tierSelectionContainer}>
+                      <Text style={styles.fieldLabel}>Избран план</Text>
+                      <TouchableOpacity
+                        style={styles.tierDisplayBox}
+                        onPress={() => setShowTierModal(true)}
+                      >
+                        <View style={styles.tierInfo}>
+                          <Text style={styles.tierName}>
+                            {selectedTier === 'free' && '🆓 Безплатен'}
+                            {selectedTier === 'normal' && '⭐ Нормален'}
+                            {selectedTier === 'pro' && '👑 Професионален'}
+                          </Text>
+                          <Text style={styles.tierPrice}>
+                            {selectedTier === 'free' && '0 лв'}
+                            {selectedTier === 'normal' && '250 лв/месец'}
+                            {selectedTier === 'pro' && '350 лв/месец'}
+                          </Text>
+                        </View>
+                        <Text style={styles.tierChangeText}>Промени ▸</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.tierHint}>💡 Можете да промените плана си по всяко време</Text>
+                    </View>
+
+                    {/* Location Section */}
+                    <View style={styles.locationSection}>
+                      <Text style={styles.sectionLabel}>📍 Локация</Text>
+                      
+                      {/* Locate Me Button */}
+                      <TouchableOpacity
+                        style={[styles.locateButton, detectingLocation && styles.locateButtonDisabled]}
+                        onPress={detectLocation}
+                        disabled={detectingLocation}
+                      >
+                        {detectingLocation ? (
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        ) : (
+                          <Text style={styles.locateButtonText}>📍 Открий автоматично</Text>
+                        )}
+                      </TouchableOpacity>
+
+                      <Text style={styles.orText}>или въведете адрес</Text>
+
+                      {/* Address Input with Autocomplete */}
+                      <View style={styles.fieldContainer}>
+                        <Text style={styles.fieldLabel}>Адрес</Text>
+                        <TextInput
+                          style={styles.modernInput}
+                          placeholder="Започнете да пишете адрес..."
+                          placeholderTextColor="#64748b"
+                          value={formData.address}
+                          onChangeText={(value) => {
+                            handleInputChange('address', value);
+                            searchAddress(value);
+                          }}
+                          onFocus={() => formData.address.length >= 3 && setShowAddressSuggestions(true)}
+                        />
+                        
+                        {/* Address Suggestions */}
+                        {showAddressSuggestions && addressSuggestions.length > 0 && (
+                          <View style={styles.suggestionsContainer}>
+                            {addressSuggestions.slice(0, 5).map((suggestion, index) => (
+                              <TouchableOpacity
+                                key={suggestion.place_id || index}
+                                style={styles.suggestionItem}
+                                onPress={() => selectAddress(suggestion.place_id, suggestion.description)}
+                              >
+                                <Text style={styles.suggestionText} numberOfLines={2}>
+                                  {suggestion.description}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+
+                      {/* City and Neighborhood Row */}
+                      <View style={styles.row}>
+                        <View style={styles.halfWidth}>
+                          <Text style={styles.fieldLabel}>Град</Text>
+                          <TouchableOpacity
+                            style={styles.pickerButton}
+                            onPress={() => setShowCityPicker(true)}
+                          >
+                            <Text style={[styles.pickerButtonText, !formData.city && styles.pickerPlaceholder]}>
+                              {formData.city || 'Изберете град'}
+                            </Text>
+                            <Text style={styles.pickerArrow}>▼</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.halfWidth}>
+                          <Text style={styles.fieldLabel}>Квартал</Text>
+                          <TouchableOpacity
+                            style={[styles.pickerButton, !formData.city && styles.pickerDisabled]}
+                            onPress={() => formData.city && setShowNeighborhoodPicker(true)}
+                            disabled={!formData.city}
+                          >
+                            <Text style={[styles.pickerButtonText, !formData.neighborhood && styles.pickerPlaceholder]}>
+                              {!formData.city ? 'Първо изберете град' : (formData.neighborhood || 'Изберете квартал')}
+                            </Text>
+                            <Text style={styles.pickerArrow}>▼</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                      <Text style={styles.locationHint}>💡 Локацията помага на клиентите да ви намерят</Text>
+                    </View>
                   </>
                 )}
 
@@ -645,6 +1015,160 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Tier Selection Modal */}
+      {showTierModal && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.tierModalContent}>
+            <View style={styles.tierModalHeader}>
+              <Text style={styles.tierModalTitle}>Изберете вашия план</Text>
+              <TouchableOpacity onPress={() => setShowTierModal(false)}>
+                <Text style={styles.tierModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Free Tier */}
+            <TouchableOpacity
+              style={[styles.tierOption, selectedTier === 'free' && styles.tierOptionSelected]}
+              onPress={() => { setSelectedTier('free'); setShowTierModal(false); }}
+            >
+              <View style={[styles.tierRadio, selectedTier === 'free' && styles.tierRadioSelected]}>
+                {selectedTier === 'free' && <View style={styles.tierRadioDot} />}
+              </View>
+              <View style={styles.tierOptionContent}>
+                <Text style={styles.tierOptionName}>🆓 Безплатен</Text>
+                <Text style={styles.tierOptionPrice}>0 лв</Text>
+                <Text style={styles.tierFeature}>• 2 категории</Text>
+                <Text style={styles.tierFeature}>• 5 снимки</Text>
+                <Text style={styles.tierFeature}>• 10 казуса/месец</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Normal Tier */}
+            <TouchableOpacity
+              style={[styles.tierOption, selectedTier === 'normal' && styles.tierOptionSelected]}
+              onPress={() => { setSelectedTier('normal'); setShowTierModal(false); }}
+            >
+              <View style={[styles.tierRadio, selectedTier === 'normal' && styles.tierRadioSelected]}>
+                {selectedTier === 'normal' && <View style={styles.tierRadioDot} />}
+              </View>
+              <View style={styles.tierOptionContent}>
+                <View style={styles.tierNameRow}>
+                  <Text style={styles.tierOptionName}>⭐ Нормален</Text>
+                  <View style={styles.recommendedBadge}>
+                    <Text style={styles.recommendedText}>Препоръчан</Text>
+                  </View>
+                </View>
+                <Text style={styles.tierOptionPrice}>250 лв/месец</Text>
+                <Text style={styles.tierFeature}>• 5 категории</Text>
+                <Text style={styles.tierFeature}>• 20 снимки</Text>
+                <Text style={styles.tierFeature}>• 50 казуса/месец</Text>
+                <Text style={styles.tierFeature}>• Аналитика</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Pro Tier */}
+            <TouchableOpacity
+              style={[styles.tierOption, selectedTier === 'pro' && styles.tierOptionSelected]}
+              onPress={() => { setSelectedTier('pro'); setShowTierModal(false); }}
+            >
+              <View style={[styles.tierRadio, selectedTier === 'pro' && styles.tierRadioSelected]}>
+                {selectedTier === 'pro' && <View style={styles.tierRadioDot} />}
+              </View>
+              <View style={styles.tierOptionContent}>
+                <Text style={styles.tierOptionName}>👑 Професионален</Text>
+                <Text style={styles.tierOptionPrice}>350 лв/месец</Text>
+                <Text style={styles.tierFeature}>• Неограничени категории</Text>
+                <Text style={styles.tierFeature}>• 100 снимки</Text>
+                <Text style={styles.tierFeature}>• Наддаване</Text>
+                <Text style={styles.tierFeature}>• Приоритетна поддръжка</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {/* City Picker Modal */}
+      <Modal
+        visible={showCityPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowCityPicker(false)}
+      >
+        <View style={styles.pickerModal}>
+          <View style={styles.pickerModalContent}>
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>Изберете град</Text>
+              <TouchableOpacity onPress={() => setShowCityPicker(false)}>
+                <Text style={styles.pickerModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={cities}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.pickerModalItem}
+                  onPress={() => {
+                    setFormData(prev => ({ ...prev, city: item, neighborhood: '' }));
+                    setShowCityPicker(false);
+                  }}
+                >
+                  <Text style={[styles.pickerModalItemText, formData.city === item && styles.pickerModalItemSelected]}>
+                    {item}
+                  </Text>
+                  {formData.city === item && <Text style={styles.pickerModalCheck}>✓</Text>}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Neighborhood Picker Modal */}
+      <Modal
+        visible={showNeighborhoodPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowNeighborhoodPicker(false)}
+      >
+        <View style={styles.pickerModal}>
+          <View style={styles.pickerModalContent}>
+            <View style={styles.pickerModalHeader}>
+              <Text style={styles.pickerModalTitle}>Изберете квартал</Text>
+              <TouchableOpacity onPress={() => setShowNeighborhoodPicker(false)}>
+                <Text style={styles.pickerModalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {neighborhoods.length > 0 ? (
+              <FlatList
+                data={neighborhoods}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.pickerModalItem}
+                    onPress={() => {
+                      setFormData(prev => ({ ...prev, neighborhood: item }));
+                      setShowNeighborhoodPicker(false);
+                    }}
+                  >
+                    <Text style={[styles.pickerModalItemText, formData.neighborhood === item && styles.pickerModalItemSelected]}>
+                      {item}
+                    </Text>
+                    {formData.neighborhood === item && <Text style={styles.pickerModalCheck}>✓</Text>}
+                  </TouchableOpacity>
+                )}
+              />
+            ) : (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: '#94a3b8', textAlign: 'center' }}>
+                  Няма налични квартали за избрания град
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 };
@@ -951,5 +1475,286 @@ const styles = StyleSheet.create({
   bold: {
     fontWeight: '600',
     color: '#ffffff',
+  },
+  // Tier Selection Styles
+  tierSelectionContainer: {
+    marginBottom: 16,
+  },
+  tierDisplayBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  tierInfo: {
+    flex: 1,
+  },
+  tierName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  tierPrice: {
+    fontSize: 14,
+    color: '#818cf8',
+    fontWeight: '500',
+  },
+  tierChangeText: {
+    fontSize: 14,
+    color: '#818cf8',
+    fontWeight: '500',
+  },
+  tierHint: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 8,
+  },
+  // Tier Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  tierModalContent: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  tierModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  tierModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  tierModalClose: {
+    fontSize: 24,
+    color: '#94a3b8',
+    padding: 4,
+  },
+  tierOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  tierOptionSelected: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: '#818cf8',
+  },
+  tierRadio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#64748b',
+    marginRight: 14,
+    marginTop: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tierRadioSelected: {
+    borderColor: '#818cf8',
+    backgroundColor: '#818cf8',
+  },
+  tierRadioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
+  },
+  tierOptionContent: {
+    flex: 1,
+  },
+  tierNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  tierOptionName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  tierOptionPrice: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#818cf8',
+    marginBottom: 8,
+  },
+  tierFeature: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 2,
+  },
+  recommendedBadge: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  recommendedText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Location Section Styles
+  locationSection: {
+    marginTop: 16,
+    marginBottom: 8,
+    padding: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 12,
+  },
+  locateButton: {
+    backgroundColor: '#10b981',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  locateButtonDisabled: {
+    opacity: 0.6,
+  },
+  locateButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  orText: {
+    textAlign: 'center',
+    color: '#94a3b8',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  suggestionsContainer: {
+    backgroundColor: 'rgba(30, 41, 59, 0.98)',
+    borderRadius: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  suggestionText: {
+    color: '#e2e8f0',
+    fontSize: 14,
+  },
+  pickerButton: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 10,
+    padding: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pickerButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    flex: 1,
+  },
+  pickerPlaceholder: {
+    color: '#64748b',
+  },
+  pickerArrow: {
+    color: '#818cf8',
+    fontSize: 12,
+  },
+  pickerDisabled: {
+    opacity: 0.5,
+  },
+  locationHint: {
+    fontSize: 12,
+    color: '#818cf8',
+    marginTop: 8,
+  },
+  // City/Neighborhood Picker Modal Styles
+  pickerModal: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  pickerModalContent: {
+    backgroundColor: '#1e293b',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  pickerModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  pickerModalClose: {
+    fontSize: 24,
+    color: '#94a3b8',
+    padding: 4,
+  },
+  pickerModalItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pickerModalItemText: {
+    fontSize: 16,
+    color: '#e2e8f0',
+  },
+  pickerModalItemSelected: {
+    color: '#818cf8',
+    fontWeight: '600',
+  },
+  pickerModalCheck: {
+    fontSize: 16,
+    color: '#818cf8',
   },
 });

@@ -130,6 +130,29 @@ export class ApiService {
     }
   }
 
+  // Generic HTTP methods
+  public async get<T = any>(endpoint: string): Promise<APIResponse<T>> {
+    return this.makeRequest<T>(endpoint, { method: 'GET' });
+  }
+
+  public async post<T = any>(endpoint: string, data?: any): Promise<APIResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  public async put<T = any>(endpoint: string, data?: any): Promise<APIResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  public async delete<T = any>(endpoint: string): Promise<APIResponse<T>> {
+    return this.makeRequest<T>(endpoint, { method: 'DELETE' });
+  }
+
   // Authentication Methods
   public async login(email: string, password: string): Promise<APIResponse<{ user: User; tokens: any }>> {
     const response = await this.makeRequest<any>('/auth/login', {
@@ -262,6 +285,25 @@ export class ApiService {
     return this.makeRequest(`/chat/conversations`);
   }
 
+  /**
+   * Create a new conversation with a provider
+   * Used when starting a chat from search/profile view
+   */
+  public async createConversation(data: {
+    providerId: string;
+    customerName: string;
+    customerEmail: string;
+    customerPhone?: string;
+    initialMessage?: string;
+    chatSource?: string;
+  }): Promise<APIResponse> {
+    console.log('📱 ApiService - Creating new conversation with provider:', data.providerId);
+    return this.makeRequest('/chat/conversations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   public async getMessages(conversationId: string): Promise<APIResponse> {
     // Use marketplace type by default for now as it matches the V2 structure
     return this.getConversationMessages(conversationId, 'marketplace');
@@ -348,7 +390,7 @@ export class ApiService {
   ): Promise<APIResponse> {
     console.log('📱 ApiService - Marking messages as read');
     return this.makeRequest(`/chat/conversations/${conversationId}/read`, {
-      method: 'PUT',
+      method: 'POST',
       body: JSON.stringify({ senderType }),
     });
   }
@@ -750,6 +792,106 @@ export class ApiService {
     const params = new URLSearchParams({ q: query });
     if (type) params.append('type', type);
     return this.makeRequest(`/locations/search?${params.toString()}`, { method: 'GET' });
+  }
+
+  /**
+   * Find nearest neighborhood based on coordinates
+   */
+  public async getNearestNeighborhood(lat: number, lng: number, city?: string): Promise<APIResponse> {
+    console.log('📍 ApiService - Finding nearest neighborhood:', { lat, lng, city });
+    const params = new URLSearchParams({ lat: lat.toString(), lng: lng.toString() });
+    if (city) params.append('city', city);
+    return this.makeRequest(`/locations/nearest-neighborhood?${params.toString()}`, { method: 'GET' });
+  }
+
+  /**
+   * Get cases for map view (for providers)
+   */
+  public async getCasesForMap(latitude: number, longitude: number, radius?: number, category?: string): Promise<APIResponse> {
+    console.log('📍 ApiService - Fetching cases for map:', { latitude, longitude, radius, category });
+    const params = new URLSearchParams({
+      latitude: latitude.toString(),
+      longitude: longitude.toString(),
+    });
+    if (radius) params.append('radius', radius.toString());
+    if (category) params.append('category', category);
+    return this.makeRequest(`/cases/map?${params.toString()}`, { method: 'GET' });
+  }
+
+  // ============ Free Inspection API ============
+
+  /**
+   * Get service categories list
+   */
+  public async getServiceCategories(): Promise<APIResponse> {
+    console.log('🔧 ApiService - Fetching service categories');
+    return this.makeRequest('/free-inspection/categories', { method: 'GET' });
+  }
+
+  /**
+   * SP: Get free inspection status
+   */
+  public async getFreeInspectionStatus(): Promise<APIResponse> {
+    console.log('🔧 ApiService - Getting free inspection status');
+    return this.makeRequest('/free-inspection/status', { method: 'GET' });
+  }
+
+  /**
+   * SP: Toggle free inspection mode
+   */
+  public async toggleFreeInspection(active: boolean): Promise<APIResponse> {
+    console.log('🔧 ApiService - Toggling free inspection:', active);
+    return this.makeRequest('/free-inspection/toggle', {
+      method: 'POST',
+      body: JSON.stringify({ active }),
+    });
+  }
+
+  /**
+   * Customer: Get free inspection preferences
+   */
+  public async getFreeInspectionPreferences(): Promise<APIResponse> {
+    console.log('🔧 ApiService - Getting free inspection preferences');
+    return this.makeRequest('/free-inspection/preferences', { method: 'GET' });
+  }
+
+  /**
+   * Customer: Update free inspection preferences
+   */
+  public async updateFreeInspectionPreferences(preferences: {
+    enabled?: boolean;
+    radiusKm?: number;
+    categories?: string[];
+    showOnlyFreeInspection?: boolean;
+    latitude?: number;
+    longitude?: number;
+  }): Promise<APIResponse> {
+    console.log('🔧 ApiService - Updating free inspection preferences:', preferences);
+    return this.makeRequest('/free-inspection/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    });
+  }
+
+  /**
+   * Get providers for map with free inspection filter
+   */
+  public async getProvidersForMap(params: {
+    latitude: number;
+    longitude: number;
+    radiusKm?: number;
+    category?: string;
+    freeInspectionOnly?: boolean;
+  }): Promise<APIResponse> {
+    console.log('🔧 ApiService - Fetching providers for map:', params);
+    const queryParams = new URLSearchParams({
+      latitude: params.latitude.toString(),
+      longitude: params.longitude.toString(),
+    });
+    if (params.radiusKm) queryParams.append('radiusKm', params.radiusKm.toString());
+    if (params.category) queryParams.append('category', params.category);
+    if (params.freeInspectionOnly) queryParams.append('freeInspectionOnly', 'true');
+    return this.makeRequest(`/free-inspection/providers?${queryParams.toString()}`, { method: 'GET' });
   }
 }
 

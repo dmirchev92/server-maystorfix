@@ -241,11 +241,13 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   modalContainer: {
-    backgroundColor: theme.colors.background.primary,
+    backgroundColor: '#1e293b', // slate-800 - dark theme
     borderRadius: theme.borderRadius.xl,
     width: '100%',
     maxHeight: '90%',
     ...theme.shadows.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   header: {
     backgroundColor: theme.colors.success.solid,
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // slate-200 - visible on dark
     marginBottom: theme.spacing.sm,
   },
   required: {
@@ -281,18 +283,19 @@ const styles = StyleSheet.create({
   },
   textArea: {
     borderWidth: 1,
-    borderColor: theme.colors.border.light,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // slate-200 - visible on dark
+    backgroundColor: '#0f172a', // slate-900
     minHeight: 80,
     textAlignVertical: 'top',
   },
   incomeToggleContainer: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // blue tint for dark theme
     borderWidth: 1,
-    borderColor: '#2196F3',
+    borderColor: 'rgba(59, 130, 246, 0.4)',
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.lg,
@@ -309,11 +312,11 @@ const styles = StyleSheet.create({
   incomeToggleTitle: {
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // slate-200
   },
   incomeToggleSubtitle: {
     fontSize: theme.fontSize.xs,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
     marginTop: theme.spacing.xs,
   },
   incomeDetailsContainer: {
@@ -326,54 +329,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: theme.colors.border.light,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
     borderRadius: theme.borderRadius.md,
     paddingHorizontal: theme.spacing.md,
+    backgroundColor: '#0f172a', // slate-900
   },
   amountInput: {
     flex: 1,
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // slate-200
     paddingVertical: theme.spacing.sm,
   },
   currency: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.medium,
-    color: theme.colors.text.secondary,
+    color: '#94a3b8', // slate-400
   },
   pickerContainer: {
     gap: theme.spacing.sm,
   },
   paymentMethodButton: {
     borderWidth: 1,
-    borderColor: theme.colors.border.light,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
-    backgroundColor: theme.colors.background.secondary,
+    backgroundColor: '#0f172a', // slate-900
   },
   paymentMethodButtonActive: {
-    borderColor: theme.colors.success.solid,
-    backgroundColor: '#E8F5E9',
+    borderColor: '#22c55e', // green-500
+    backgroundColor: 'rgba(34, 197, 94, 0.15)', // green tint
   },
   paymentMethodText: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // slate-200
   },
   paymentMethodTextActive: {
     color: theme.colors.success.solid,
     fontWeight: theme.fontWeight.semibold,
   },
   infoBox: {
-    backgroundColor: '#FFF9C4',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)', // amber tint
     borderWidth: 1,
-    borderColor: '#FBC02D',
+    borderColor: 'rgba(245, 158, 11, 0.4)',
     borderRadius: theme.borderRadius.md,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.lg,
   },
   infoText: {
     fontSize: theme.fontSize.sm,
-    color: '#F57F17',
+    color: '#fbbf24', // amber-400
   },
   infoBold: {
     fontWeight: theme.fontWeight.bold,
@@ -383,7 +387,7 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     padding: theme.spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border.light,
+    borderTopColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
   },
   button: {
     flex: 1,
@@ -393,12 +397,12 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     borderWidth: 1,
-    borderColor: theme.colors.border.light,
-    backgroundColor: theme.colors.background.secondary,
+    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    backgroundColor: '#334155', // slate-700
   },
   cancelButtonText: {
     fontSize: theme.fontSize.md,
-    color: theme.colors.text.primary,
+    color: '#e2e8f0', // slate-200 - visible on dark
     fontWeight: theme.fontWeight.medium,
   },
   submitButton: {

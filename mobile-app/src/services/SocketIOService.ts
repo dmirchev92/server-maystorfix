@@ -1,6 +1,17 @@
 import { io, Socket } from 'socket.io-client';
 import NotificationService from './NotificationService';
 import { AppState } from 'react-native';
+import ApiService from './ApiService';
+
+interface NotificationPreferences {
+  push_enabled: boolean;
+  push_new_cases: boolean;
+  push_chat_messages: boolean;
+  push_bid_won: boolean;
+  push_new_bids: boolean;
+  push_reviews: boolean;
+  push_points_subscription: boolean;
+}
 
 interface Message {
   id: string;
@@ -45,9 +56,40 @@ class SocketIOService {
   private notificationService: NotificationService;
   private currentConversationId: string | null = null;
   private userId: string | null = null;
+  private notificationPreferences: NotificationPreferences | null = null;
+  private preferencesLastFetched: number = 0;
+  private PREFERENCES_CACHE_TTL = 60000; // 1 minute cache
 
   private constructor() {
     this.notificationService = NotificationService.getInstance();
+  }
+
+  // Fetch notification preferences with caching
+  private async getNotificationPreferences(): Promise<NotificationPreferences | null> {
+    const now = Date.now();
+    // Use cached preferences if still valid
+    if (this.notificationPreferences && (now - this.preferencesLastFetched) < this.PREFERENCES_CACHE_TTL) {
+      return this.notificationPreferences;
+    }
+
+    try {
+      const response = await ApiService.getInstance().get<NotificationPreferences>('/notification-preferences');
+      if (response.success && response.data) {
+        this.notificationPreferences = response.data;
+        this.preferencesLastFetched = now;
+        console.log('📋 Notification preferences fetched:', this.notificationPreferences);
+        return this.notificationPreferences;
+      }
+    } catch (error) {
+      console.error('Failed to fetch notification preferences:', error);
+    }
+    return null;
+  }
+
+  // Force refresh preferences (call after user changes settings)
+  public refreshNotificationPreferences(): void {
+    this.preferencesLastFetched = 0;
+    this.notificationPreferences = null;
   }
 
   static getInstance(): SocketIOService {
@@ -207,18 +249,27 @@ class SocketIOService {
     });
 
     // New case assignment
-    this.socket.on('case_assigned', (caseData: any) => {
+    this.socket.on('case_assigned', async (caseData: any) => {
       console.log('📋 New case assigned:', caseData);
       
-      // Show notification for new case assignment
-      this.notificationService.showCaseNotification({
-        caseId: caseData.id,
-        customerName: caseData.customerName || 'New Customer',
-        serviceType: caseData.serviceType || 'Service Request',
-        description: caseData.description || 'New case has been assigned to you',
-        priority: caseData.priority || 'medium',
-      });
-      this.notificationService.incrementBadgeCount();
+      // Check notification preferences
+      const prefs = await this.getNotificationPreferences();
+      const pushEnabled = prefs?.push_enabled !== false;
+      const newCasesEnabled = prefs?.push_new_cases !== false;
+      
+      if (pushEnabled && newCasesEnabled) {
+        // Show notification for new case assignment
+        this.notificationService.showCaseNotification({
+          caseId: caseData.id,
+          customerName: caseData.customerName || 'New Customer',
+          serviceType: caseData.serviceType || 'Service Request',
+          description: caseData.description || 'New case has been assigned to you',
+          priority: caseData.priority || 'medium',
+        });
+        this.notificationService.incrementBadgeCount();
+      } else {
+        console.log('📱 Skipping case_assigned notification. Reason: New cases notifications disabled');
+      }
     });
 
     // SMS config updated (real-time sync with marketplace)
@@ -252,7 +303,7 @@ class SocketIOService {
     });
   }
 
-  private handleMessageNotification(message: Message, source: string) {
+  private async handleMessageNotification(message: Message, source: string) {
     // Show notification if app in background or viewing different conversation
     // Don't show for own messages (check userId)
     const isAppInBackground = AppState.currentState !== 'active';
@@ -261,10 +312,15 @@ class SocketIOService {
     // Robust check for own message (handle string/number types)
     const isOwnMessage = String(message.senderUserId) === String(this.userId);
     
+    // Check notification preferences
+    const prefs = await this.getNotificationPreferences();
+    const pushEnabled = prefs?.push_enabled !== false; // Default to true if not set
+    const chatNotificationsEnabled = prefs?.push_chat_messages !== false; // Default to true if not set
+    
     // NOTE: Normally we filter out own messages (!isOwnMessage).
     // However, for testing purposes (or if user messages themselves from another device),
     // we allow the notification to trigger if the app is in background.
-    const shouldShowNotification = isAppInBackground || isDifferentConversation;
+    const shouldShowNotification = pushEnabled && chatNotificationsEnabled && (isAppInBackground || isDifferentConversation);
 
     if (isOwnMessage && shouldShowNotification) {
       console.log('⚠️ Notification triggered for own message (allowed for testing)');
@@ -274,6 +330,8 @@ class SocketIOService {
       isAppInBackground,
       isDifferentConversation,
       isOwnMessage,
+      pushEnabled,
+      chatNotificationsEnabled,
       shouldShowNotification,
       senderType: message.senderType,
       appState: AppState.currentState,
@@ -297,7 +355,10 @@ class SocketIOService {
       });
       this.notificationService.incrementBadgeCount();
     } else {
-      console.log(`📱 Skipping notification for ${source}. Reason: App is active and in same conversation`);
+      const reason = !pushEnabled ? 'Push disabled' : 
+                     !chatNotificationsEnabled ? 'Chat notifications disabled' : 
+                     'App is active and in same conversation';
+      console.log(`📱 Skipping notification for ${source}. Reason: ${reason}`);
     }
   }
 

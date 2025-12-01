@@ -373,7 +373,7 @@ export default function ProviderDashboard() {
         )}
 
         {/* Quick Actions Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <a
             href="/dashboard/cases"
             className="bg-gradient-to-br from-indigo-600/20 to-blue-600/10 backdrop-blur-md rounded-xl shadow-xl border border-indigo-500/30 p-6 hover:from-indigo-600/30 hover:to-blue-600/20 hover:border-indigo-400/50 transition-all group"
@@ -423,6 +423,19 @@ export default function ProviderDashboard() {
               </div>
               <h3 className="text-white font-semibold">Профил</h3>
               <p className="text-purple-300 text-xs mt-1">Редактиране</p>
+            </div>
+          </a>
+          
+          <a
+            href="/map"
+            className="bg-gradient-to-br from-emerald-600/20 to-green-600/10 backdrop-blur-md rounded-xl shadow-xl border border-emerald-500/30 p-6 hover:from-emerald-600/30 hover:to-green-600/20 hover:border-emerald-400/50 transition-all group"
+          >
+            <div className="text-center">
+              <div className="w-14 h-14 mx-auto mb-3 bg-emerald-500/30 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-3xl">🗺️</span>
+              </div>
+              <h3 className="text-white font-semibold">Карта</h3>
+              <p className="text-emerald-300 text-xs mt-1">Заявки наблизо</p>
             </div>
           </a>
         </div>

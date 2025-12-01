@@ -23,31 +23,36 @@ export class PointsService {
 
   /**
    * Calculate points cost for a case based on budget and tier
-   * Uses granular budget ranges for fair point allocation
+   * Uses granular budget ranges for fair point allocation (up to 10k BGN)
+   * Only winning bidders pay points
    */
   calculatePointsCost(budget: number, tierLimits: TierLimits): number {
     if (budget <= 250) {
-      return tierLimits.points_cost_1_250;
+      return tierLimits.points_cost_1_250 || 0;
     } else if (budget <= 500) {
-      return tierLimits.points_cost_250_500;
+      return tierLimits.points_cost_250_500 || 0;
     } else if (budget <= 750) {
-      return tierLimits.points_cost_500_750;
+      return tierLimits.points_cost_500_750 || 0;
     } else if (budget <= 1000) {
-      return tierLimits.points_cost_750_1000;
+      return tierLimits.points_cost_750_1000 || 0;
     } else if (budget <= 1500) {
-      return tierLimits.points_cost_1000_1500;
+      return tierLimits.points_cost_1000_1500 || 0;
     } else if (budget <= 2000) {
-      return tierLimits.points_cost_1500_2000;
+      return tierLimits.points_cost_1500_2000 || 0;
     } else if (budget <= 3000) {
-      return tierLimits.points_cost_2000_3000;
+      return tierLimits.points_cost_2000_3000 || 0;
     } else if (budget <= 4000) {
-      return tierLimits.points_cost_3000_4000;
+      return tierLimits.points_cost_3000_4000 || 0;
     } else if (budget <= 5000) {
-      return tierLimits.points_cost_4000_5000;
+      return tierLimits.points_cost_4000_5000 || 0;
+    } else if (budget <= 7500) {
+      return tierLimits.points_cost_5000_7500 || 0;
+    } else if (budget <= 10000) {
+      return tierLimits.points_cost_7500_10000 || 0;
     }
     
-    // For budgets over 5000, use the highest tier cost
-    return tierLimits.points_cost_4000_5000;
+    // For budgets over 10000, use the highest tier cost
+    return tierLimits.points_cost_7500_10000 || 0;
   }
 
   /**
@@ -63,7 +68,55 @@ export class PointsService {
     if (budget <= 3000) return '2000-3000 BGN';
     if (budget <= 4000) return '3000-4000 BGN';
     if (budget <= 5000) return '4000-5000 BGN';
-    return '5000+ BGN';
+    if (budget <= 7500) return '5000-7500 BGN';
+    if (budget <= 10000) return '7500-10000 BGN';
+    return '10000+ BGN';
+  }
+
+  /**
+   * Get extra points purchase price for a tier
+   * Returns null if tier cannot purchase extra points
+   */
+  async getExtraPointsPrice(userId: string): Promise<number | null> {
+    try {
+      const query = `
+        SELECT st.limits->>'extra_points_price' as extra_points_price
+        FROM users u
+        LEFT JOIN subscription_tiers st ON u.subscription_tier_id = st.id
+        WHERE u.id = $1
+      `;
+      const rows = await this.database.query(query, [userId]);
+      
+      if (rows.length === 0) {
+        return null;
+      }
+
+      const price = rows[0].extra_points_price;
+      return price ? parseFloat(price) : null;
+    } catch (error) {
+      logger.error('Failed to get extra points price', { userId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Calculate cost to purchase extra points
+   */
+  async calculateExtraPointsCost(userId: string, pointsAmount: number): Promise<{ price: number; canPurchase: boolean; message?: string }> {
+    const pricePerPoint = await this.getExtraPointsPrice(userId);
+    
+    if (pricePerPoint === null) {
+      return {
+        price: 0,
+        canPurchase: false,
+        message: 'Your tier does not allow purchasing extra points. Please upgrade to NORMAL or PRO.'
+      };
+    }
+
+    return {
+      price: pricePerPoint * pointsAmount,
+      canPurchase: true
+    };
   }
 
   /**

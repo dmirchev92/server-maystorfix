@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
+import { getCategoryLabel } from '../constants/serviceCategories';
 
 interface Case {
   id: string;
@@ -122,21 +123,10 @@ export default function CustomerCasesScreen() {
     }
   };
 
+  // Use centralized category labels from serviceCategories.ts
+  // This handles both 'cat_' prefix and non-prefix formats
   const getCategoryName = (category: string) => {
-    const names: { [key: string]: string } = {
-      'electrician': 'Електричество',
-      'plumber': 'Водопровод',
-      'hvac': 'Климатик',
-      'carpenter': 'Дърводелство',
-      'painter': 'Боядисване',
-      'locksmith': 'Ключарство',
-      'cleaner': 'Почистване',
-      'gardener': 'Градинарство',
-      'handyman': 'Многопрофилен',
-      'appliance_repair': 'Ремонти',
-      'general': 'Общи'
-    };
-    return names[category] || category;
+    return getCategoryLabel(category) || category;
   };
 
   if (loading) {

@@ -45,6 +45,8 @@ export type MainTabParamList = {
   Subscription: undefined;
   Consent: undefined;
   LocationSchedule: undefined;
+  Statistics: undefined;
+  NotificationSettings: undefined;
 };
 
 export type SettingsStackParamList = {

@@ -306,15 +306,20 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
     });
 
     // Trigger notifications asynchronously (don't wait for it)
+    console.log('🔍 DEBUG: assignmentType =', assignmentType, ', isOpenCase =', assignmentType === 'open');
     if (assignmentType === 'open') {
+      console.log('🔔 DEBUG: Starting notification trigger for case', caseId);
       logger.info('🔔 Triggering notifications for open case', { caseId, category, city, neighborhood, assignmentType });
       // Fire and forget - don't await
       (async () => {
         try {
+          console.log('🔔 DEBUG: Inside async notification block');
+          console.log('🔔 DEBUG: finalLat=', finalLat, 'finalLng=', finalLng, 'budget=', budget);
           // 1. Instant Alert for Nearby PROs (Uber-like)
           let notifiedProIds: string[] = [];
           
           if (finalLat && finalLng && budget) {
+            console.log('🔔 DEBUG: Has coordinates and budget, calling SmartMatchingService');
             try {
               const smartMatchingService = new SmartMatchingService();
               // Find PROs within 15km
@@ -376,15 +381,21 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           }
 
           // 2. Standard Notifications (Email/Push for everyone else)
+          console.log('🔔 DEBUG: About to call BidSelectionReminderJob');
           if (DatabaseFactory.isPostgreSQL()) {
+            console.log('🔔 DEBUG: isPostgreSQL = true');
             const { BidSelectionReminderJob } = await import('../jobs/BidSelectionReminderJob');
             const pool = (db as any).pool;
             const bidJob = new BidSelectionReminderJob(pool);
             // Pass notifiedProIds to exclude them from standard notifications
             // This ensures PROs don't get double notified
+            console.log('🔔 DEBUG: Calling notifyMatchingProvidersForCase with caseId:', caseId, 'excluded:', notifiedProIds);
             logger.info('🔔 Triggering standard notifications, excluding:', notifiedProIds);
             await bidJob.notifyMatchingProvidersForCase(caseId, notifiedProIds);
+            console.log('🔔 DEBUG: notifyMatchingProvidersForCase completed');
             logger.info('✅ Notifications triggered for matching SPs', { caseId, excluded: notifiedProIds.length });
+          } else {
+            console.log('🔔 DEBUG: isPostgreSQL = false, skipping BidSelectionReminderJob');
           }
         } catch (notifError) {
           logger.error('❌ Error triggering notifications for open case:', notifError);
@@ -867,6 +878,150 @@ export const getAvailableCases = async (req: Request, res: Response): Promise<vo
       error: {
         code: 'INTERNAL_ERROR',
         message: 'Failed to fetch available cases'
+      }
+    });
+  }
+};
+
+/**
+ * Get cases for map view (open cases with coordinates)
+ * Used by providers to see available cases on a map
+ */
+export const getCasesForMap = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const providerId = (req as any).user?.id;
+    const { latitude, longitude, radius, category } = req.query;
+    
+    // Default radius is 15km
+    const searchRadius = parseFloat(radius as string) || 15;
+    const centerLat = parseFloat(latitude as string) || 42.6977; // Sofia default
+    const centerLng = parseFloat(longitude as string) || 23.3219;
+    
+    // Check if provider is PRO for exclusive case visibility
+    let isPro = false;
+    if (providerId) {
+      try {
+        const tier = await subscriptionService.getUserTier(providerId);
+        isPro = tier === 'pro';
+      } catch (err) {
+        logger.warn('Failed to check provider tier for map view', { providerId });
+      }
+    }
+    
+    // Build query for open cases with coordinates using subquery for distance filtering
+    const params: any[] = [centerLat, centerLng];
+    let paramIndex = 3;
+    
+    // Build WHERE conditions
+    let whereConditions = `
+      c.latitude IS NOT NULL 
+      AND c.longitude IS NOT NULL
+      AND c.status IN ('pending', 'open')
+      AND c.is_open_case = true
+    `;
+    
+    // Exclude cases this provider has declined
+    if (providerId) {
+      whereConditions += ` AND c.id NOT IN (SELECT case_id FROM marketplace_case_declines WHERE provider_id = $${paramIndex})`;
+      params.push(providerId);
+      paramIndex++;
+    }
+    
+    // Filter by category if provided
+    if (category) {
+      whereConditions += ` AND (c.service_type = $${paramIndex} OR c.category = $${paramIndex})`;
+      params.push(category);
+      paramIndex++;
+    }
+    
+    // Exclusive filter for non-PRO providers
+    if (!isPro) {
+      whereConditions += ` AND (c.exclusive_until IS NULL OR c.exclusive_until <= NOW())`;
+    }
+    
+    // Use subquery to filter by distance - include screenshots aggregated as JSON
+    const query = `
+      SELECT * FROM (
+        SELECT 
+          c.id, c.service_type, c.category, c.description, c.city, c.neighborhood,
+          c.preferred_date, c.preferred_time, c.priority, c.budget, c.status,
+          c.latitude, c.longitude, c.formatted_address, c.square_meters,
+          c.bidding_enabled, c.current_bidders, c.max_bidders, c.bidding_closed,
+          c.created_at, c.is_open_case,
+          (
+            SELECT COALESCE(json_agg(json_build_object(
+              'id', cs.id,
+              'url', cs.image_url,
+              'createdAt', cs.created_at
+            )), '[]'::json)
+            FROM case_screenshots cs 
+            WHERE cs.case_id = c.id
+          ) AS screenshots,
+          (
+            6371 * acos(
+              LEAST(1.0, GREATEST(-1.0,
+                cos(radians($1)) * cos(radians(c.latitude)) * cos(radians(c.longitude) - radians($2))
+                + sin(radians($1)) * sin(radians(c.latitude))
+              ))
+            )
+          ) AS distance_km
+        FROM marketplace_service_cases c
+        WHERE ${whereConditions}
+      ) AS cases_with_distance
+      WHERE distance_km <= $${paramIndex}
+      ORDER BY distance_km ASC
+      LIMIT 100
+    `;
+    params.push(searchRadius);
+    
+    const cases = await db.query(query, params);
+    
+    logger.info('📍 getCasesForMap - Found cases:', { 
+      count: cases.length, 
+      center: { lat: centerLat, lng: centerLng },
+      radius: searchRadius,
+      providerId 
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        cases: cases.map((c: any) => ({
+          id: c.id,
+          serviceType: c.service_type,
+          category: c.category,
+          description: c.description?.substring(0, 100) + (c.description?.length > 100 ? '...' : ''),
+          city: c.city,
+          neighborhood: c.neighborhood,
+          preferredDate: c.preferred_date,
+          preferredTime: c.preferred_time,
+          priority: c.priority,
+          budget: c.budget,
+          status: c.status,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          formattedAddress: c.formatted_address,
+          squareMeters: c.square_meters,
+          biddingEnabled: c.bidding_enabled,
+          currentBidders: c.current_bidders,
+          maxBidders: c.max_bidders,
+          biddingClosed: c.bidding_closed,
+          createdAt: c.created_at,
+          distanceKm: parseFloat(c.distance_km).toFixed(1),
+          screenshots: c.screenshots || []
+        })),
+        center: { latitude: centerLat, longitude: centerLng },
+        radius: searchRadius
+      }
+    });
+    
+  } catch (error) {
+    logger.error('❌ Error fetching cases for map:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch cases for map'
       }
     });
   }

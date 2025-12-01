@@ -64,7 +64,7 @@ export default function ProviderProfileScreen() {
 
   const handleSave = async () => {
     if (!form.userId) {
-      Alert.alert('Error', 'User ID not found');
+      Alert.alert('Грешка', 'Потребителският идентификатор не е намерен');
       return;
     }
 
@@ -87,17 +87,17 @@ export default function ProviderProfileScreen() {
       if (response.success) {
         console.log(' Profile updated successfully - marketplace sync triggered');
         Alert.alert(
-          'Success', 
-          'Profile updated successfully!\n\nYour changes will appear in the marketplace within moments.',
+          'Успех', 
+          'Профилът е обновен успешно!\n\nПромените ще се появят в търсачката след моменти.',
           [{ text: 'OK', style: 'default' }]
         );
       } else {
         console.error(' Profile update failed:', response.error);
-        Alert.alert('Error', response.error?.message || 'Failed to update profile');
+        Alert.alert('Грешка', response.error?.message || 'Неуспешно обновяване на профила');
       }
     } catch (error) {
       console.error(' Error saving profile:', error);
-      Alert.alert('Error', 'Failed to save profile. Please check your connection and try again.');
+      Alert.alert('Грешка', 'Неуспешно запазване на профила. Проверете връзката си и опитайте отново.');
     } finally {
       setSaving(false);
     }

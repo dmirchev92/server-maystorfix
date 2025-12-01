@@ -92,7 +92,9 @@ export default function NotificationsPage() {
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await apiClient.markNotificationAsRead(notificationId)
+      console.log('🔔 Frontend markAsRead called with notificationId:', notificationId)
+      const response = await apiClient.markNotificationAsRead(notificationId)
+      console.log('🔔 Frontend markAsRead response:', response)
       
       // Update local state
       setNotifications(prev => 
@@ -102,21 +104,25 @@ export default function NotificationsPage() {
             : notification
         )
       )
+      console.log('🔔 Frontend notification state updated')
     } catch (error) {
-      console.error('Error marking notification as read:', error)
+      console.error('❌ Error marking notification as read:', error)
     }
   }
 
   const markAllAsRead = async () => {
     try {
-      await apiClient.markAllNotificationsAsRead()
+      console.log('🔔 Frontend markAllAsRead called')
+      const response = await apiClient.markAllNotificationsAsRead()
+      console.log('🔔 Frontend markAllAsRead response:', response)
       
       // Update local state
       setNotifications(prev => 
         prev.map(notification => ({ ...notification, read: true }))
       )
+      console.log('🔔 All notifications marked as read locally')
     } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+      console.error('❌ Error marking all notifications as read:', error)
     }
   }
 

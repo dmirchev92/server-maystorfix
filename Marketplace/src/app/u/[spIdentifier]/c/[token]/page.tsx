@@ -60,66 +60,20 @@ export default function ChatPage({ params }: ChatPageProps) {
     try {
       setHasValidated(true); // Mark as validated to prevent duplicate calls
       
+      // Clear any old session data - token links should always show registration form
+      // until user completes login/registration
       const sessionKey = `chat_session_${spIdentifier}`;
       const tokenKey = `chat_token_${spIdentifier}`;
-      const existingSessionId = localStorage.getItem(sessionKey);
-      const lastUsedToken = localStorage.getItem(tokenKey);
+      localStorage.removeItem(sessionKey);
+      localStorage.removeItem(tokenKey);
       
-      // Check if this is a new token (different from the one that created the session)
-      if (existingSessionId && lastUsedToken && lastUsedToken !== token) {
-        console.log(`New token detected! Last used: ${lastUsedToken}, Current: ${token}`);
-        console.log('Forcing token validation for new token...');
-        
-        // Clear old session since we have a new token
-        localStorage.removeItem(sessionKey);
-        localStorage.removeItem(tokenKey);
-        
-        // Force validate the new token
-        await validateToken();
-        setHasStartedChat(true);
-        return;
-      }
-      
-      if (existingSessionId) {
-        console.log('Found existing session:', existingSessionId);
-        console.log('Same token as before, using existing session');
-        
-        // Validate existing session
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
-        const response = await axios.get(
-          `${apiUrl}/chat/sessions/${existingSessionId}/validate`,
-          { timeout: 10000 }
-        );
-
-        if (response.data.success) {
-          console.log('✅ Token validation successful:', response.data);
-          setValidationResult({
-            valid: true,
-            userId: response.data.data.userId,
-            conversationId: response.data.data.conversationId
-          });
-
-          // Fetch provider information
-          if (response.data.data.userId) {
-            await fetchProviderInfo(response.data.data.userId);
-          }
-
-          setHasStartedChat(true);
-          return;
-        } else {
-          // Session invalid, remove from storage
-          localStorage.removeItem(sessionKey);
-          localStorage.removeItem(tokenKey);
-        }
-      }
-      
-      // No existing session found, show welcome screen
-      console.log('No existing session, showing welcome screen');
-      // Don't auto-validate token - let user click "Start Chat" button
+      // Always validate token and show registration form
+      console.log('Validating token and showing registration form...');
+      await validateToken();
       
     } catch (error) {
-      console.log('Session check failed, showing welcome screen:', error);
-      // Don't auto-validate token - let user click "Start Chat" button
+      console.log('Session check failed, validating token directly:', error);
+      await validateToken();
     }
   };
 
@@ -144,21 +98,19 @@ export default function ChatPage({ params }: ChatPageProps) {
       if (response.data.success) {
         console.log('Token validation successful:', response.data);
         
-        // Store session ID and token in localStorage for future access
-        const sessionKey = `chat_session_${spIdentifier}`;
-        const tokenKey = `chat_token_${spIdentifier}`;
-        if (response.data.data.sessionId) {
-          localStorage.setItem(sessionKey, response.data.data.sessionId);
-          localStorage.setItem(tokenKey, token); // Store the token that created this session
-          console.log('Stored session ID:', response.data.data.sessionId);
-          console.log('Stored token:', token);
-        }
+        // NOTE: Don't store session here - only store after user completes registration/login
+        // This prevents showing the chat page if user closes before completing auth
         
         setValidationResult({
           valid: true,
           userId: response.data.data.userId,
           conversationId: response.data.data.conversationId
         });
+        
+        // Fetch provider information before showing the form
+        if (response.data.data.userId) {
+          await fetchProviderInfo(response.data.data.userId);
+        }
         
         // Each token represents a unique customer interaction
         // Always show customer form for new tokens (new customers)
@@ -462,7 +414,8 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
     
     try {
-      const loginResponse = await axios.post('http://192.168.0.129:3000/api/v1/auth/login', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+      const loginResponse = await axios.post(`${apiUrl}/auth/login`, {
         email: customerInfo.email,
         password: customerInfo.password
       });
@@ -585,7 +538,7 @@ export default function ChatPage({ params }: ChatPageProps) {
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-white mb-2">
-              Започнете чат с {providerInfo.businessName || providerInfo.firstName}
+              Започнете чат с {providerInfo.businessName || providerInfo.firstName || 'Специалист'}
             </h2>
             <p className="text-indigo-200 mb-4">
               Регистрирайте се или влезте за да започнете разговор

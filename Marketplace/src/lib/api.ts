@@ -135,6 +135,11 @@ class ApiClient {
     return this.client.get('/marketplace/categories')
   }
 
+  // Get cases for map view (for providers)
+  async getCasesForMap(params: { latitude?: number; longitude?: number; radius?: number; category?: string }) {
+    return this.client.get('/cases/map', { params })
+  }
+
   async validatePublicChat(publicId: string, token: string) {
     return this.client.get(`/chat/public/${publicId}/validate/${token}`)
   }
@@ -825,6 +830,60 @@ class ApiClient {
     const params: any = { q: query }
     if (type) params.type = type
     return this.client.get('/locations/search', { params })
+  }
+
+  // ============ Free Inspection API ============
+
+  async getFreeInspectionStatus() {
+    console.log('🔧 API Client - Getting free inspection status')
+    return this.client.get('/free-inspection/status')
+  }
+
+  async toggleFreeInspection(active: boolean) {
+    console.log('🔧 API Client - Toggling free inspection:', active)
+    return this.client.post('/free-inspection/toggle', { active })
+  }
+
+  async getFreeInspectionPreferences() {
+    console.log('🔧 API Client - Getting free inspection preferences')
+    return this.client.get('/free-inspection/preferences')
+  }
+
+  async updateFreeInspectionPreferences(preferences: {
+    enabled?: boolean
+    radiusKm?: number
+    categories?: string[]
+    showOnlyFreeInspection?: boolean
+    latitude?: number
+    longitude?: number
+  }) {
+    console.log('🔧 API Client - Updating free inspection preferences:', preferences)
+    return this.client.put('/free-inspection/preferences', preferences)
+  }
+
+  async getProvidersForMap(params: {
+    latitude: number
+    longitude: number
+    radiusKm?: number
+    category?: string
+    freeInspectionOnly?: boolean
+  }) {
+    console.log('🔧 API Client - Getting providers for map:', params)
+    const queryParams: any = {
+      latitude: params.latitude,
+      longitude: params.longitude,
+    }
+    if (params.radiusKm) queryParams.radiusKm = params.radiusKm
+    if (params.category) queryParams.category = params.category
+    if (params.freeInspectionOnly) queryParams.freeInspectionOnly = 'true'
+    return this.client.get('/free-inspection/providers', { params: queryParams })
+  }
+
+  // ============ Account Management ============
+
+  async deleteAccount(password: string) {
+    console.log('🗑️ API Client - Deleting account')
+    return this.client.delete('/auth/delete-account', { data: { password } })
   }
 }
 

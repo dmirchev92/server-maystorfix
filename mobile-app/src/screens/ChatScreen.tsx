@@ -272,7 +272,7 @@ function ChatScreen() {
     if (!currentUserId) {
       console.error('❌ Cannot handle press: userId is missing even after storage check and API fallback');
       // Show alert to user
-      Alert.alert('Error', 'Unable to identify user. Please try logging out and back in.');
+      Alert.alert('Грешка', 'Не можем да идентифицираме потребителя. Моля, излезте и влезте отново.');
       return;
     }
 
@@ -303,7 +303,7 @@ function ChatScreen() {
       console.log('✅ Navigation command dispatched');
     } catch (navError) {
       console.error('❌ Navigation failed:', navError);
-      Alert.alert('Error', 'Failed to open chat. Please try again.');
+      Alert.alert('Грешка', 'Не успяхме да отворим чата. Моля, опитайте отново.');
     }
   };
 

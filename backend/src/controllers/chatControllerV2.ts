@@ -281,6 +281,21 @@ export class ChatController {
 
       await this.chatService.markAsRead(conversationId, userId, role)
 
+      // Emit socket event to update unread count for this user
+      const io = (req as any).io
+      if (io) {
+        // Get unread count (should be 0 now since we just read all messages)
+        const unreadCount = await this.chatService.getUnreadCount(conversationId, userId, role)
+        
+        // Emit to the user who marked as read
+        io.to(`user-${userId}`).emit('conversation:updated', {
+          conversationId,
+          unreadCount
+        })
+
+        console.log(`📨 Emitted conversation:updated for markAsRead: user=${userId}, conv=${conversationId}, unread=${unreadCount}`)
+      }
+
       res.json({
         success: true,
         data: { conversationId }

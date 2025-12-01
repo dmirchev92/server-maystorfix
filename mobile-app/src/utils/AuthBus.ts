@@ -1,11 +1,12 @@
-type AuthEvent = 'logout' | 'login';
+type AuthEvent = 'logout' | 'login' | 'userUpdated';
 
 type Listener = () => void;
 
 class SimpleAuthBus {
   private listeners: Record<AuthEvent, Set<Listener>> = {
     logout: new Set<Listener>(),
-    login: new Set<Listener>()
+    login: new Set<Listener>(),
+    userUpdated: new Set<Listener>()
   };
 
   subscribe(event: AuthEvent, listener: Listener): () => void {

@@ -99,7 +99,10 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
     const userId = (req as any).user?.id;
     const { notificationId } = req.params;
 
+    logger.info('🔔 markAsRead endpoint called', { userId, notificationId, params: req.params });
+
     if (!userId) {
+      logger.warn('🔔 markAsRead: No userId');
       res.status(401).json({
         success: false,
         error: {
@@ -111,6 +114,7 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
     }
 
     if (!notificationId) {
+      logger.warn('🔔 markAsRead: No notificationId');
       res.status(400).json({
         success: false,
         error: {
@@ -121,8 +125,10 @@ export const markAsRead = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    logger.info('🔔 Calling notificationService.markAsRead', { notificationId, userId });
     await notificationService.markAsRead(notificationId, userId);
 
+    logger.info('🔔 markAsRead completed successfully', { notificationId, userId });
     res.json({
       success: true,
       data: {
@@ -149,7 +155,10 @@ export const markAllAsRead = async (req: Request, res: Response): Promise<void> 
   try {
     const userId = (req as any).user?.id;
 
+    logger.info('🔔 markAllAsRead endpoint called', { userId });
+
     if (!userId) {
+      logger.warn('🔔 markAllAsRead: No userId');
       res.status(401).json({
         success: false,
         error: {
@@ -160,8 +169,10 @@ export const markAllAsRead = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    logger.info('🔔 Calling notificationService.markAllAsRead', { userId });
     await notificationService.markAllAsRead(userId);
 
+    logger.info('🔔 markAllAsRead completed successfully', { userId });
     res.json({
       success: true,
       data: {

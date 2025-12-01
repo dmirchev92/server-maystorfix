@@ -349,21 +349,19 @@ router.post('/send-missed-call',
         throw new ServiceTextProError('Phone number is required', 'MISSING_PHONE_NUMBER', 400);
       }
 
-      // Check SMS limit before sending
-      const smsLimitStatus = await SMSLimitService.checkSMSLimit(userId);
-      if (!smsLimitStatus.canSend) {
-        logger.warn('SMS limit exceeded', { userId, reason: smsLimitStatus.reason });
+      // Check if user has enough points for SMS
+      const smsPointsStatus = await SMSLimitService.checkSMSLimit(userId);
+      if (!smsPointsStatus.canSend) {
+        logger.warn('Insufficient points for SMS', { userId, reason: smsPointsStatus.reason });
         const response: APIResponse = {
           success: false,
           error: {
-            code: 'SMS_LIMIT_EXCEEDED',
-            message: smsLimitStatus.reason || 'SMS limit exceeded',
+            code: 'INSUFFICIENT_POINTS',
+            message: smsPointsStatus.reason || 'Insufficient points for SMS',
             details: {
-              monthlyLimit: smsLimitStatus.monthlyLimit,
-              monthlyUsed: smsLimitStatus.monthlyUsed,
-              addonRemaining: smsLimitStatus.addonRemaining,
-              totalRemaining: smsLimitStatus.totalRemaining,
-              tier: smsLimitStatus.tier
+              pointsCost: smsPointsStatus.pointsCost,
+              pointsBalance: smsPointsStatus.pointsBalance,
+              tier: smsPointsStatus.tier
             }
           },
           metadata: {
@@ -494,7 +492,8 @@ router.post('/send-missed-call',
 
 /**
  * GET /api/v1/sms/limit-status
- * Get SMS limit status for current user
+ * Get SMS points status for current user
+ * SMS is unlimited but costs points (Normal: 2pts, Pro: 1pt per SMS)
  */
 router.get('/limit-status',
   authenticateToken,
@@ -505,21 +504,26 @@ router.get('/limit-status',
         throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
       }
 
-      const limitStatus = await SMSLimitService.checkSMSLimit(userId);
+      const pointsStatus = await SMSLimitService.checkSMSLimit(userId);
+      const smsStats = await SMSLimitService.getSMSStats(userId);
 
       const response: APIResponse = {
         success: true,
         data: {
-          canSend: limitStatus.canSend,
-          monthlyLimit: limitStatus.monthlyLimit,
-          monthlyUsed: limitStatus.monthlyUsed,
-          monthlyRemaining: limitStatus.monthlyRemaining,
-          addonRemaining: limitStatus.addonRemaining,
-          totalRemaining: limitStatus.totalRemaining,
-          tier: limitStatus.tier,
-          periodStart: limitStatus.periodStart,
-          periodEnd: limitStatus.periodEnd,
-          reason: limitStatus.reason
+          canSend: pointsStatus.canSend,
+          pointsCost: pointsStatus.pointsCost,
+          pointsBalance: pointsStatus.pointsBalance,
+          tier: pointsStatus.tier,
+          reason: pointsStatus.reason,
+          // SMS stats
+          totalSmsSent: smsStats.totalSent,
+          pointsSpentOnSMS: smsStats.pointsSpentOnSMS,
+          // Legacy fields (for backward compatibility, all set to indicate unlimited)
+          monthlyLimit: -1, // -1 means unlimited
+          monthlyUsed: smsStats.totalSent,
+          monthlyRemaining: -1, // -1 means unlimited
+          addonRemaining: 0,
+          totalRemaining: -1 // -1 means unlimited
         },
         metadata: {
           timestamp: new Date(),
@@ -531,110 +535,7 @@ router.get('/limit-status',
       res.json(response);
 
     } catch (error) {
-      logger.error('Error getting SMS limit status:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * POST /api/v1/sms/purchase-package
- * Purchase SMS addon package (15 SMS for 40 BGN)
- */
-router.post('/purchase-package',
-  authenticateToken,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
-      }
-
-      const { payment_method, payment_reference } = req.body;
-
-      const smsPackage = await SMSLimitService.purchaseSMSPackage({
-        user_id: userId,
-        payment_method,
-        payment_reference
-      });
-
-      logger.info('SMS package purchased successfully', {
-        userId,
-        packageId: smsPackage.id,
-        smsCount: smsPackage.sms_count,
-        price: smsPackage.price
-      });
-
-      const response: APIResponse = {
-        success: true,
-        data: {
-          message: 'SMS package purchased successfully',
-          package: {
-            id: smsPackage.id,
-            smsCount: smsPackage.sms_count,
-            price: smsPackage.price,
-            currency: smsPackage.currency,
-            smsRemaining: smsPackage.sms_remaining,
-            purchasedAt: smsPackage.purchased_at
-          }
-        },
-        metadata: {
-          timestamp: new Date(),
-          requestId: (req as any).requestId,
-          version: config.app.version
-        }
-      };
-
-      res.json(response);
-
-    } catch (error) {
-      logger.error('Error purchasing SMS package:', error);
-      next(error);
-    }
-  }
-);
-
-/**
- * GET /api/v1/sms/packages
- * Get user's SMS package purchase history
- */
-router.get('/packages',
-  authenticateToken,
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
-      }
-
-      const packages = await SMSLimitService.getSMSPackages(userId);
-
-      const response: APIResponse = {
-        success: true,
-        data: {
-          packages: packages.map(pkg => ({
-            id: pkg.id,
-            packageType: pkg.package_type,
-            smsCount: pkg.sms_count,
-            price: pkg.price,
-            currency: pkg.currency,
-            purchasedAt: pkg.purchased_at,
-            smsUsed: pkg.sms_used,
-            smsRemaining: pkg.sms_remaining,
-            status: pkg.status
-          }))
-        },
-        metadata: {
-          timestamp: new Date(),
-          requestId: (req as any).requestId,
-          version: config.app.version
-        }
-      };
-
-      res.json(response);
-
-    } catch (error) {
-      logger.error('Error getting SMS packages:', error);
+      logger.error('Error getting SMS points status:', error);
       next(error);
     }
   }

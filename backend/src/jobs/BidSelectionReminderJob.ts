@@ -94,6 +94,7 @@ export class BidSelectionReminderJob {
         WHERE c.status = 'pending'
           AND c.bidding_enabled = true
           AND c.bidding_closed = false
+          AND c.provider_id IS NULL  -- Don't notify for cases already assigned to a provider
           AND c.created_at >= NOW() - INTERVAL '6 hours'
           AND c.customer_id != u.id
           AND sp.is_active = true
@@ -221,20 +222,26 @@ export class BidSelectionReminderJob {
           c.budget,
           c.priority,
           u.id as provider_id,
-          psc.category_id as service_category,
+          sp.service_category,
           sp.city as provider_city,
           sp.neighborhood as provider_neighborhood
         FROM marketplace_service_cases c
         CROSS JOIN users u
         INNER JOIN service_provider_profiles sp ON u.id = sp.user_id
-        INNER JOIN provider_service_categories psc ON sp.user_id = psc.provider_id
+        LEFT JOIN provider_service_categories psc ON sp.user_id = psc.provider_id
         WHERE c.id = $1
           AND c.status = 'pending'
           AND c.bidding_enabled = true
           AND c.bidding_closed = false
+          AND c.provider_id IS NULL  -- Don't notify for cases already assigned to a provider
           AND c.customer_id != u.id
           AND sp.is_active = true
-          AND psc.category_id = c.category
+          AND (
+            sp.service_category = c.category 
+            OR psc.category_id = c.category
+            OR sp.service_category = REPLACE(c.category, 'cat_', '')
+            OR psc.category_id = REPLACE(c.category, 'cat_', '')
+          )
           AND sp.city = c.city
           AND c.neighborhood IS NOT NULL
           AND sp.neighborhood IS NOT NULL

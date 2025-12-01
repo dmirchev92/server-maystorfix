@@ -16,8 +16,29 @@ interface LocationPickerProps {
     latitude: number;
     longitude: number;
     city?: string;
+    neighborhood?: string;
   }) => void;
   initialLocation?: { lat: number; lng: number };
+}
+
+// API helper to find nearest neighborhood
+async function findNearestNeighborhood(lat: number, lng: number, city?: string): Promise<string | null> {
+  try {
+    const params = new URLSearchParams({ lat: lat.toString(), lng: lng.toString() });
+    if (city) params.append('city', city);
+    
+    const response = await fetch(`https://maystorfix.com/api/v1/locations/nearest-neighborhood?${params}`);
+    const data = await response.json();
+    
+    if (data.success && data.data?.neighborhood) {
+      console.log('📍 Found nearest neighborhood:', data.data.neighborhood.nameBg, '(', data.data.neighborhood.distanceKm, 'km)');
+      return data.data.neighborhood.nameBg || data.data.neighborhood.name;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error finding nearest neighborhood:', error);
+    return null;
+  }
 }
 
 export default function LocationPicker({ onLocationSelect, initialLocation }: LocationPickerProps) {
@@ -55,25 +76,52 @@ function Map({ onLocationSelect, initialLocation }: LocationPickerProps) {
     clearSuggestions();
 
     try {
+      // First get coordinates from the address
       const results = await getGeocode({ address });
       const { lat, lng } = await getLatLng(results[0]);
       const location = { lat, lng };
       
       setSelected(location);
       
-      // Try to extract city
+      // Use direct Google API call for reverse geocoding (more reliable than library)
+      // Forward geocoding returns broad districts like "Vitosha", reverse returns accurate neighborhoods
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
+      const reverseResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=bg`
+      );
+      const reverseData = await reverseResponse.json();
+      
       let city = '';
-      results[0].address_components.forEach(comp => {
-        if (comp.types.includes('locality')) {
-          city = comp.long_name;
+      let neighborhood = '';
+      let sublocality = '';
+      if (reverseData.results?.[0]?.address_components) {
+        reverseData.results[0].address_components.forEach((comp: any) => {
+          if (comp.types.includes('locality')) {
+            city = comp.long_name;
+          }
+          // Neighborhood type is most specific - prioritize it
+          if (comp.types.includes('neighborhood')) {
+            neighborhood = comp.long_name;
+          }
+          // Sublocality is broader (district) - use only as fallback
+          if (comp.types.includes('sublocality_level_1') || comp.types.includes('sublocality')) {
+            sublocality = comp.long_name;
+          }
+        });
+        // Use neighborhood if found, otherwise fall back to sublocality
+        if (!neighborhood && sublocality) {
+          neighborhood = sublocality;
         }
-      });
+      }
+      
+      console.log('📍 Location detected:', { address, lat, lng, city, neighborhood, sublocality });
 
       onLocationSelect({
         address,
         latitude: lat,
         longitude: lng,
-        city
+        city,
+        neighborhood
       });
     } catch (error) {
       console.error("Error: ", error);
@@ -87,25 +135,47 @@ function Map({ onLocationSelect, initialLocation }: LocationPickerProps) {
     
     setSelected({ lat, lng });
 
-    // Reverse geocode to get address
+    // Use direct Google API call for reverse geocoding
     try {
-      const results = await getGeocode({ location: { lat, lng } });
-      if (results[0]) {
-        const address = results[0].formatted_address;
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
+      const reverseResponse = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=bg`
+      );
+      const reverseData = await reverseResponse.json();
+      
+      if (reverseData.results?.[0]) {
+        const address = reverseData.results[0].formatted_address;
         setValue(address, false);
         
         let city = '';
-        results[0].address_components.forEach(comp => {
+        let neighborhood = '';
+        let sublocality = '';
+        reverseData.results[0].address_components.forEach((comp: any) => {
           if (comp.types.includes('locality')) {
             city = comp.long_name;
           }
+          // Neighborhood type is most specific - prioritize it
+          if (comp.types.includes('neighborhood')) {
+            neighborhood = comp.long_name;
+          }
+          // Sublocality is broader (district) - use only as fallback
+          if (comp.types.includes('sublocality_level_1') || comp.types.includes('sublocality')) {
+            sublocality = comp.long_name;
+          }
         });
+        // Use neighborhood if found, otherwise fall back to sublocality
+        if (!neighborhood && sublocality) {
+          neighborhood = sublocality;
+        }
+        
+        console.log('📍 Map click location:', { lat, lng, city, neighborhood, sublocality });
 
         onLocationSelect({
           address,
           latitude: lat,
           longitude: lng,
-          city
+          city,
+          neighborhood
         });
       }
     } catch (error) {

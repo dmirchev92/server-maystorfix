@@ -10,6 +10,10 @@ import {
   Alert,
   Platform,
   StatusBar,
+  Modal,
+  ScrollView,
+  Dimensions,
+  Linking,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
@@ -18,19 +22,35 @@ import ApiService from '../services/ApiService';
 // Icon removed since react-native-vector-icons is not installed
 // import Icon from 'react-native-vector-icons/Ionicons'; 
 
-// Constants
+// All 18 service categories with Bulgarian labels
 const SERVICE_TYPES = [
   { value: 'electrician', label: 'Електротехник' },
   { value: 'plumber', label: 'Водопроводчик' },
-  { value: 'hvac', label: 'Климатик' },
+  { value: 'hvac', label: 'Отопление и климатизация' },
   { value: 'carpenter', label: 'Дърводелец' },
   { value: 'painter', label: 'Бояджия' },
   { value: 'locksmith', label: 'Ключар' },
   { value: 'cleaner', label: 'Почистване' },
   { value: 'gardener', label: 'Градинар' },
-  { value: 'handyman', label: 'Майстор за всичко' },
-  { value: 'appliance_repair', label: 'Ремонт на уреди' },
+  { value: 'handyman', label: 'Дребни ремонти' },
+  { value: 'renovation', label: 'Цялостни ремонти' },
+  { value: 'roofer', label: 'Покривни услуги' },
+  { value: 'mover', label: 'Хамалски услуги' },
+  { value: 'tiler', label: 'Майстор Фаянс' },
+  { value: 'welder', label: 'Заварчик' },
+  { value: 'appliance', label: 'Ремонт на уреди' },
+  { value: 'flooring', label: 'Подови настилки' },
+  { value: 'plasterer', label: 'Шпакловане' },
+  { value: 'glasswork', label: 'Стъкларски услуги' },
+  { value: 'design', label: 'Дизайн' },
 ];
+
+// Helper to get Bulgarian label for a service category
+const getServiceCategoryLabel = (category: string): string => {
+  if (!category) return '';
+  const found = SERVICE_TYPES.find(c => c.value.toLowerCase() === category.toLowerCase());
+  return found ? found.label : category;
+};
 
 // Fallback cities (used while loading from API)
 const FALLBACK_CITIES = [
@@ -39,6 +59,8 @@ const FALLBACK_CITIES = [
   { value: 'Варна', label: 'Варна' },
   { value: 'Бургас', label: 'Бургас' },
 ];
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const SearchScreen = () => {
   const navigation = useNavigation<any>();
@@ -49,6 +71,12 @@ const SearchScreen = () => {
     city: '',
     neighborhood: '',
   });
+  
+  // Profile modal state
+  const [selectedProvider, setSelectedProvider] = useState<any>(null);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [providerReviews, setProviderReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   
   // Dynamic location data
   const [cities, setCities] = useState<{value: string; label: string}[]>(FALLBACK_CITIES);
@@ -124,7 +152,8 @@ const SearchScreen = () => {
   };
 
   const getCategoryLabel = (value: string) => {
-    const type = SERVICE_TYPES.find(t => t.value === value);
+    if (!value) return '';
+    const type = SERVICE_TYPES.find(t => t.value.toLowerCase() === value.toLowerCase());
     return type ? type.label : value;
   };
 
@@ -136,8 +165,60 @@ const SearchScreen = () => {
     });
   };
 
-  const handleViewProfile = (provider: any) => {
-     Alert.alert('Profile', 'Provider profile coming soon');
+  const handleViewProfile = async (provider: any) => {
+    setSelectedProvider(provider);
+    setProfileModalVisible(true);
+    
+    // Fetch reviews for this provider
+    setReviewsLoading(true);
+    try {
+      const response = await fetch(
+        `https://maystorfix.com/api/v1/reviews/provider/${provider.id}`
+      );
+      const data = await response.json();
+      if (data.success && data.data) {
+        const reviews = data.data.reviews || data.data || [];
+        setProviderReviews(reviews);
+      } else {
+        setProviderReviews([]);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      setProviderReviews([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  const handleCallProvider = (phone: string) => {
+    if (phone) {
+      Linking.openURL(`tel:${phone}`);
+    } else {
+      Alert.alert('Няма телефон', 'Този специалист не е предоставил телефонен номер.');
+    }
+  };
+
+  const closeProfileModal = () => {
+    setProfileModalVisible(false);
+    setSelectedProvider(null);
+    setProviderReviews([]);
+  };
+
+  const renderStars = (rating: number) => {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    const hasHalf = rating % 1 >= 0.5;
+    
+    for (let i = 0; i < fullStars; i++) {
+      stars.push('⭐');
+    }
+    if (hasHalf && stars.length < 5) {
+      stars.push('⭐');
+    }
+    while (stars.length < 5) {
+      stars.push('☆');
+    }
+    return stars.join('');
   };
 
   const renderProvider = ({ item }: { item: any }) => {
@@ -174,7 +255,7 @@ const SearchScreen = () => {
         </View>
 
         <View style={styles.statsRow}>
-           <Text style={styles.statText}>📍 {item.city || 'София'}</Text>
+           <Text style={styles.statText} numberOfLines={1}>📍 {item.city || 'София'}{item.neighborhood ? `, ${item.neighborhood}` : ''}</Text>
            <Text style={styles.statText}>⭐ {rating} ({reviewCount})</Text>
         </View>
 
@@ -276,6 +357,170 @@ const SearchScreen = () => {
             }
           />
         )}
+
+        {/* Provider Profile Modal */}
+        <Modal
+          visible={profileModalVisible}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={closeProfileModal}
+        >
+          <View style={styles.modalContainer}>
+            <LinearGradient colors={['#0f172a', '#1e293b', '#312e81']} style={styles.modalGradient}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <TouchableOpacity onPress={closeProfileModal} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>← Назад</Text>
+                </TouchableOpacity>
+              </View>
+
+              {selectedProvider && (
+                <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+                  {/* Profile Header */}
+                  <View style={styles.profileHeader}>
+                    {selectedProvider.profileImageUrl ? (
+                      <Image source={{ uri: selectedProvider.profileImageUrl }} style={styles.profileAvatar} />
+                    ) : (
+                      <View style={styles.profileAvatarPlaceholder}>
+                        <Text style={styles.profileAvatarText}>
+                          {(selectedProvider.businessName || selectedProvider.firstName || 'S').charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.profileInfo}>
+                      <Text style={styles.profileName}>
+                        {selectedProvider.businessName || selectedProvider.business_name || 
+                         `${selectedProvider.firstName || ''} ${selectedProvider.lastName || ''}`.trim() || 'Специалист'}
+                      </Text>
+                      <Text style={styles.profileCategory}>
+                        {getCategoryLabel(selectedProvider.serviceCategory || selectedProvider.service_category)}
+                      </Text>
+                      <Text style={styles.profileLocation}>
+                        📍 {selectedProvider.city || 'София'}{selectedProvider.neighborhood ? `, ${selectedProvider.neighborhood}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Rating Section */}
+                  <View style={styles.ratingSection}>
+                    <Text style={styles.ratingStars}>{renderStars(selectedProvider.rating || 0)}</Text>
+                    <Text style={styles.modalRatingText}>
+                      {Number(selectedProvider.rating || 0).toFixed(1)} ({selectedProvider.totalReviews || selectedProvider.total_reviews || 0} отзива)
+                    </Text>
+                  </View>
+
+                  {/* Quick Info */}
+                  <View style={styles.quickInfoSection}>
+                    <Text style={styles.sectionTitle}>Бърза информация</Text>
+                    <View style={styles.quickInfoGrid}>
+                      <View style={styles.quickInfoItem}>
+                        <Text style={styles.quickInfoIcon}>⭐</Text>
+                        <Text style={styles.quickInfoLabel}>Опит</Text>
+                        <Text style={styles.quickInfoValue}>{selectedProvider.experienceYears || selectedProvider.experience_years || 0} год.</Text>
+                      </View>
+                      <View style={styles.quickInfoItem}>
+                        <Text style={styles.quickInfoIcon}>📞</Text>
+                        <Text style={styles.quickInfoLabel}>Телефон</Text>
+                        <Text style={styles.quickInfoValue} numberOfLines={1}>
+                          {selectedProvider.phoneNumber || selectedProvider.phone_number || 'Няма'}
+                        </Text>
+                      </View>
+                      <View style={styles.quickInfoItem}>
+                        <Text style={styles.quickInfoIcon}>✅</Text>
+                        <Text style={styles.quickInfoLabel}>Проекти</Text>
+                        <Text style={styles.quickInfoValue}>{selectedProvider.completedProjects || 0}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Description */}
+                  <View style={styles.descriptionSection}>
+                    <Text style={styles.sectionTitle}>За мен</Text>
+                    <Text style={styles.descriptionText}>
+                      {selectedProvider.description || `Професионални ${getCategoryLabel(selectedProvider.serviceCategory || selectedProvider.service_category).toLowerCase()} услуги с качество и гаранция.`}
+                    </Text>
+                  </View>
+
+                  {/* Services */}
+                  <View style={styles.servicesSection}>
+                    <Text style={styles.sectionTitle}>Предлагани услуги</Text>
+                    <View style={styles.serviceItem}>
+                      <Text style={styles.serviceIcon}>🔧</Text>
+                      <Text style={styles.serviceText}>Основни {getCategoryLabel(selectedProvider.serviceCategory || selectedProvider.service_category).toLowerCase()} услуги</Text>
+                    </View>
+                    <View style={styles.serviceItem}>
+                      <Text style={styles.serviceIcon}>🚨</Text>
+                      <Text style={styles.serviceText}>Спешни повиквания</Text>
+                    </View>
+                    <View style={styles.serviceItem}>
+                      <Text style={styles.serviceIcon}>📋</Text>
+                      <Text style={styles.serviceText}>Консултации и оценки</Text>
+                    </View>
+                  </View>
+
+                  {/* Gallery */}
+                  {selectedProvider.gallery && selectedProvider.gallery.length > 0 && (
+                    <View style={styles.gallerySection}>
+                      <Text style={styles.sectionTitle}>📸 Галерия</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {selectedProvider.gallery.map((imgUrl: string, idx: number) => (
+                          <TouchableOpacity key={idx} onPress={() => Linking.openURL(imgUrl)}>
+                            <Image source={{ uri: imgUrl }} style={styles.galleryImage} />
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
+                  {/* Reviews */}
+                  <View style={styles.reviewsSection}>
+                    <Text style={styles.sectionTitle}>🌟 Отзиви</Text>
+                    {reviewsLoading ? (
+                      <ActivityIndicator color="#818cf8" style={{ marginVertical: 20 }} />
+                    ) : providerReviews.length > 0 ? (
+                      providerReviews.slice(0, 5).map((review: any, idx: number) => (
+                        <View key={idx} style={styles.reviewCard}>
+                          <View style={styles.reviewHeader}>
+                            <Text style={styles.reviewerName}>{review.customerName || 'Клиент'}</Text>
+                            <Text style={styles.reviewRating}>{renderStars(review.rating || 0)}</Text>
+                          </View>
+                          <Text style={styles.reviewText}>{review.comment || 'Няма коментар'}</Text>
+                          <Text style={styles.reviewDate}>
+                            {review.createdAt ? new Date(review.createdAt).toLocaleDateString('bg-BG') : ''}
+                          </Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.noReviewsText}>Все още няма отзиви</Text>
+                    )}
+                  </View>
+
+                  {/* Action Buttons */}
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity 
+                      style={styles.callButton} 
+                      onPress={() => handleCallProvider(selectedProvider.phoneNumber || selectedProvider.phone_number)}
+                    >
+                      <Text style={styles.actionButtonText}>📞 Обади се</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.chatButtonLarge} 
+                      onPress={() => {
+                        closeProfileModal();
+                        handleChat(selectedProvider);
+                      }}
+                    >
+                      <Text style={styles.actionButtonText}>💬 Чат</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Spacer at bottom */}
+                  <View style={{ height: 40 }} />
+                </ScrollView>
+              )}
+            </LinearGradient>
+          </View>
+        </Modal>
       </LinearGradient>
     </View>
   );
@@ -482,6 +727,257 @@ const styles = StyleSheet.create({
   emptySubText: {
     color: '#94a3b8', // slate-400
     fontSize: 14,
+  },
+  // Modal Styles
+  modalContainer: {
+    flex: 1,
+  },
+  modalGradient: {
+    flex: 1,
+  },
+  modalHeader: {
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 60 : 20,
+    paddingBottom: 16,
+  },
+  closeButton: {
+    paddingVertical: 8,
+  },
+  closeButtonText: {
+    color: '#a5b4fc',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  profileAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileAvatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#4f46e5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileAvatarText: {
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  profileInfo: {
+    flex: 1,
+    marginLeft: 16,
+  },
+  profileName: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  profileCategory: {
+    color: '#a5b4fc',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  profileLocation: {
+    color: '#cbd5e1',
+    fontSize: 14,
+  },
+  ratingSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+  },
+  ratingStars: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  modalRatingText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  quickInfoSection: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  sectionTitle: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  quickInfoGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  quickInfoItem: {
+    alignItems: 'center',
+  },
+  quickInfoIcon: {
+    fontSize: 24,
+    marginBottom: 4,
+  },
+  quickInfoLabel: {
+    color: '#94a3b8',
+    fontSize: 12,
+  },
+  quickInfoValue: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  descriptionSection: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  descriptionText: {
+    color: '#e2e8f0',
+    fontSize: 15,
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  servicesSection: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  serviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  serviceIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  serviceText: {
+    color: '#e2e8f0',
+    fontSize: 14,
+  },
+  gallerySection: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  galleryImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  reviewsSection: {
+    marginBottom: 20,
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  reviewCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  reviewerName: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  reviewRating: {
+    fontSize: 12,
+  },
+  reviewText: {
+    color: '#cbd5e1',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  reviewDate: {
+    color: '#64748b',
+    fontSize: 12,
+  },
+  noReviewsText: {
+    color: '#94a3b8',
+    textAlign: 'center',
+    paddingVertical: 20,
+    fontStyle: 'italic',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 10,
+  },
+  callButton: {
+    flex: 1,
+    backgroundColor: '#10b981',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  chatButtonLarge: {
+    flex: 1,
+    backgroundColor: '#4f46e5',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

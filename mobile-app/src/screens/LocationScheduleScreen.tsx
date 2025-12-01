@@ -75,12 +75,16 @@ const LocationScheduleScreen: React.FC = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
+      console.log('📅 LocationScheduleScreen - Loading settings...');
       const response = await ApiService.getInstance().getLocationSchedule();
+      console.log('📅 LocationScheduleScreen - Load response:', JSON.stringify(response, null, 2));
       if (response.success && response.data) {
-        setSettings({
+        const loadedSettings = {
           ...DEFAULT_SETTINGS,
           ...response.data,
-        });
+        };
+        console.log('📅 LocationScheduleScreen - Merged settings:', JSON.stringify(loadedSettings, null, 2));
+        setSettings(loadedSettings);
       }
     } catch (error) {
       console.error('Error loading schedule settings:', error);
@@ -93,11 +97,15 @@ const LocationScheduleScreen: React.FC = () => {
   const saveSettings = async () => {
     try {
       setSaving(true);
+      console.log('📅 LocationScheduleScreen - Saving settings:', JSON.stringify(settings, null, 2));
       const response = await ApiService.getInstance().updateLocationSchedule(settings);
+      console.log('📅 LocationScheduleScreen - Save response:', JSON.stringify(response, null, 2));
       if (response.success) {
         Alert.alert('Успех', 'Настройките са запазени успешно');
         // Trigger schedule check to apply changes immediately
+        console.log('📅 LocationScheduleScreen - Triggering schedule check...');
         await LocationTrackingService.getInstance().checkAndApplySchedule();
+        console.log('📅 LocationScheduleScreen - Schedule check complete');
       } else {
         Alert.alert('Грешка', response.error?.message || 'Неуспешно запазване');
       }
@@ -146,24 +154,29 @@ const LocationScheduleScreen: React.FC = () => {
           </Text>
         </View>
 
-        {/* Enable Schedule Toggle */}
+        {/* Enable Schedule Toggle - Styled like Dashboard buttons */}
         <View style={styles.section}>
-          <View style={styles.mainToggleContainer}>
-            <View style={styles.toggleInfo}>
-              <Text style={styles.mainToggleTitle}>Активирай график</Text>
-              <Text style={styles.mainToggleSubtitle}>
+          <TouchableOpacity 
+            style={[
+              styles.scheduleToggleButton,
+              settings.schedule_enabled ? styles.scheduleToggleActive : styles.scheduleToggleInactive
+            ]}
+            onPress={() => updateSetting('schedule_enabled', !settings.schedule_enabled)}
+          >
+            <Text style={styles.scheduleToggleIcon}>📅</Text>
+            <View style={styles.scheduleToggleTextContainer}>
+              <Text style={styles.scheduleToggleLabel}>Активирай график</Text>
+              <Text style={styles.scheduleToggleStatus}>
                 {settings.schedule_enabled 
                   ? 'Локацията ще се споделя само в зададените часове'
-                  : 'Локацията се споделя постоянно (когато е включена)'}
+                  : 'Локацията се споделя постоянно'}
               </Text>
             </View>
-            <Switch
-              value={settings.schedule_enabled}
-              onValueChange={(value) => updateSetting('schedule_enabled', value)}
-              trackColor={{ false: '#767577', true: '#4F46E5' }}
-              thumbColor={settings.schedule_enabled ? '#fff' : '#f4f3f4'}
-            />
-          </View>
+            <View style={[
+              styles.scheduleToggleIndicator,
+              settings.schedule_enabled ? styles.indicatorGreen : styles.indicatorRed
+            ]} />
+          </TouchableOpacity>
         </View>
 
         {settings.schedule_enabled && (
@@ -579,6 +592,51 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  // Schedule toggle button styles (matching Dashboard design)
+  scheduleToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  scheduleToggleActive: {
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderColor: '#22c55e',
+  },
+  scheduleToggleInactive: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: '#ef4444',
+  },
+  scheduleToggleIcon: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  scheduleToggleTextContainer: {
+    flex: 1,
+  },
+  scheduleToggleLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  scheduleToggleStatus: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  scheduleToggleIndicator: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  indicatorGreen: {
+    backgroundColor: '#22c55e',
+  },
+  indicatorRed: {
+    backgroundColor: '#ef4444',
   },
 });
 

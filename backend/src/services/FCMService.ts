@@ -80,7 +80,10 @@ export class FCMService {
     userId: string,
     notification: FCMNotification
   ): Promise<{ success: number; failed: number }> {
+    console.log('📱 FCM DEBUG: sendNotificationToUser called', { userId, title: notification.title, initialized: this.initialized });
+    
     if (!this.initialized) {
+      console.log('⚠️ FCM DEBUG: Firebase not initialized!');
       logger.warn('⚠️ Firebase not initialized, skipping push notification');
       return { success: 0, failed: 0 };
     }
@@ -88,12 +91,15 @@ export class FCMService {
     try {
       // Get all active device tokens for user
       const tokens = await this.getUserDeviceTokens(userId);
+      console.log('📱 FCM DEBUG: Found tokens:', tokens.length);
 
       if (tokens.length === 0) {
+        console.log('📱 FCM DEBUG: No tokens, returning');
         logger.info('ℹ️ No device tokens found for user', { userId });
         return { success: 0, failed: 0 };
       }
 
+      console.log('📱 FCM DEBUG: About to send to', tokens.length, 'devices');
       logger.info('📱 Sending push notification to user', {
         userId,
         deviceCount: tokens.length,
@@ -101,7 +107,9 @@ export class FCMService {
       });
 
       // Send to all devices
+      console.log('📱 FCM DEBUG: Calling sendToTokens...');
       const results = await this.sendToTokens(tokens.map(t => t.token), notification);
+      console.log('📱 FCM DEBUG: sendToTokens returned:', results);
 
       // Mark failed tokens as inactive
       if (results.failed > 0) {
@@ -123,38 +131,44 @@ export class FCMService {
 
   /**
    * Send push notification to multiple tokens
+   * 
+   * IMPORTANT: We use DATA-ONLY messages to prevent duplicate notifications.
+   * When both 'notification' and 'data' payloads are included, Firebase automatically
+   * displays the notification on Android when the app is in background, AND our app
+   * also displays one via notifee - causing duplicates.
+   * 
+   * With data-only messages, the app has full control over notification display.
    */
   private async sendToTokens(
     tokens: string[],
     notification: FCMNotification
   ): Promise<{ success: number; failed: number; failedTokens: string[] }> {
     try {
-      // Prepare message
+      // Prepare DATA-ONLY message (no 'notification' payload at top level)
+      // This ensures our mobile app controls all notification display
       const message: admin.messaging.MulticastMessage = {
-        notification: {
+        // Include notification details in data so our app can display them
+        data: {
           title: notification.title,
           body: notification.body,
+          ...(notification.data || {}),
         },
-        data: notification.data || {},
         tokens,
         android: {
           priority: 'high',
-          notification: {
-            channelId: 'chat_messages',
-            sound: 'default',
-            priority: 'high' as any,
-          },
+          // No 'notification' here - let the app handle display
         },
         apns: {
           payload: {
             aps: {
-              alert: {
-                title: notification.title,
-                body: notification.body,
-              },
+              // For iOS, we need content-available for background delivery
+              'content-available': 1,
               sound: 'default',
               badge: 1,
             },
+          },
+          headers: {
+            'apns-priority': '10',
           },
         },
       };
