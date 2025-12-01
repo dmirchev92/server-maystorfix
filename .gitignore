@@ -82,7 +82,7 @@ mobile-app/node_modules/
 *.sql
 backend/database.sqlite
 backend/backups/
-downloads/*.apk
+downloads/
 
 # Log dumps
 live_logs.txt
