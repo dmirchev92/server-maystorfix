@@ -130,7 +130,7 @@ function ChatScreen() {
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) {
         console.log('⚠️ No auth token');
-        setError('No authentication token found');
+        setError('Няма токен за автентикация');
         setIsLoading(false);
         return;
       }
@@ -145,7 +145,7 @@ function ChatScreen() {
 
       if (!userData || !userData.id) {
         console.error('❌ No user ID found');
-        setError('User data not available');
+        setError('Данните за потребителя не са налични');
         setIsLoading(false);
         return;
       }
@@ -336,13 +336,13 @@ function ChatScreen() {
     // so we fallback to showing "Chat" or try to infer. 
     // Ideally we rely on `userRole` state.
     
-    let displayName = 'Chat';
+    let displayName = 'Чат';
     if (userId) {
         const isMeProvider = item.providerId === userId;
         displayName = isMeProvider ? (item.customerName || 'Клиент') : (item.providerName || 'Доставчик');
     } else {
         // Fallback if userId not loaded yet (should be rare due to isLoading)
-        displayName = item.providerName || item.customerName || 'Chat';
+        displayName = item.providerName || item.customerName || 'Чат';
     }
 
     return (

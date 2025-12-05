@@ -472,6 +472,7 @@ export default function UnifiedCaseModal({
                     className="w-full bg-slate-700 border border-slate-600 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
+                {/* COMMENTED OUT: preferredTime - feature not needed for now
                 <div>
                   <label className="block text-sm font-medium text-slate-200 mb-2">
                     Предпочитано време
@@ -487,9 +488,10 @@ export default function UnifiedCaseModal({
                     <option value="flexible">Гъвкаво време</option>
                   </select>
                 </div>
+                */}
               </div>
 
-              {/* Priority */}
+              {/* COMMENTED OUT: Priority - feature not needed for now
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-2">
                   Приоритет
@@ -504,6 +506,7 @@ export default function UnifiedCaseModal({
                   <option value="urgent">Спешен</option>
                 </select>
               </div>
+              */}
 
               {/* Budget Range */}
               <div>

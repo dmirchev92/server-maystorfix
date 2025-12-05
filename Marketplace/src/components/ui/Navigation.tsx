@@ -42,7 +42,8 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
   };
 
   const navigationItems = [
-    { href: '/search', label: 'Търсене', icon: '🔍' },
+    // Search - only show when logged in
+    ...(user ? [{ href: '/search', label: 'Търсене', icon: '🔍' }] : []),
     // Service provider items
     ...(user?.role === 'tradesperson' || user?.role === 'service_provider' ? [
       { href: '/dashboard/cases', label: 'Заявки', icon: '📋' },

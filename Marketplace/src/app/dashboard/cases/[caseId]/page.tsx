@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import TrackingMap from '@/components/TrackingMap';
+import { formatFullAddress } from '@/utils/addressUtils';
 
 export default function CaseDetailsPage() {
   const { caseId } = useParams();
@@ -82,7 +83,7 @@ export default function CaseDetailsPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -120,7 +121,7 @@ export default function CaseDetailsPage() {
                     customerLocation={{
                       lat: parseFloat(caseData.latitude),
                       lng: parseFloat(caseData.longitude),
-                      address: caseData.formatted_address || caseData.city
+                      address: formatFullAddress(caseData.city, caseData.formatted_address)
                     }}
                     customerBudget={caseData.budget}
                     agreedPrice={agreedPrice}
@@ -135,7 +136,7 @@ export default function CaseDetailsPage() {
                     <CardTitle>📍 Местоположение</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-slate-300">{caseData.formatted_address || caseData.city}</p>
+                    <p className="text-slate-300">{formatFullAddress(caseData.city, caseData.formatted_address)}</p>
                     <p className="text-sm text-slate-500 mt-2">
                       Картата ще се активира, когато изпълнител приеме заявката.
                     </p>

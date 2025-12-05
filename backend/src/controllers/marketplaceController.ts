@@ -695,28 +695,36 @@ const getUpdatedProviderData = async (userId: string): Promise<any> => {
 };
 
 /**
- * Get service categories
+ * Get service categories from database
  */
 export const getServiceCategories = async (req: Request, res: Response): Promise<void> => {
-  res.json({
-    success: true,
-    data: [
-      { id: 'electrician', name: 'Електроуслуги', nameEn: 'Electrical Services' },
-      { id: 'plumber', name: 'ВиК Услуги', nameEn: 'Plumbing Services' },
-      { id: 'hvac', name: 'Отопление и климатизация', nameEn: 'HVAC' },
-      { id: 'carpenter', name: 'Дърводелски услуги', nameEn: 'Carpentry' },
-      { id: 'painter', name: 'Боядисване', nameEn: 'Painting' },
-      { id: 'locksmith', name: 'Ключар', nameEn: 'Locksmith' },
-      { id: 'cleaner', name: 'Почистване', nameEn: 'Cleaning' },
-      { id: 'gardener', name: 'Озеленяване', nameEn: 'Gardening' },
-      { id: 'handyman', name: 'Цялостни ремонти', nameEn: 'General Repairs' },
-      { id: 'roofer', name: 'Ремонти на покрив', nameEn: 'Roofing' },
-      { id: 'moving', name: 'Хамалски Услуги', nameEn: 'Moving Services' },
-      { id: 'tiler', name: 'Плочки и теракот', nameEn: 'Tiling' },
-      { id: 'welder', name: 'Железарски услуги', nameEn: 'Welding' },
-      { id: 'design', name: 'Дизайн', nameEn: 'Design' }
-    ]
-  });
+  try {
+    logger.info('📂 Fetching service categories from database...');
+    const categories = await (db as any).query(`
+      SELECT 
+        REPLACE(id, 'cat_', '') as id,
+        id as value,
+        name_bg as label,
+        name as name_en,
+        icon_name as icon,
+        description
+      FROM service_categories 
+      ORDER BY name_bg
+    `);
+    
+    logger.info('📂 Service categories fetched:', { count: categories?.length });
+    
+    res.json({
+      success: true,
+      data: categories || []
+    });
+  } catch (error) {
+    logger.error('❌ Error fetching service categories:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch categories' }
+    });
+  }
 };
 
 /**

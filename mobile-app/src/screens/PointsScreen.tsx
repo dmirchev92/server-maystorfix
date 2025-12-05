@@ -43,9 +43,9 @@ const PointsScreen: React.FC = () => {
   // Helper function to get tier display name
   const getTierDisplayName = (tier: string) => {
     switch (tier?.toLowerCase()) {
-      case 'pro': return 'Pro';
-      case 'normal': return 'Normal';
-      default: return 'Free';
+      case 'pro': return 'Професионален';
+      case 'normal': return 'Нормален';
+      default: return 'Безплатен';
     }
   };
 
@@ -122,13 +122,127 @@ const PointsScreen: React.FC = () => {
     }
   };
 
+  // Translate transaction reasons from English to Bulgarian
+  const translateReason = (reason: string): string => {
+    if (!reason) return 'Транзакция';
+    
+    // Common transaction reason translations
+    const translations: { [key: string]: string } = {
+      // Monthly/Initial allocation
+      'Monthly points allowance': 'Месечен лимит точки',
+      'Monthly allowance': 'Месечен лимит',
+      'Monthly points reset': 'Месечно нулиране на точки',
+      'Initial monthly points allocation': 'Начално разпределение на месечни точки',
+      'Initial points allocation': 'Начално разпределение на точки',
+      'Points allocation': 'Разпределение на точки',
+      
+      // Direct assignment
+      'Direct assignment accepted': 'Приета директна заявка',
+      'direct assignment accepted': 'Приета директна заявка',
+      
+      // Case related
+      'Case accepted': 'Приета заявка',
+      'Accepted case': 'Приета заявка',
+      'Case completed': 'Завършена заявка',
+      'Case cancelled': 'Отменена заявка',
+      'Case declined': 'Отказана заявка',
+      'Bid placed': 'Направена оферта',
+      'Bid won': 'Спечелена оферта',
+      'Bid lost': 'Загубена оферта',
+      'Points spent on case': 'Точки изразходвани за заявка',
+      'Points refunded': 'Възстановени точки',
+      'Refund for cancelled case': 'Възстановяване за отменена заявка',
+      'Refund for declined case': 'Възстановяване за отказана заявка',
+      
+      // Subscription related
+      'Subscription upgrade': 'Надграждане на абонамент',
+      'Subscription renewal': 'Подновяване на абонамент',
+      'Subscription bonus': 'Бонус от абонамент',
+      
+      // Referral related
+      'Referral bonus': 'Бонус от препоръка',
+      'Referral signup bonus': 'Бонус за регистрация от препоръка',
+      
+      // Admin actions
+      'Admin adjustment': 'Корекция от администратор',
+      'Manual adjustment': 'Ръчна корекция',
+      'Bonus points': 'Бонус точки',
+      'Welcome bonus': 'Бонус добре дошли',
+      
+      // Trial
+      'Trial period bonus': 'Бонус за пробен период',
+      'Free trial': 'Безплатен пробен период',
+    };
+    
+    const lowerReason = reason.toLowerCase();
+    
+    // Handle "direct assignment accepted-budget X-Y" pattern
+    if (lowerReason.includes('direct assignment accepted')) {
+      // Extract budget if present
+      const budgetMatch = reason.match(/budget\s*(\d+[-–]\d+|\d+\+?)/i);
+      if (budgetMatch) {
+        return `Приета директна заявка - бюджет ${budgetMatch[1]} лв`;
+      }
+      return 'Приета директна заявка';
+    }
+    
+    // Handle initial allocation patterns
+    if (lowerReason.includes('initial') && lowerReason.includes('allocation')) {
+      return 'Начално разпределение на точки';
+    }
+    if (lowerReason.includes('initial') && lowerReason.includes('monthly')) {
+      return 'Начално разпределение на месечни точки';
+    }
+    
+    // Check for exact match first
+    if (translations[reason]) {
+      return translations[reason];
+    }
+    
+    // Check for partial matches (case insensitive)
+    for (const [key, value] of Object.entries(translations)) {
+      if (lowerReason.includes(key.toLowerCase())) {
+        return value;
+      }
+    }
+    
+    // Pattern-based translations
+    if (lowerReason.includes('case') && lowerReason.includes('accept')) {
+      return 'Приета заявка';
+    }
+    if (lowerReason.includes('case') && lowerReason.includes('complet')) {
+      return 'Завършена заявка';
+    }
+    if (lowerReason.includes('case') && lowerReason.includes('cancel')) {
+      return 'Отменена заявка';
+    }
+    if (lowerReason.includes('refund')) {
+      return 'Възстановени точки';
+    }
+    if (lowerReason.includes('monthly') && lowerReason.includes('allowance')) {
+      return 'Месечен лимит точки';
+    }
+    if (lowerReason.includes('allocation')) {
+      return 'Разпределение на точки';
+    }
+    if (lowerReason.includes('bid')) {
+      return 'Оферта';
+    }
+    if (lowerReason.includes('bonus')) {
+      return 'Бонус точки';
+    }
+    
+    // Return original if no translation found
+    return reason;
+  };
+
   const renderTransaction = ({ item }: { item: Transaction }) => (
     <View style={styles.transactionCard}>
       <View style={styles.transactionLeft}>
         <Text style={styles.transactionIcon}>{getTransactionIcon(item.transaction_type)}</Text>
         <View style={styles.transactionInfo}>
           <Text style={styles.transactionReason} numberOfLines={2}>
-            {item.reason}
+            {translateReason(item.reason)}
           </Text>
           <Text style={styles.transactionDate}>
             {new Date(item.created_at).toLocaleString('bg-BG')}

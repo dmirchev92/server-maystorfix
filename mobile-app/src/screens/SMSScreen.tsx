@@ -13,6 +13,7 @@ import {
 import { SMSService } from '../services/SMSService';
 import { ApiService } from '../services/ApiService';
 import { SocketIOService } from '../services/SocketIOService';
+import { ModernCallDetectionService } from '../services/ModernCallDetectionService';
 import theme from '../styles/theme';
 
 interface SMSStats {
@@ -168,8 +169,8 @@ function SMSScreen() {
     try {
       console.log('📊 Loading SMS data...');
       
-      // Reset template to Latin version (this is fast)
-      await smsService.resetMessageTemplate();
+      // DO NOT reset template - preserve user's saved template (Bulgarian/Custom)
+      // await smsService.resetMessageTemplate(); // REMOVED - was overwriting user templates!
       
       // Refresh config from API to sync with web app
       console.log('🔄 Refreshing config from backend API...');
@@ -304,16 +305,45 @@ function SMSScreen() {
 
   const handleToggleSMS = async () => {
     try {
-      const newEnabled = await smsService.toggleEnabled();
-      if (newEnabled) {
+      const callDetectionService = ModernCallDetectionService.getInstance();
+      const currentlyEnabled = smsStats.isEnabled;
+      
+      if (!currentlyEnabled) {
+        // ENABLING: First request call detection permissions, then enable both
+        const hasPermissions = await callDetectionService.requestPermissions();
+        if (!hasPermissions) {
+          Alert.alert(
+            'Разрешения са необходими',
+            'За автоматични SMS при пропуснати обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > ServiceText Pro > Разрешения.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+        
+        // Start call detection
+        await callDetectionService.startDetection();
+        
+        // Enable SMS
+        const newEnabled = await smsService.toggleEnabled();
+        if (!newEnabled) {
+          // SMS toggle failed, stop call detection too
+          await callDetectionService.stopDetection();
+          Alert.alert('Грешка', 'Нужни са разрешения за SMS');
+          return;
+        }
+        
         Alert.alert(
-          'SMS Включени! 📱',
-          'Автоматични SMS ще се изпращат при пропуснати повиквания.\n\nТествайте с пропуснато повикване!',
+          '✅ Авто SMS активирано',
+          'При пропуснато обаждане автоматично ще се изпрати SMS с линк за чат.',
           [{ text: 'Добре' }]
         );
       } else {
+        // DISABLING: Stop call detection and disable SMS
+        await callDetectionService.stopDetection();
+        await smsService.toggleEnabled();
         Alert.alert('SMS Изключени', 'Автоматичното изпращане на SMS е изключено.');
       }
+      
       await loadSMSData();
     } catch (error) {
       console.error('Error toggling SMS:', error);

@@ -8,6 +8,7 @@ export interface CaseScreenshot {
 
 export interface Case {
   id: string;
+  case_number?: number;
   service_type: string;
   description: string;
   status: CaseStatus;

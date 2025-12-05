@@ -177,6 +177,11 @@ function ChatDetailScreen() {
         setMessages(loadedMessages);
         console.log(`✅ Loaded ${loadedMessages.length} messages`);
         
+        // Scroll to bottom after messages load (with delays for layout)
+        setTimeout(() => scrollToBottom(), 100);
+        setTimeout(() => scrollToBottom(), 300);
+        setTimeout(() => scrollToBottom(), 500);
+        
         // Mark messages as read when entering the conversation
         await markMessagesAsReadForConversation(convId);
       } else {
@@ -371,6 +376,13 @@ function ChatDetailScreen() {
               {socketService.isConnected() ? '🟢 Онлайн' : '⚪ Офлайн'}
             </Text>
           </View>
+          <TouchableOpacity 
+            style={styles.headerActionButton}
+            onPress={() => setShowCaseModal(true)}
+          >
+            <Text style={styles.headerActionIcon}>📋</Text>
+            <Text style={styles.headerActionText}>Заявка</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Messages List - MUST have flex:1 to not push input off screen */}
@@ -381,7 +393,9 @@ function ChatDetailScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.messagesList, { paddingBottom: 80 }]}
           onContentSizeChange={() => scrollToBottom()}
+          onLayout={() => setTimeout(() => scrollToBottom(), 100)}
           style={{ flex: 1 }}
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         />
 
         {/* Input Area - FIXED: Now always visible at bottom */}
@@ -418,14 +432,6 @@ function ChatDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Floating Action Button - Create Case */}
-        <TouchableOpacity
-          style={styles.createCaseButton}
-          onPress={() => setShowCaseModal(true)}
-        >
-          <Text style={styles.createCaseIcon}>📋</Text>
-          <Text style={styles.createCaseText}>Създай заявка</Text>
-        </TouchableOpacity>
       </KeyboardAvoidingView>
 
       {/* Modals */}
@@ -627,29 +633,20 @@ const styles = StyleSheet.create({
   sendIcon: {
     fontSize: 20,
   },
-  createCaseButton: {
-    position: 'absolute',
-    bottom: 165,  // Above input area + tab bar
-    right: 20,
+  headerActionButton: {
     backgroundColor: '#6366F1',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
   },
-  createCaseIcon: {
-    fontSize: 20,
-    marginRight: 8,
+  headerActionIcon: {
+    fontSize: 14,
+    marginRight: 4,
   },
-  createCaseText: {
-    fontSize: 15,
+  headerActionText: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#FFFFFF',
   },

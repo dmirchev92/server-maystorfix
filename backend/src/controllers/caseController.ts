@@ -154,16 +154,22 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
         locationSearchStartedAt = now;
       }
 
+      // Determine status and negotiation_status based on assignment type
+      const isDirectAssignment = assignmentType === 'specific';
+      const caseStatus = isDirectAssignment ? 'pending' : 'pending';
+      const negotiationStatus = isDirectAssignment ? 'pending_sp_review' : 'none';
+      
       await (db as any).query(
         `INSERT INTO marketplace_service_cases (
           id, service_type, description, preferred_date, preferred_time,
           priority, budget, bidding_enabled, max_bidders, city, neighborhood, phone, additional_details, provider_id,
-          provider_name, is_open_case, assignment_type, status,
+          provider_name, is_open_case, assignment_type, status, negotiation_status,
           customer_id, category, square_meters, chat_source, 
           latitude, longitude, formatted_address, location_search_status, 
           search_radius_km, location_search_started_at, exclusive_until,
+          assigned_sp_id, customer_budget,
           created_at, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)`,
         [
           caseId,
           serviceType,
@@ -172,17 +178,18 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           preferredTime || 'morning',
           priority || 'normal',
           budget || null, // Budget is now a range string (e.g., "250-500")
-          budget ? true : false, // Enable bidding if budget is provided
-          budget ? 3 : null, // Max 3 bidders if bidding enabled
+          isDirectAssignment ? false : (budget ? true : false), // Disable bidding for direct assignments
+          isDirectAssignment ? null : (budget ? 3 : null), // No max bidders for direct assignments
           city,
           neighborhood,
           phone,
           additionalDetails,
-          assignmentType === 'specific' ? providerId : null,
-          assignmentType === 'specific' ? providerName : null,
+          null, // provider_id is set only after SP accepts
+          isDirectAssignment ? providerName : null,
           assignmentType === 'open' ? 1 : 0,
           assignmentType || 'open',
-          'pending',
+          caseStatus,
+          negotiationStatus,
           customerId,
           category || serviceType || 'general',
           squareMeters ? parseFloat(squareMeters) : null,
@@ -194,6 +201,8 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
           searchRadiusKm,
           locationSearchStartedAt,
           exclusiveUntil,
+          isDirectAssignment ? providerId : null, // assigned_sp_id for direct assignments
+          isDirectAssignment ? budget : null, // customer_budget for negotiations
           now,
           now
         ]
@@ -274,19 +283,28 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       }
     }
 
-    // Send notification to SP if case is directly assigned to them
+    // Send notification to SP if case is directly assigned to them for review
     if (assignmentType === 'specific' && providerId) {
-      logger.info('🔔 Creating notification for directly assigned SP', { providerId, caseId });
+      logger.info('🔔 Creating notification for SP to review direct assignment', { providerId, caseId });
       try {
         const notificationService = getNotificationService();
         await notificationService.createNotification(
           providerId,
-          'case_assigned',
-          'Нова заявка директно възложена',
-          `Клиент ви възложи нова заявка: ${description.substring(0, 50)}...`,
-          { caseId, action: 'view_case', customerName: 'Direct Assignment', serviceType, description, priority: priority || 'medium' }
+          'case_review_request',
+          'Нова заявка за преглед! 📋',
+          `Клиент ви изпрати заявка за преглед: ${description.substring(0, 50)}... Бюджет: ${budget || 'Не е посочен'}`,
+          { 
+            caseId, 
+            action: 'review_case', 
+            customerName: 'Direct Assignment', 
+            serviceType, 
+            description, 
+            priority: priority || 'medium',
+            budget,
+            negotiationStatus: 'pending_sp_review'
+          }
         );
-        logger.info('✅ Notification sent to SP for direct assignment', { providerId, caseId });
+        logger.info('✅ Review notification sent to SP for direct assignment', { providerId, caseId });
       } catch (notifError) {
         logger.error('❌ Error sending notification to SP:', notifError);
       }
@@ -300,8 +318,9 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
       data: {
         caseId,
         message: assignmentType === 'specific' 
-          ? `Case assigned to ${providerName}` 
-          : 'Case created and available to all providers'
+          ? `Case sent to ${providerName} for review. They can accept, decline, or propose a different budget.` 
+          : 'Case created and available to all providers',
+        negotiationStatus: assignmentType === 'specific' ? 'pending_sp_review' : 'none'
       }
     });
 
@@ -943,7 +962,7 @@ export const getCasesForMap = async (req: Request, res: Response): Promise<void>
     const query = `
       SELECT * FROM (
         SELECT 
-          c.id, c.service_type, c.category, c.description, c.city, c.neighborhood,
+          c.id, c.case_number, c.service_type, c.category, c.description, c.city, c.neighborhood,
           c.preferred_date, c.preferred_time, c.priority, c.budget, c.status,
           c.latitude, c.longitude, c.formatted_address, c.square_meters,
           c.bidding_enabled, c.current_bidders, c.max_bidders, c.bidding_closed,
@@ -988,6 +1007,7 @@ export const getCasesForMap = async (req: Request, res: Response): Promise<void>
       data: {
         cases: cases.map((c: any) => ({
           id: c.id,
+          caseNumber: c.case_number,
           serviceType: c.service_type,
           category: c.category,
           description: c.description?.substring(0, 100) + (c.description?.length > 100 ? '...' : ''),
@@ -1405,6 +1425,9 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       createdByUserId,
       onlyUnassigned,
       excludeDeclinedBy,
+      excludeBiddedBy,   // Exclude cases this provider has already bid on
+      assignedSpId,      // For direct assignment review flow
+      negotiationStatus, // For filtering by negotiation status
       page = 1, 
       limit = 10,
       sortBy = 'created_at',
@@ -1422,8 +1445,17 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
 
     let paramIndex = 1;
     if (status) {
-      conditions.push(`c.status = $${paramIndex++}`);
-      params.push(status);
+      // Support comma-separated status values (e.g., "accepted,wip")
+      const statusValues = (status as string).split(',').map(s => s.trim());
+      if (statusValues.length === 1) {
+        conditions.push(`c.status = $${paramIndex++}`);
+        params.push(statusValues[0]);
+      } else {
+        // Multiple statuses - use IN clause
+        const placeholders = statusValues.map(() => `$${paramIndex++}`).join(', ');
+        conditions.push(`c.status IN (${placeholders})`);
+        params.push(...statusValues);
+      }
     }
 
     if (category) {
@@ -1471,6 +1503,39 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       conditions.push(`c.id NOT IN (SELECT case_id FROM marketplace_case_declines WHERE provider_id = $${paramIndex++})`);
       params.push(excludeDeclinedBy);
       console.log('🚫 Backend - Excluding cases declined by provider:', excludeDeclinedBy);
+    }
+
+    // Exclude cases this provider has already bid on (for available cases view)
+    if (excludeBiddedBy) {
+      conditions.push(`c.id NOT IN (SELECT case_id FROM sp_case_bids WHERE provider_id = $${paramIndex++})`);
+      params.push(excludeBiddedBy);
+      console.log('💰 Backend - Excluding cases already bid on by provider:', excludeBiddedBy);
+    }
+
+    // For available cases, also exclude cases that are direct assignments to this provider
+    // These should appear in "Преглед" tab, not "Налични"
+    if (excludeDeclinedBy && onlyUnassigned === 'true') {
+      conditions.push(`(c.assigned_sp_id IS NULL OR c.assigned_sp_id != $${paramIndex++})`);
+      params.push(excludeDeclinedBy);
+      console.log('📩 Backend - Excluding direct assignments to provider:', excludeDeclinedBy);
+      
+      // Also only show bidding-enabled cases in available view
+      conditions.push(`c.bidding_enabled = true`);
+      console.log('🎯 Backend - Only showing bidding-enabled cases');
+    }
+
+    // Filter by assigned SP (for direct assignment review flow)
+    if (assignedSpId) {
+      conditions.push(`c.assigned_sp_id = $${paramIndex++}`);
+      params.push(assignedSpId);
+      console.log('📩 Backend - Filtering by assigned_sp_id:', assignedSpId);
+    }
+
+    // Filter by negotiation status
+    if (negotiationStatus) {
+      conditions.push(`c.negotiation_status = $${paramIndex++}`);
+      params.push(negotiationStatus);
+      console.log('🔄 Backend - Filtering by negotiation_status:', negotiationStatus);
     }
 
     // Apply budget range restrictions based on subscription tier

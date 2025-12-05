@@ -113,6 +113,7 @@ export default function LocationAutocomplete({
 
       let city = ''
       let neighborhood = ''
+      let sublocality = ''
 
       if (data.results?.[0]?.address_components) {
         for (const component of data.results[0].address_components) {
@@ -124,11 +125,14 @@ export default function LocationAutocomplete({
             city = cityNameMapping[cityName] || cityName
           }
 
-          // Neighborhood - reverse geocoding has accurate data
-          if (types.includes('sublocality_level_1') || 
-              types.includes('sublocality') || 
-              types.includes('neighborhood')) {
+          // Neighborhood type is most specific - prioritize it
+          if (types.includes('neighborhood')) {
             neighborhood = component.long_name
+          }
+          
+          // Sublocality is broader (district like Vitosha) - use only as fallback
+          if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
+            sublocality = component.long_name
           }
 
           // Fallback for Sofia
@@ -139,7 +143,14 @@ export default function LocationAutocomplete({
             }
           }
         }
+        
+        // Use neighborhood if found, otherwise fall back to sublocality
+        if (!neighborhood && sublocality) {
+          neighborhood = sublocality
+        }
       }
+      
+      console.log('📍 Location detected:', { city, neighborhood, sublocality, lat, lng })
 
       onLocationSelect({
         city,

@@ -413,11 +413,21 @@ router.post('/send-missed-call',
         callId
       });
 
-      // Send SMS via Mobica
+      // Get user's saved message template
+      const userMessageTemplate = smsSettings?.message || null;
+      
+      logger.info('📱 User SMS template', {
+        userId,
+        hasTemplate: !!userMessageTemplate,
+        templatePreview: userMessageTemplate?.substring(0, 50)
+      });
+
+      // Send SMS via Mobica with user's template
       const result = await mobicaService.sendMissedCallSMS(
         formattedPhone,
         userId,
-        businessName
+        businessName,
+        userMessageTemplate
       );
 
       if (result.success) {

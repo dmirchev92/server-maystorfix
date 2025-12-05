@@ -342,12 +342,12 @@ export default function SearchPage() {
         setSelectedProvider(null)
         
         const successMessage = formData.assignmentType === 'specific'
-          ? `Заявката е изпратена директно към ${
+          ? `Заявката е изпратена за преглед към ${
               (selectedProvider as any)?.businessName || 
               (selectedProvider as any)?.business_name || 
               selectedProvider?.first_name || 
               'специалиста'
-            }! Ще получите потвърждение скоро.`
+            }! Той може да приеме, откаже или предложи друг бюджет.`
           : 'Заявката е създадена и е достъпна за всички специалисти! Ще получите потвърждение скоро.'
         
         alert(successMessage)

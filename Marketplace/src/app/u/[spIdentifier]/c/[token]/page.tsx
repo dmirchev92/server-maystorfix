@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import axios from 'axios';
+import LocationAutocomplete from '@/components/LocationAutocomplete';
 
 interface ChatPageProps {
   params: {
@@ -39,8 +40,13 @@ export default function ChatPage({ params }: ChatPageProps) {
     phone: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    acceptTerms: false,
+    city: '',
+    neighborhood: '',
+    address: ''
   });
+  const [locationDetected, setLocationDetected] = useState(false);
   const [formMode, setFormMode] = useState<'register' | 'login'>('register');
   const [authError, setAuthError] = useState<string | null>(null);
   const [providerInfo, setProviderInfo] = useState<any>({
@@ -266,7 +272,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     setHasStartedChat(true);
   };
 
-  const handleCustomerInfoChange = (field: string, value: string) => {
+  const handleCustomerInfoChange = (field: string, value: string | boolean) => {
     setCustomerInfo(prev => ({
       ...prev,
       [field]: value
@@ -300,6 +306,25 @@ export default function ChatPage({ params }: ChatPageProps) {
       setAuthError('Паролата трябва да съдържа главна буква, малка буква, цифра и специален символ (@$!%*?&)');
       return;
     }
+
+    // Phone validation
+    const phoneClean = customerInfo.phone.replace(/\s/g, '');
+    if (!/^(\+359|0)[0-9]{8,9}$/.test(phoneClean)) {
+      setAuthError('Телефонният номер трябва да започва с +359 или 0');
+      return;
+    }
+
+    // Terms acceptance validation
+    if (!customerInfo.acceptTerms) {
+      setAuthError('Трябва да приемете условията за ползване');
+      return;
+    }
+
+    // Address validation
+    if (!customerInfo.city || !customerInfo.address) {
+      setAuthError('Моля въведете адрес и изберете от предложенията');
+      return;
+    }
     
     try {
       // Register the user
@@ -320,6 +345,10 @@ export default function ChatPage({ params }: ChatPageProps) {
         lastName: customerInfo.lastName,
         phoneNumber: formattedPhone,
         role: 'customer',
+        // Location fields
+        city: customerInfo.city || '',
+        neighborhood: customerInfo.neighborhood || '',
+        address: customerInfo.address || '',
         gdprConsents: ['essential_service', 'marketing']
       };
       
@@ -591,8 +620,8 @@ export default function ChatPage({ params }: ChatPageProps) {
                     id="firstName"
                     value={customerInfo.firstName}
                     onChange={(e) => handleCustomerInfoChange('firstName', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Вашето име"
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Иван"
                     required
                   />
                 </div>
@@ -606,8 +635,8 @@ export default function ChatPage({ params }: ChatPageProps) {
                     id="lastName"
                     value={customerInfo.lastName}
                     onChange={(e) => handleCustomerInfoChange('lastName', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Вашата фамилия"
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Петров"
                     required
                   />
                 </div>
@@ -621,25 +650,82 @@ export default function ChatPage({ params }: ChatPageProps) {
                     id="phone"
                     value={customerInfo.phone}
                     onChange={(e) => handleCustomerInfoChange('phone', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     placeholder="0888 123 456"
                     required
                   />
+                  {/* Phone validation indicator */}
+                  {customerInfo.phone && (
+                    <div className="mt-2 flex items-center text-xs">
+                      {/^(\+359|0)[0-9]{8,9}$/.test(customerInfo.phone.replace(/\s/g, '')) ? (
+                        <>
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-green-500 font-medium">Валиден български номер</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 text-amber-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-amber-500">Номерът трябва да започва с +359 или 0</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-white mb-1">
-                    Email *
+                    Имейл адрес *
                   </label>
                   <input
                     type="email"
                     id="email"
                     value={customerInfo.email}
                     onChange={(e) => handleCustomerInfoChange('email', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="your@email.com"
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="ivan@example.com"
                     required
                   />
+                </div>
+
+                {/* Location field */}
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    📍 Адрес *
+                  </label>
+                  <LocationAutocomplete
+                    onLocationSelect={(location) => {
+                      setCustomerInfo(prev => ({
+                        ...prev,
+                        city: location.city,
+                        neighborhood: location.neighborhood,
+                        address: location.formattedAddress
+                      }))
+                      setLocationDetected(true)
+                    }}
+                    placeholder="Въведете адрес, квартал или град..."
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    initialValue={customerInfo.address}
+                  />
+                  <p className="text-slate-400 text-xs mt-2">
+                    💡 Започнете да пишете и изберете от предложенията
+                  </p>
+                  
+                  {/* Show detected location */}
+                  {locationDetected && customerInfo.city && (
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-2 mt-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-green-400">✓</span>
+                        <span className="text-green-300">{customerInfo.city}</span>
+                        {customerInfo.neighborhood && (
+                          <span className="text-green-200">• {customerInfo.neighborhood}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div>
@@ -651,10 +737,37 @@ export default function ChatPage({ params }: ChatPageProps) {
                     id="password"
                     value={customerInfo.password}
                     onChange={(e) => handleCustomerInfoChange('password', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Мин. 8 символа (A-z, 0-9, @$!%*?&)"
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="••••••••"
                     required
                   />
+                  {/* Password strength indicator */}
+                  {customerInfo.password && (
+                    <div className="mt-3 space-y-1">
+                      {[
+                        { label: 'Поне 8 символа', met: customerInfo.password.length >= 8 },
+                        { label: 'Главна буква (A-Z)', met: /[A-Z]/.test(customerInfo.password) },
+                        { label: 'Малка буква (a-z)', met: /[a-z]/.test(customerInfo.password) },
+                        { label: 'Цифра (0-9)', met: /\d/.test(customerInfo.password) },
+                        { label: 'Специален символ (@$!%*?&)', met: /[!@#$%^&*(),.?":{}|<>]/.test(customerInfo.password) }
+                      ].map((req, index) => (
+                        <div key={index} className="flex items-center text-xs">
+                          {req.met ? (
+                            <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4 text-slate-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                          <span className={req.met ? 'text-green-500 font-medium' : 'text-slate-400'}>
+                            {req.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 
                 <div>
@@ -666,10 +779,48 @@ export default function ChatPage({ params }: ChatPageProps) {
                     id="confirmPassword"
                     value={customerInfo.confirmPassword}
                     onChange={(e) => handleCustomerInfoChange('confirmPassword', e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="Потвърдете паролата"
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 rounded-md text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="••••••••"
                     required
                   />
+                  {/* Password match indicator */}
+                  {customerInfo.confirmPassword && (
+                    <div className="mt-2 flex items-center text-xs">
+                      {customerInfo.password === customerInfo.confirmPassword ? (
+                        <>
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-green-500 font-medium">Паролите съвпадат</span>
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-red-500">Паролите не съвпадат</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Terms acceptance */}
+                <div className="flex items-start">
+                  <input
+                    id="acceptTerms"
+                    name="acceptTerms"
+                    type="checkbox"
+                    checked={customerInfo.acceptTerms || false}
+                    onChange={(e) => handleCustomerInfoChange('acceptTerms', e.target.checked)}
+                    className="h-4 w-4 mt-0.5 text-indigo-600 focus:ring-indigo-500 border-slate-600 rounded bg-slate-700"
+                  />
+                  <label htmlFor="acceptTerms" className="ml-2 block text-sm text-slate-300">
+                    Съгласявам се с{' '}
+                    <a href="/terms" target="_blank" className="text-indigo-400 hover:text-indigo-300">
+                      условията за ползване
+                    </a>
+                  </label>
                 </div>
 
                 <button

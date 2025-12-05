@@ -7,13 +7,16 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import { getCategoryLabel } from '../constants/serviceCategories';
+import CategoryIcon from '../components/CategoryIcon';
 
 interface Case {
   id: string;
+  case_number?: number;
   service_type: string;
   description: string;
   status: string;
@@ -30,6 +33,12 @@ interface Case {
   max_bidders?: number;
   winning_bid_id?: string;
   created_at: string;
+  // Negotiation fields
+  negotiation_status?: string;
+  assigned_sp_id?: string;
+  customer_budget?: string;
+  sp_counter_budget?: string;
+  counter_message?: string;
 }
 
 export default function CustomerCasesScreen() {
@@ -38,10 +47,90 @@ export default function CustomerCasesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     loadUser();
   }, []);
+
+  // Handle customer response to counter-offer
+  const handleCounterOfferResponse = async (caseId: string, accept: boolean) => {
+    setActionLoading(caseId);
+    try {
+      const response = await ApiService.getInstance().customerRespondToCounterOffer(caseId, accept ? 'accept' : 'decline');
+      if (response.success) {
+        Alert.alert('Успех', accept ? 'Офертата е приета!' : 'Офертата е отказана.');
+        fetchCases();
+      } else {
+        Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+      }
+    } catch (error: any) {
+      Alert.alert('Грешка', error.message || 'Възникна грешка');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Send case to marketplace
+  const handleSendToMarketplace = async (caseId: string) => {
+    Alert.alert(
+      'Изпращане към marketplace',
+      'Искате ли да изпратите заявката към други специалисти?',
+      [
+        { text: 'Отказ', style: 'cancel' },
+        {
+          text: 'Да',
+          onPress: async () => {
+            setActionLoading(caseId);
+            try {
+              const response = await ApiService.getInstance().sendCaseToMarketplace(caseId);
+              if (response.success) {
+                Alert.alert('Успех', 'Заявката е изпратена към marketplace!');
+                fetchCases();
+              } else {
+                Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+              }
+            } catch (error: any) {
+              Alert.alert('Грешка', error.message || 'Възникна грешка');
+            } finally {
+              setActionLoading(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Cancel case
+  const handleCancelCase = async (caseId: string) => {
+    Alert.alert(
+      'Отмяна на заявка',
+      'Сигурни ли сте, че искате да отмените тази заявка?',
+      [
+        { text: 'Не', style: 'cancel' },
+        {
+          text: 'Да, отмени',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(caseId);
+            try {
+              const response = await ApiService.getInstance().cancelCase(caseId);
+              if (response.success) {
+                Alert.alert('Успех', 'Заявката е отменена.');
+                fetchCases();
+              } else {
+                Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+              }
+            } catch (error: any) {
+              Alert.alert('Грешка', error.message || 'Възникна грешка');
+            } finally {
+              setActionLoading(null);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -107,21 +196,7 @@ export default function CustomerCasesScreen() {
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'electrician': return '⚡';
-      case 'plumber': return '🔧';
-      case 'hvac': return '❄️';
-      case 'carpenter': return '🪚';
-      case 'painter': return '🎨';
-      case 'locksmith': return '🔐';
-      case 'cleaner': return '🧹';
-      case 'gardener': return '🌱';
-      case 'handyman': return '🔨';
-      case 'appliance_repair': return '🔌';
-      default: return '🔧';
-    }
-  };
+  // CategoryIcon component is imported from components/CategoryIcon
 
   // Use centralized category labels from serviceCategories.ts
   // This handles both 'cat_' prefix and non-prefix formats
@@ -169,7 +244,14 @@ export default function CustomerCasesScreen() {
                 {/* Card Header */}
                 <View style={styles.cardHeader}>
                   <View style={styles.categoryContainer}>
-                    <Text style={styles.categoryIcon}>{getCategoryIcon(item.category)}</Text>
+                    <View style={styles.categoryIconWrapper}>
+                      <CategoryIcon category={item.category} size={44} color="#a5b4fc" />
+                    </View>
+                    {item.case_number && (
+                      <View style={styles.caseNumberBadge}>
+                        <Text style={styles.caseNumberText}>#{item.case_number}</Text>
+                      </View>
+                    )}
                     <Text style={styles.category}>{getCategoryName(item.category)}</Text>
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
@@ -192,6 +274,75 @@ export default function CustomerCasesScreen() {
                     <Text style={styles.budgetText}>💰 {item.budget} лв.</Text>
                   )}
                 </View>
+
+                {/* Negotiation Status */}
+                {item.negotiation_status && item.negotiation_status !== 'none' && (
+                  <View style={styles.negotiationSection}>
+                    {item.negotiation_status === 'pending_sp_review' && (
+                      <View style={styles.negotiationBadge}>
+                        <Text style={styles.negotiationBadgeText}>⏳ Чака преглед от специалист</Text>
+                      </View>
+                    )}
+                    {item.negotiation_status === 'counter_offered' && (
+                      <View style={styles.counterOfferSection}>
+                        <View style={[styles.negotiationBadge, styles.counterOfferBadge]}>
+                          <Text style={styles.counterOfferBadgeText}>💰 Нова оферта!</Text>
+                        </View>
+                        <Text style={styles.counterOfferAmount}>
+                          Предложена цена: {item.sp_counter_budget} лв
+                        </Text>
+                        {item.counter_message && (
+                          <Text style={styles.counterOfferMessage}>"{item.counter_message}"</Text>
+                        )}
+                        <View style={styles.counterOfferActions}>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.acceptBtn]}
+                            onPress={() => handleCounterOfferResponse(item.id, true)}
+                            disabled={actionLoading === item.id}
+                          >
+                            <Text style={styles.actionBtnText}>
+                              {actionLoading === item.id ? '...' : '✅ Приеми'}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.declineBtn]}
+                            onPress={() => handleCounterOfferResponse(item.id, false)}
+                            disabled={actionLoading === item.id}
+                          >
+                            <Text style={styles.actionBtnText}>❌ Откажи</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                    {(item.negotiation_status === 'sp_declined' || item.negotiation_status === 'customer_declined') && (
+                      <View style={styles.declinedSection}>
+                        <View style={[styles.negotiationBadge, styles.declinedBadge]}>
+                          <Text style={styles.declinedBadgeText}>
+                            {item.negotiation_status === 'sp_declined' ? '❌ Специалистът отказа' : 'Офертата отказана'}
+                          </Text>
+                        </View>
+                        <View style={styles.declinedActions}>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.marketplaceBtn]}
+                            onPress={() => handleSendToMarketplace(item.id)}
+                            disabled={actionLoading === item.id}
+                          >
+                            <Text style={styles.actionBtnText}>
+                              {actionLoading === item.id ? '...' : '📢 Други специалисти'}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={[styles.actionBtn, styles.cancelBtn]}
+                            onPress={() => handleCancelCase(item.id)}
+                            disabled={actionLoading === item.id}
+                          >
+                            <Text style={styles.actionBtnText}>🗑️ Отмени</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 {/* Bidding Info */}
                 {item.bidding_enabled && (
@@ -394,6 +545,27 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginRight: 8,
   },
+  categoryIconWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 10,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  caseNumberBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  caseNumberText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#a5b4fc',
+  },
   category: {
     fontWeight: '600',
     color: '#e2e8f0',
@@ -536,5 +708,91 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  // Negotiation styles
+  negotiationSection: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(249, 115, 22, 0.3)',
+  },
+  negotiationBadge: {
+    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  negotiationBadgeText: {
+    fontSize: 12,
+    color: '#f97316',
+    fontWeight: '600',
+  },
+  counterOfferSection: {
+    gap: 8,
+  },
+  counterOfferBadge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  counterOfferBadgeText: {
+    fontSize: 12,
+    color: '#f59e0b',
+    fontWeight: '700',
+  },
+  counterOfferAmount: {
+    fontSize: 16,
+    color: '#22c55e',
+    fontWeight: '700',
+  },
+  counterOfferMessage: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontStyle: 'italic',
+  },
+  counterOfferActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  declinedSection: {
+    gap: 8,
+  },
+  declinedBadge: {
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+  },
+  declinedBadgeText: {
+    fontSize: 12,
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+  declinedActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  acceptBtn: {
+    backgroundColor: '#22c55e',
+  },
+  declineBtn: {
+    backgroundColor: '#ef4444',
+  },
+  marketplaceBtn: {
+    backgroundColor: '#3b82f6',
+  },
+  cancelBtn: {
+    backgroundColor: '#64748b',
+  },
+  actionBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -8,75 +8,17 @@ import {
   Alert,
   SafeAreaView,
   Linking,
-  Switch,
-  ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../navigation/types';
 import { AuthBus } from '../utils/AuthBus';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import ApiService from '../services/ApiService';
 
 type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Settings'>;
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
-  
-  // Free Inspection state (for providers only)
-  const [isProvider, setIsProvider] = useState(false);
-  const [freeInspectionActive, setFreeInspectionActive] = useState(false);
-  const [freeInspectionLoading, setFreeInspectionLoading] = useState(false);
-
-  // Check if user is a provider on mount
-  useEffect(() => {
-    const checkUserRole = async () => {
-      try {
-        const userData = await AsyncStorage.getItem('user');
-        if (userData) {
-          const user = JSON.parse(userData);
-          const isProviderRole = user.role === 'tradesperson' || user.role === 'service_provider';
-          setIsProvider(isProviderRole);
-          
-          // Load free inspection status if provider
-          if (isProviderRole) {
-            const response = await ApiService.getInstance().getFreeInspectionStatus();
-            if (response.success && response.data) {
-              setFreeInspectionActive(response.data.freeInspectionActive || false);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking user role:', error);
-      }
-    };
-    checkUserRole();
-  }, []);
-
-  // Handle free inspection toggle
-  const handleFreeInspectionToggle = async (value: boolean) => {
-    setFreeInspectionLoading(true);
-    try {
-      const response = await ApiService.getInstance().toggleFreeInspection(value);
-      if (response.success) {
-        setFreeInspectionActive(value);
-        Alert.alert(
-          value ? '✅ Безплатен оглед активиран' : '❌ Безплатен оглед деактивиран',
-          value 
-            ? 'Клиентите наблизо ще получат известие и ще могат да ви намерят на картата.' 
-            : 'Вече не се показвате като предлагащ безплатен оглед.'
-        );
-      } else {
-        Alert.alert('Грешка', 'Неуспешна промяна на статуса');
-      }
-    } catch (error) {
-      console.error('Error toggling free inspection:', error);
-      Alert.alert('Грешка', 'Неуспешна връзка със сървъра');
-    } finally {
-      setFreeInspectionLoading(false);
-    }
-  };
 
   const handleEditProfile = () => {
     navigation.navigate('EditProfile');
@@ -137,36 +79,6 @@ const SettingsScreen: React.FC = () => {
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Free Inspection Section - Only for Providers */}
-        {isProvider && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>🔧 Безплатен оглед</Text>
-            <View style={styles.settingItemToggle}>
-              <View style={styles.settingItemLeft}>
-                <Text style={styles.settingItemText}>Предлагам безплатен оглед</Text>
-                <Text style={styles.settingItemSubtext}>
-                  {freeInspectionActive 
-                    ? '🟢 Активен - клиентите ви виждат на картата' 
-                    : '⚪ Неактивен'}
-                </Text>
-              </View>
-              {freeInspectionLoading ? (
-                <ActivityIndicator size="small" color="#7C3AED" />
-              ) : (
-                <Switch
-                  value={freeInspectionActive}
-                  onValueChange={handleFreeInspectionToggle}
-                  trackColor={{ false: '#374151', true: '#7C3AED' }}
-                  thumbColor={freeInspectionActive ? '#FFFFFF' : '#9CA3AF'}
-                />
-              )}
-            </View>
-            <Text style={styles.freeInspectionInfo}>
-              Когато е активирано, клиентите наблизо ще получат известие и ще виждат маркера ви в лилаво на картата.
-            </Text>
-          </View>
-        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>💳 Абонамент</Text>
@@ -297,33 +209,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#CBD5E1',
   },
-  settingItemSubtext: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
   settingItemArrow: {
     fontSize: 18,
     color: '#94A3B8',
-  },
-  settingItemToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.2)',
-  },
-  settingItemLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  freeInspectionInfo: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 8,
-    paddingHorizontal: 4,
-    lineHeight: 18,
   },
   logoutButton: {
     backgroundColor: '#EF4444',

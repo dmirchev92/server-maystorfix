@@ -461,6 +461,9 @@ export class ApiService {
     customerId?: string;
     onlyUnassigned?: string;
     excludeDeclinedBy?: string;
+    excludeBiddedBy?: string;
+    assignedSpId?: string;
+    negotiationStatus?: string;
     page?: number;
     limit?: number;
   }): Promise<APIResponse> {
@@ -892,6 +895,58 @@ export class ApiService {
     if (params.category) queryParams.append('category', params.category);
     if (params.freeInspectionOnly) queryParams.append('freeInspectionOnly', 'true');
     return this.makeRequest(`/free-inspection/providers?${queryParams.toString()}`, { method: 'GET' });
+  }
+
+  // ============ Direct Assignment Negotiation API ============
+
+  /**
+   * SP responds to a direct assignment request
+   */
+  public async spRespondToDirectAssignment(
+    caseId: string,
+    action: 'accept' | 'decline' | 'counter',
+    counterBudget?: string,
+    message?: string
+  ): Promise<APIResponse> {
+    console.log('📋 ApiService - SP responding to direct assignment:', { caseId, action, counterBudget });
+    return this.makeRequest(`/direct-assignment/${caseId}/sp-respond`, {
+      method: 'POST',
+      body: JSON.stringify({ action, counterBudget, message }),
+    });
+  }
+
+  /**
+   * Customer responds to SP's counter-offer
+   */
+  public async customerRespondToCounterOffer(
+    caseId: string,
+    action: 'accept' | 'decline'
+  ): Promise<APIResponse> {
+    console.log('📋 ApiService - Customer responding to counter-offer:', { caseId, action });
+    return this.makeRequest(`/direct-assignment/${caseId}/customer-respond`, {
+      method: 'POST',
+      body: JSON.stringify({ action }),
+    });
+  }
+
+  /**
+   * Customer sends declined case to marketplace
+   */
+  public async sendCaseToMarketplace(caseId: string): Promise<APIResponse> {
+    console.log('📋 ApiService - Sending case to marketplace:', caseId);
+    return this.makeRequest(`/direct-assignment/${caseId}/send-to-marketplace`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Customer cancels a case
+   */
+  public async cancelCase(caseId: string): Promise<APIResponse> {
+    console.log('📋 ApiService - Cancelling case:', caseId);
+    return this.makeRequest(`/direct-assignment/${caseId}/cancel`, {
+      method: 'POST',
+    });
   }
 }
 

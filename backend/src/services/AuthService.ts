@@ -40,6 +40,8 @@ export interface RegisterData {
   city?: string;
   neighborhood?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   role: UserRole;
   businessId?: string;
   subscription_tier_id?: string;
@@ -191,7 +193,7 @@ export class AuthService {
       */
 
       // Create user object
-      const user: User = {
+      const user: User & { city?: string; neighborhood?: string; address?: string; latitude?: number; longitude?: number } = {
         id: uuidv4(),
         email: userData.email.toLowerCase(),
         passwordHash,
@@ -207,6 +209,12 @@ export class AuthService {
         trial_cases_used: isFreeTrialUser ? 0 : undefined,
         trial_expired: isFreeTrialUser ? false : undefined,
         registration_ip: userData.ipAddress,
+        // Location fields for all users
+        city: userData.city,
+        neighborhood: userData.neighborhood,
+        address: userData.address,
+        latitude: userData.latitude,
+        longitude: userData.longitude,
         createdAt: new Date(),
         updatedAt: new Date(),
         gdprConsents: gdprConsents.map(consent => ({ ...consent, userId: '' })), // Will be updated
@@ -241,8 +249,8 @@ export class AuthService {
             city: userData.city || 'София', // Use user-provided city or default to Sofia
             neighborhood: userData.neighborhood || '',
             address: userData.address || '',
-            latitude: null,
-            longitude: null,
+            latitude: userData.latitude || null,
+            longitude: userData.longitude || null,
             phoneNumber: savedUser.phoneNumber,
             email: savedUser.email,
             websiteUrl: '',
@@ -256,7 +264,9 @@ export class AuthService {
             serviceCategory: defaultProfileData.serviceCategory,
             city: defaultProfileData.city,
             neighborhood: defaultProfileData.neighborhood,
-            address: defaultProfileData.address
+            address: defaultProfileData.address,
+            latitude: defaultProfileData.latitude,
+            longitude: defaultProfileData.longitude
           });
 
           await this.database.createOrUpdateProviderProfile(savedUser.id, defaultProfileData);

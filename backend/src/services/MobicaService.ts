@@ -189,11 +189,13 @@ export class MobicaService {
 
   /**
    * Send missed call SMS with chat link
+   * Uses user's saved template (Latin, Bulgarian, or Custom)
    */
   public async sendMissedCallSMS(
     phoneNumber: string,
     userId: string,
-    businessName: string
+    businessName: string,
+    customMessage?: string
   ): Promise<{
     success: boolean;
     messageId?: string;
@@ -207,14 +209,24 @@ export class MobicaService {
       // Get chat URL for this user
       const chatUrl = await chatTokenService.getChatUrlForUser(userId);
 
-      // Build message in Latin (160 chars max for single SMS)
-      const message = `Zaet sum, skoro shte vi vurna obajdane. Mojete da zapochnete Chat tuk: ${chatUrl}\n${businessName}`;
+      let message: string;
+      
+      if (customMessage && customMessage.includes('[chat_link]')) {
+        // Use user's custom/saved template - replace [chat_link] placeholder
+        message = customMessage.replace('[chat_link]', chatUrl);
+        logger.info('📱 [MOBICA] Using user template', { templateLength: customMessage.length });
+      } else {
+        // Fallback to default Latin template
+        message = `Zaet sum, skoro shte vi vurna obajdane. Mojete da zapochnete Chat tuk: ${chatUrl}\n${businessName}`;
+        logger.info('📱 [MOBICA] Using default Latin template');
+      }
 
       logger.info('📱 [MOBICA] Sending missed call SMS', {
         phone: phoneNumber,
         userId,
         businessName,
-        messageLength: message.length
+        messageLength: message.length,
+        hasCustomTemplate: !!customMessage
       });
 
       // Send SMS

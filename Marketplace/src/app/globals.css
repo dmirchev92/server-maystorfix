@@ -19,27 +19,15 @@
 }
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 15, 23, 42;
 }
 
 html, body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background: rgb(var(--background-start-rgb));
+  min-height: 100vh;
   /* Prevent horizontal scroll and fix mobile touch scrolling */
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -50,6 +38,17 @@ html, body {
 /* Fix touch scrolling on iOS */
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Fix browser autofill background color for dark theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgb(51 65 85 / 0.5) inset !important; /* slate-700/50 */
+  -webkit-text-fill-color: white !important;
+  caret-color: white !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 /* Ensure main content scrolls properly */
@@ -116,9 +115,62 @@ input:not(.text-white):not(.dark-input), textarea:not(.text-white):not(.dark-tex
 input.dark-input, textarea.dark-textarea,
 input[style*="color: #ffffff"], textarea[style*="color: #ffffff"],
 .bg-slate-800 input, .bg-slate-800 textarea,
-.bg-slate-900 input, .bg-slate-900 textarea {
+.bg-slate-900 input, .bg-slate-900 textarea,
+input.text-white, textarea.text-white,
+input.bg-slate-700, input.bg-slate-700\/50,
+textarea.bg-slate-700, textarea.bg-slate-700\/50,
+[class*="bg-slate-700"] input,
+[class*="bg-slate-800"] input,
+[class*="bg-slate-900"] input,
+[class*="bg-white/10"] input,
+[class*="from-slate-900"] input,
+[class*="via-slate-800"] input {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Google Places Autocomplete dropdown styling for dark theme */
+.pac-container {
+  background-color: #1e293b !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  margin-top: 4px !important;
+  z-index: 9999 !important;
+}
+
+.pac-item {
+  background-color: #1e293b !important;
+  color: #ffffff !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding: 10px 12px !important;
+  cursor: pointer !important;
+}
+
+.pac-item:first-child {
+  border-top: none !important;
+}
+
+.pac-item:hover, .pac-item-selected {
+  background-color: #334155 !important;
+}
+
+.pac-item-query {
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+
+.pac-matched {
+  color: #818cf8 !important;
+  font-weight: 600 !important;
+}
+
+.pac-icon {
+  filter: invert(1) !important;
+}
+
+.pac-logo::after {
+  filter: invert(0.8) !important;
 }
 
 /* Force white text in dark-themed selects */

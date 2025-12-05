@@ -11,6 +11,8 @@ import { StatsOverview } from './components/StatsOverview'
 import { FilterBar } from './components/FilterBar'
 import { BidsList } from './components/BidsList'
 import { CaseList } from './components/CaseList'
+import { PendingReviewsList } from './components/PendingReviewsList'
+import { ReviewResponseModal } from './components/ReviewResponseModal'
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth()
@@ -33,6 +35,8 @@ export default function DashboardPage() {
   const [biddingCases, setBiddingCases] = useState<Set<string>>(new Set())
   const [pointsBalance, setPointsBalance] = useState<number>(0)
   const [myBids, setMyBids] = useState<Map<string, any>>(new Map())
+  const [pendingReviews, setPendingReviews] = useState<Case[]>([])
+  const [reviewModal, setReviewModal] = useState<{ isOpen: boolean; caseData: Case | null }>({ isOpen: false, caseData: null })
   
   const fetchingRef = useRef(false)
 
@@ -55,6 +59,7 @@ export default function DashboardPage() {
       fetchStats()
       fetchPointsBalance()
       fetchMyBids()
+      fetchPendingReviews()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.id, filters.status, filters.category, filters.city, filters.neighborhood, filters.viewMode, filters.page])
@@ -271,14 +276,58 @@ export default function DashboardPage() {
     }
   }
 
+  const fetchPendingReviews = async () => {
+    if (!user?.id) return
+    try {
+      // Fetch cases where this SP is assigned for review (negotiation_status = 'pending_sp_review')
+      const response = await apiClient.getCasesWithFilters({
+        assignedSpId: user.id,
+        negotiationStatus: 'pending_sp_review'
+      } as any)
+      if (response.data?.success) {
+        setPendingReviews(response.data.data.cases || [])
+      }
+    } catch (error) {
+      console.error('Error fetching pending reviews:', error)
+    }
+  }
+
+  const handleReviewResponse = async (caseId: string, action: 'accept' | 'decline' | 'counter', counterBudget?: string, message?: string) => {
+    try {
+      const response = await apiClient.spRespondToDirectAssignment(caseId, action, counterBudget, message)
+      
+      if (response.data?.success) {
+        const actionMessages: Record<string, string> = {
+          accept: 'Заявката е приета успешно! Точките са удържани.',
+          decline: 'Заявката е отказана.',
+          counter: 'Офертата е изпратена към клиента.'
+        }
+        alert(actionMessages[action])
+        setReviewModal({ isOpen: false, caseData: null })
+        
+        // Refresh data
+        fetchPendingReviews()
+        fetchCases()
+        fetchStats()
+        fetchPointsBalance()
+      }
+    } catch (error: any) {
+      console.error('Error responding to review:', error)
+      const errorMsg = error.response?.data?.error?.message || error.message || 'Възникна грешка'
+      alert(`Грешка: ${errorMsg}`)
+    }
+  }
+
   const handleFilterChange = (key: keyof FilterParams, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }))
   }
 
-  const handleViewChange = (viewMode: 'available' | 'assigned' | 'declined' | 'bids', status: string = '') => {
-    setFilters(prev => ({ ...prev, viewMode, status, page: 1 }))
+  const handleViewChange = (viewMode: 'available' | 'assigned' | 'declined' | 'bids' | 'reviews', status: string = '') => {
+    setFilters(prev => ({ ...prev, viewMode: viewMode as any, status, page: 1 }))
     if (viewMode === 'bids') {
       fetchAllBids()
+    } else if (viewMode === 'reviews') {
+      fetchPendingReviews()
     }
   }
 
@@ -301,7 +350,7 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-20">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 sm:mb-8">
           <div>
@@ -324,6 +373,22 @@ export default function DashboardPage() {
         {/* View Mode Toggle Buttons */}
         {(user.role === 'tradesperson' || user.role === 'service_provider') && (
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 mb-8 px-2">
+            {/* Pending Reviews Button - Show only if there are pending reviews */}
+            {pendingReviews.length > 0 && (
+              <button
+                onClick={() => handleViewChange('reviews', '')}
+                className={`relative px-3 sm:px-6 py-2 sm:py-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ${
+                  (filters.viewMode as string) === 'reviews'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/50'
+                    : 'bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-300 hover:from-orange-500/30 hover:to-amber-500/30 border border-orange-400/40'
+                }`}
+              >
+                📩 За преглед
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center animate-pulse">
+                  {pendingReviews.length}
+                </span>
+              </button>
+            )}
             <button
               onClick={() => handleViewChange('available', '')}
               className={`px-3 sm:px-6 py-2 sm:py-4 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ${
@@ -377,7 +442,12 @@ export default function DashboardPage() {
         />
 
         {/* Main Content Area */}
-        {filters.viewMode === 'bids' ? (
+        {(filters.viewMode as string) === 'reviews' ? (
+          <PendingReviewsList 
+            reviews={pendingReviews}
+            onReview={(caseData) => setReviewModal({ isOpen: true, caseData })}
+          />
+        ) : filters.viewMode === 'bids' ? (
           <BidsList 
             bids={allBids} 
             filter={bidsFilter} 
@@ -398,6 +468,15 @@ export default function DashboardPage() {
           />
         )}
       </div>
+
+      {/* Review Response Modal */}
+      <ReviewResponseModal
+        isOpen={reviewModal.isOpen}
+        caseData={reviewModal.caseData}
+        onClose={() => setReviewModal({ isOpen: false, caseData: null })}
+        onRespond={handleReviewResponse}
+        pointsBalance={pointsBalance}
+      />
 
       {/* Income Completion Modal */}
       <IncomeCompletionModal

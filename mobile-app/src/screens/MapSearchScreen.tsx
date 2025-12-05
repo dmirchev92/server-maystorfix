@@ -22,40 +22,10 @@ import Geolocation from 'react-native-geolocation-service';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/ApiService';
+import CategoryService, { Category } from '../services/CategoryService';
 import BidButton from '../components/BidButton';
 
 const { width, height } = Dimensions.get('window');
-
-// All 18 service categories with Bulgarian labels
-const SERVICE_CATEGORIES = [
-  { value: '', label: 'Всички категории' },
-  { value: 'electrician', label: 'Електротехник' },
-  { value: 'plumber', label: 'Водопроводчик' },
-  { value: 'hvac', label: 'Отопление и климатизация' },
-  { value: 'carpenter', label: 'Дърводелец' },
-  { value: 'painter', label: 'Бояджия' },
-  { value: 'locksmith', label: 'Ключар' },
-  { value: 'cleaner', label: 'Почистване' },
-  { value: 'gardener', label: 'Градинар' },
-  { value: 'handyman', label: 'Дребни ремонти' },
-  { value: 'renovation', label: 'Цялостни ремонти' },
-  { value: 'roofer', label: 'Покривни услуги' },
-  { value: 'mover', label: 'Хамалски услуги' },
-  { value: 'tiler', label: 'Майстор Фаянс' },
-  { value: 'welder', label: 'Заварчик' },
-  { value: 'appliance', label: 'Ремонт на уреди' },
-  { value: 'flooring', label: 'Подови настилки' },
-  { value: 'plasterer', label: 'Шпакловане' },
-  { value: 'glasswork', label: 'Стъкларски услуги' },
-  { value: 'design', label: 'Дизайн' },
-];
-
-// Helper to get Bulgarian label for a service category
-const getServiceCategoryLabel = (category: string): string => {
-  if (!category) return '';
-  const found = SERVICE_CATEGORIES.find(c => c.value.toLowerCase() === category.toLowerCase());
-  return found ? found.label : category;
-};
 
 // Distance options in km
 const DISTANCE_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -101,6 +71,17 @@ const MapSearchScreen: React.FC = () => {
   const [selectedRadius, setSelectedRadius] = useState<number>(10);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+  const [serviceCategories, setServiceCategories] = useState<Category[]>([]);
+
+  // Helper to get Bulgarian label for a service category
+  const getServiceCategoryLabel = (category: string): string => {
+    if (!category) return '';
+    const found = serviceCategories.find((c: Category) => 
+      c.id?.toLowerCase() === category.toLowerCase() || 
+      c.value?.toLowerCase() === category.toLowerCase()
+    );
+    return found ? found.label : category;
+  };
 
   // Free Inspection states (for customers)
   const [freeInspectionAlertsEnabled, setFreeInspectionAlertsEnabled] = useState(false);
@@ -145,6 +126,19 @@ const MapSearchScreen: React.FC = () => {
       }
     };
     loadUserRole();
+  }, []);
+
+  // Load service categories on mount
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const categories = await CategoryService.getInstance().getCategories();
+        setServiceCategories(categories);
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    };
+    loadCategories();
   }, []);
 
   // Load free inspection preferences for customers
@@ -414,8 +408,8 @@ const MapSearchScreen: React.FC = () => {
 
   const getCategoryLabel = (categoryId: string) => {
     if (!categoryId) return '';
-    const category = SERVICE_CATEGORIES.find(c => c.value.toLowerCase() === categoryId.toLowerCase());
-    return category ? category.label : categoryId;
+    // Use the constant helper that handles both 'cat_' prefix and without
+    return getServiceCategoryLabel(categoryId);
   };
 
   const getCurrentLocation = () => {
@@ -557,13 +551,13 @@ const MapSearchScreen: React.FC = () => {
           style={[styles.actionBtn, styles.profileBtn]}
           onPress={() => handleViewProfile(item)}
         >
-          <Text style={styles.profileBtnText}>View Profile</Text>
+          <Text style={styles.profileBtnText}>Виж профил</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBtn, styles.chatBtn]}
           onPress={() => handleChatProvider(item)}
         >
-          <Text style={styles.actionBtnText}>Chat</Text>
+          <Text style={styles.actionBtnText}>Чат</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -597,15 +591,25 @@ const MapSearchScreen: React.FC = () => {
         <Text style={styles.distanceText}>{item.distanceKm} км</Text>
       </View>
 
-      {/* Category */}
-      <Text style={styles.caseCategory}>
-        {getCategoryLabel(item.serviceType || item.category)}
-      </Text>
+      {/* Case Number & Category */}
+      <View style={styles.caseTitleRow}>
+        {item.caseNumber && (
+          <View style={styles.caseNumberBadge}>
+            <Text style={styles.caseNumberText}>#{item.caseNumber}</Text>
+          </View>
+        )}
+        <Text style={styles.caseCategory}>
+          {getCategoryLabel(item.serviceType || item.category)}
+        </Text>
+      </View>
 
       {/* Description */}
-      <Text style={styles.caseDescription} numberOfLines={2}>
-        {item.description}
-      </Text>
+      <View style={styles.descriptionContainer}>
+        <Text style={styles.descriptionLabel}>📝 Описание:</Text>
+        <Text style={styles.caseDescription} numberOfLines={2}>
+          {item.description}
+        </Text>
+      </View>
 
       {/* Location & Budget */}
       <View style={styles.caseDetails}>
@@ -829,13 +833,13 @@ const MapSearchScreen: React.FC = () => {
                   style={[styles.actionBtn, styles.profileBtn]}
                   onPress={() => handleViewProfile(selectedProvider)}
                 >
-                  <Text style={styles.profileBtnText}>View Profile</Text>
+                  <Text style={styles.profileBtnText}>Виж профил</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.chatBtn, { marginLeft: 8 }]}
                   onPress={() => handleChatProvider(selectedProvider)}
                 >
-                  <Text style={styles.actionBtnText}>Chat</Text>
+                  <Text style={styles.actionBtnText}>Чат</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -857,15 +861,25 @@ const MapSearchScreen: React.FC = () => {
                 </TouchableOpacity>
               </View>
 
-              {/* Category */}
-              <Text style={styles.caseCategory}>
-                {getCategoryLabel(selectedCase.serviceType || selectedCase.category)}
-              </Text>
+              {/* Case Number & Category */}
+              <View style={styles.caseTitleRow}>
+                {selectedCase.caseNumber && (
+                  <View style={styles.caseNumberBadge}>
+                    <Text style={styles.caseNumberText}>#{selectedCase.caseNumber}</Text>
+                  </View>
+                )}
+                <Text style={styles.caseCategory}>
+                  {getCategoryLabel(selectedCase.serviceType || selectedCase.category)}
+                </Text>
+              </View>
 
               {/* Description */}
-              <Text style={styles.caseDescription} numberOfLines={2}>
-                {selectedCase.description}
-              </Text>
+              <View style={styles.descriptionContainer}>
+                <Text style={styles.descriptionLabel}>📝 Описание:</Text>
+                <Text style={styles.caseDescription} numberOfLines={2}>
+                  {selectedCase.description}
+                </Text>
+              </View>
 
               {/* Location & Budget */}
               <View style={styles.caseDetails}>
@@ -975,8 +989,9 @@ const MapSearchScreen: React.FC = () => {
                     style={styles.picker}
                     dropdownIconColor="#374151"
                   >
-                    {SERVICE_CATEGORIES.map((cat) => (
-                      <Picker.Item key={cat.value} label={cat.label} value={cat.value} />
+                    <Picker.Item key="all" label="Всички категории" value="" />
+                    {serviceCategories.map((cat: Category) => (
+                      <Picker.Item key={cat.value || cat.id} label={cat.label} value={cat.id} />
                     ))}
                   </Picker>
                 </View>
@@ -1024,8 +1039,9 @@ const MapSearchScreen: React.FC = () => {
                             style={styles.picker}
                             dropdownIconColor="#7C3AED"
                           >
-                            {SERVICE_CATEGORIES.map((cat) => (
-                              <Picker.Item key={cat.value} label={cat.label} value={cat.value} />
+                            <Picker.Item key="all" label="Всички категории" value="" />
+                            {serviceCategories.map((cat: Category) => (
+                              <Picker.Item key={cat.value || cat.id} label={cat.label} value={cat.id} />
                             ))}
                           </Picker>
                         </View>
@@ -1975,10 +1991,34 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     marginBottom: 4,
   },
+  caseTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  caseNumberBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  caseNumberText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6366f1',
+  },
+  descriptionContainer: {
+    marginBottom: 8,
+  },
+  descriptionLabel: {
+    fontSize: 11,
+    color: '#888',
+    marginBottom: 2,
+  },
   caseDescription: {
     fontSize: 13,
     color: '#666',
-    marginBottom: 8,
     lineHeight: 18,
   },
   caseDetails: {

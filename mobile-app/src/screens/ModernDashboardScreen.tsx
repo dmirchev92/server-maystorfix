@@ -113,7 +113,6 @@ function ModernDashboardScreen() {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [isTogglingDetection, setIsTogglingDetection] = useState(false);
   const [serviceType, setServiceType] = useState<string>('Занаятчия');
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [providerStats, setProviderStats] = useState<ProviderStats | null>(null);
@@ -129,6 +128,12 @@ function ModernDashboardScreen() {
   // SMS Automation state
   const [isSmsEnabled, setIsSmsEnabled] = useState(false);
   const [isTogglingSms, setIsTogglingSms] = useState(false);
+  const [filterKnownContacts, setFilterKnownContacts] = useState(true);
+  const [isTogglingFilter, setIsTogglingFilter] = useState(false);
+  
+  // Free Inspection state
+  const [freeInspectionActive, setFreeInspectionActive] = useState(false);
+  const [freeInspectionLoading, setFreeInspectionLoading] = useState(false);
   
   // Automation Hub expansion state
   const [isAutomationExpanded, setIsAutomationExpanded] = useState(true);
@@ -151,6 +156,7 @@ function ModernDashboardScreen() {
       console.log('🔄 useFocusEffect triggered', { hasUser: !!user, userId: user?.id });
       loadLocationPreference(); // Always load location preference
       loadSmsStatus(); // Always load SMS status
+      loadFreeInspectionStatus(); // Load free inspection status
       if (user?.id) {
         console.log('🔄 Screen focused, refreshing data for user:', user.id);
         loadDashboardData();
@@ -609,95 +615,6 @@ function ModernDashboardScreen() {
     setIsRefreshing(false);
   };
 
-  const handleStartCallDetection = async () => {
-    try {
-      console.log('🚀 Starting call detection...');
-      
-      // Check current permissions first
-      console.log('🔍 Checking current permissions...');
-      const currentPermissions = await callDetectionService.checkPermissions();
-      console.log('📋 Current permissions status:', currentPermissions);
-      
-      // Request permissions with detailed feedback
-      console.log('🔐 Requesting permissions...');
-      const hasPermissions = await callDetectionService.requestPermissions();
-      
-      // Refresh status after permission request
-      await refreshCallDetectionStatus();
-      
-      if (!hasPermissions) {
-        Alert.alert(
-          'Разрешения са необходими',
-          'За детекция на обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > ServiceText Pro > Разрешения и ги активирайте ръчно.',
-          [
-            { text: 'Отказ', style: 'cancel' },
-            { 
-              text: 'Отвори настройки', 
-              onPress: () => {
-                // This would open app settings, but requires additional setup
-                Alert.alert('Инструкции', 'Отидете в Настройки на телефона > Приложения > ServiceText Pro > Разрешения');
-              }
-            }
-          ]
-        );
-        return;
-      }
-
-      console.log('✅ Permissions granted, starting detection...');
-
-      // Start detection
-      const success = await callDetectionService.startDetection();
-      if (success) {
-        Alert.alert(
-          'Успех! 🎉', 
-          'Детекцията на обаждания е стартирана успешно!\n\nСега можете да тествате с реално пропуснато обаждане.',
-          [{ text: 'OK' }]
-        );
-        await refreshCallDetectionStatus();
-      } else {
-        Alert.alert(
-          'Грешка при стартиране', 
-          'Не успяхме да стартираме детекцията на обаждания. Проверете дали разрешенията са дадени правилно.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('❌ Error starting call detection:', error);
-      Alert.alert(
-        'Грешка', 
-        `Възникна грешка при стартиране на детекцията:\n\n${error}`,
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const handleStopCallDetection = async () => {
-    try {
-      const success = await callDetectionService.stopDetection();
-      if (success) {
-        Alert.alert('Успех', 'Детекцията на обаждания е спряна.');
-        await refreshCallDetectionStatus();
-      }
-    } catch (error) {
-      console.error('Error stopping call detection:', error);
-    }
-  };
-
-
-  const handleToggleDetectionSwitch = async (value: boolean) => {
-    if (isTogglingDetection) return;
-    setIsTogglingDetection(true);
-    try {
-      if (value) {
-        await handleStartCallDetection();
-      } else {
-        await handleStopCallDetection();
-      }
-    } finally {
-      setIsTogglingDetection(false);
-    }
-  };
-
   // Load location sharing preference and determine mode
   const loadLocationPreference = async () => {
     try {
@@ -739,12 +656,34 @@ function ModernDashboardScreen() {
     }
   };
   
-  // Load SMS automation status
+  // Load SMS automation status and sync call detection
   const loadSmsStatus = async () => {
     try {
       await SMSService.getInstance().refreshConfigFromAPI();
       const stats = SMSService.getInstance().getStats();
+      const wasEnabled = isSmsEnabled;
       setIsSmsEnabled(stats.isEnabled);
+      setFilterKnownContacts(stats.filterKnownContacts ?? true); // Load filter state
+      
+      // Sync call detection with SMS status (e.g., if enabled from web)
+      const isCallDetectionRunning = callDetectionService.isServiceListening();
+      
+      if (stats.isEnabled && !isCallDetectionRunning) {
+        // SMS is enabled but call detection isn't running - start it
+        console.log('📱 SMS enabled but call detection not running, syncing...');
+        const hasPermissions = await callDetectionService.checkPermissions();
+        if (hasPermissions?.hasAllPermissions) {
+          await callDetectionService.startDetection();
+          await refreshCallDetectionStatus();
+          console.log('✅ Call detection synced with SMS status');
+        }
+      } else if (!stats.isEnabled && isCallDetectionRunning) {
+        // SMS is disabled but call detection is running - stop it
+        console.log('📱 SMS disabled but call detection running, syncing...');
+        await callDetectionService.stopDetection();
+        await refreshCallDetectionStatus();
+        console.log('✅ Call detection stopped (SMS disabled)');
+      }
     } catch (error) {
       console.error('Error loading SMS status:', error);
     }
@@ -796,8 +735,8 @@ function ModernDashboardScreen() {
     }
   };
   
-  // Toggle SMS automation
-  const handleToggleSms = async () => {
+  // Toggle SMS automation with call detection combined
+  const handleToggleSmsWithCallDetection = async () => {
     if (isTogglingSms) return;
     setIsTogglingSms(true);
     
@@ -805,17 +744,133 @@ function ModernDashboardScreen() {
       const newEnabled = !isSmsEnabled;
       setIsSmsEnabled(newEnabled);
       
-      const success = await SMSService.getInstance().toggleEnabled();
-      if (!success && newEnabled) {
-        // Toggle failed (likely permissions), revert
-        setIsSmsEnabled(false);
-        Alert.alert('Грешка', 'Нужни са разрешения за SMS');
+      if (newEnabled) {
+        // First, request call detection permissions
+        const hasPermissions = await callDetectionService.requestPermissions();
+        if (!hasPermissions) {
+          Alert.alert(
+            'Разрешения са необходими',
+            'За автоматични SMS при пропуснати обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > ServiceText Pro > Разрешения.',
+            [{ text: 'OK' }]
+          );
+          setIsSmsEnabled(false);
+          return;
+        }
+        
+        // Start call detection
+        await callDetectionService.startDetection();
+        await refreshCallDetectionStatus();
+        
+        // Enable SMS
+        const smsSuccess = await SMSService.getInstance().toggleEnabled();
+        if (!smsSuccess) {
+          // SMS toggle failed, stop call detection too
+          await callDetectionService.stopDetection();
+          await refreshCallDetectionStatus();
+          setIsSmsEnabled(false);
+          Alert.alert('Грешка', 'Нужни са разрешения за SMS');
+          return;
+        }
+        
+        Alert.alert(
+          '✅ Авто SMS активирано',
+          'При пропуснато обаждане автоматично ще се изпрати SMS с линк за чат.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        // Stop call detection
+        await callDetectionService.stopDetection();
+        await refreshCallDetectionStatus();
+        
+        // Disable SMS
+        await SMSService.getInstance().toggleEnabled();
       }
     } catch (error) {
-      console.error('Error toggling SMS:', error);
+      console.error('Error toggling SMS with call detection:', error);
       setIsSmsEnabled(!isSmsEnabled); // Revert
+      Alert.alert('Грешка', 'Неуспешна промяна на настройките');
     } finally {
       setIsTogglingSms(false);
+    }
+  };
+  
+  // Toggle contact filtering (skip known contacts like family)
+  const handleToggleContactFilter = async () => {
+    if (isTogglingFilter) return;
+    setIsTogglingFilter(true);
+    
+    try {
+      const newFiltering = !filterKnownContacts;
+      
+      // If enabling filtering, request contacts permission
+      if (newFiltering) {
+        const { ContactService } = await import('../services/ContactService');
+        const contactService = ContactService.getInstance();
+        const hasPermission = await contactService.requestContactsPermission();
+        
+        if (!hasPermission) {
+          Alert.alert(
+            'Изисква се разрешение',
+            'Филтрирането на контакти изисква достъп до контактите. Моля, разрешете достъпа.',
+            [{ text: 'OK' }]
+          );
+          setIsTogglingFilter(false);
+          return;
+        }
+      }
+      
+      // Update the SMS service config
+      await SMSService.getInstance().updateConfig({ filterKnownContacts: newFiltering });
+      setFilterKnownContacts(newFiltering);
+      
+      Alert.alert(
+        newFiltering ? '✅ Филтър включен' : '❌ Филтър изключен',
+        newFiltering 
+          ? 'SMS ще се изпращат само до непознати номера (не на семейство/приятели).'
+          : 'SMS ще се изпращат до всички пропуснати обаждания.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error toggling contact filter:', error);
+      Alert.alert('Грешка', 'Неуспешна промяна на филтъра');
+    } finally {
+      setIsTogglingFilter(false);
+    }
+  };
+  
+  // Load free inspection status
+  const loadFreeInspectionStatus = async () => {
+    try {
+      const response = await ApiService.getInstance().getFreeInspectionStatus();
+      if (response.success && response.data) {
+        setFreeInspectionActive(response.data.freeInspectionActive || false);
+      }
+    } catch (error) {
+      console.error('Error loading free inspection status:', error);
+    }
+  };
+  
+  // Handle free inspection toggle
+  const handleFreeInspectionToggle = async (value: boolean) => {
+    setFreeInspectionLoading(true);
+    try {
+      const response = await ApiService.getInstance().toggleFreeInspection(value);
+      if (response.success) {
+        setFreeInspectionActive(value);
+        Alert.alert(
+          value ? '✅ Безплатен оглед активиран' : '❌ Безплатен оглед деактивиран',
+          value 
+            ? 'Клиентите наблизо ще получат известие и ще могат да ви намерят на картата.' 
+            : 'Вече не се показвате като предлагащ безплатен оглед.'
+        );
+      } else {
+        Alert.alert('Грешка', 'Неуспешна промяна на статуса');
+      }
+    } catch (error) {
+      console.error('Error toggling free inspection:', error);
+      Alert.alert('Грешка', 'Неуспешна връзка със сървъра');
+    } finally {
+      setFreeInspectionLoading(false);
     }
   };
   
@@ -948,14 +1003,14 @@ function ModernDashboardScreen() {
             <View style={styles.automationHubStatus}>
               <View style={[
                 styles.automationStatusDot,
-                (callDetectionStatus.isListening || isSmsEnabled || locationMode !== 'off') 
+                (isSmsEnabled || freeInspectionActive || locationMode !== 'off') 
                   ? styles.statusDotActive 
                   : styles.statusDotInactive
               ]} />
               <Text style={styles.automationStatusText}>
                 {[
-                  callDetectionStatus.isListening ? '📞' : '',
                   isSmsEnabled ? '📱' : '',
+                  freeInspectionActive ? '🔧' : '',
                   locationMode !== 'off' ? '📍' : ''
                 ].filter(Boolean).join(' ') || 'Изкл.'}
               </Text>
@@ -969,35 +1024,10 @@ function ModernDashboardScreen() {
           {isAutomationExpanded && (
             <View style={styles.automationHubContent}>
               
-              {/* 1. Call Detection Toggle */}
+              {/* 1. Auto SMS + Call Detection Combined Toggle */}
               <TouchableOpacity 
                 style={styles.automationRow}
-                onPress={() => handleToggleDetectionSwitch(!callDetectionStatus.isListening)}
-                disabled={isTogglingDetection}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.automationRowIcon}>📞</Text>
-                <View style={styles.automationRowText}>
-                  <Text style={styles.automationRowLabel}>Детекция обаждания</Text>
-                  <Text style={styles.automationRowStatus}>
-                    {callDetectionStatus.isListening ? 'Активна' : 'Неактивна'}
-                  </Text>
-                </View>
-                <View style={[
-                  styles.automationToggle,
-                  callDetectionStatus.isListening ? styles.toggleOn : styles.toggleOff
-                ]}>
-                  <View style={[
-                    styles.automationToggleKnob,
-                    callDetectionStatus.isListening ? styles.toggleKnobOn : styles.toggleKnobOff
-                  ]} />
-                </View>
-              </TouchableOpacity>
-
-              {/* 2. Auto SMS Toggle */}
-              <TouchableOpacity 
-                style={styles.automationRow}
-                onPress={handleToggleSms}
+                onPress={handleToggleSmsWithCallDetection}
                 disabled={isTogglingSms}
                 activeOpacity={0.7}
               >
@@ -1005,7 +1035,7 @@ function ModernDashboardScreen() {
                 <View style={styles.automationRowText}>
                   <Text style={styles.automationRowLabel}>Авто SMS</Text>
                   <Text style={styles.automationRowStatus}>
-                    {isSmsEnabled ? 'Активно' : 'Неактивно'}
+                    {isSmsEnabled ? 'Активно • Следи обаждания' : 'Неактивно'}
                   </Text>
                 </View>
                 <View style={[
@@ -1015,6 +1045,58 @@ function ModernDashboardScreen() {
                   <View style={[
                     styles.automationToggleKnob,
                     isSmsEnabled ? styles.toggleKnobOn : styles.toggleKnobOff
+                  ]} />
+                </View>
+              </TouchableOpacity>
+
+              {/* Contact Filter Sub-option (only shown when SMS is enabled) */}
+              {isSmsEnabled && (
+                <TouchableOpacity 
+                  style={[styles.automationRow, styles.automationSubRow]}
+                  onPress={handleToggleContactFilter}
+                  disabled={isTogglingFilter}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.automationRowIcon}>👥</Text>
+                  <View style={styles.automationRowText}>
+                    <Text style={styles.automationRowLabel}>Филтър контакти</Text>
+                    <Text style={styles.automationRowStatus}>
+                      {filterKnownContacts ? 'Само непознати' : 'Всички номера'}
+                    </Text>
+                  </View>
+                  <View style={[
+                    styles.automationToggle,
+                    filterKnownContacts ? styles.toggleOn : styles.toggleOff
+                  ]}>
+                    <View style={[
+                      styles.automationToggleKnob,
+                      filterKnownContacts ? styles.toggleKnobOn : styles.toggleKnobOff
+                    ]} />
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {/* 2. Free Inspection Toggle */}
+              <TouchableOpacity 
+                style={styles.automationRow}
+                onPress={() => !freeInspectionLoading && handleFreeInspectionToggle(!freeInspectionActive)}
+                disabled={freeInspectionLoading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.automationRowIcon}>🔧</Text>
+                <View style={styles.automationRowText}>
+                  <Text style={styles.automationRowLabel}>Безплатен оглед</Text>
+                  <Text style={styles.automationRowStatus}>
+                    {freeInspectionActive ? 'Активен' : 'Неактивен'}
+                  </Text>
+                </View>
+                <View style={[
+                  styles.automationToggle,
+                  freeInspectionActive ? styles.toggleOn : styles.toggleOff
+                ]}>
+                  <View style={[
+                    styles.automationToggleKnob,
+                    freeInspectionActive ? styles.toggleKnobOn : styles.toggleKnobOff
                   ]} />
                 </View>
               </TouchableOpacity>
@@ -1164,12 +1246,6 @@ function ModernDashboardScreen() {
               <Text style={styles.navLabel}>Статистики</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.navigationRow}>
-            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Subscription')}>
-              <Text style={styles.navIcon}>💳</Text>
-              <Text style={styles.navLabel}>Абонамент</Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Recent Activity - Commented out as requested */}
@@ -1270,19 +1346,19 @@ function ModernDashboardScreen() {
         </View>
       </View>
 
-      {/* Call Detection Status */}
+      {/* Auto SMS Status */}
       <View style={styles.statusContainer}>
-        <Text style={styles.sectionTitle}>Детекция на обаждания</Text>
+        <Text style={styles.sectionTitle}>Авто SMS</Text>
         
         <View style={styles.statusCard}>
           <View style={styles.statusRow}>
             <Text style={styles.statusLabel}>Статус:</Text>
             <View style={[
               styles.statusIndicator, 
-              callDetectionStatus.isListening ? styles.statusActive : styles.statusInactive
+              isSmsEnabled ? styles.statusActive : styles.statusInactive
             ]}>
               <Text style={styles.statusText}>
-                {callDetectionStatus.isListening ? 'Активна' : 'Неактивна'}
+                {isSmsEnabled ? 'Активно' : 'Неактивно'}
               </Text>
             </View>
           </View>
@@ -1302,17 +1378,15 @@ function ModernDashboardScreen() {
 
 
           <View style={styles.buttonRow}>
-            {!callDetectionStatus.isListening ? (
-              <TouchableOpacity style={styles.startButton} onPress={handleStartCallDetection}>
-                <Text style={styles.buttonText}>Стартирай детекция</Text>
+            {!isSmsEnabled ? (
+              <TouchableOpacity style={styles.startButton} onPress={handleToggleSmsWithCallDetection}>
+                <Text style={styles.buttonText}>Стартирай Авто SMS</Text>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity style={styles.stopButton} onPress={handleStopCallDetection}>
-                <Text style={styles.buttonText}>Спри детекция</Text>
+              <TouchableOpacity style={styles.stopButton} onPress={handleToggleSmsWithCallDetection}>
+                <Text style={styles.buttonText}>Спри Авто SMS</Text>
               </TouchableOpacity>
             )}
-
-
           </View>
         </View>
       </View>
@@ -2363,6 +2437,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.5)',
     borderRadius: 12,
     marginBottom: 8,
+  },
+  automationSubRow: {
+    marginLeft: 20,
+    backgroundColor: 'rgba(15, 23, 42, 0.3)',
+    borderLeftWidth: 2,
+    borderLeftColor: '#6366f1',
   },
   automationRowIcon: {
     fontSize: 24,

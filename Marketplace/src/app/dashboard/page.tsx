@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Header } from '@/components/Header'
 import { PointsBalance } from '@/components/PointsBalance'
+import * as XLSX from 'xlsx'
 
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading, logout } = useAuth()
@@ -97,49 +98,192 @@ export default function DashboardPage() {
   const downloadIncomeReport = () => {
     if (!incomeStats) return
 
-    // Create CSV content with BOM for proper UTF-8 encoding
-    let csvContent = "data:text/csv;charset=utf-8,%EF%BB%BF"
-    
-    // Overall Summary
-    csvContent += "=== ОБЩ ОТЧЕТ ЗА ПРИХОДИ ===\\n\\n"
-    csvContent += `Общо приходи:,${incomeStats.summary?.totalIncome?.toFixed(2)} BGN\\n`
-    csvContent += `Брой заявки:,${incomeStats.summary?.incomeCount}\\n`
-    csvContent += `Средно на заявка:,${incomeStats.summary?.averageIncome?.toFixed(2)} BGN\\n\\n`
-    
-    // Monthly Breakdown with Details
-    csvContent += "=== МЕСЕЧНА РАЗБИВКА ===\\n\\n"
+    // Payment method display names
+    const methodNames: { [key: string]: string } = {
+      'cash': 'Кеш',
+      'card': 'Картово плащане',
+      'bank_transfer': 'Банков път',
+      'online': 'Revolut',
+      'other': 'Друго'
+    }
+
+    // Create workbook
+    const wb = XLSX.utils.book_new()
+
+    // ==================== SHEET 1: Summary ====================
+    const summaryData = [
+      [''],
+      ['📊 ОТЧЕТ ЗА ПРИХОДИ'],
+      [`Година: ${selectedYear}`],
+      [`Генериран: ${new Date().toLocaleDateString('bg-BG', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`],
+      [''],
+      ['ОБОБЩЕНИЕ'],
+      [''],
+      ['Показател', 'Стойност'],
+      ['Общо приходи', `${incomeStats.summary?.totalIncome?.toFixed(2)} лв.`],
+      ['Брой заявки', `${incomeStats.summary?.incomeCount || 0}`],
+      ['Средно на заявка', `${incomeStats.summary?.averageIncome?.toFixed(2)} лв.`],
+      [''],
+      [''],
+      ['МЕСЕЧНА РАЗБИВКА'],
+      [''],
+      ['Месец', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)']
+    ]
+
+    // Add monthly data
     incomeStats.monthlyIncome?.forEach((month: any) => {
       const monthName = new Date(month.month + '-01').toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' })
-      csvContent += `--- ${monthName} ---\\n`
-      csvContent += `Общо приходи:,${month.total?.toFixed(2)} BGN\\n`
-      csvContent += `Брой заявки:,${month.count}\\n`
-      csvContent += `Средно на заявка:,${month.average?.toFixed(2)} BGN\\n\\n`
-    })
-    
-    // Summary Table
-    csvContent += "=== ОБОБЩЕНА ТАБЛИЦА ===\\n"
-    csvContent += "Месец,Общо приходи (BGN),Брой заявки,Средно (BGN)\\n"
-    incomeStats.monthlyIncome?.forEach((month: any) => {
-      const monthName = new Date(month.month + '-01').toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' })
-      csvContent += `${monthName},${month.total?.toFixed(2)},${month.count},${month.average?.toFixed(2)}\\n`
-    })
-    
-    // Payment Methods
-    csvContent += "\\n=== ПО МЕТОД НА ПЛАЩАНЕ ===\\n"
-    csvContent += "Метод,Общо приходи (BGN),Брой заявки,Средно (BGN)\\n"
-    incomeStats.paymentMethods?.forEach((pm: any) => {
-      const avgPerMethod = pm.count > 0 ? (pm.total / pm.count).toFixed(2) : '0.00'
-      csvContent += `${pm.method},${pm.total?.toFixed(2)},${pm.count},${avgPerMethod}\\n`
+      summaryData.push([
+        monthName,
+        `${month.total?.toFixed(2)}`,
+        `${month.count || 0}`,
+        `${month.average?.toFixed(2)}`
+      ])
     })
 
-    // Create download link
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement("a")
-    link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `income_report_${selectedYear}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    // Add totals row for monthly
+    summaryData.push([''])
+    summaryData.push([
+      'ОБЩО',
+      `${incomeStats.summary?.totalIncome?.toFixed(2)}`,
+      `${incomeStats.summary?.incomeCount || 0}`,
+      `${incomeStats.summary?.averageIncome?.toFixed(2)}`
+    ])
+
+    // Add payment methods section
+    summaryData.push([''])
+    summaryData.push([''])
+    summaryData.push(['ПО МЕТОД НА ПЛАЩАНЕ'])
+    summaryData.push([''])
+    summaryData.push(['Метод', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)'])
+
+    incomeStats.paymentMethods?.forEach((pm: any) => {
+      const avgPerMethod = pm.count > 0 ? (pm.total / pm.count).toFixed(2) : '0.00'
+      summaryData.push([
+        methodNames[pm.method] || pm.method,
+        `${pm.total?.toFixed(2)}`,
+        `${pm.count || 0}`,
+        avgPerMethod
+      ])
+    })
+
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryData)
+
+    // Set column widths
+    ws1['!cols'] = [
+      { wch: 25 }, // Column A
+      { wch: 15 }, // Column B
+      { wch: 15 }, // Column C
+      { wch: 15 }  // Column D
+    ]
+
+    // Merge cells for title
+    ws1['!merges'] = [
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } }, // Title
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 3 } }, // Year
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } }, // Generated date
+      { s: { r: 5, c: 0 }, e: { r: 5, c: 3 } }, // ОБОБЩЕНИЕ
+      { s: { r: 13, c: 0 }, e: { r: 13, c: 3 } }, // МЕСЕЧНА РАЗБИВКА
+    ]
+
+    XLSX.utils.book_append_sheet(wb, ws1, 'Отчет')
+
+    // ==================== SHEET 2: Monthly Details ====================
+    const monthlyData = [
+      ['📅 ДЕТАЙЛНА МЕСЕЧНА РАЗБИВКА'],
+      [`Година: ${selectedYear}`],
+      [''],
+      ['Месец', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)', '% от общо']
+    ]
+
+    const totalIncome = incomeStats.summary?.totalIncome || 1
+
+    incomeStats.monthlyIncome?.forEach((month: any) => {
+      const monthName = new Date(month.month + '-01').toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' })
+      const percentage = ((month.total / totalIncome) * 100).toFixed(1)
+      monthlyData.push([
+        monthName,
+        `${month.total?.toFixed(2)}`,
+        `${month.count || 0}`,
+        `${month.average?.toFixed(2)}`,
+        `${percentage}%`
+      ])
+    })
+
+    monthlyData.push([''])
+    monthlyData.push([
+      'ОБЩО',
+      `${incomeStats.summary?.totalIncome?.toFixed(2)}`,
+      `${incomeStats.summary?.incomeCount || 0}`,
+      `${incomeStats.summary?.averageIncome?.toFixed(2)}`,
+      '100%'
+    ])
+
+    const ws2 = XLSX.utils.aoa_to_sheet(monthlyData)
+    ws2['!cols'] = [
+      { wch: 25 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 12 }
+    ]
+    ws2['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
+    ]
+
+    XLSX.utils.book_append_sheet(wb, ws2, 'Месечни данни')
+
+    // ==================== SHEET 3: Payment Methods ====================
+    const paymentData = [
+      ['💳 РАЗБИВКА ПО МЕТОД НА ПЛАЩАНЕ'],
+      [`Година: ${selectedYear}`],
+      [''],
+      ['Метод на плащане', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)', '% от общо']
+    ]
+
+    // Sort by total (highest first)
+    const sortedMethods = [...(incomeStats.paymentMethods || [])].sort((a, b) => b.total - a.total)
+
+    sortedMethods.forEach((pm: any) => {
+      const avgPerMethod = pm.count > 0 ? (pm.total / pm.count).toFixed(2) : '0.00'
+      const percentage = ((pm.total / totalIncome) * 100).toFixed(1)
+      paymentData.push([
+        methodNames[pm.method] || pm.method,
+        `${pm.total?.toFixed(2)}`,
+        `${pm.count || 0}`,
+        avgPerMethod,
+        `${percentage}%`
+      ])
+    })
+
+    paymentData.push([''])
+    paymentData.push([
+      'ОБЩО',
+      `${incomeStats.summary?.totalIncome?.toFixed(2)}`,
+      `${incomeStats.summary?.incomeCount || 0}`,
+      `${incomeStats.summary?.averageIncome?.toFixed(2)}`,
+      '100%'
+    ])
+
+    const ws3 = XLSX.utils.aoa_to_sheet(paymentData)
+    ws3['!cols'] = [
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 15 },
+      { wch: 12 }
+    ]
+    ws3['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
+    ]
+
+    XLSX.utils.book_append_sheet(wb, ws3, 'Методи на плащане')
+
+    // Generate and download
+    const fileName = `Отчет_за_приходи_${selectedYear}.xlsx`
+    XLSX.writeFile(wb, fileName)
   }
 
   const handlePaymentMethodClick = async (paymentMethod: string) => {
@@ -194,7 +338,7 @@ export default function DashboardPage() {
       <Header />
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">

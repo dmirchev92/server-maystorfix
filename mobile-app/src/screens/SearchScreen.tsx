@@ -19,38 +19,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
 import { useNavigation } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
-// Icon removed since react-native-vector-icons is not installed
-// import Icon from 'react-native-vector-icons/Ionicons'; 
-
-// All 18 service categories with Bulgarian labels
-const SERVICE_TYPES = [
-  { value: 'electrician', label: 'Електротехник' },
-  { value: 'plumber', label: 'Водопроводчик' },
-  { value: 'hvac', label: 'Отопление и климатизация' },
-  { value: 'carpenter', label: 'Дърводелец' },
-  { value: 'painter', label: 'Бояджия' },
-  { value: 'locksmith', label: 'Ключар' },
-  { value: 'cleaner', label: 'Почистване' },
-  { value: 'gardener', label: 'Градинар' },
-  { value: 'handyman', label: 'Дребни ремонти' },
-  { value: 'renovation', label: 'Цялостни ремонти' },
-  { value: 'roofer', label: 'Покривни услуги' },
-  { value: 'mover', label: 'Хамалски услуги' },
-  { value: 'tiler', label: 'Майстор Фаянс' },
-  { value: 'welder', label: 'Заварчик' },
-  { value: 'appliance', label: 'Ремонт на уреди' },
-  { value: 'flooring', label: 'Подови настилки' },
-  { value: 'plasterer', label: 'Шпакловане' },
-  { value: 'glasswork', label: 'Стъкларски услуги' },
-  { value: 'design', label: 'Дизайн' },
-];
-
-// Helper to get Bulgarian label for a service category
-const getServiceCategoryLabel = (category: string): string => {
-  if (!category) return '';
-  const found = SERVICE_TYPES.find(c => c.value.toLowerCase() === category.toLowerCase());
-  return found ? found.label : category;
-};
+import CategoryService, { Category } from '../services/CategoryService';
 
 // Fallback cities (used while loading from API)
 const FALLBACK_CITIES = [
@@ -78,23 +47,36 @@ const SearchScreen = () => {
   const [providerReviews, setProviderReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   
-  // Dynamic location data
+  // Dynamic data
+  const [serviceTypes, setServiceTypes] = useState<Category[]>([]);
   const [cities, setCities] = useState<{value: string; label: string}[]>(FALLBACK_CITIES);
   const [neighborhoods, setNeighborhoods] = useState<{value: string; label: string}[]>([]);
 
-  // Load cities on mount
+  // Helper to get Bulgarian label for a service category
+  const getServiceCategoryLabel = (category: string): string => {
+    if (!category) return '';
+    const found = serviceTypes.find((c: Category) => c.id?.toLowerCase() === category.toLowerCase());
+    return found ? found.label : category;
+  };
+
+  // Load categories and cities on mount
   useEffect(() => {
-    const loadCities = async () => {
+    const loadData = async () => {
       try {
+        // Load categories
+        const categories = await CategoryService.getInstance().getCategories();
+        setServiceTypes(categories);
+        
+        // Load cities
         const response = await ApiService.getInstance().getCities();
         if (response.success && response.data?.cities) {
           setCities(response.data.cities.slice(0, 30));
         }
       } catch (error) {
-        console.error('Error loading cities:', error);
+        console.error('Error loading data:', error);
       }
     };
-    loadCities();
+    loadData();
   }, []);
   
   // Load neighborhoods when city changes
@@ -153,7 +135,7 @@ const SearchScreen = () => {
 
   const getCategoryLabel = (value: string) => {
     if (!value) return '';
-    const type = SERVICE_TYPES.find(t => t.value.toLowerCase() === value.toLowerCase());
+    const type = serviceTypes.find(t => t.value.toLowerCase() === value.toLowerCase());
     return type ? type.label : value;
   };
 
@@ -299,10 +281,10 @@ const SearchScreen = () => {
               onValueChange={(val) => setFilters(prev => ({ ...prev, category: val }))}
               style={styles.picker}
               dropdownIconColor="white"
-              mode="dropdown"
+              mode="dialog"
             >
-              <Picker.Item label="Всички услуги" value="" color="#000" />
-              {SERVICE_TYPES.map(t => <Picker.Item key={t.value} label={t.label} value={t.value} color="#000" />)}
+              <Picker.Item label="Всички услуги" value="" color="#ffffff" />
+              {serviceTypes.map((t: Category) => <Picker.Item key={t.value || t.id} label={t.label} value={t.id} color="#ffffff" />)}
             </Picker>
           </View>
 
@@ -313,9 +295,10 @@ const SearchScreen = () => {
                 onValueChange={(val) => setFilters(prev => ({ ...prev, city: val, neighborhood: '' }))}
                 style={styles.picker}
                 dropdownIconColor="white"
+                mode="dialog"
               >
-                <Picker.Item label="Град" value="" color="#000" />
-                {cities.map(c => <Picker.Item key={c.value} label={c.label} value={c.value} color="#000" />)}
+                <Picker.Item label="Град" value="" color="#ffffff" />
+                {cities.map(c => <Picker.Item key={c.value} label={c.label} value={c.value} color="#ffffff" />)}
               </Picker>
             </View>
 
@@ -326,9 +309,10 @@ const SearchScreen = () => {
                   onValueChange={(val) => setFilters(prev => ({ ...prev, neighborhood: val }))}
                   style={styles.picker}
                   dropdownIconColor="white"
+                  mode="dialog"
                 >
-                  <Picker.Item label="Квартал" value="" color="#000" />
-                  {neighborhoods.map(n => <Picker.Item key={n.value} label={n.label} value={n.value} color="#000" />)}
+                  <Picker.Item label="Квартал" value="" color="#ffffff" />
+                  {neighborhoods.map(n => <Picker.Item key={n.value} label={n.label} value={n.value} color="#ffffff" />)}
                 </Picker>
               </View>
             )}

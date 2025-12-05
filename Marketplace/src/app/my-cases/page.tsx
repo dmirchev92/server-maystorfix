@@ -27,6 +27,12 @@ interface Case {
   max_bidders?: number
   winning_bid_id?: string
   created_at: string
+  // New fields for direct assignment negotiation
+  negotiation_status?: string
+  assigned_sp_id?: string
+  customer_budget?: string
+  sp_counter_budget?: string
+  counter_message?: string
 }
 
 export default function MyCasesPage() {
@@ -34,6 +40,8 @@ export default function MyCasesPage() {
   const router = useRouter()
   const [cases, setCases] = useState<Case[]>([])
   const [loading, setLoading] = useState(true)
+  const [counterOfferModal, setCounterOfferModal] = useState<{ isOpen: boolean; caseData: Case | null }>({ isOpen: false, caseData: null })
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -67,6 +75,65 @@ export default function MyCasesPage() {
       console.error('Error fetching cases:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Handle customer response to counter-offer
+  const handleCounterOfferResponse = async (caseId: string, accept: boolean) => {
+    setActionLoading(caseId)
+    try {
+      const response = await apiClient.customerRespondToCounterOffer(caseId, accept ? 'accept' : 'decline')
+      
+      if (response.data?.success) {
+        alert(accept ? 'Офертата е приета! Специалистът ще се свърже с вас.' : 'Офертата е отказана.')
+        setCounterOfferModal({ isOpen: false, caseData: null })
+        fetchCases()
+      }
+    } catch (error: any) {
+      console.error('Error responding to counter-offer:', error)
+      alert(`Грешка: ${error.response?.data?.error?.message || error.message}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  // Send case to marketplace after decline
+  const handleSendToMarketplace = async (caseId: string) => {
+    if (!confirm('Искате ли да изпратите заявката към други специалисти? До 3 специалисти ще могат да наддадат.')) return
+    
+    setActionLoading(caseId)
+    try {
+      const response = await apiClient.sendCaseToMarketplace(caseId)
+      
+      if (response.data?.success) {
+        alert('Заявката е изпратена към marketplace! Специалистите ще могат да наддават.')
+        fetchCases()
+      }
+    } catch (error: any) {
+      console.error('Error sending to marketplace:', error)
+      alert(`Грешка: ${error.response?.data?.error?.message || error.message}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  // Cancel case
+  const handleCancelCase = async (caseId: string) => {
+    if (!confirm('Сигурни ли сте, че искате да отмените тази заявка?')) return
+    
+    setActionLoading(caseId)
+    try {
+      const response = await apiClient.cancelCase(caseId)
+      
+      if (response.data?.success) {
+        alert('Заявката е отменена.')
+        fetchCases()
+      }
+    } catch (error: any) {
+      console.error('Error cancelling case:', error)
+      alert(`Грешка: ${error.response?.data?.error?.message || error.message}`)
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -106,7 +173,7 @@ export default function MyCasesPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20">
         {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">
@@ -179,8 +246,31 @@ export default function MyCasesPage() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 flex-wrap">
                                 <StatusBadge status={case_.status as any} />
+                                
+                                {/* Negotiation Status Badges */}
+                                {case_.negotiation_status === 'pending_sp_review' && (
+                                  <Badge variant="outline" className="bg-orange-500/20 text-orange-300 border-orange-400/40">
+                                    ⏳ Чака преглед от специалист
+                                  </Badge>
+                                )}
+                                {case_.negotiation_status === 'counter_offered' && (
+                                  <Badge variant="construction" className="bg-amber-500/20 text-amber-300 border-amber-400/40 animate-pulse">
+                                    💰 Нова оферта!
+                                  </Badge>
+                                )}
+                                {case_.negotiation_status === 'sp_declined' && (
+                                  <Badge variant="outline" className="bg-red-500/20 text-red-300 border-red-400/40">
+                                    ❌ Специалистът отказа
+                                  </Badge>
+                                )}
+                                {case_.negotiation_status === 'customer_declined' && (
+                                  <Badge variant="outline" className="bg-slate-500/20 text-slate-300 border-slate-400/40">
+                                    Офертата отказана
+                                  </Badge>
+                                )}
+                                
                                 {case_.bidding_enabled && (
                                   <Badge variant="construction">
                                     👥 {case_.current_bidders || 0}/{case_.max_bidders || 3} оферти
@@ -196,6 +286,61 @@ export default function MyCasesPage() {
                           </div>
                         </div>
                         <div className="flex flex-col gap-2">
+                          {/* Counter-offer actions */}
+                          {case_.negotiation_status === 'counter_offered' && (
+                            <>
+                              <div className="text-center mb-2 p-2 bg-amber-500/10 border border-amber-400/30 rounded-lg">
+                                <p className="text-amber-300 text-sm font-medium">Оферта: {case_.sp_counter_budget} лв</p>
+                                {case_.counter_message && (
+                                  <p className="text-slate-400 text-xs mt-1">{case_.counter_message}</p>
+                                )}
+                              </div>
+                              <Button
+                                variant="construction"
+                                size="sm"
+                                onClick={() => handleCounterOfferResponse(case_.id, true)}
+                                disabled={actionLoading === case_.id}
+                                leftIcon={<span>✅</span>}
+                              >
+                                {actionLoading === case_.id ? 'Изпращане...' : 'Приеми'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCounterOfferResponse(case_.id, false)}
+                                disabled={actionLoading === case_.id}
+                                leftIcon={<span>❌</span>}
+                              >
+                                Откажи
+                              </Button>
+                            </>
+                          )}
+
+                          {/* SP Declined or Customer Declined - Show marketplace/cancel options */}
+                          {(case_.negotiation_status === 'sp_declined' || case_.negotiation_status === 'customer_declined') && (
+                            <>
+                              <Button
+                                variant="construction"
+                                size="sm"
+                                onClick={() => handleSendToMarketplace(case_.id)}
+                                disabled={actionLoading === case_.id}
+                                leftIcon={<span>📢</span>}
+                              >
+                                {actionLoading === case_.id ? 'Изпращане...' : 'Други специалисти'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleCancelCase(case_.id)}
+                                disabled={actionLoading === case_.id}
+                                leftIcon={<span>🗑️</span>}
+                                className="text-red-400 hover:text-red-300"
+                              >
+                                Отмени
+                              </Button>
+                            </>
+                          )}
+
                           {/* Show View Bids button if case has bidders */}
                           {case_.bidding_enabled && (case_.current_bidders || 0) > 0 && !case_.winning_bid_id && (
                             <Button
@@ -217,6 +362,20 @@ export default function MyCasesPage() {
                           >
                             Детайли
                           </Button>
+
+                          {/* Cancel button for pending cases */}
+                          {case_.status === 'pending' && !case_.negotiation_status?.includes('declined') && case_.negotiation_status !== 'counter_offered' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCancelCase(case_.id)}
+                              disabled={actionLoading === case_.id}
+                              leftIcon={<span>🗑️</span>}
+                              className="text-red-400 hover:text-red-300 border-red-400/30"
+                            >
+                              Отмени
+                            </Button>
+                          )}
 
                           {case_.winning_bid_id && (
                             <Badge variant="construction" className="text-center">

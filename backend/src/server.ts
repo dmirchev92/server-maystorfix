@@ -28,6 +28,7 @@ import adminRoutes from './controllers/adminController';
 import subscriptionController from './controllers/subscriptionController';
 import pointsController from './controllers/pointsController';
 import { initializeBiddingController } from './controllers/biddingController';
+import { initializeDirectAssignmentController } from './controllers/directAssignmentController';
 import * as marketplaceController from './controllers/marketplaceController';
 import * as chatTokenController from './controllers/chatTokenController';
 import * as referralController from './controllers/referralController';
@@ -647,6 +648,10 @@ class ServiceTextProServer {
     const dbInstance = DatabaseFactory.getDatabase() as any;
     const biddingController = initializeBiddingController(dbInstance.pool);
     this.app.use('/api/v1/bidding', biddingController);
+    
+    // Initialize and mount direct assignment controller (for SP review/negotiation flow)
+    const directAssignmentController = initializeDirectAssignmentController(dbInstance.pool);
+    this.app.use('/api/v1/direct-assignment', directAssignmentController);
     
     // NOTE: Trial check is now done at specific endpoints (like acceptCase)
     // Not globally, so users can still access their existing cases

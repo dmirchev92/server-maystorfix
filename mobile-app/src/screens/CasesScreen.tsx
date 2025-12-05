@@ -12,6 +12,7 @@ import {
   Platform,
   Image,
   Modal,
+  TextInput,
 } from 'react-native';
 import Geolocation from 'react-native-geolocation-service';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -20,10 +21,12 @@ import theme from '../styles/theme';
 import IncomeCompletionModal from '../components/IncomeCompletionModal';
 import BidButton from '../components/BidButton';
 import PointsBalanceWidget from '../components/PointsBalanceWidget';
-import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
+import { SERVICE_CATEGORIES, CATEGORY_LABELS } from '../constants/serviceCategories';
+import CategoryIcon from '../components/CategoryIcon';
 
 interface Case {
   id: string;
+  case_number?: number;
   service_type: string;
   description: string;
   status: 'pending' | 'accepted' | 'declined' | 'completed' | 'cancelled' | 'wip';
@@ -51,6 +54,12 @@ interface Case {
   longitude?: number;
   formatted_address?: string;
   screenshots?: Array<{ id?: string; url: string; createdAt?: string }>;
+  // Direct assignment negotiation fields
+  negotiation_status?: string;
+  assigned_sp_id?: string;
+  customer_budget?: string;
+  sp_counter_budget?: string;
+  counter_message?: string;
 }
 
 interface CaseStats {
@@ -61,6 +70,40 @@ interface CaseStats {
   completed: number;
   declined: number;
 }
+
+// Helper function to clean formatted address (remove postal code, city, country suffix)
+const cleanFormattedAddress = (address: string | undefined, city?: string): string => {
+  if (!address) return '';
+  
+  // Common patterns to remove from the end of Bulgarian addresses:
+  // - Postal codes (4 digits)
+  // - City names (София, Пловдив, etc.)
+  // - Country (България)
+  // Example: "Ж.К Илинден, ул конжовица 65, 1309 София, България" -> "Ж.К Илинден, ул конжовица 65"
+  
+  let cleaned = address;
+  
+  // Remove ", България" or "България" at the end
+  cleaned = cleaned.replace(/,?\s*България\s*$/i, '');
+  
+  // Remove city name at the end if it matches the case's city
+  if (city) {
+    const cityPattern = new RegExp(`,?\\s*${city}\\s*$`, 'i');
+    cleaned = cleaned.replace(cityPattern, '');
+  }
+  
+  // Remove common city names at the end
+  cleaned = cleaned.replace(/,?\s*(София|Пловдив|Варна|Бургас|Русе|Стара Загора|Плевен|Сливен|Добрич|Шумен)\s*$/i, '');
+  
+  // Remove postal code (4 digits) at the end or before city
+  cleaned = cleaned.replace(/,?\s*\d{4}\s*$/g, '');
+  cleaned = cleaned.replace(/,?\s*\d{4}\s*,/g, ',');
+  
+  // Clean up any trailing commas or extra spaces
+  cleaned = cleaned.replace(/,\s*$/, '').trim();
+  
+  return cleaned;
+};
 
 export default function CasesScreen() {
   const navigation = useNavigation<any>();
@@ -82,9 +125,48 @@ export default function CasesScreen() {
   const [watchId, setWatchId] = useState<number | null>(null);
 
   // Filters
-  const [viewMode, setViewMode] = useState<'available' | 'assigned' | 'declined' | 'bids'>('available');
+  const [viewMode, setViewMode] = useState<'available' | 'assigned' | 'declined' | 'bids' | 'reviews'>('available');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [myBids, setMyBids] = useState<any[]>([]);
+  const [pendingReviews, setPendingReviews] = useState<Case[]>([]);
+  const [reviewActionLoading, setReviewActionLoading] = useState<string | null>(null);
+  
+  // Advanced filters - category supports multiple selection
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [budgetFilter, setBudgetFilter] = useState<string>('');
+  const [cityFilter, setCityFilter] = useState<string>('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showBudgetDropdown, setShowBudgetDropdown] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  
+  const toggleCategory = (value: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(value) 
+        ? prev.filter(c => c !== value)
+        : [...prev, value]
+    );
+  };
+  
+  // Get unique cities from current cases
+  const getAvailableCities = () => {
+    const cities = cases
+      .map(c => c.city)
+      .filter((city): city is string => !!city && city.trim() !== '');
+    return [...new Set(cities)].sort();
+  };
+  
+  // Budget ranges from database
+  const BUDGET_RANGES = [
+    { value: '', label: 'Всички' },
+    { value: '1-250', label: 'До 250 лв' },
+    { value: '250-500', label: '250 - 500 лв' },
+    { value: '500-750', label: '500 - 750 лв' },
+    { value: '750-1000', label: '750 - 1000 лв' },
+    { value: '1000-1500', label: '1000 - 1500 лв' },
+    { value: '1500-2000', label: '1500 - 2000 лв' },
+    { value: '4000-5000', label: '4000 - 5000 лв' },
+  ];
 
   useEffect(() => {
     loadUserAndCases();
@@ -95,9 +177,57 @@ export default function CasesScreen() {
       if (user) {
         fetchCases();
         fetchStats();
+        fetchPendingReviews();
       }
-    }, [user, viewMode, statusFilter])
+    }, [user, viewMode])
   );
+  
+  // Refetch when statusFilter changes (separate from focus effect)
+  useEffect(() => {
+    if (user && viewMode === 'assigned') {
+      fetchCases();
+    }
+  }, [statusFilter]);
+
+  const fetchPendingReviews = async () => {
+    if (!user?.id) return;
+    try {
+      const response = await ApiService.getInstance().getCasesWithFilters({
+        assignedSpId: user.id,
+        negotiationStatus: 'pending_sp_review',
+      });
+      if (response.success && response.data?.cases) {
+        setPendingReviews(response.data.cases);
+      }
+    } catch (error) {
+      console.error('Error fetching pending reviews:', error);
+    }
+  };
+
+  const handleReviewResponse = async (caseId: string, action: 'accept' | 'decline' | 'counter', counterBudget?: string, message?: string) => {
+    setReviewActionLoading(caseId);
+    try {
+      const response = await ApiService.getInstance().spRespondToDirectAssignment(caseId, action, counterBudget, message);
+      
+      if (response.success) {
+        const messages: Record<string, string> = {
+          accept: 'Заявката е приета! Точките са удържани.',
+          decline: 'Заявката е отказана.',
+          counter: 'Офертата е изпратена към клиента.',
+        };
+        Alert.alert('Успех', messages[action]);
+        fetchPendingReviews();
+        fetchCases();
+        fetchStats();
+      } else {
+        Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+      }
+    } catch (error: any) {
+      Alert.alert('Грешка', error.message || 'Възникна грешка');
+    } finally {
+      setReviewActionLoading(null);
+    }
+  };
 
   const loadUserAndCases = async () => {
     try {
@@ -149,17 +279,31 @@ export default function CasesScreen() {
         console.log('📋 Fetching assigned cases for user:', user?.id);
         filterParams.providerId = user?.id;
         if (statusFilter) {
-          filterParams.status = statusFilter;
+          // 'wip' filter should include both 'accepted' and 'wip' statuses (both are "in progress")
+          if (statusFilter === 'wip') {
+            filterParams.status = 'accepted,wip';
+          } else {
+            filterParams.status = statusFilter;
+          }
         }
       } else if (viewMode === 'declined') {
         console.log('❌ Fetching declined cases for user:', user?.id);
-        filterParams.providerId = user?.id;
-        filterParams.status = 'declined';
+        // Use dedicated endpoint for declined cases
+        const declinedResponse = await ApiService.getInstance().getDeclinedCases(user.id);
+        console.log('❌ Declined cases response:', declinedResponse);
+        if (declinedResponse.success && declinedResponse.data) {
+          setCases(declinedResponse.data);
+        } else {
+          setCases([]);
+        }
+        setLoading(false);
+        return;
       } else {
         console.log('🆕 Fetching available cases');
         filterParams.status = 'pending';
         filterParams.onlyUnassigned = 'true';
         filterParams.excludeDeclinedBy = user.id;
+        filterParams.excludeBiddedBy = user.id;  // Exclude cases already bid on
       }
 
       console.log('📋 CasesScreen - Filter params:', filterParams);
@@ -501,13 +645,9 @@ export default function CasesScreen() {
         </View>
       );
     } 
-    // Otherwise it's an open case
+    // Otherwise it's an open case - no badge needed (obvious from tab)
     else {
-      return (
-        <View style={[styles.assignmentBadge, styles.openAssignmentBadge]}>
-          <Text style={styles.assignmentBadgeText}>👥 Публична заявка</Text>
-        </View>
-      );
+      return null;
     }
   };
 
@@ -516,25 +656,7 @@ export default function CasesScreen() {
     return found ? found.label : category;
   };
 
-  const getCategoryIcon = (category: string) => {
-    const iconMap: { [key: string]: string } = {
-      'electrician': '⚡',
-      'plumber': '🚰',
-      'hvac': '❄️',
-      'carpenter': '🔨',
-      'painter': '🎨',
-      'locksmith': '🔑',
-      'cleaner': '✨',
-      'gardener': '🌱',
-      'handyman': '🔧',
-      'roofer': '🏠',
-      'moving': '🚚',
-      'tiler': '🧱',
-      'welder': '🔥',
-      'design': '🎭'
-    };
-    return iconMap[category] || '🔧';
-  };
+  // CategoryIcon component is imported from components/CategoryIcon
 
   if (loading) {
     return (
@@ -545,43 +667,71 @@ export default function CasesScreen() {
     );
   }
 
+  // Filter cases based on category, budget and city
+  const getFilteredCases = () => {
+    let filtered = cases;
+    
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(c => 
+        selectedCategories.includes(c.category) || selectedCategories.includes(c.service_type)
+      );
+    }
+    if (budgetFilter) {
+      filtered = filtered.filter(c => String(c.budget) === budgetFilter);
+    }
+    if (cityFilter) {
+      filtered = filtered.filter(c => c.city === cityFilter);
+    }
+    
+    return filtered;
+  };
+  
+  const getCategoryLabel = () => {
+    if (selectedCategories.length === 0) return 'Категория';
+    if (selectedCategories.length === 1) {
+      const cat = SERVICE_CATEGORIES.find(c => c.value === selectedCategories[0]);
+      return cat ? cat.label : 'Категория';
+    }
+    return `${selectedCategories.length} избрани`;
+  };
+  
+  const getBudgetLabel = () => {
+    if (!budgetFilter) return 'Бюджет';
+    const range = BUDGET_RANGES.find(r => r.value === budgetFilter);
+    return range ? range.label : 'Бюджет';
+  };
+  
+  const getCityLabel = () => {
+    if (!cityFilter) return 'Град';
+    return cityFilter;
+  };
+
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header - Centered Title */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Заявки</Text>
       </View>
-
-      {/* Points Balance Widget */}
-      <View style={styles.pointsWidgetContainer}>
-        <PointsBalanceWidget 
-          onPress={() => navigation.navigate('Points' as never)}
-          compact={false}
-        />
-      </View>
-
-      {/* Stats Cards */}
-      {stats && (
-        <View style={styles.statsContainer}>
-          <View style={styles.statsRow}>
-            <View style={[styles.statCard, styles.primaryCard]}>
-              <Text style={styles.statNumber}>{stats.total || 0}</Text>
-              <Text style={styles.statLabel}>Общо</Text>
-            </View>
-            <View style={[styles.statCard, styles.warningCard]}>
-              <Text style={styles.statNumber}>{stats.pending || 0}</Text>
-              <Text style={styles.statLabel}>Чакащи</Text>
-            </View>
-            <View style={[styles.statCard, styles.successCard]}>
-              <Text style={styles.statNumber}>{stats.accepted || 0}</Text>
-              <Text style={styles.statLabel}>Приети</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
+      
       {/* View Mode Tabs - Compact Single Row */}
       <View style={styles.tabsWrapper}>
+        {/* Pending Reviews Tab - Only show if there are pending reviews */}
+        {pendingReviews.length > 0 && (
+          <TouchableOpacity
+            style={[styles.tab, viewMode === 'reviews' && styles.activeTab, styles.reviewsTab]}
+            onPress={() => setViewMode('reviews')}
+          >
+            <View style={styles.tabContentWithBadge}>
+              <Text style={styles.tabIcon}>📩</Text>
+              <Text style={[styles.tabText, viewMode === 'reviews' && styles.activeTabText]}>
+                Преглед
+              </Text>
+            </View>
+            <View style={styles.reviewBadgeAbsolute}>
+              <Text style={styles.reviewBadgeText}>{pendingReviews.length}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[styles.tab, viewMode === 'available' && styles.activeTab]}
           onPress={() => setViewMode('available')}
@@ -620,43 +770,213 @@ export default function CasesScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Status Filter - Only show in "Моите" (assigned) tab */}
-      {viewMode === 'assigned' && (
-        <ScrollView horizontal style={styles.filterContainer} showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={[styles.filterChip, statusFilter === '' && styles.activeFilterChip]}
-            onPress={() => setStatusFilter('')}
+      {/* Filter Row - Glued to Tabs, centered */}
+      <View style={styles.filterRow}>
+        <TouchableOpacity 
+          style={[styles.filterButton, selectedCategories.length > 0 && styles.filterButtonActive]}
+          onPress={() => setShowCategoryDropdown(true)}
+        >
+          <Text style={styles.filterButtonText}>{getCategoryLabel()} ▼</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.filterButton, budgetFilter && styles.filterButtonActive]}
+          onPress={() => setShowBudgetDropdown(true)}
+        >
+          <Text style={styles.filterButtonText}>{getBudgetLabel()} ▼</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.filterButton, cityFilter && styles.filterButtonActive]}
+          onPress={() => setShowCityDropdown(true)}
+        >
+          <Text style={styles.filterButtonText}>{getCityLabel()} ▼</Text>
+        </TouchableOpacity>
+        
+        {/* Status Filter - Only in "Моите" tab */}
+        {viewMode === 'assigned' && (
+          <TouchableOpacity 
+            style={[styles.filterButton, statusFilter && styles.filterButtonActive]}
+            onPress={() => setShowStatusDropdown(true)}
           >
-            <Text style={[styles.filterChipText, statusFilter === '' && styles.activeFilterChipText]}>
-              Всички
+            <Text style={styles.filterButtonText}>
+              {statusFilter === '' ? 'Статус' : 
+               statusFilter === 'wip' ? 'В процес' : 
+               statusFilter === 'completed' ? 'Завършени' : 'Статус'} ▼
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterChip, statusFilter === 'pending' && styles.activeFilterChip]}
-            onPress={() => setStatusFilter('pending')}
-          >
-            <Text style={[styles.filterChipText, statusFilter === 'pending' && styles.activeFilterChipText]}>
-              Чакащи
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterChip, statusFilter === 'wip' && styles.activeFilterChip]}
-            onPress={() => setStatusFilter('wip')}
-          >
-            <Text style={[styles.filterChipText, statusFilter === 'wip' && styles.activeFilterChipText]}>
-              В процес
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.filterChip, statusFilter === 'completed' && styles.activeFilterChip]}
-            onPress={() => setStatusFilter('completed')}
-          >
-            <Text style={[styles.filterChipText, statusFilter === 'completed' && styles.activeFilterChipText]}>
-              Завършени
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
-      )}
+        )}
+      </View>
+      
+      {/* Category Filter Modal */}
+      <Modal
+        visible={showCategoryDropdown}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCategoryDropdown(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Избери категории</Text>
+              <TouchableOpacity onPress={() => setShowCategoryDropdown(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {selectedCategories.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.clearAllButton}
+                  onPress={() => setSelectedCategories([])}
+                >
+                  <Text style={styles.clearAllText}>✕ Изчисти всички ({selectedCategories.length})</Text>
+                </TouchableOpacity>
+              )}
+              {SERVICE_CATEGORIES.map(cat => {
+                const isSelected = selectedCategories.includes(cat.value);
+                return (
+                  <TouchableOpacity 
+                    key={cat.value}
+                    style={[styles.modalItem, isSelected && styles.modalItemActive]}
+                    onPress={() => toggleCategory(cat.value)}
+                  >
+                    <View style={styles.checkboxRow}>
+                      <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
+                        {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                      </View>
+                      <Text style={[styles.modalItemText, isSelected && styles.modalItemTextActive]}>{cat.label}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity 
+              style={styles.modalDoneButton}
+              onPress={() => setShowCategoryDropdown(false)}
+            >
+              <Text style={styles.modalDoneText}>Готово</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Budget Filter Modal */}
+      <Modal
+        visible={showBudgetDropdown}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowBudgetDropdown(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Избери бюджет</Text>
+              <TouchableOpacity onPress={() => setShowBudgetDropdown(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              {BUDGET_RANGES.map(range => (
+                <TouchableOpacity 
+                  key={range.value || 'all'}
+                  style={[styles.modalItem, budgetFilter === range.value && styles.modalItemActive]}
+                  onPress={() => { setBudgetFilter(range.value); setShowBudgetDropdown(false); }}
+                >
+                  <Text style={[styles.modalItemText, budgetFilter === range.value && styles.modalItemTextActive]}>
+                    {range.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* City Filter Modal */}
+      <Modal
+        visible={showCityDropdown}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCityDropdown(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Избери град</Text>
+              <TouchableOpacity onPress={() => setShowCityDropdown(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <TouchableOpacity 
+                style={[styles.modalItem, !cityFilter && styles.modalItemActive]}
+                onPress={() => { setCityFilter(''); setShowCityDropdown(false); }}
+              >
+                <Text style={[styles.modalItemText, !cityFilter && styles.modalItemTextActive]}>
+                  Всички градове
+                </Text>
+              </TouchableOpacity>
+              {getAvailableCities().map(city => (
+                <TouchableOpacity 
+                  key={city}
+                  style={[styles.modalItem, cityFilter === city && styles.modalItemActive]}
+                  onPress={() => { setCityFilter(city); setShowCityDropdown(false); }}
+                >
+                  <Text style={[styles.modalItemText, cityFilter === city && styles.modalItemTextActive]}>
+                    {city}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Status Filter Modal - Only for "Моите" tab */}
+      <Modal
+        visible={showStatusDropdown}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowStatusDropdown(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Филтър по статус</Text>
+              <TouchableOpacity onPress={() => setShowStatusDropdown(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScroll}>
+              <TouchableOpacity 
+                style={[styles.modalItem, statusFilter === '' && styles.modalItemActive]}
+                onPress={() => { setStatusFilter(''); setShowStatusDropdown(false); }}
+              >
+                <Text style={[styles.modalItemText, statusFilter === '' && styles.modalItemTextActive]}>
+                  Всички
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalItem, statusFilter === 'wip' && styles.modalItemActive]}
+                onPress={() => { setStatusFilter('wip'); setShowStatusDropdown(false); }}
+              >
+                <Text style={[styles.modalItemText, statusFilter === 'wip' && styles.modalItemTextActive]}>
+                  ⚡ В процес
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalItem, statusFilter === 'completed' && styles.modalItemActive]}
+                onPress={() => { setStatusFilter('completed'); setShowStatusDropdown(false); }}
+              >
+                <Text style={[styles.modalItemText, statusFilter === 'completed' && styles.modalItemTextActive]}>
+                  🏁 Завършени
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
 
       {/* Cases List */}
       <ScrollView
@@ -665,7 +985,88 @@ export default function CasesScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
       >
-        {viewMode === 'bids' ? (
+        {/* Reviews View */}
+        {viewMode === 'reviews' ? (
+          pendingReviews.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateIcon}>📭</Text>
+              <Text style={styles.emptyStateText}>Няма заявки за преглед</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Когато клиент ви изпрати директна заявка, тя ще се появи тук
+              </Text>
+            </View>
+          ) : (
+            pendingReviews.map((review) => (
+              <View key={review.id} style={[styles.caseCard, styles.reviewCard]}>
+                <View style={styles.caseHeader}>
+                  <View style={styles.reviewHeaderLeft}>
+                    <View style={styles.categoryIconSmall}>
+                      <CategoryIcon category={review.category} size={20} color="#fb923c" />
+                    </View>
+                    <Text style={styles.caseTitle}>{review.service_type || CATEGORY_LABELS[review.category] || review.category || 'Заявка'}</Text>
+                  </View>
+                  <View style={styles.reviewBadgeSmall}>
+                    <Text style={styles.reviewBadgeSmallText}>📩 За преглед</Text>
+                  </View>
+                </View>
+                
+                <Text style={styles.reviewDescription} numberOfLines={3}>{review.description}</Text>
+                
+                <View style={styles.reviewInfoRow}>
+                  {review.city && (
+                    <Text style={styles.reviewInfoText}>📍 {review.city}</Text>
+                  )}
+                  {(review.customer_budget || review.budget) && (
+                    <Text style={styles.reviewInfoBudget}>💰 {review.customer_budget || review.budget} лв</Text>
+                  )}
+                </View>
+                
+                {/* Action Buttons */}
+                <View style={styles.reviewActions}>
+                  <TouchableOpacity
+                    style={[styles.reviewActionBtn, styles.acceptBtn]}
+                    onPress={() => handleReviewResponse(review.id, 'accept')}
+                    disabled={reviewActionLoading === review.id}
+                  >
+                    <Text style={styles.reviewActionBtnText}>
+                      {reviewActionLoading === review.id ? '...' : '✅ Приеми'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.reviewActionBtn, styles.counterBtn]}
+                    onPress={() => {
+                      Alert.prompt(
+                        'Предложи бюджет',
+                        'Въведете вашата оферта (напр. 250-500)',
+                        [
+                          { text: 'Отказ', style: 'cancel' },
+                          { 
+                            text: 'Изпрати', 
+                            onPress: (budget: string | undefined) => budget && handleReviewResponse(review.id, 'counter', budget) 
+                          }
+                        ],
+                        'plain-text',
+                        review.customer_budget || review.budget?.toString() || ''
+                      );
+                    }}
+                    disabled={reviewActionLoading === review.id}
+                  >
+                    <Text style={styles.reviewActionBtnText}>💰 Друга цена</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.reviewActionBtn, styles.declineBtn]}
+                    onPress={() => handleReviewResponse(review.id, 'decline')}
+                    disabled={reviewActionLoading === review.id}
+                  >
+                    <Text style={styles.reviewActionBtnText}>❌ Откажи</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )
+        ) : viewMode === 'bids' ? (
           myBids.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateIcon}>💰</Text>
@@ -725,7 +1126,7 @@ export default function CasesScreen() {
             </Text>
           </View>
         ) : (
-          cases.map((caseItem) => {
+          getFilteredCases().map((caseItem) => {
             const isExpanded = expandedCases.has(caseItem.id);
             
             // Debug logging for button visibility
@@ -739,65 +1140,93 @@ export default function CasesScreen() {
             return (
               <View key={caseItem.id} style={styles.caseCard}>
                 <TouchableOpacity onPress={() => toggleCaseExpansion(caseItem.id)}>
-                  {/* Compact Header with Icon */}
+                  {/* Header: Icon + Title + Case Number + Status Badge (for Моите tab) */}
                   <View style={styles.compactHeader}>
                     <View style={styles.categoryIconContainer}>
-                      <Text style={styles.categoryIcon}>{getCategoryIcon(caseItem.category)}</Text>
+                      <CategoryIcon category={caseItem.category} size={48} color="#ffffff" />
                     </View>
                     <View style={styles.headerContent}>
-                      <View style={styles.headerTopRow}>
-                        {viewMode !== 'available' && getStatusBadge(caseItem.status)}
-                        {getAssignmentBadge(caseItem)}
-                      </View>
-                      <Text style={styles.compactDescription} numberOfLines={2}>
-                        {caseItem.description}
+                      {/* Title first */}
+                      <Text style={styles.caseTitle} numberOfLines={1}>
+                        {CATEGORY_LABELS[caseItem.service_type] || CATEGORY_LABELS[caseItem.category] || caseItem.service_type || caseItem.category || 'Заявка'}
                       </Text>
+                      {/* Case number + Status badge below title */}
+                      <View style={styles.headerBottomRow}>
+                        {caseItem.case_number && (
+                          <Text style={styles.caseNumberLabel}>Заявка #{caseItem.case_number}</Text>
+                        )}
+                        {getAssignmentBadge(caseItem)}
+                        {/* Status Badge - Only in "Моите" tab */}
+                        {viewMode === 'assigned' && (
+                          <View style={[
+                            styles.caseStatusBadge,
+                            caseItem.status === 'wip' && styles.caseStatusWip,
+                            caseItem.status === 'accepted' && styles.caseStatusWip,
+                            caseItem.status === 'completed' && styles.caseStatusCompleted,
+                          ]}>
+                            <Text style={styles.caseStatusBadgeText}>
+                              {caseItem.status === 'wip' || caseItem.status === 'accepted' ? '⚡ В процес' : 
+                               caseItem.status === 'completed' ? '🏁 Завършена' : caseItem.status}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                     <Text style={styles.expandIcon}>{isExpanded ? '▼' : '▶'}</Text>
                   </View>
                   
-                  {/* Key Info Row - Always Visible */}
-                  <View style={styles.keyInfoRow}>
+                  {/* 1. Description - Most important */}
+                  {caseItem.description && (
+                    <View style={styles.descriptionSection}>
+                      <Text style={styles.descriptionLabel}>Описание:</Text>
+                      <Text style={styles.descriptionText} numberOfLines={isExpanded ? undefined : 2}>
+                        {caseItem.description}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {/* 2. Key Info - Clean inline format */}
+                  <View style={styles.infoRow}>
                     {caseItem.budget && (
-                      <View style={styles.keyInfoItem}>
-                        <Text style={styles.keyInfoLabel}>💰 Бюджет:</Text>
-                        <Text style={styles.keyInfoValue}>{caseItem.budget} BGN</Text>
-                      </View>
+                      <Text style={styles.infoText}>
+                        <Text style={styles.infoHighlight}>💰 {caseItem.budget} лв</Text>
+                      </Text>
                     )}
                     {caseItem.bidding_enabled && (
-                      <View style={styles.keyInfoItem}>
-                        <Text style={styles.keyInfoLabel}>👥 Оферти:</Text>
-                        <Text style={styles.keyInfoValue}>
-                          {caseItem.current_bidders || 0}/{caseItem.max_bidders || 3}
-                        </Text>
-                      </View>
+                      <Text style={styles.infoText}>
+                        <Text style={styles.infoIcon}>👥 </Text>
+                        {caseItem.current_bidders || 0}/{caseItem.max_bidders || 3} оферти
+                      </Text>
                     )}
-                    {caseItem.city && (
-                      <View style={styles.keyInfoItem}>
-                        <Text style={styles.keyInfoLabel}>📍</Text>
-                        <Text style={styles.keyInfoValue}>{caseItem.city}</Text>
-                      </View>
+                    {(caseItem.preferred_date || caseItem.created_at) && (
+                      <Text style={styles.infoText}>
+                        <Text style={styles.infoIcon}>📅 </Text>
+                        {(() => { const d = new Date(caseItem.preferred_date || caseItem.created_at); return `${d.getDate()}.${d.getMonth()+1}.${String(d.getFullYear()).slice(-2)}`; })()}
+                      </Text>
                     )}
                   </View>
                   
+                  {/* 3. Location - Full address visible */}
+                  {(caseItem.city || caseItem.formatted_address || caseItem.address) && (
+                    <View style={styles.locationSection}>
+                      <Text style={styles.locationFullText} numberOfLines={2}>
+                        📍 {caseItem.city}{caseItem.city && (caseItem.formatted_address || caseItem.address) ? ', ' : ''}
+                        {cleanFormattedAddress(caseItem.formatted_address || caseItem.address, caseItem.city)}
+                      </Text>
+                      {caseItem.latitude && caseItem.longitude && (
+                        <TouchableOpacity 
+                          onPress={() => openMap(caseItem.latitude!, caseItem.longitude!, 'Адрес на клиента')}
+                          style={styles.navButton}
+                        >
+                          <Text style={styles.navButtonText}>🗺️ Отвори в карти</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                  
+                  {/* Expanded Details */}
                   {isExpanded && (
                     <View style={styles.caseDetails}>
-                      {(caseItem.address || caseItem.formatted_address) && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>📍 Адрес:</Text>
-                          <View>
-                            <Text style={styles.detailValue}>{caseItem.formatted_address || caseItem.address}</Text>
-                            {caseItem.latitude && caseItem.longitude && (
-                              <TouchableOpacity 
-                                onPress={() => openMap(caseItem.latitude!, caseItem.longitude!, 'Адрес на клиента')}
-                                style={{marginTop: 8, backgroundColor: '#eff6ff', padding: 8, borderRadius: 6, flexDirection: 'row', alignItems: 'center'}}
-                              >
-                                <Text style={{color: '#2563eb', fontWeight: '600', fontSize: 12}}>🗺️ Виж на картата / Навигация</Text>
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        </View>
-                      )}
                       {caseItem.phone && (
                         <View style={styles.detailRow}>
                           <Text style={styles.detailLabel}>📞 Телефон:</Text>
@@ -815,22 +1244,11 @@ export default function CasesScreen() {
                               )}
                             </View>
                             {(caseItem as any).phone_masked && (
-                              <View style={{backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: 8, borderRadius: 6, borderWidth: 1, borderColor: 'rgba(96, 165, 250, 0.2)'}}>
-                                <Text style={{fontSize: 11, color: '#93c5fd'}}>
-                                  💡 <Text style={{fontWeight: '600'}}>Спечелете наддаването</Text>, за да получите достъп до телефонния номер
-                                </Text>
-                              </View>
+                              <Text style={{fontSize: 10, color: '#64748b', fontStyle: 'italic'}}>
+                                Видим след спечелване
+                              </Text>
                             )}
                           </View>
-                        </View>
-                      )}
-                      {caseItem.preferred_date && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>📅 Дата:</Text>
-                          <Text style={styles.detailValue}>
-                            {new Date(caseItem.preferred_date).toLocaleDateString('bg-BG')}
-                            {caseItem.preferred_time && ` в ${caseItem.preferred_time}`}
-                          </Text>
                         </View>
                       )}
                       {caseItem.square_meters && (
@@ -839,12 +1257,18 @@ export default function CasesScreen() {
                           <Text style={styles.detailValue}>{caseItem.square_meters} кв.м</Text>
                         </View>
                       )}
+                      {/* COMMENTED OUT: priority - feature not needed for now
                       {caseItem.priority && (
                         <View style={styles.detailRow}>
                           <Text style={styles.detailLabel}>⚡ Приоритет:</Text>
-                          <Text style={styles.detailValue}>{caseItem.priority}</Text>
+                          <Text style={styles.detailValue}>
+                            {caseItem.priority === 'normal' ? 'Нормален' : 
+                             caseItem.priority === 'high' ? 'Висок' : 
+                             caseItem.priority === 'urgent' ? 'Спешен' : caseItem.priority}
+                          </Text>
                         </View>
                       )}
+                      */}
                       {/* Screenshots */}
                       {caseItem.screenshots && caseItem.screenshots.length > 0 && (
                         <View style={styles.screenshotsSection}>
@@ -882,43 +1306,35 @@ export default function CasesScreen() {
                     </Text>
                   )}
                   
-                  {/* Available tab: Show Bid button OR Accept/Decline */}
+                  {/* Available tab: Always show Bid + Decline (no direct accept to ensure points are used) */}
                   {viewMode === 'available' && caseItem.status === 'pending' && (
-                    <>
-                      {caseItem.bidding_enabled && caseItem.budget ? (
-                        <BidButton
-                          caseId={caseItem.id}
-                          budget={String(caseItem.budget)}
-                          currentBidders={caseItem.current_bidders}
-                          maxBidders={caseItem.max_bidders}
-                          onBidPlaced={() => {
-                            fetchCases();
-                            fetchStats();
-                          }}
-                        />
-                      ) : (
-                        <>
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.acceptButton]}
-                            onPress={() => {
-                              console.log('✅ Accept button pressed for case:', caseItem.id, 'status:', caseItem.status);
-                              handleAcceptCase(caseItem.id);
+                    <View style={styles.buttonRow}>
+                      {/* Bid Button - for all cases with budget */}
+                      {caseItem.budget ? (
+                        <View style={styles.buttonWrapper}>
+                          <BidButton
+                            caseId={caseItem.id}
+                            budget={String(caseItem.budget)}
+                            currentBidders={caseItem.current_bidders}
+                            maxBidders={caseItem.max_bidders}
+                            onBidPlaced={() => {
+                              fetchCases();
+                              fetchStats();
                             }}
-                          >
-                            <Text style={styles.actionButtonText}>✅ Приеми</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={[styles.actionButton, styles.declineButton]}
-                            onPress={() => {
-                              console.log('❌ Decline button pressed for case:', caseItem.id, 'status:', caseItem.status);
-                              handleDeclineCase(caseItem.id);
-                            }}
-                          >
-                            <Text style={styles.actionButtonText}>❌ Откажи</Text>
-                          </TouchableOpacity>
-                        </>
-                      )}
-                    </>
+                          />
+                        </View>
+                      ) : null}
+                      {/* Decline Button - hide case from available */}
+                      <TouchableOpacity
+                        style={[styles.actionButton, styles.declineButton, styles.buttonWrapper]}
+                        onPress={() => {
+                          console.log('❌ Decline button pressed for case:', caseItem.id);
+                          handleDeclineCase(caseItem.id);
+                        }}
+                      >
+                        <Text style={styles.actionButtonText}>Откажи</Text>
+                      </TouchableOpacity>
+                    </View>
                   )}
                   
                   {/* Assigned tab: Show Complete button for accepted cases OR pending cases with bidding */}
@@ -927,21 +1343,6 @@ export default function CasesScreen() {
                     caseItem.status === 'wip' ||
                     (caseItem.status === 'pending' && caseItem.bidding_enabled)) && (
                     <View style={{flexDirection: 'column', gap: 8, width: '100%'}}>
-                      {/* Start Tracking Button */}
-                      {caseItem.status === 'accepted' && caseItem.latitude && (
-                        <TouchableOpacity
-                          style={[
-                            styles.actionButton, 
-                            isTracking && trackingCaseId === caseItem.id ? {backgroundColor: '#f87171'} : {backgroundColor: '#3b82f6'}
-                          ]}
-                          onPress={() => startTracking(caseItem.id)}
-                        >
-                          <Text style={styles.actionButtonText}>
-                            {isTracking && trackingCaseId === caseItem.id ? '⏹️ Спри споделяне' : '🚗 Тръгвам към адреса'}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                      
                       <TouchableOpacity
                         style={[styles.actionButton, styles.completeButton]}
                         onPress={() => {
@@ -953,16 +1354,16 @@ export default function CasesScreen() {
                     </View>
                   )}
                   
-                  {/* Declined tab: Show Restore button */}
+                  {/* Declined tab: Show only Restore button - case goes back to available for bidding */}
                   {viewMode === 'declined' && (
                     <TouchableOpacity
                       style={[styles.actionButton, styles.undeclineButton]}
                       onPress={() => {
-                        console.log('↩️ Undecline button pressed for case:', caseItem.id);
+                        console.log('↩️ Restore button pressed for case:', caseItem.id);
                         handleUndeclineCase(caseItem.id);
                       }}
                     >
-                      <Text style={styles.actionButtonText}>↩️ Възстанови</Text>
+                      <Text style={styles.actionButtonText}>↩️ Върни в налични</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -1000,8 +1401,10 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   header: {
+    alignItems: 'center',
     backgroundColor: '#1e293b', // slate-800
-    padding: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
   },
@@ -1009,10 +1412,285 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.h2.fontSize,
     fontWeight: theme.typography.h2.fontWeight,
     color: '#cbd5e1', // slate-300
+    textAlign: 'center',
   },
-  pointsWidgetContainer: {
+  // Filter styles
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    backgroundColor: '#0f172a',
+    gap: 12,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(71, 85, 105, 0.3)',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+  },
+  filterButtonActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: 'rgba(99, 102, 241, 0.5)',
+  },
+  filterButtonText: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  clearFiltersText: {
+    fontSize: 12,
+    color: '#ef4444',
+  },
+  filterPanel: {
+    backgroundColor: '#1e293b',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.3)',
+  },
+  filterLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  categoryScroll: {
+    marginBottom: 4,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(71, 85, 105, 0.3)',
+    borderRadius: 16,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  categoryChipActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    borderColor: '#6366f1',
+  },
+  categoryChipText: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  categoryChipTextActive: {
+    color: '#a5b4fc',
+  },
+  budgetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  budgetInput: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#e2e8f0',
+  },
+  budgetDash: {
+    color: '#64748b',
+    fontSize: 14,
+  },
+  // Dropdown filter styles - glued to tabs
+  filterRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.sm,
+    paddingTop: 4,
+    paddingBottom: 8,
+    backgroundColor: '#1e293b', // Same as tabs for seamless look
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    gap: 6,
+  },
+  dropdownContainer: {
+    flex: 1,
+    position: 'relative',
+    zIndex: 100,
+  },
+  dropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dropdownActive: {
+    borderColor: '#6366f1',
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  },
+  dropdownText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    flex: 1,
+  },
+  dropdownTextActive: {
+    color: '#a5b4fc',
+  },
+  dropdownArrow: {
+    fontSize: 10,
+    color: '#64748b',
+    marginLeft: 8,
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 44,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+    borderRadius: 8,
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    overflow: 'hidden',
+  },
+  dropdownScroll: {
+    maxHeight: 250,
+  },
+  dropdownItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.2)',
+  },
+  dropdownItemActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  dropdownItemText: {
+    fontSize: 13,
+    color: '#cbd5e1',
+  },
+  dropdownItemTextActive: {
+    color: '#a5b4fc',
+    fontWeight: '600',
+  },
+  // Checkbox styles for multi-select
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#64748b',
+    borderRadius: 4,
+    marginRight: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#6366f1',
+    borderColor: '#6366f1',
+  },
+  checkmark: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  clearAllItem: {
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(239, 68, 68, 0.3)',
+  },
+  clearAllText: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  // Modal styles for filter dropdowns
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1e293b',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.3)',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#e2e8f0',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#94a3b8',
+    padding: 4,
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  modalItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.2)',
+  },
+  modalItemActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  modalItemText: {
+    fontSize: 15,
+    color: '#cbd5e1',
+  },
+  modalItemTextActive: {
+    color: '#a5b4fc',
+    fontWeight: '600',
+  },
+  modalDoneButton: {
+    backgroundColor: '#6366f1',
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalDoneText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  clearAllButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'rgba(239, 68, 68, 0.3)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
   },
   statsContainer: {
     padding: theme.spacing.md,
@@ -1062,8 +1740,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.xs,
     paddingVertical: theme.spacing.sm,
     gap: theme.spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
+    // No bottom border - filters are glued directly below
   },
   tabsRow: {
     flexDirection: 'row',
@@ -1103,6 +1780,109 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#a5b4fc', // indigo-300
     fontWeight: theme.fontWeight.bold,
+  },
+  reviewsTab: {
+    backgroundColor: 'rgba(249, 115, 22, 0.15)', // orange-500/15
+    borderRadius: 8,
+  },
+  tabWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tabContentWithBadge: {
+    alignItems: 'center',
+  },
+  reviewBadgeAbsolute: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#ef4444', // red-500
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  reviewBadge: {
+    backgroundColor: '#ef4444', // red-500
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  reviewBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  reviewCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#f97316', // orange-500
+    backgroundColor: 'rgba(249, 115, 22, 0.1)',
+  },
+  reviewHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  reviewBadgeSmall: {
+    backgroundColor: 'rgba(249, 115, 22, 0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  reviewBadgeSmallText: {
+    color: '#fb923c', // orange-400
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  reviewDescription: {
+    color: '#cbd5e1', // slate-300
+    fontSize: 14,
+    marginVertical: 8,
+  },
+  reviewInfoRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  reviewInfoText: {
+    color: '#94a3b8', // slate-400
+    fontSize: 13,
+  },
+  reviewInfoBudget: {
+    color: '#4ade80', // green-400
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  reviewActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  reviewActionBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  acceptBtn: {
+    backgroundColor: '#22c55e', // green-500
+  },
+  counterBtn: {
+    backgroundColor: '#f59e0b', // amber-500
+  },
+  declineBtn: {
+    backgroundColor: '#ef4444', // red-500
+  },
+  reviewActionBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   filterContainer: {
     backgroundColor: '#1e293b', // slate-800
@@ -1155,8 +1935,8 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   categoryIconContainer: {
-    width: 48,
-    height: 48,
+    width: 56,
+    height: 56,
     borderRadius: theme.borderRadius.md,
     backgroundColor: 'rgba(99, 102, 241, 0.2)', // indigo-500/20
     alignItems: 'center',
@@ -1167,6 +1947,12 @@ const styles = StyleSheet.create({
   categoryIcon: {
     fontSize: 28,
   },
+  categoryIconSmall: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerContent: {
     flex: 1,
     gap: theme.spacing.xs,
@@ -1175,6 +1961,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.xs,
     flexWrap: 'wrap',
+  },
+  caseNumberBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.3)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(129, 140, 248, 0.5)',
+  },
+  caseNumberText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#a5b4fc',
   },
   compactDescription: {
     fontSize: theme.fontSize.md,
@@ -1223,10 +2022,136 @@ const styles = StyleSheet.create({
     color: '#cbd5e1', // slate-300
     fontWeight: theme.fontWeight.semibold,
   },
+  // New cleaner layout styles
+  headerBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  caseNumberLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  descriptionSection: {
+    paddingTop: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  descriptionLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#cbd5e1',
+    lineHeight: 20,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: theme.spacing.xs,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#94a3b8',
+  },
+  infoHighlight: {
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  infoIcon: {
+    fontSize: 13,
+  },
+  locationSection: {
+    backgroundColor: 'rgba(30, 41, 59, 0.4)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: theme.spacing.xs,
+  },
+  locationFullText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  // Keep old styles for backward compatibility
+  metricsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: theme.spacing.sm,
+    gap: 16,
+  },
+  metricItem: {
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  metricValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#10b981',
+  },
+  metricLabel: {
+    fontSize: 10,
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: theme.spacing.xs,
+  },
+  locationIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#94a3b8',
+  },
+  locationLink: {
+    color: '#60a5fa',
+    textDecorationLine: 'underline',
+  },
+  navButton: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.3)',
+  },
+  navButtonText: {
+    fontSize: 12,
+    color: '#60a5fa',
+    fontWeight: '600',
+  },
   statusBadge: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,
     borderRadius: theme.borderRadius.sm,
+    backgroundColor: '#64748b', // slate-500 default
+  },
+  pendingBadge: {
+    backgroundColor: '#f59e0b', // amber-500
+  },
+  wonBadge: {
+    backgroundColor: '#22c55e', // green-500
+  },
+  lostBadge: {
+    backgroundColor: '#ef4444', // red-500
   },
   statusBadgeText: {
     fontSize: theme.fontSize.xs,
@@ -1291,6 +2216,32 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'stretch',
+    width: '100%',
+  },
+  buttonWrapper: {
+    flex: 1,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  mapButton: {
+    marginTop: 8,
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.4)',
+  },
+  mapButtonText: {
+    color: '#a5b4fc',
+    fontWeight: '600',
+    fontSize: 12,
+  },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1331,6 +2282,28 @@ const styles = StyleSheet.create({
     fontWeight: theme.fontWeight.semibold,
     color: '#cbd5e1', // slate-300
   },
+  // Case status badges for "Моите" tab
+  caseStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: 'rgba(100, 116, 139, 0.3)', // default slate
+  },
+  caseStatusWip: {
+    backgroundColor: 'rgba(96, 165, 250, 0.2)', // blue-400/20
+    borderWidth: 1,
+    borderColor: '#60a5fa', // blue-400
+  },
+  caseStatusCompleted: {
+    backgroundColor: 'rgba(100, 116, 139, 0.2)', // slate-500/20
+    borderWidth: 1,
+    borderColor: '#64748b', // slate-500
+  },
+  caseStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#e2e8f0', // slate-200
+  },
   budgetContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1369,18 +2342,6 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: '#94a3b8', // slate-400
     marginBottom: theme.spacing.xs,
-  },
-  pendingBadge: {
-    backgroundColor: 'rgba(251, 191, 36, 0.2)', // amber-400/20
-    borderColor: '#fbbf24', // amber-400
-  },
-  wonBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.2)', // green-500/20
-    borderColor: '#4ade80', // green-400
-  },
-  lostBadge: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)', // red-500/20
-    borderColor: '#f87171', // red-400
   },
   // Screenshots styles
   screenshotsSection: {

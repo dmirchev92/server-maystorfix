@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { CitySelect, SimpleNeighborhoodSelect } from '@/components/LocationSelect'
+import LocationAutocomplete from '@/components/LocationAutocomplete'
 import TierSelector from '@/components/TierSelector'
 import SMSVerification from '@/components/SMSVerification'
 import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
@@ -16,11 +17,15 @@ interface RegistrationData {
   lastName: string
   phoneNumber: string
   userType: 'customer' | 'service_provider'
+  // Location fields (for both customers and SPs)
+  city?: string
+  neighborhood?: string
+  address?: string
+  latitude?: number
+  longitude?: number
   // SP specific fields
   companyName?: string
   serviceCategory?: string
-  city?: string
-  neighborhood?: string
   subscription_tier_id?: 'free' | 'normal' | 'pro'
   acceptTerms: boolean
 }
@@ -36,6 +41,7 @@ function RegisterForm() {
   const [showTierSelection, setShowTierSelection] = useState(false)
   const [showVerificationModal, setShowVerificationModal] = useState(false)
   const [phoneVerified, setPhoneVerified] = useState(false)
+  const [locationDetected, setLocationDetected] = useState(false)
   const [formData, setFormData] = useState<RegistrationData>({
     email: '',
     password: '',
@@ -44,10 +50,11 @@ function RegisterForm() {
     lastName: '',
     phoneNumber: '',
     userType: 'customer',
-    companyName: '',
-    serviceCategory: '',
     city: '',
     neighborhood: '',
+    address: '',
+    companyName: '',
+    serviceCategory: '',
     subscription_tier_id: 'free',
     acceptTerms: false
   })
@@ -131,6 +138,12 @@ function RegisterForm() {
       return
     }
 
+    // Address validation
+    if (!formData.city || !formData.address) {
+      alert('Моля въведете адрес и изберете от предложенията')
+      return
+    }
+
     // Phone verification temporarily disabled - Mobica account needs activation
     // For service providers, show verification modal first
     // if (formData.userType === 'service_provider' && !phoneVerified) {
@@ -157,12 +170,15 @@ function RegisterForm() {
         lastName: formData.lastName,
         phoneNumber: phoneNumber,
         role: formData.userType === 'service_provider' ? 'tradesperson' : 'customer',
+        // Location fields for all users
+        city: formData.city || '',
+        neighborhood: formData.neighborhood || '',
+        address: formData.address || '',
+        latitude: formData.latitude,
+        longitude: formData.longitude,
         ...(formData.userType === 'service_provider' && {
           serviceCategory: formData.serviceCategory,
           companyName: formData.companyName,
-          // Ensure city is sent; default to 'София' if a neighborhood is chosen but city not explicitly set
-          city: formData.city || (formData.neighborhood ? 'София' : ''),
-          neighborhood: formData.neighborhood,
           subscription_tier_id: formData.subscription_tier_id || 'free'
         }),
         gdprConsents: ['essential_service']
@@ -365,6 +381,53 @@ function RegisterForm() {
               )}
             </div>
 
+            {/* Customer Location field */}
+            {formData.userType === 'customer' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-1">
+                  📍 Адрес *
+                </label>
+                <LocationAutocomplete
+                  onLocationSelect={(location) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      city: location.city,
+                      neighborhood: location.neighborhood,
+                      address: location.formattedAddress,
+                      latitude: location.lat,
+                      longitude: location.lng
+                    }))
+                    setLocationDetected(true)
+                  }}
+                  placeholder="Въведете адрес, квартал или град..."
+                  className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  initialValue={formData.address}
+                />
+                <p className="text-slate-400 text-xs mt-2">
+                  💡 Започнете да пишете и изберете от предложенията
+                </p>
+                
+                {/* Show detected location */}
+                {locationDetected && formData.city && (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mt-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-400">✓</span>
+                      <div className="text-sm">
+                        <span className="text-green-300 font-medium">
+                          {formData.city}
+                        </span>
+                        {formData.neighborhood && (
+                          <span className="text-green-200">
+                            {' • '}{formData.neighborhood}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Service Provider specific fields */}
             {formData.userType === 'service_provider' && (
               <>
@@ -406,35 +469,50 @@ function RegisterForm() {
                   </select>
                 </div>
 
-                {/* City selection - Dynamic from API */}
+                {/* Location with Google Places Autocomplete */}
                 <div>
-                  <label htmlFor="city" className="block text-sm font-medium text-slate-200">
-                    Град
+                  <label className="block text-sm font-medium text-slate-200 mb-1">
+                    📍 Адрес *
                   </label>
-                  <CitySelect
-                    value={formData.city || ''}
-                    onChange={(value) => {
-                      handleInputChange('city', value)
-                      handleInputChange('neighborhood', '')
+                  <LocationAutocomplete
+                    onLocationSelect={(location) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        city: location.city,
+                        neighborhood: location.neighborhood,
+                        address: location.formattedAddress,
+                        latitude: location.lat,
+                        longitude: location.lng
+                      }))
+                      setLocationDetected(true)
                     }}
-                    placeholder="Изберете град"
+                    placeholder="Въведете адрес, квартал или град..."
+                    className="w-full px-3 py-2 bg-slate-700/50 border border-white/10 text-white placeholder-slate-400 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    initialValue={formData.address}
                   />
+                  <p className="text-slate-400 text-xs mt-2">
+                    💡 Започнете да пишете и изберете от предложенията на Google Maps
+                  </p>
+                  
+                  {/* Show detected location */}
+                  {locationDetected && formData.city && (
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mt-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span>
+                        <div className="text-sm">
+                          <span className="text-green-300 font-medium">
+                            {formData.city}
+                          </span>
+                          {formData.neighborhood && (
+                            <span className="text-green-200">
+                              {' • '}{formData.neighborhood}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Neighborhood field - Dynamic based on selected city */}
-                {formData.city && (
-                  <div>
-                    <label htmlFor="neighborhood" className="block text-sm font-medium text-slate-200">
-                      Квартал
-                    </label>
-                    <SimpleNeighborhoodSelect
-                      city={formData.city}
-                      value={formData.neighborhood || ''}
-                      onChange={(value) => handleInputChange('neighborhood', value)}
-                      placeholder="Изберете квартал"
-                    />
-                  </div>
-                )}
 
                 {/* Tier Selection Button */}
                 <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-lg p-4">

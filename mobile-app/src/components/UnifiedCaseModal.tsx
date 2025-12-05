@@ -293,6 +293,7 @@ export default function UnifiedCaseModal({
                   placeholderTextColor="rgba(255,255,255,0.4)"
                 />
               </View>
+              {/* COMMENTED OUT: preferredTime - feature not needed for now
               <View style={styles.formHalf}>
                 <Text style={styles.label}>Предпочитан час</Text>
                 <TextInput
@@ -303,9 +304,10 @@ export default function UnifiedCaseModal({
                   placeholderTextColor="rgba(255,255,255,0.4)"
                 />
               </View>
+              */}
             </View>
 
-            {/* Priority */}
+            {/* COMMENTED OUT: Priority - feature not needed for now
             <View style={styles.formGroup}>
               <Text style={styles.label}>Приоритет</Text>
               <View style={styles.priorityButtons}>
@@ -328,6 +330,7 @@ export default function UnifiedCaseModal({
                 ))}
               </View>
             </View>
+            */}
 
             {/* Budget Range */}
             <View style={styles.formGroup}>

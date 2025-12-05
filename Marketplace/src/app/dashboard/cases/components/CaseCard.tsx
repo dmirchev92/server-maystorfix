@@ -5,6 +5,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Card, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
+import { CategoryIcon } from '@/components/CategoryIcon'
 import { Case, User } from '@/types/marketplace'
 import apiClient from '@/lib/api'
 
@@ -33,8 +34,20 @@ export const CaseCard: React.FC<CaseCardProps> = ({
   const isProvider = user.role === 'tradesperson' || user.role === 'service_provider'
 
   const getCategoryDisplayName = (category: string) => {
-    const found = SERVICE_CATEGORIES.find(cat => cat.value === category)
-    return found ? found.label : category
+    // Try exact match first
+    let found = SERVICE_CATEGORIES.find(cat => cat.value === category)
+    if (found) return found.label
+    
+    // Try with cat_ prefix
+    found = SERVICE_CATEGORIES.find(cat => cat.value === `cat_${category}`)
+    if (found) return found.label
+    
+    // Try without cat_ prefix
+    const withoutPrefix = category.replace(/^cat_/, '')
+    found = SERVICE_CATEGORIES.find(cat => cat.value.replace(/^cat_/, '') === withoutPrefix)
+    if (found) return found.label
+    
+    return category
   }
 
   const estimatePointsCost = (budget: number): string => {
@@ -60,25 +73,22 @@ export const CaseCard: React.FC<CaseCardProps> = ({
         <div className="px-4 sm:px-5 py-3 border-b border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {/* Category Icon */}
-            <div className="flex-shrink-0 w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center border border-indigo-400/30">
-              <span className="text-xl">
-                {caseData.category === 'electrician' ? '⚡' :
-                 caseData.category === 'plumber' ? '🔧' :
-                 caseData.category === 'hvac' ? '❄️' :
-                 caseData.category === 'carpenter' ? '🪚' :
-                 caseData.category === 'painter' ? '🎨' :
-                 caseData.category === 'locksmith' ? '🔐' :
-                 caseData.category === 'cleaner' ? '🧹' :
-                 caseData.category === 'gardener' ? '🌱' :
-                 caseData.category === 'handyman' ? '🔨' : '🔧'}
-              </span>
+            <div className="flex-shrink-0 w-14 h-14 bg-indigo-500/20 rounded-lg flex items-center justify-center border border-indigo-400/30">
+              <CategoryIcon category={caseData.category} size={48} />
             </div>
             
             {/* Title and metadata */}
             <div className="flex-1 min-w-0">
-              <h3 className="text-base font-semibold text-white truncate mb-1">
-                {caseData.description}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                {caseData.case_number && (
+                  <span className="text-xs px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-300 border border-indigo-400/50 font-semibold">
+                    #{caseData.case_number}
+                  </span>
+                )}
+                <h3 className="text-base font-semibold text-white truncate">
+                  {getCategoryDisplayName(caseData.service_type || caseData.category)}
+                </h3>
+              </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300 border border-slate-600">
                   {getCategoryDisplayName(caseData.category)}
@@ -177,36 +187,67 @@ export const CaseCard: React.FC<CaseCardProps> = ({
                       </div>
                     )}
                     
-                    {/* Accept/Decline Logic */}
-                    {caseData.status === 'pending' && !caseData.bidding_enabled && (
+                    {/* Accept/Decline Logic - Only for non-bidding cases NOT in declined view */}
+                    {caseData.status === 'pending' && !caseData.bidding_enabled && 
+                     viewMode !== 'declined' &&
+                     (caseData as any).negotiation_status !== 'sp_declined' && 
+                     (caseData as any).negotiation_status !== 'customer_declined' && (
                       <>
                         <Button
                           variant="construction"
                           size="sm"
                           onClick={async (e) => {
                             e.stopPropagation()
-                            if (viewMode === 'declined' && onUndecline) {
-                              onUndecline(caseData.id)
-                            }
                             onStatusChange(caseData.id, 'accepted')
                           }}
                           leftIcon={<span>✅</span>}
                         >
                           Приеми
                         </Button>
-                        {viewMode !== 'declined' && (
-                          <button
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onStatusChange(caseData.id, 'declined')
+                          }}
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 border-2 border-red-500 text-white hover:bg-red-700 hover:border-red-600 transition-all duration-200"
+                        >
+                          <span className="text-red-800 drop-shadow-lg">❌</span>
+                          Откажи
+                        </button>
+                      </>
+                    )}
+                    
+                    {/* For declined view - only show undecline + bid if case has bidding */}
+                    {viewMode === 'declined' && caseData.status === 'pending' && (
+                      <div className="flex gap-2">
+                        {onUndecline && (
+                          <Button
+                            variant="outline"
+                            size="sm"
                             onClick={(e) => {
                               e.stopPropagation()
-                              onStatusChange(caseData.id, 'declined')
+                              onUndecline(caseData.id)
                             }}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-red-600 border-2 border-red-500 text-white hover:bg-red-700 hover:border-red-600 transition-all duration-200"
+                            leftIcon={<span>↩️</span>}
                           >
-                            <span className="text-red-800 drop-shadow-lg">❌</span>
-                            Откажи
-                          </button>
+                            Върни
+                          </Button>
                         )}
-                      </>
+                        {caseData.bidding_enabled && onPlaceBid && (
+                          <Button
+                            variant="construction"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (onUndecline) onUndecline(caseData.id)
+                              onPlaceBid(caseData.id, caseData.budget || 0)
+                            }}
+                            leftIcon={<span>💰</span>}
+                          >
+                            Наддай
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </>
                 )}
@@ -227,6 +268,14 @@ export const CaseCard: React.FC<CaseCardProps> = ({
             )}
           </div>
         </div>
+
+        {/* Description Section */}
+        {caseData.description && (
+          <div className="px-4 sm:px-5 py-3 border-b border-white/5">
+            <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">📝 Описание</div>
+            <p className="text-sm text-slate-200 leading-relaxed">{caseData.description}</p>
+          </div>
+        )}
 
         {/* Details Grid */}
         <div className="px-4 sm:px-5 py-4">
@@ -261,10 +310,12 @@ export const CaseCard: React.FC<CaseCardProps> = ({
               <div className="text-sm font-semibold text-white">{caseData.preferred_date}</div>
             </div>
             
+            {/* COMMENTED OUT: preferred_time - feature not needed for now
             <div>
               <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Време</div>
               <div className="text-sm font-semibold text-white">{caseData.preferred_time}</div>
             </div>
+            */}
             
             <div>
               <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Телефон</div>
@@ -283,6 +334,7 @@ export const CaseCard: React.FC<CaseCardProps> = ({
               )}
             </div>
             
+            {/* COMMENTED OUT: priority - feature not needed for now
             <div>
               <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Приоритет</div>
               <div className="text-sm font-semibold">
@@ -297,6 +349,7 @@ export const CaseCard: React.FC<CaseCardProps> = ({
                 </span>
               </div>
             </div>
+            */}
             
             <div>
               <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Създадена</div>

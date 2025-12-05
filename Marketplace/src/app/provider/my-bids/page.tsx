@@ -86,11 +86,11 @@ export default function MyBidsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex flex-col">
       <Header />
       
       {/* Page Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 flex-1 w-full flex flex-col">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
@@ -169,7 +169,7 @@ export default function MyBidsPage() {
         </div>
 
         {/* Filter Tabs */}
-        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-white/10 rounded-xl shadow-xl">
+        <div className="bg-gradient-to-br from-slate-800/90 to-slate-900/90 backdrop-blur-sm border border-white/10 rounded-xl shadow-xl flex-1 flex flex-col">
           <div className="border-b border-white/10">
             <nav className="-mb-px flex space-x-8 px-6" aria-label="Tabs">
               <button
@@ -216,7 +216,7 @@ export default function MyBidsPage() {
           </div>
 
           {/* Bids List */}
-          <div className="divide-y divide-white/10">
+          <div className="divide-y divide-white/10 flex-1">
             {filteredBids.length === 0 ? (
               <div className="text-center py-12">
                 <span className="text-6xl">📭</span>

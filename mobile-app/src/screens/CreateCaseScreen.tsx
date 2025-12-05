@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { launchImageLibrary, launchCamera, Asset } from 'react-native-image-picker';
 import ApiService from '../services/ApiService';
 import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
+import debounce from 'lodash/debounce';
 
 // Budget ranges matching web (up to 10k)
 const BUDGET_RANGES = [
@@ -79,26 +80,26 @@ const CITY_NAME_MAP: { [key: string]: string } = {
   'Gotse Delchev': 'Гоце Делчев',
 };
 
-// Fallback static data (used while loading from API)
-const FALLBACK_CITIES = [
-  { value: 'София', label: 'София' },
-  { value: 'Пловдив', label: 'Пловдив' },
-  { value: 'Варна', label: 'Варна' },
-  { value: 'Бургас', label: 'Бургас' },
-];
+// Google Places API Key
+const GOOGLE_MAPS_API_KEY = 'AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A';
 
-const TIME_OPTIONS = [
-  { value: 'morning', label: 'Сутрин (8:00-12:00)' },
-  { value: 'afternoon', label: 'Следобед (12:00-17:00)' },
-  { value: 'evening', label: 'Вечер (17:00-20:00)' },
-  { value: 'flexible', label: 'Гъвкаво време' },
-];
+interface PlacePrediction {
+  place_id: string;
+  description: string;
+}
 
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Нисък' },
-  { value: 'normal', label: 'Нормален' },
-  { value: 'urgent', label: 'Спешен' },
-];
+// const TIME_OPTIONS = [
+//   { value: 'morning', label: 'Сутрин (8:00-12:00)' },
+//   { value: 'afternoon', label: 'Следобед (12:00-17:00)' },
+//   { value: 'evening', label: 'Вечер (17:00-20:00)' },
+//   { value: 'flexible', label: 'Гъвкаво време' },
+// ];
+
+// const PRIORITY_OPTIONS = [
+//   { value: 'low', label: 'Нисък' },
+//   { value: 'normal', label: 'Нормален' },
+//   { value: 'urgent', label: 'Спешен' },
+// ];
 
 // Dropdown component
 interface DropdownOption {
@@ -177,6 +178,7 @@ export default function CreateCaseScreen() {
     description: '',
     city: '',
     neighborhood: '',
+    address: '',
     phone: '',
     preferredDate: new Date(),
     preferredTime: 'morning',
@@ -190,54 +192,118 @@ export default function CreateCaseScreen() {
   const [images, setImages] = useState<Asset[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   
-  // Dynamic location data from API
-  const [cities, setCities] = useState<DropdownOption[]>(FALLBACK_CITIES);
-  const [neighborhoods, setNeighborhoods] = useState<DropdownOption[]>([]);
-  const [loadingLocations, setLoadingLocations] = useState(false);
+  // Google Places Autocomplete state
+  const [addressInput, setAddressInput] = useState('');
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [showPredictions, setShowPredictions] = useState(false);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
 
   useEffect(() => {
     loadUserData();
     getCurrentLocation();
-    loadCities();
   }, []);
   
-  // Load neighborhoods when city changes
-  useEffect(() => {
-    if (formData.city) {
-      loadNeighborhoods(formData.city);
-    } else {
-      setNeighborhoods([]);
-    }
-  }, [formData.city]);
-  
-  const loadCities = async () => {
-    try {
-      const response = await ApiService.getInstance().getCities();
-      if (response.success && response.data?.cities) {
-        // Take top 30 cities by population
-        const topCities = response.data.cities.slice(0, 30);
-        setCities(topCities);
+  // Debounced search for Google Places
+  const searchPlaces = useCallback(
+    debounce(async (input: string) => {
+      if (input.length < 2) {
+        setPredictions([]);
+        setShowPredictions(false);
+        return;
       }
-    } catch (error) {
-      console.error('Error loading cities:', error);
-      // Keep fallback cities
-    }
+      
+      setLoadingPredictions(true);
+      try {
+        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&components=country:bg&language=bg&key=${GOOGLE_MAPS_API_KEY}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.predictions) {
+          setPredictions(data.predictions);
+          setShowPredictions(true);
+        }
+      } catch (error) {
+        console.error('Places autocomplete error:', error);
+      } finally {
+        setLoadingPredictions(false);
+      }
+    }, 300),
+    []
+  );
+  
+  const handleAddressInputChange = (text: string) => {
+    setAddressInput(text);
+    searchPlaces(text);
   };
   
-  const loadNeighborhoods = async (city: string) => {
-    setLoadingLocations(true);
+  const handlePlaceSelect = async (prediction: PlacePrediction) => {
+    setShowPredictions(false);
+    setAddressInput(prediction.description);
+    setLoadingPredictions(true);
+    
     try {
-      const response = await ApiService.getInstance().getNeighborhoods(city);
-      if (response.success && response.data?.neighborhoods) {
-        setNeighborhoods(response.data.neighborhoods);
-      } else {
-        setNeighborhoods([]);
+      // Get place details to get lat/lng
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry&key=${GOOGLE_MAPS_API_KEY}`;
+      const detailsResponse = await fetch(detailsUrl);
+      const detailsData = await detailsResponse.json();
+      
+      if (detailsData.result?.geometry?.location) {
+        const { lat, lng } = detailsData.result.geometry.location;
+        
+        // Use reverse geocoding to get accurate city and neighborhood
+        const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}&language=bg`;
+        const geoResponse = await fetch(geocodeUrl);
+        const geoData = await geoResponse.json();
+        
+        let detectedCity = '';
+        let detectedNeighborhood = '';
+        let detectedSublocality = '';
+        
+        if (geoData.results?.[0]?.address_components) {
+          for (const comp of geoData.results[0].address_components) {
+            // City
+            if (comp.types.includes('locality')) {
+              const cityName = comp.long_name;
+              detectedCity = CITY_NAME_MAP[cityName] || cityName;
+            }
+            // Fallback for Sofia
+            if (comp.types.includes('administrative_area_level_1') && !detectedCity) {
+              const areaName = comp.long_name;
+              if (areaName === 'Sofia City Province' || areaName === 'Sofia-City' || areaName === 'София-град') {
+                detectedCity = 'София';
+              }
+            }
+            // Neighborhood type is most specific - prioritize it
+            if (comp.types.includes('neighborhood')) {
+              detectedNeighborhood = comp.long_name;
+            }
+            // Sublocality is broader (district) - use only as fallback
+            if (comp.types.includes('sublocality_level_1') || comp.types.includes('sublocality')) {
+              detectedSublocality = comp.long_name;
+            }
+          }
+        }
+        
+        // Use neighborhood if found, otherwise fall back to sublocality
+        const finalNeighborhood = detectedNeighborhood || detectedSublocality || '';
+        
+        console.log('📍 Location detected:', { city: detectedCity, neighborhood: finalNeighborhood, sublocality: detectedSublocality });
+        
+        setFormData(prev => ({
+          ...prev,
+          city: detectedCity,
+          neighborhood: finalNeighborhood,
+          address: prediction.description,
+          latitude: lat,
+          longitude: lng,
+        }));
+        setLocationDetected(true);
       }
     } catch (error) {
-      console.error('Error loading neighborhoods:', error);
-      setNeighborhoods([]);
+      console.error('Place details error:', error);
     } finally {
-      setLoadingLocations(false);
+      setLoadingPredictions(false);
     }
   };
 
@@ -258,24 +324,21 @@ export default function CreateCaseScreen() {
     Geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        setFormData(prev => ({
-          ...prev,
-          latitude,
-          longitude,
-        }));
         
         // Auto-detect city and neighborhood from coordinates
         try {
-          // Use Google reverse geocoding to get city and neighborhood directly
-          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A&language=bg`;
+          const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}&language=bg`;
           const geoResponse = await fetch(geocodeUrl);
           const geoData = await geoResponse.json();
           
           let detectedCity = '';
           let detectedNeighborhood = '';
           let detectedSublocality = '';
+          let formattedAddress = '';
           
-          if (geoData.results?.[0]?.address_components) {
+          if (geoData.results?.[0]) {
+            formattedAddress = geoData.results[0].formatted_address || '';
+            
             for (const comp of geoData.results[0].address_components) {
               // City
               if (comp.types.includes('locality')) {
@@ -285,7 +348,7 @@ export default function CreateCaseScreen() {
               // Fallback for Sofia
               if (comp.types.includes('administrative_area_level_1') && !detectedCity) {
                 const areaName = comp.long_name;
-                if (areaName === 'Sofia City Province' || areaName === 'Sofia-City') {
+                if (areaName === 'Sofia City Province' || areaName === 'Sofia-City' || areaName === 'София-град') {
                   detectedCity = 'София';
                 }
               }
@@ -300,44 +363,29 @@ export default function CreateCaseScreen() {
             }
           }
           
-          // Prioritize neighborhood over sublocality
-          const finalCity = detectedCity || '';
+          // Use neighborhood if found, otherwise fall back to sublocality
           const finalNeighborhood = detectedNeighborhood || detectedSublocality || '';
           
           // Update form with detected location
-          if (finalCity || finalNeighborhood) {
-            // First set city, then neighborhoods will load via useEffect
+          if (detectedCity || finalNeighborhood) {
             setFormData(prev => ({
               ...prev,
-              city: finalCity || prev.city,
-              neighborhood: '', // Reset neighborhood while city changes
+              city: detectedCity,
+              neighborhood: finalNeighborhood,
+              address: formattedAddress,
+              latitude,
+              longitude,
             }));
-            
-            // After a short delay to allow neighborhoods to load, set the neighborhood
-            if (detectedNeighborhood) {
-              setTimeout(() => {
-                setFormData(prev => ({
-                  ...prev,
-                  neighborhood: detectedNeighborhood,
-                }));
-              }, 500);
-            }
-            
-            // Show user what was detected
-            Alert.alert(
-              '📍 Местоположение открито',
-              `Град: ${finalCity || 'Неизвестен'}\nКвартал: ${detectedNeighborhood || 'Неизвестен'}`,
-              [{ text: 'OK' }]
-            );
+            setAddressInput(formattedAddress);
+            setLocationDetected(true);
           }
         } catch (error) {
           console.log('Auto-detect location error:', error);
-          // Continue without auto-detection, user can still select manually
         }
       },
       (error) => {
         console.log('Location error:', error.message);
-        Alert.alert('Грешка', 'Не можахме да определим местоположението ви');
+        // Silent fail - user can manually enter address
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
@@ -436,13 +484,8 @@ export default function CreateCaseScreen() {
       Alert.alert('Грешка', 'Моля опишете проблема');
       return;
     }
-    if (!formData.city) {
-      Alert.alert('Грешка', 'Моля изберете град');
-      return;
-    }
-    // Require neighborhood only if the city has neighborhoods available
-    if (neighborhoods.length > 0 && !formData.neighborhood) {
-      Alert.alert('Грешка', 'Моля изберете квартал');
+    if (!formData.city || !formData.address) {
+      Alert.alert('Грешка', 'Моля въведете адрес и изберете от предложенията');
       return;
     }
     if (!formData.phone) {
@@ -474,10 +517,11 @@ export default function CreateCaseScreen() {
         description: formData.description,
         city: formData.city,
         neighborhood: formData.neighborhood,
+        formattedAddress: formData.address, // Backend expects formattedAddress
         phone: formData.phone,
         preferredDate: formData.preferredDate.toISOString().split('T')[0],
-        preferredTime: formData.preferredTime,
-        priority: formData.priority,
+        // preferredTime: formData.preferredTime, // Commented out
+        // priority: formData.priority, // Commented out
         budget: formData.budget,
         customerId: currentUser.id,
         customerName: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim(),
@@ -549,31 +593,47 @@ export default function CreateCaseScreen() {
             onChangeText={(t) => updateField('description', t)}
           />
 
-          {/* City */}
-          <Text style={styles.label}>Град *</Text>
-          <Dropdown
-            label="Град"
-            value={formData.city}
-            options={cities}
-            onSelect={(v) => {
-              updateField('city', v);
-              updateField('neighborhood', ''); // Reset neighborhood when city changes
-            }}
-            placeholder="Изберете град..."
-          />
-
-          {/* Neighborhood - show for any city that has neighborhoods */}
-          {formData.city && neighborhoods.length > 0 && (
-            <>
-              <Text style={styles.label}>Квартал {loadingLocations && <ActivityIndicator size="small" color="#3b82f6" />}</Text>
-              <Dropdown
-                label="Квартал"
-                value={formData.neighborhood}
-                options={neighborhoods}
-                onSelect={(v) => updateField('neighborhood', v)}
-                placeholder={loadingLocations ? "Зареждане..." : "Изберете квартал..."}
-              />
-            </>
+          {/* Address with Google Places Autocomplete */}
+          <Text style={styles.label}>📍 Адрес *</Text>
+          <View style={styles.autocompleteContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Въведете адрес, квартал или град..."
+              placeholderTextColor="#64748b"
+              value={addressInput}
+              onChangeText={handleAddressInputChange}
+              onFocus={() => predictions.length > 0 && setShowPredictions(true)}
+            />
+            {loadingPredictions && (
+              <ActivityIndicator size="small" color="#3b82f6" style={styles.autocompleteLoader} />
+            )}
+            
+            {/* Predictions dropdown */}
+            {showPredictions && predictions.length > 0 && (
+              <View style={styles.predictionsContainer}>
+                {predictions.map((prediction) => (
+                  <TouchableOpacity
+                    key={prediction.place_id}
+                    style={styles.predictionItem}
+                    onPress={() => handlePlaceSelect(prediction)}
+                  >
+                    <Text style={styles.predictionText}>{prediction.description}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+          <Text style={styles.hint}>💡 Започнете да пишете и изберете от предложенията</Text>
+          
+          {/* Show detected location */}
+          {locationDetected && formData.city && (
+            <View style={styles.detectedLocation}>
+              <Text style={styles.detectedLocationIcon}>✓</Text>
+              <Text style={styles.detectedLocationText}>
+                {formData.city}
+                {formData.neighborhood ? ` • ${formData.neighborhood}` : ''}
+              </Text>
+            </View>
           )}
 
           {/* Phone */}
@@ -614,7 +674,7 @@ export default function CreateCaseScreen() {
             />
           )}
 
-          {/* Time */}
+          {/* Time - Commented out
           <Text style={styles.label}>Предпочитано време</Text>
           <Dropdown
             label="Предпочитано време"
@@ -622,8 +682,9 @@ export default function CreateCaseScreen() {
             options={TIME_OPTIONS}
             onSelect={(v) => updateField('preferredTime', v)}
           />
+          */}
 
-          {/* Priority */}
+          {/* Priority - Commented out
           <Text style={styles.label}>Приоритет</Text>
           <Dropdown
             label="Приоритет"
@@ -631,22 +692,17 @@ export default function CreateCaseScreen() {
             options={PRIORITY_OPTIONS}
             onSelect={(v) => updateField('priority', v)}
           />
+          */}
 
           {/* Budget */}
           <Text style={styles.label}>Бюджет *</Text>
-          <View style={styles.chipsWrap}>
-            {BUDGET_RANGES.map((b) => (
-              <TouchableOpacity
-                key={b.value}
-                style={[styles.chip, formData.budget === b.value && styles.chipActive]}
-                onPress={() => updateField('budget', b.value)}
-              >
-                <Text style={[styles.chipText, formData.budget === b.value && styles.chipTextActive]}>
-                  {b.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Dropdown
+            label="Бюджет"
+            value={formData.budget}
+            options={BUDGET_RANGES}
+            onSelect={(v) => updateField('budget', v)}
+            placeholder="Изберете бюджет..."
+          />
           <Text style={styles.hint}>💡 Бюджетът помага на специалистите да оценят заявката</Text>
 
           {/* Images */}
@@ -760,15 +816,59 @@ const styles = StyleSheet.create({
   modalItemTextActive: { color: '#3b82f6', fontWeight: '600' },
   modalItemCheck: { fontSize: 18, color: '#3b82f6' },
   
-  // Chips (for budget)
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
-  chip: {
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
-    backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155', marginRight: 8, marginBottom: 8,
+  // Google Places Autocomplete styles
+  autocompleteContainer: {
+    position: 'relative',
+    zIndex: 1000,
   },
-  chipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
-  chipText: { fontSize: 14, color: '#94a3b8' },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
+  autocompleteLoader: {
+    position: 'absolute',
+    right: 14,
+    top: 14,
+  },
+  predictionsContainer: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderTopWidth: 0,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+    maxHeight: 200,
+    zIndex: 1001,
+  },
+  predictionItem: {
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  predictionText: {
+    fontSize: 14,
+    color: '#e2e8f0',
+  },
+  detectedLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  detectedLocationIcon: {
+    fontSize: 16,
+    color: '#22c55e',
+    marginRight: 8,
+  },
+  detectedLocationText: {
+    fontSize: 14,
+    color: '#22c55e',
+    fontWeight: '500',
+  },
   
   hint: { fontSize: 12, color: '#64748b', marginTop: 4 },
   

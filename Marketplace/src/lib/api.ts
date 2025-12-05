@@ -464,6 +464,56 @@ class ApiClient {
     return this.client.post(`/cases/${caseId}/undecline`, { providerId })
   }
 
+  // Direct Assignment Negotiation API Methods
+  /**
+   * SP responds to a direct assignment request
+   * @param caseId - Case ID
+   * @param action - 'accept' | 'decline' | 'counter'
+   * @param counterBudget - Budget range for counter-offer (required if action is 'counter')
+   * @param message - Optional message
+   */
+  async spRespondToDirectAssignment(
+    caseId: string, 
+    action: 'accept' | 'decline' | 'counter', 
+    counterBudget?: string, 
+    message?: string
+  ) {
+    console.log('📋 API Client - SP responding to direct assignment:', caseId, action)
+    return this.client.post(`/direct-assignment/${caseId}/sp-respond`, {
+      action,
+      counterBudget,
+      message
+    })
+  }
+
+  /**
+   * Customer responds to SP's counter-offer
+   * @param caseId - Case ID
+   * @param action - 'accept' | 'decline'
+   */
+  async customerRespondToCounterOffer(caseId: string, action: 'accept' | 'decline') {
+    console.log('📋 API Client - Customer responding to counter-offer:', caseId, action)
+    return this.client.post(`/direct-assignment/${caseId}/customer-respond`, { action })
+  }
+
+  /**
+   * Customer sends declined case to marketplace
+   * @param caseId - Case ID
+   */
+  async sendCaseToMarketplace(caseId: string) {
+    console.log('📋 API Client - Sending case to marketplace:', caseId)
+    return this.client.post(`/direct-assignment/${caseId}/send-to-marketplace`)
+  }
+
+  /**
+   * Customer cancels a case
+   * @param caseId - Case ID
+   */
+  async cancelCase(caseId: string) {
+    console.log('📋 API Client - Cancelling case:', caseId)
+    return this.client.post(`/direct-assignment/${caseId}/cancel`)
+  }
+
   async updateCaseStatus(caseId: string, status: string, message?: string) {
     console.log('📋 API Client - Updating case status:', caseId, status)
     if (status === 'completed' || status === 'closed') {

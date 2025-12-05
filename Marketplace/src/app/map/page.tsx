@@ -548,8 +548,15 @@ export default function MapPage() {
                             </span>
                             <span className="text-xs text-slate-500">{caseItem.distanceKm} км</span>
                           </div>
-                          <h3 className="font-bold text-slate-900 text-sm">{getCategoryName(caseItem.serviceType || caseItem.category)}</h3>
-                          <p className="text-xs text-slate-600 line-clamp-2">{caseItem.description}</p>
+                          <div className="flex items-center gap-2">
+                            {caseItem.caseNumber && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 font-semibold">
+                                #{caseItem.caseNumber}
+                              </span>
+                            )}
+                            <h3 className="font-bold text-slate-900 text-sm">{getCategoryName(caseItem.serviceType || caseItem.category)}</h3>
+                          </div>
+                          <p className="text-xs text-slate-600 line-clamp-2 mt-1">{caseItem.description}</p>
                         </div>
                       </div>
                       <div className="flex justify-between items-center text-xs">
@@ -738,12 +745,22 @@ export default function MapPage() {
                   </div>
 
                   {/* Category & Service Type */}
-                  <h3 className="font-bold text-lg text-slate-900 mb-1">
-                    {getCategoryName(selectedCase.serviceType || selectedCase.category)}
-                  </h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    {selectedCase.caseNumber && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-semibold">
+                        #{selectedCase.caseNumber}
+                      </span>
+                    )}
+                    <h3 className="font-bold text-lg text-slate-900">
+                      {getCategoryName(selectedCase.serviceType || selectedCase.category)}
+                    </h3>
+                  </div>
 
                   {/* Description */}
-                  <p className="text-slate-600 text-sm mb-3 line-clamp-3">{selectedCase.description}</p>
+                  <div className="mb-3">
+                    <p className="text-xs text-slate-400 mb-1">📝 Описание</p>
+                    <p className="text-slate-600 text-sm line-clamp-3">{selectedCase.description}</p>
+                  </div>
 
                   {/* Details */}
                   <div className="space-y-1 text-sm mb-3">
@@ -753,7 +770,10 @@ export default function MapPage() {
                     </div>
                     <div className="flex items-center text-slate-600">
                       <Clock className="w-4 h-4 mr-2 text-slate-400" />
-                      {selectedCase.preferredDate} • {selectedCase.preferredTime === 'morning' ? 'Сутрин' : selectedCase.preferredTime === 'afternoon' ? 'Следобед' : selectedCase.preferredTime === 'evening' ? 'Вечер' : 'Гъвкаво'}
+                      {selectedCase.preferredDate}
+                      {/* COMMENTED OUT: preferredTime - feature not needed for now
+                      {' • '}{selectedCase.preferredTime === 'morning' ? 'Сутрин' : selectedCase.preferredTime === 'afternoon' ? 'Следобед' : selectedCase.preferredTime === 'evening' ? 'Вечер' : 'Гъвкаво'}
+                      */}
                     </div>
                     <div className="flex items-center text-emerald-600 font-medium">
                       <DollarSign className="w-4 h-4 mr-2" />

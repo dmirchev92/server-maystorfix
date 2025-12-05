@@ -228,13 +228,13 @@ const MapSearchScreen: React.FC = () => {
           style={[styles.actionBtn, styles.profileBtn]}
           onPress={() => handleViewProfile(item)}
         >
-          <Text style={styles.profileBtnText}>View Profile</Text>
+          <Text style={styles.profileBtnText}>Виж профил</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBtn, styles.chatBtn]}
           onPress={() => handleChatProvider(item)}
         >
-          <Text style={styles.actionBtnText}>Chat</Text>
+          <Text style={styles.actionBtnText}>Чат</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -367,13 +367,13 @@ const MapSearchScreen: React.FC = () => {
                   style={[styles.actionBtn, styles.profileBtn]}
                   onPress={() => handleViewProfile(selectedProvider)}
                 >
-                  <Text style={styles.profileBtnText}>View Profile</Text>
+                  <Text style={styles.profileBtnText}>Виж профил</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.chatBtn, { marginLeft: 8 }]}
                   onPress={() => handleChatProvider(selectedProvider)}
                 >
-                  <Text style={styles.actionBtnText}>Chat</Text>
+                  <Text style={styles.actionBtnText}>Чат</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -386,7 +386,7 @@ const MapSearchScreen: React.FC = () => {
         <View style={styles.listContainer}>
           <View style={styles.listHeader}>
             <Text style={styles.listTitle}>
-              Nearby Providers ({providers.length})
+              Близки специалисти ({providers.length})
               {fetchError && <Text style={{ color: 'red', fontSize: 12 }}> ({fetchError})</Text>}
             </Text>
           </View>
@@ -397,7 +397,7 @@ const MapSearchScreen: React.FC = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
-                {isLoading ? 'Loading providers...' : 'No providers found in this area.'}
+                {isLoading ? 'Зареждане...' : 'Няма намерени специалисти в този район.'}
               </Text>
             }
           />
@@ -411,7 +411,7 @@ const MapSearchScreen: React.FC = () => {
           onPress={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
         >
           <Text style={styles.toggleViewText}>
-            {viewMode === 'map' ? `Show List (${providers.length})` : 'Show Map'}
+            {viewMode === 'map' ? `Покажи списък (${providers.length})` : 'Покажи карта'}
           </Text>
         </TouchableOpacity>
       </View>

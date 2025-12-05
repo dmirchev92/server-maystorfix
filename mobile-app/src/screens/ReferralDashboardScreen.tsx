@@ -301,27 +301,8 @@ const ReferralDashboardScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Reward Tiers Info */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>🏆 Награди с точки</Text>
-        <View style={styles.tiersList}>
-          <View style={styles.tierItem}>
-            <Text style={styles.tierClicks}>📝 Регистрация</Text>
-            <Text style={styles.tierReward}>→ +5 точки (и за двамата)</Text>
-          </View>
-          <View style={styles.tierItem}>
-            <Text style={styles.tierClicks}>👆 50 клика на профил</Text>
-            <Text style={styles.tierReward}>→ +10 точки</Text>
-          </View>
-          <View style={styles.tierItem}>
-            <Text style={styles.tierClicks}>🎯 5 препоръки × 50 клика</Text>
-            <Text style={styles.tierReward}>→ +100 точки бонус</Text>
-          </View>
-        </View>
-        <Text style={[styles.emptySubtext, { marginTop: 12, textAlign: 'center' }]}>
-          💡 Точките се използват за наддаване на заявки
-        </Text>
-      </View>
+      {/* Bottom spacing */}
+      <View style={{ height: 20 }} />
     </ScrollView>
   );
 };
@@ -555,30 +536,6 @@ const styles = StyleSheet.create({
   rewardDate: {
     fontSize: theme.fontSize.xs,
     color: '#64748b', // slate-500
-  },
-  tiersList: {
-    gap: theme.spacing.md,
-  },
-  tierItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    backgroundColor: '#0f172a', // slate-900
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(71, 85, 105, 0.5)', // slate-700/50
-  },
-  tierClicks: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.semibold,
-    color: '#cbd5e1', // slate-300
-  },
-  tierReward: {
-    fontSize: theme.fontSize.sm,
-    color: '#4ade80', // green-400
-    fontWeight: theme.fontWeight.semibold,
   },
 });
 
