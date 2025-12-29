@@ -67,6 +67,7 @@ const EditProfileScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [userRole, setUserRole] = useState<string>('provider');
   
   const [profileData, setProfileData] = useState<ProfileData>({
     firstName: '',
@@ -99,9 +100,23 @@ const EditProfileScreen: React.FC = () => {
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
 
   useEffect(() => {
+    loadUserRole();
     loadProfileData();
     loadCities();
   }, []);
+
+  const loadUserRole = async () => {
+    try {
+      const role = await AsyncStorage.getItem('user_role');
+      if (role) {
+        setUserRole(role);
+      }
+    } catch (error) {
+      console.error('Error loading user role:', error);
+    }
+  };
+
+  const isProvider = userRole === 'provider';
 
   // Load neighborhoods when city changes
   useEffect(() => {
@@ -241,7 +256,7 @@ const EditProfileScreen: React.FC = () => {
         
         // Try to load provider profile for additional fields
         try {
-          const providerResponse = await fetch(`https://maystorfix.com/api/v1/marketplace/providers/${userData.id}`, {
+          const providerResponse = await fetch(`https://snapfix.bg/api/v1/marketplace/providers/${userData.id}`, {
             headers: {
               'Authorization': `Bearer ${await getStoredToken()}`,
             },
@@ -378,7 +393,7 @@ const EditProfileScreen: React.FC = () => {
       const userData: any = response.data?.user || response.data;
 
       // Upload image
-      const uploadResponse = await fetch('https://maystorfix.com/api/v1/uploads/image', {
+      const uploadResponse = await fetch('https://snapfix.bg/api/v1/uploads/image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -394,7 +409,7 @@ const EditProfileScreen: React.FC = () => {
       const uploadResult: any = await uploadResponse.json();
 
       if (uploadResult.success) {
-        const baseUrl = 'https://maystorfix.com';
+        const baseUrl = 'https://snapfix.bg';
         const imageUrl = `${baseUrl}${uploadResult.data.url}`;
         setProfileData({ ...profileData, profileImageUrl: imageUrl });
         setSuccess('✅ Снимката е качена успешно!');
@@ -454,7 +469,7 @@ const EditProfileScreen: React.FC = () => {
       const response = await ApiService.getInstance().getCurrentUser();
       const userData: any = response.data?.user || response.data;
 
-      const uploadResponse = await fetch('https://maystorfix.com/api/v1/uploads/image', {
+      const uploadResponse = await fetch('https://snapfix.bg/api/v1/uploads/image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -470,7 +485,7 @@ const EditProfileScreen: React.FC = () => {
       const uploadResult: any = await uploadResponse.json();
 
       if (uploadResult.success) {
-        const baseUrl = 'https://maystorfix.com';
+        const baseUrl = 'https://snapfix.bg';
         const imageUrl = `${baseUrl}${uploadResult.data.url}`;
         setGalleryImages([...galleryImages, imageUrl]);
         setSuccess('✅ Снимката е качена успешно! Не забравяйте да запазите промените.');
@@ -539,7 +554,7 @@ const EditProfileScreen: React.FC = () => {
         gallery: galleryImages
       };
 
-      const updateResponse = await fetch('https://maystorfix.com/api/v1/marketplace/providers/profile', {
+      const updateResponse = await fetch('https://snapfix.bg/api/v1/marketplace/providers/profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -640,38 +655,40 @@ const EditProfileScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Gallery Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Галерия с работи ({galleryImages.length}/3)</Text>
-            <Text style={styles.sectionDescription}>Качете до 3 снимки на завършени проекти</Text>
-            <View style={styles.galleryGrid}>
-              {galleryImages.map((imageUrl, index) => (
-                <View key={index} style={styles.galleryItem}>
-                  <Image source={{ uri: imageUrl }} style={styles.galleryImage} />
-                  <TouchableOpacity
-                    style={styles.removeGalleryButton}
-                    onPress={() => {
-                      const newGallery = galleryImages.filter((_, i) => i !== index);
-                      setGalleryImages(newGallery);
-                    }}
+          {/* Gallery Section - Provider only */}
+          {isProvider && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Галерия с работи ({galleryImages.length}/3)</Text>
+              <Text style={styles.sectionDescription}>Качете до 3 снимки на завършени проекти</Text>
+              <View style={styles.galleryGrid}>
+                {galleryImages.map((imageUrl, index) => (
+                  <View key={index} style={styles.galleryItem}>
+                    <Image source={{ uri: imageUrl }} style={styles.galleryImage} />
+                    <TouchableOpacity
+                      style={styles.removeGalleryButton}
+                      onPress={() => {
+                        const newGallery = galleryImages.filter((_, i) => i !== index);
+                        setGalleryImages(newGallery);
+                      }}
+                    >
+                      <Text style={styles.removeGalleryButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {galleryImages.length < 3 && (
+                  <TouchableOpacity 
+                    style={styles.addGalleryButton}
+                    onPress={handleGalleryImageUpload}
+                    disabled={saving}
                   >
-                    <Text style={styles.removeGalleryButtonText}>×</Text>
+                    <Text style={styles.addGalleryIcon}>📸</Text>
+                    <Text style={styles.addGalleryText}>Качи снимка</Text>
                   </TouchableOpacity>
-                </View>
-              ))}
-              {galleryImages.length < 3 && (
-                <TouchableOpacity 
-                  style={styles.addGalleryButton}
-                  onPress={handleGalleryImageUpload}
-                  disabled={saving}
-                >
-                  <Text style={styles.addGalleryIcon}>📸</Text>
-                  <Text style={styles.addGalleryText}>Качи снимка</Text>
-                </TouchableOpacity>
-              )}
+                )}
+              </View>
+              <Text style={styles.hint}>Макс. 5MB на снимка. Препоръчително: 800x600px</Text>
             </View>
-            <Text style={styles.hint}>Макс. 5MB на снимка. Препоръчително: 800x600px</Text>
-          </View>
+          )}
 
           {/* Personal Information */}
           <View style={styles.section}>
@@ -721,130 +738,134 @@ const EditProfileScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Business Information */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Бизнес информация</Text>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Име на бизнеса</Text>
-              <TextInput
-                style={styles.input}
-                value={profileData.businessName}
-                onChangeText={(text) => setProfileData({ ...profileData, businessName: text })}
-                placeholder="Напр. Електро Експерт ЕООД"
-                placeholderTextColor="rgba(255,255,255,0.4)"
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Категория услуга</Text>
-              <TouchableOpacity 
-                style={styles.pickerContainer}
-                onPress={() => setShowCategoryPicker(true)}
-              >
-                <Text style={styles.pickerText}>
-                  {serviceCategories.find(c => c.value === profileData.serviceCategory)?.label || 'Изберете категория'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Описание</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                value={profileData.description}
-                onChangeText={(text) => setProfileData({ ...profileData, description: text })}
-                placeholder="Опишете вашите услуги и опит..."
-                placeholderTextColor="rgba(255,255,255,0.4)"
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-              />
-            </View>
-
-            <View style={styles.formRow}>
-              <View style={styles.formHalf}>
-                <Text style={styles.label}>Години опит</Text>
+          {/* Business Information - Provider only */}
+          {isProvider && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Бизнес информация</Text>
+              
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Име на бизнеса</Text>
                 <TextInput
                   style={styles.input}
-                  value={profileData.experienceYears?.toString() || ''}
-                  onChangeText={(text) => setProfileData({ ...profileData, experienceYears: parseInt(text) || 0 })}
-                  placeholder="0"
+                  value={profileData.businessName}
+                  onChangeText={(text) => setProfileData({ ...profileData, businessName: text })}
+                  placeholder="Напр. Електро Експерт ЕООД"
                   placeholderTextColor="rgba(255,255,255,0.4)"
-                  keyboardType="numeric"
                 />
               </View>
-              <View style={styles.formHalf}>
-                <Text style={styles.label}>Цена на час (лв)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={profileData.hourlyRate?.toString() || ''}
-                  onChangeText={(text) => setProfileData({ ...profileData, hourlyRate: parseFloat(text) || 0 })}
-                  placeholder="0"
-                  placeholderTextColor="rgba(255,255,255,0.4)"
-                  keyboardType="decimal-pad"
-                />
-              </View>
-            </View>
-          </View>
 
-          {/* Location */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Локация</Text>
-            
-            {/* Auto-detect location button */}
-            <TouchableOpacity
-              style={[styles.detectLocationButton, detectingLocation && styles.detectLocationButtonDisabled]}
-              onPress={detectLocation}
-              disabled={detectingLocation}
-            >
-              {detectingLocation ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.detectLocationButtonText}>📍 Открий автоматично</Text>
-              )}
-            </TouchableOpacity>
-            
-            <View style={styles.formRow}>
-              <View style={styles.formHalf}>
-                <Text style={styles.label}>Град</Text>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Категория услуга</Text>
                 <TouchableOpacity 
                   style={styles.pickerContainer}
-                  onPress={() => setShowCityPicker(true)}
+                  onPress={() => setShowCategoryPicker(true)}
                 >
                   <Text style={styles.pickerText}>
-                    {profileData.city || 'Изберете град'}
+                    {serviceCategories.find(c => c.value === profileData.serviceCategory)?.label || 'Изберете категория'}
                   </Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.formHalf}>
-                <Text style={styles.label}>Квартал</Text>
-                <TouchableOpacity 
-                  style={[styles.pickerContainer, !profileData.city && styles.pickerDisabled]}
-                  onPress={() => profileData.city && setShowNeighborhoodPicker(true)}
-                  disabled={!profileData.city}
-                >
-                  <Text style={styles.pickerText}>
-                    {!profileData.city ? 'Първо изберете град' : (profileData.neighborhood || 'Изберете квартал')}
-                  </Text>
-                </TouchableOpacity>
-                {profileData.city && getNeighborhoods().length === 0 && (
-                  <Text style={styles.hint}>Кварталите за {profileData.city} скоро ще бъдат добавени</Text>
-                )}
-              </View>
-            </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Адрес</Text>
-              <TextInput
-                style={styles.input}
-                value={profileData.address}
-                onChangeText={(text) => setProfileData({ ...profileData, address: text })}
-                placeholder="ул. Примерна 123"
-                placeholderTextColor="rgba(255,255,255,0.4)"
-              />
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Описание</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={profileData.description}
+                  onChangeText={(text) => setProfileData({ ...profileData, description: text })}
+                  placeholder="Опишете вашите услуги и опит..."
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              <View style={styles.formRow}>
+                <View style={styles.formHalf}>
+                  <Text style={styles.label}>Години опит</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={profileData.experienceYears?.toString() || ''}
+                    onChangeText={(text) => setProfileData({ ...profileData, experienceYears: parseInt(text) || 0 })}
+                    placeholder="0"
+                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    keyboardType="numeric"
+                  />
+                </View>
+                <View style={styles.formHalf}>
+                  <Text style={styles.label}>Цена на час (лв)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={profileData.hourlyRate?.toString() || ''}
+                    onChangeText={(text) => setProfileData({ ...profileData, hourlyRate: parseFloat(text) || 0 })}
+                    placeholder="0"
+                    placeholderTextColor="rgba(255,255,255,0.4)"
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+              </View>
             </View>
-          </View>
+          )}
+
+          {/* Location - Provider only */}
+          {isProvider && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Локация</Text>
+              
+              {/* Auto-detect location button */}
+              <TouchableOpacity
+                style={[styles.detectLocationButton, detectingLocation && styles.detectLocationButtonDisabled]}
+                onPress={detectLocation}
+                disabled={detectingLocation}
+              >
+                {detectingLocation ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.detectLocationButtonText}>📍 Открий автоматично</Text>
+                )}
+              </TouchableOpacity>
+              
+              <View style={styles.formRow}>
+                <View style={styles.formHalf}>
+                  <Text style={styles.label}>Град</Text>
+                  <TouchableOpacity 
+                    style={styles.pickerContainer}
+                    onPress={() => setShowCityPicker(true)}
+                  >
+                    <Text style={styles.pickerText}>
+                      {profileData.city || 'Изберете град'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.formHalf}>
+                  <Text style={styles.label}>Квартал</Text>
+                  <TouchableOpacity 
+                    style={[styles.pickerContainer, !profileData.city && styles.pickerDisabled]}
+                    onPress={() => profileData.city && setShowNeighborhoodPicker(true)}
+                    disabled={!profileData.city}
+                  >
+                    <Text style={styles.pickerText}>
+                      {!profileData.city ? 'Първо изберете град' : (profileData.neighborhood || 'Изберете квартал')}
+                    </Text>
+                  </TouchableOpacity>
+                  {profileData.city && getNeighborhoods().length === 0 && (
+                    <Text style={styles.hint}>Кварталите за {profileData.city} скоро ще бъдат добавени</Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Адрес</Text>
+                <TextInput
+                  style={styles.input}
+                  value={profileData.address}
+                  onChangeText={(text) => setProfileData({ ...profileData, address: text })}
+                  placeholder="ул. Примерна 123"
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                />
+              </View>
+            </View>
+          )}
 
           {/* Save Button */}
           <TouchableOpacity
@@ -1047,7 +1068,7 @@ const EditProfileScreen: React.FC = () => {
                   setDeleting(true);
                   try {
                     const token = await getStoredToken();
-                    const response = await fetch('https://maystorfix.com/api/v1/auth/delete-account', {
+                    const response = await fetch('https://snapfix.bg/api/v1/auth/delete-account', {
                       method: 'DELETE',
                       headers: {
                         'Content-Type': 'application/json',

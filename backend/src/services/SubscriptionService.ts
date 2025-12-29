@@ -144,10 +144,10 @@ export class SubscriptionService {
         await this.cancelSubscriptionInternal(existingSubscription.id, user_id);
       }
 
-      // Create new subscription
+      // Create new subscription (YEARLY - 365 days)
       const subscriptionId = uuidv4();
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+      const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 365 days (yearly)
 
       const insertQuery = `
         INSERT INTO sp_subscriptions (
@@ -180,6 +180,40 @@ export class SubscriptionService {
         [target_tier_id, SubscriptionStatus.ACTIVE, expiresAt, user_id]
       );
 
+      // Grant yearly included points (Option B: SET balance to included points)
+      const yearlyPoints = targetTier.limits?.points_yearly_included || 0;
+      if (yearlyPoints > 0) {
+        // Set points balance to yearly included amount
+        await this.database.query(
+          `UPDATE users SET 
+            points_balance = $1,
+            points_total_earned = points_total_earned + $1,
+            points_last_reset = CURRENT_TIMESTAMP
+          WHERE id = $2`,
+          [yearlyPoints, user_id]
+        );
+
+        // Record points transaction
+        await this.database.query(
+          `INSERT INTO sp_points_transactions (
+            id, user_id, transaction_type, points_amount, balance_after, reason, metadata
+          ) VALUES ($1, $2, 'earned', $3, $3, $4, $5)`,
+          [
+            uuidv4(),
+            user_id,
+            yearlyPoints,
+            `Yearly included points (${targetTier.name} subscription)`,
+            JSON.stringify({ tier: target_tier_id, action: action, yearly_grant: true })
+          ]
+        );
+
+        logger.info('Yearly points granted', {
+          userId: user_id,
+          tier: target_tier_id,
+          pointsGranted: yearlyPoints
+        });
+      }
+
       // Update service provider profile if PRO or NORMAL
       if (target_tier_id === SubscriptionTier.PRO || target_tier_id === SubscriptionTier.NORMAL) {
         await this.database.query(
@@ -188,14 +222,15 @@ export class SubscriptionService {
         );
       }
 
-      // Record history
+      // Record history (use yearly price)
+      const yearlyPrice = (targetTier as any).price_yearly || targetTier.price_monthly;
       await this.recordSubscriptionHistory({
         subscription_id: subscriptionId,
         user_id,
         tier_id: target_tier_id,
         action,
         previous_tier_id: currentTier?.id,
-        amount: targetTier.price_monthly,
+        amount: yearlyPrice,
         currency: targetTier.currency,
         performed_by: user_id
       });
@@ -432,6 +467,7 @@ export class SubscriptionService {
       description: row.description,
       description_bg: row.description_bg,
       price_monthly: parseFloat(row.price_monthly),
+      price_yearly: parseFloat(row.price_yearly || 0),
       currency: row.currency,
       features: row.features,
       limits: row.limits,

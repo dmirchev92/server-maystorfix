@@ -68,7 +68,7 @@ export const uploadCaseScreenshots = async (req: Request, res: Response): Promis
     logger.info('📸 Processing files:', { count: files.length, filenames: files.map(f => f.filename) });
 
     // Generate URLs for uploaded files
-    const baseUrl = process.env.BACKEND_URL || 'https://maystorfix.com';
+    const baseUrl = process.env.BACKEND_URL || 'https://snapfix.bg';
     const screenshots = files.map(file => ({
       url: `${baseUrl}/uploads/case-screenshots/${file.filename}`,
       filename: file.filename,

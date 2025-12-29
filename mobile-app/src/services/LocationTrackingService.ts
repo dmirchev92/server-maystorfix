@@ -88,8 +88,8 @@ class LocationTrackingService {
         const granted = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
           {
-            title: 'ServiceTextPro Location Permission',
-            message: 'ServiceTextPro needs access to your location to show you nearby jobs.',
+            title: 'SnapFix Location Permission',
+            message: 'SnapFix needs access to your location to show you nearby jobs.',
             buttonNeutral: 'Ask Me Later',
             buttonNegative: 'Cancel',
             buttonPositive: 'OK',

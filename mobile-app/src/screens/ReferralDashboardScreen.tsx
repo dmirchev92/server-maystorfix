@@ -11,6 +11,7 @@ import {
   Share,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import theme from '../styles/theme';
@@ -48,6 +49,7 @@ interface ReferralDashboard {
 }
 
 const ReferralDashboardScreen: React.FC = () => {
+  const navigation = useNavigation();
   const [dashboard, setDashboard] = useState<ReferralDashboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,7 +69,7 @@ const ReferralDashboardScreen: React.FC = () => {
         return;
       }
 
-      const response = await fetch('https://maystorfix.com/api/v1/referrals/dashboard', {
+      const response = await fetch('https://snapfix.bg/api/v1/referrals/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -106,8 +108,8 @@ const ReferralDashboardScreen: React.FC = () => {
 
     try {
       await Share.share({
-        message: `Присъедини се към ServiceText Pro и получи достъп до най-добрите майстори в България! ${dashboard.referralLink}`,
-        title: 'ServiceText Pro Покана',
+        message: `Присъедини се към SnapFix и получи достъп до най-добрите майстори в България! ${dashboard.referralLink}`,
+        title: 'SnapFix Покана',
       });
     } catch (error) {
       console.error('Error sharing:', error);
@@ -177,6 +179,15 @@ const ReferralDashboardScreen: React.FC = () => {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      {/* Header with Back Button */}
+      <View style={styles.backHeader}>
+        <TouchableOpacity onPress={() => navigation.navigate('ProviderDashboard' as never)} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.backHeaderTitle}>Реферали</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <View style={styles.header}>
         <Text style={styles.title}>🎯 Препоръчителна система</Text>
         <Text style={styles.subtitle}>
@@ -311,6 +322,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f172a', // slate-900
+  },
+  backHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1e293b',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#fff',
+  },
+  backHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
   },
   loadingContainer: {
     flex: 1,

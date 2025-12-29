@@ -7,6 +7,7 @@ import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import ReviewsSection from '@/components/ReviewsSection'
 import { apiClient } from '@/lib/api'
+import { getCategoryLabel } from '@/constants/serviceCategories'
 
 interface ServiceProvider {
   id: string
@@ -45,7 +46,7 @@ export default function ProviderDetailPage() {
     try {
       console.log('🔄 Updating provider rating for:', providerId)
       // Call the backend to recalculate and update provider rating
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/reviews/provider/${providerId}/update-rating`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/reviews/provider/${providerId}/update-rating`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -140,7 +141,7 @@ export default function ProviderDetailPage() {
         // Mark as tracked immediately to prevent duplicate calls in same session
         setClickTracked(true)
         
-        const trackUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/track/${providerId}`;
+        const trackUrl = `${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/referrals/track/${providerId}`;
         console.log(`[FRONTEND] Tracking profile click: ${trackUrl}`);
         
         // Get or generate visitor ID
@@ -176,22 +177,10 @@ export default function ProviderDetailPage() {
     trackClick()
   }, [provider, params.id])
 
+  // Use centralized category labels
   const getCategoryDisplayName = (category: string | undefined) => {
     if (!category) return 'Общи';
-    
-    const categoryNames: { [key: string]: string } = {
-      'electrician': 'Електротехник',
-      'plumber': 'Водопроводчик',
-      'hvac': 'Климатик',
-      'carpenter': 'Дърводелец',
-      'painter': 'Бояджия',
-      'locksmith': 'Ключар',
-      'cleaner': 'Почистване',
-      'gardener': 'Градинар',
-      'handyman': 'Майстор за всичко',
-      'appliance_repair': 'Ремонт на уреди'
-    }
-    return categoryNames[category] || category
+    return getCategoryLabel(category) || category
   }
 
   // Reviews are now fetched from API instead of using mock data

@@ -1,8 +1,8 @@
 /**
- * ServiceText Pro - Bulgarian Market Development
- * React Native App for Bulgarian Tradespeople
+ * SnapFix - Bulgarian Tradesperson Marketplace
+ * React Native Mobile App
  * 
- * Phase 7: Mobile-Backend Integration Demo
+ * Production Build
  * @format
  */
 
@@ -25,6 +25,7 @@ import NotificationService from './src/services/NotificationService';
 import FCMService from './src/services/FCMService';
 import LocationTrackingService from './src/services/LocationTrackingService';
 import UpdateService from './src/services/UpdateService';
+import PermissionService from './src/services/PermissionService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NotificationProvider } from './src/contexts/NotificationContext';
 import notifee from '@notifee/react-native';
@@ -215,11 +216,41 @@ function AppContent() {
       initializeSocketIO();
       // Start location tracking
       LocationTrackingService.getInstance().startTracking();
+      
+      // Request all permissions on first load for providers
+      if (currentUser.role === 'provider') {
+        console.log('📋 App.tsx - Provider logged in, requesting all permissions...');
+        requestAllPermissions();
+      }
     } else {
       console.log('⚠️ App.tsx - No user, skipping Socket.IO');
       LocationTrackingService.getInstance().stopTracking();
     }
   }, [currentUser]);
+
+  // Request all permissions for providers on first load
+  const requestAllPermissions = async () => {
+    try {
+      const permissionService = PermissionService.getInstance();
+      const status = await permissionService.requestAllPermissionsOnFirstLoad();
+      console.log('📋 App.tsx - Permission status after request:', status);
+      
+      // If contacts permission was denied, update SMS config to disable contact filtering
+      if (!status.contacts) {
+        console.log('⚠️ App.tsx - Contacts permission denied, disabling contact filter...');
+        try {
+          const { SMSService } = await import('./src/services/SMSService');
+          const smsService = SMSService.getInstance();
+          await smsService.updateConfig({ filterKnownContacts: false });
+          console.log('✅ App.tsx - Contact filter disabled due to missing permission');
+        } catch (error) {
+          console.error('❌ App.tsx - Error updating SMS config:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ App.tsx - Error requesting permissions:', error);
+    }
+  };
 
   const initializeSocketIO = async () => {
     try {

@@ -90,7 +90,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
       console.log('Validating token:', { spIdentifier, token: token.substring(0, 4) + '****' });
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
       const response = await axios.get(
         `${apiUrl}/chat/public/${spIdentifier}/validate/${token}`,
         {
@@ -186,7 +186,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       setCurrentMessage('');
 
       // Send to backend
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
       const messageUrl = `${apiUrl}/marketplace/conversations/${validationResult.conversationId}/messages`;
       console.log('📤 Sending message to:', messageUrl);
       
@@ -239,7 +239,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     
     // Update conversation with customer details
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
       const updateUrl = `${apiUrl}/marketplace/conversations/${validationResult?.conversationId}`;
       
       console.log('🔄 Updating conversation with customer details:', {
@@ -328,7 +328,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     
     try {
       // Register the user
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
       
       // Format phone number to +359 format
       let formattedPhone = customerInfo.phone.trim();
@@ -362,7 +362,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       if (registerResponse.data?.success) {
         console.log('Registration successful, auto-logging in...');
         // Auto-login after registration
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
         const loginResponse = await axios.post(`${apiUrl}/auth/login`, {
           email: customerInfo.email,
           password: customerInfo.password
@@ -382,7 +382,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           
           // Update conversation with customer email BEFORE redirecting
           try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
             const updateUrl = `${apiUrl}/marketplace/conversations/${validationResult?.conversationId}`;
             
             console.log('🔄 Updating conversation with customer email before redirect:', {
@@ -443,7 +443,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
       const loginResponse = await axios.post(`${apiUrl}/auth/login`, {
         email: customerInfo.email,
         password: customerInfo.password
@@ -469,7 +469,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         
         // Update conversation with customer email BEFORE redirecting
         try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
           const updateUrl = `${apiUrl}/marketplace/conversations/${validationResult?.conversationId}`;
           
           console.log('🔄 Updating conversation with customer email before redirect:', {
@@ -510,7 +510,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const fetchProviderInfo = async (userId: string) => {
     try {
       console.log('🔍 Fetching provider info for userId:', userId);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
       const response = await axios.get(`${apiUrl}/marketplace/providers/${userId}`);
       console.log('📡 Provider API response:', response.data);
       

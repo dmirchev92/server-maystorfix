@@ -7,6 +7,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { Hero } from '@/components/Hero'
 import { ServiceCategories } from '@/components/ServiceCategories'
+import { VipProvidersSection } from '@/components/VipProvidersSection'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import PendingSurveys from '@/components/PendingSurveys'
@@ -52,16 +53,31 @@ export default function HomePage() {
   }, [searchParams])
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
+    <div className="min-h-screen bg-slate-950 text-white">
+      <div className="pointer-events-none fixed inset-0">
+        <div className="absolute -top-48 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-indigo-600/20 blur-3xl" />
+        <div className="absolute top-96 -left-48 h-[520px] w-[520px] rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="absolute -bottom-48 -right-48 h-[520px] w-[520px] rounded-full bg-orange-500/10 blur-3xl" />
+      </div>
+
       <Header />
       
-      <main>
+      <main className="relative">
         <Hero />
-        
+
+        {/* VIP preview (above the fold) */}
+        <section className="relative -mt-8 pb-8">
+          <VipProvidersSection variant="preview" />
+        </section>
+
         {/* Pending Surveys for authenticated customers */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <PendingSurveys />
-        </div>
+        {isAuthenticated && user?.role === 'customer' && (
+          <section className="py-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <PendingSurveys />
+            </div>
+          </section>
+        )}
         
         <ServiceCategories />
       </main>

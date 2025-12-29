@@ -18,7 +18,7 @@ export default function GDPRPage() {
             <li>Право на възражение срещу обработката</li>
           </ul>
           <h2 className="text-2xl font-semibold mt-6">Контакт</h2>
-          <p>За въпроси относно GDPR: gdpr@maystorfix.com</p>
+          <p>За въпроси относно GDPR: gdpr@snapfix.bg</p>
         </div>
       </main>
       <Footer />

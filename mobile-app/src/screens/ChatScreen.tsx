@@ -9,6 +9,7 @@ import {
   RefreshControl,
   SafeAreaView,
   Alert,
+  Image,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -351,11 +352,15 @@ function ChatScreen() {
       onPress={() => handleConversationPress(item)}
     >
       <View style={styles.avatarContainer}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {displayName.charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        {item.providerProfileImageUrl ? (
+          <Image source={{ uri: item.providerProfileImageUrl }} style={styles.avatarImage} />
+        ) : (
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>
+              {displayName.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+        )}
         {(item.unreadCount || 0) > 0 && (
           <View style={styles.unreadBadge}>
             <Text style={styles.unreadText}>{item.unreadCount}</Text>
@@ -508,6 +513,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#6366f1', // indigo-500
+  },
+  avatarImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     borderWidth: 2,
     borderColor: '#6366f1', // indigo-500
   },

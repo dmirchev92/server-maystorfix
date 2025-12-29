@@ -129,20 +129,29 @@ textarea.bg-slate-700, textarea.bg-slate-700\/50,
   -webkit-text-fill-color: #ffffff !important;
 }
 
-/* Google Places Autocomplete dropdown styling for dark theme */
+/* Override for light-themed inputs (e.g., map page sidebar) */
+input.bg-slate-100,
+input[class*="bg-slate-100"],
+.bg-white input,
+.bg-white input.bg-slate-100 {
+  color: #1e293b !important;
+  -webkit-text-fill-color: #1e293b !important;
+}
+
+/* Google Places Autocomplete dropdown styling - Light theme (default for map page) */
 .pac-container {
-  background-color: #1e293b !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
   border-radius: 8px !important;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
   margin-top: 4px !important;
   z-index: 9999 !important;
 }
 
 .pac-item {
-  background-color: #1e293b !important;
-  color: #ffffff !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-top: 1px solid #e2e8f0 !important;
   padding: 10px 12px !important;
   cursor: pointer !important;
 }
@@ -152,25 +161,25 @@ textarea.bg-slate-700, textarea.bg-slate-700\/50,
 }
 
 .pac-item:hover, .pac-item-selected {
-  background-color: #334155 !important;
+  background-color: #f1f5f9 !important;
 }
 
 .pac-item-query {
-  color: #ffffff !important;
+  color: #1e293b !important;
   font-weight: 500 !important;
 }
 
 .pac-matched {
-  color: #818cf8 !important;
+  color: #4f46e5 !important;
   font-weight: 600 !important;
 }
 
 .pac-icon {
-  filter: invert(1) !important;
+  filter: none !important;
 }
 
 .pac-logo::after {
-  filter: invert(0.8) !important;
+  filter: none !important;
 }
 
 /* Force white text in dark-themed selects */

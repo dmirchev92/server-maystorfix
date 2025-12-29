@@ -25,7 +25,7 @@ export default function ServiceCategoryManager({ onUpdate }: ServiceCategoryMana
   const loadCategories = async () => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/provider/categories`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/provider/categories`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
@@ -83,7 +83,7 @@ export default function ServiceCategoryManager({ onUpdate }: ServiceCategoryMana
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/provider/categories`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/provider/categories`,
         {
           method: 'PUT',
           headers: {

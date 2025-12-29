@@ -374,18 +374,28 @@ export class BiddingService {
           b.*
           ${includeProviderInfo ? `, 
           CONCAT(u.first_name, ' ', u.last_name) as provider_name,
+          u.first_name as provider_first_name,
+          u.last_name as provider_last_name,
           u.email as provider_email,
           u.phone_number as provider_phone,
-          0 as provider_rating,
+          spp.rating as provider_rating,
+          spp.business_name as provider_company,
+          spp.service_category as provider_service_category,
+          spp.city as provider_city,
+          spp.neighborhood as provider_neighborhood,
+          spp.description as provider_description,
+          spp.experience_years as provider_experience_years,
+          spp.profile_image_url as provider_profile_image_url,
           COUNT(DISTINCT c.id) as provider_completed_cases
           ` : ''}
         FROM sp_case_bids b
         ${includeProviderInfo ? `
         LEFT JOIN users u ON u.id = b.provider_id
+        LEFT JOIN service_provider_profiles spp ON spp.user_id = b.provider_id
         LEFT JOIN marketplace_service_cases c ON c.provider_id = b.provider_id AND c.status = 'completed'
         ` : ''}
         WHERE b.case_id = $1
-        ${includeProviderInfo ? 'GROUP BY b.id, u.id, u.first_name, u.last_name, u.email, u.phone_number' : ''}
+        ${includeProviderInfo ? 'GROUP BY b.id, u.id, u.first_name, u.last_name, u.email, u.phone_number, spp.rating, spp.business_name, spp.service_category, spp.city, spp.neighborhood, spp.description, spp.experience_years, spp.profile_image_url' : ''}
         ORDER BY b.bid_order ASC
       `;
 
@@ -588,7 +598,8 @@ export class BiddingService {
           c.budget,
           c.city,
           c.status as case_status,
-          c.bidding_closed
+          c.bidding_closed,
+          c.case_number
         FROM sp_case_bids b
         JOIN marketplace_service_cases c ON c.id = b.case_id
         WHERE b.provider_id = $1

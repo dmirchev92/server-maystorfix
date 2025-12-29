@@ -27,7 +27,7 @@ class MarketplaceSocketService {
     }
 
     // Get the base URL for WebSocket connection
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'
     const socketUrl = apiUrl.replace('/api/v1', '')
     
     console.log('🔌 Connecting to WebSocket server:', socketUrl)
@@ -41,7 +41,7 @@ class MarketplaceSocketService {
     })
 
     this.socket.on('connect', () => {
-      console.log('✅ Connected to ServiceText Pro WebSocket server')
+      console.log('✅ Connected to SnapFix WebSocket server')
       this.isConnected = true
       this.reconnectAttempts = 0
     })

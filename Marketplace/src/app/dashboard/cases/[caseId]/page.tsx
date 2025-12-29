@@ -10,6 +10,7 @@ import { Badge, StatusBadge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import TrackingMap from '@/components/TrackingMap';
 import { formatFullAddress } from '@/utils/addressUtils';
+import { getCategoryLabel } from '@/constants/serviceCategories';
 
 export default function CaseDetailsPage() {
   const { caseId } = useParams();
@@ -98,8 +99,8 @@ export default function CaseDetailsPage() {
             <h1 className="text-3xl font-bold text-white mb-2">
               Детайли за заявка
             </h1>
-            <p className="text-slate-300">
-              {caseData.description}
+            <p className="text-indigo-400 text-base font-semibold">
+              Заявка #{caseData.case_number || caseData.id?.slice(-6).toUpperCase()}
             </p>
           </div>
           <StatusBadge status={caseData.status} />
@@ -151,10 +152,16 @@ export default function CaseDetailsPage() {
                 <CardTitle>📋 Информация</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Description */}
+                <div className="pb-4 border-b border-slate-700">
+                  <p className="text-sm text-slate-400 mb-1">Описание</p>
+                  <p className="text-white">{caseData.description || 'Няма описание'}</p>
+                </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-slate-400">Категория</p>
-                    <p className="text-white font-medium">{caseData.category}</p>
+                    <p className="text-white font-medium">{getCategoryLabel(caseData.category || caseData.service_type)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-slate-400">Дата на изпълнение</p>

@@ -285,7 +285,7 @@ const NotificationSettingsScreen: React.FC = () => {
               {/* Only Marketing emails for both user types */}
               {renderSwitch(
                 'Маркетинг и новини',
-                'Промоции, съвети и новини от MaystorFix',
+                'Промоции, съвети и новини от SnapFix',
                 'email_marketing'
               )}
             </View>

@@ -24,53 +24,60 @@ export class PointsService {
   /**
    * Calculate points cost for a case based on budget and tier
    * Uses granular budget ranges for fair point allocation (up to 10k BGN)
+   * Ranges start from X01 (e.g., 251, 501, 1001, etc.)
    * Only winning bidders pay points
    */
   calculatePointsCost(budget: number, tierLimits: TierLimits): number {
     if (budget <= 250) {
       return tierLimits.points_cost_1_250 || 0;
     } else if (budget <= 500) {
-      return tierLimits.points_cost_250_500 || 0;
+      return tierLimits.points_cost_251_500 || 0;
     } else if (budget <= 750) {
-      return tierLimits.points_cost_500_750 || 0;
+      return tierLimits.points_cost_501_750 || 0;
     } else if (budget <= 1000) {
-      return tierLimits.points_cost_750_1000 || 0;
-    } else if (budget <= 1500) {
-      return tierLimits.points_cost_1000_1500 || 0;
+      return tierLimits.points_cost_751_1000 || 0;
     } else if (budget <= 2000) {
-      return tierLimits.points_cost_1500_2000 || 0;
+      return tierLimits.points_cost_1001_2000 || 0;
     } else if (budget <= 3000) {
-      return tierLimits.points_cost_2000_3000 || 0;
+      return tierLimits.points_cost_2001_3000 || 0;
     } else if (budget <= 4000) {
-      return tierLimits.points_cost_3000_4000 || 0;
+      return tierLimits.points_cost_3001_4000 || 0;
     } else if (budget <= 5000) {
-      return tierLimits.points_cost_4000_5000 || 0;
-    } else if (budget <= 7500) {
-      return tierLimits.points_cost_5000_7500 || 0;
+      return tierLimits.points_cost_4001_5000 || 0;
+    } else if (budget <= 6000) {
+      return tierLimits.points_cost_5001_6000 || 0;
+    } else if (budget <= 7000) {
+      return tierLimits.points_cost_6001_7000 || 0;
+    } else if (budget <= 8000) {
+      return tierLimits.points_cost_7001_8000 || 0;
+    } else if (budget <= 9000) {
+      return tierLimits.points_cost_8001_9000 || 0;
     } else if (budget <= 10000) {
-      return tierLimits.points_cost_7500_10000 || 0;
+      return tierLimits.points_cost_9001_10000 || 0;
     }
     
     // For budgets over 10000, use the highest tier cost
-    return tierLimits.points_cost_7500_10000 || 0;
+    return tierLimits.points_cost_9001_10000 || 0;
   }
 
   /**
    * Get budget range string for display
    */
   getBudgetRange(budget: number): string {
-    if (budget <= 250) return '1-250 BGN';
-    if (budget <= 500) return '250-500 BGN';
-    if (budget <= 750) return '500-750 BGN';
-    if (budget <= 1000) return '750-1000 BGN';
-    if (budget <= 1500) return '1000-1500 BGN';
-    if (budget <= 2000) return '1500-2000 BGN';
-    if (budget <= 3000) return '2000-3000 BGN';
-    if (budget <= 4000) return '3000-4000 BGN';
-    if (budget <= 5000) return '4000-5000 BGN';
-    if (budget <= 7500) return '5000-7500 BGN';
-    if (budget <= 10000) return '7500-10000 BGN';
-    return '10000+ BGN';
+    if (budget <= 250) return '1-250 лв';
+    if (budget <= 500) return '251-500 лв';
+    if (budget <= 750) return '501-750 лв';
+    if (budget <= 1000) return '751-1000 лв';
+    if (budget <= 2000) return '1001-2000 лв';
+    if (budget <= 3000) return '2001-3000 лв';
+    if (budget <= 4000) return '3001-4000 лв';
+    if (budget <= 5000) return '4001-5000 лв';
+    if (budget <= 6000) return '5001-6000 лв';
+    if (budget <= 7000) return '6001-7000 лв';
+    if (budget <= 8000) return '7001-8000 лв';
+    if (budget <= 9000) return '8001-9000 лв';
+    if (budget <= 10000) return '9001-10000 лв';
+    return '10000+ лв';
   }
 
   /**
@@ -130,7 +137,9 @@ export class PointsService {
           u.points_total_earned,
           u.points_total_spent,
           u.points_last_reset,
-          st.limits->>'points_monthly' as monthly_allowance
+          u.subscription_tier_id,
+          st.limits->>'points_monthly' as monthly_allowance,
+          st.limits->>'points_yearly_included' as yearly_allowance
         FROM users u
         LEFT JOIN subscription_tiers st ON u.subscription_tier_id = st.id
         WHERE u.id = $1
@@ -143,12 +152,15 @@ export class PointsService {
       }
 
       const row = rows[0];
+      const yearlyAllowance = parseInt(row.yearly_allowance || '0');
       return {
         current_balance: row.points_balance || 0,
         total_earned: row.points_total_earned || 0,
         total_spent: row.points_total_spent || 0,
         last_reset: row.points_last_reset,
-        monthly_allowance: parseInt(row.monthly_allowance || '0')
+        monthly_allowance: yearlyAllowance, // For backward compat, set to yearly value
+        yearly_allowance: yearlyAllowance,
+        subscription_tier: row.subscription_tier_id || 'free'
       };
     } catch (error) {
       logger.error('Failed to get points balance', { userId, error });
@@ -365,15 +377,17 @@ export class PointsService {
   }
 
   /**
-   * Reset monthly points for all users
+   * Reset yearly points for all users (called on subscription renewal)
+   * Note: With yearly subscriptions, this is typically called per-user on renewal,
+   * not as a batch operation. Kept for backward compatibility.
    */
-  async resetMonthlyPoints(): Promise<void> {
+  async resetYearlyPoints(): Promise<void> {
     try {
       const query = `
         UPDATE users u
         SET 
           points_balance = (
-            SELECT (st.limits->>'points_monthly')::INTEGER
+            SELECT COALESCE((st.limits->>'points_yearly_included')::INTEGER, (st.limits->>'points_monthly')::INTEGER, 0)
             FROM subscription_tiers st
             WHERE st.id = u.subscription_tier_id
           ),
@@ -391,15 +405,22 @@ export class PointsService {
           transaction_type: 'reset',
           points_amount: row.points_balance,
           balance_after: row.points_balance,
-          reason: 'Monthly points reset'
+          reason: 'Yearly points reset'
         });
       }
 
-      logger.info('Monthly points reset completed', { usersUpdated: rows.length });
+      logger.info('Yearly points reset completed', { usersUpdated: rows.length });
     } catch (error) {
-      logger.error('Failed to reset monthly points', { error });
+      logger.error('Failed to reset yearly points', { error });
       throw error;
     }
+  }
+
+  /**
+   * @deprecated Use resetYearlyPoints instead
+   */
+  async resetMonthlyPoints(): Promise<void> {
+    return this.resetYearlyPoints();
   }
 
   /**
@@ -441,6 +462,207 @@ export class PointsService {
       return rows.map(row => this.mapCaseAccessRow(row));
     } catch (error) {
       logger.error('Failed to get accessed cases', { userId, error });
+      throw error;
+    }
+  }
+
+  // ============================================================================
+  // POINTS TOP-UP / PURCHASE METHODS
+  // ============================================================================
+
+  /**
+   * Points packages with volume discounts
+   * Discount increases with package size
+   */
+  private readonly POINTS_PACKAGES = [
+    { points: 150, discount: 0, label: '150 точки' },
+    { points: 250, discount: 0.05, label: '250 точки (5% отстъпка)' },
+    { points: 500, discount: 0.10, label: '500 точки (10% отстъпка)' },
+    { points: 750, discount: 0.15, label: '750 точки (15% отстъпка)' },
+    { points: 1000, discount: 0.20, label: '1000 точки (20% отстъпка)' },
+    { points: 1500, discount: 0.25, label: '1500 точки (25% отстъпка)' },
+    { points: 2000, discount: 0.30, label: '2000 точки (30% отстъпка)' },
+  ];
+
+  /**
+   * Get available top-up options for user's tier
+   */
+  async getTopupOptions(userId: string): Promise<{
+    canPurchase: boolean;
+    pricePerPoint: number | null;
+    currency: string;
+    tier: string;
+    packages: Array<{ 
+      points: number; 
+      basePrice: number;
+      discount: number;
+      discountPercent: number;
+      finalPrice: number;
+      savings: number;
+      label: string;
+      pricePerPoint: number;
+    }>;
+    message?: string;
+  }> {
+    try {
+      // Get user's tier and extra_points_price
+      const query = `
+        SELECT 
+          u.subscription_tier_id as tier,
+          st.limits->>'extra_points_price' as price_per_point
+        FROM users u
+        LEFT JOIN subscription_tiers st ON u.subscription_tier_id = st.id
+        WHERE u.id = $1
+      `;
+      const rows = await this.database.query(query, [userId]);
+      
+      if (rows.length === 0) {
+        throw new SubscriptionError('User not found', 'USER_NOT_FOUND', 404);
+      }
+
+      const tier = rows[0].tier;
+      const pricePerPoint = rows[0].price_per_point ? parseFloat(rows[0].price_per_point) : null;
+
+      if (pricePerPoint === null) {
+        return {
+          canPurchase: false,
+          pricePerPoint: null,
+          currency: 'BGN',
+          tier,
+          packages: [],
+          message: 'Your tier does not allow purchasing extra points. Please upgrade to NORMAL or PRO.'
+        };
+      }
+
+      // Generate packages with discounts
+      const packages = this.POINTS_PACKAGES.map(pkg => {
+        const basePrice = Math.round(pkg.points * pricePerPoint * 100) / 100;
+        const discountAmount = Math.round(basePrice * pkg.discount * 100) / 100;
+        const finalPrice = Math.round((basePrice - discountAmount) * 100) / 100;
+        const effectivePricePerPoint = Math.round((finalPrice / pkg.points) * 100) / 100;
+        
+        return {
+          points: pkg.points,
+          basePrice,
+          discount: discountAmount,
+          discountPercent: Math.round(pkg.discount * 100),
+          finalPrice,
+          savings: discountAmount,
+          label: pkg.label,
+          pricePerPoint: effectivePricePerPoint
+        };
+      });
+
+      return {
+        canPurchase: true,
+        pricePerPoint,
+        currency: 'BGN',
+        tier,
+        packages
+      };
+    } catch (error) {
+      logger.error('Failed to get topup options', { userId, error });
+      throw error;
+    }
+  }
+
+  /**
+   * Get package details by points amount
+   */
+  getPackageByPoints(points: number): { discount: number; label: string } | null {
+    return this.POINTS_PACKAGES.find(pkg => pkg.points === points) || null;
+  }
+
+  /**
+   * Purchase additional points (manual payment flow)
+   * Supports package discounts for predefined packages
+   */
+  async purchasePoints(
+    userId: string, 
+    points: number, 
+    paymentReference?: string
+  ): Promise<{
+    pointsAdded: number;
+    basePrice: number;
+    discount: number;
+    discountPercent: number;
+    totalPrice: number;
+    newBalance: number;
+    transactionId: string;
+  }> {
+    try {
+      // Get topup options to validate purchase
+      const options = await this.getTopupOptions(userId);
+      
+      if (!options.canPurchase || options.pricePerPoint === null) {
+        throw new SubscriptionError(
+          options.message || 'Cannot purchase points with current tier',
+          'PURCHASE_NOT_ALLOWED',
+          403
+        );
+      }
+
+      // Check if this is a predefined package (with discount)
+      const pkg = this.getPackageByPoints(points);
+      const basePrice = Math.round(points * options.pricePerPoint * 100) / 100;
+      const discountPercent = pkg ? Math.round(pkg.discount * 100) : 0;
+      const discountAmount = pkg ? Math.round(basePrice * pkg.discount * 100) / 100 : 0;
+      const totalPrice = Math.round((basePrice - discountAmount) * 100) / 100;
+      const transactionId = uuidv4();
+
+      // Add points to user balance
+      const updateQuery = `
+        UPDATE users 
+        SET 
+          points_balance = points_balance + $1,
+          points_total_earned = points_total_earned + $1
+        WHERE id = $2
+        RETURNING points_balance
+      `;
+      const updateRows = await this.database.query(updateQuery, [points, userId]);
+      const newBalance = updateRows[0].points_balance;
+
+      // Record transaction
+      await this.recordTransaction({
+        user_id: userId,
+        transaction_type: 'earned',
+        points_amount: points,
+        balance_after: newBalance,
+        reason: `Points purchased (${points} pts for ${totalPrice} лв${discountPercent > 0 ? `, ${discountPercent}% отстъпка` : ''})`,
+        metadata: {
+          purchase: true,
+          package: pkg ? true : false,
+          base_price: basePrice,
+          discount_percent: discountPercent,
+          discount_amount: discountAmount,
+          total_price: totalPrice,
+          price_per_point: options.pricePerPoint,
+          payment_reference: paymentReference,
+          tier: options.tier
+        }
+      });
+
+      logger.info('Points purchased successfully', {
+        userId,
+        points,
+        basePrice,
+        discountPercent,
+        totalPrice,
+        newBalance,
+        paymentReference
+      });
+
+      return {
+        pointsAdded: points,
+        basePrice,
+        discount: discountAmount,
+        discountPercent,
+        totalPrice,
+        newBalance,
+        transactionId
+      };
+    } catch (error) {
+      logger.error('Failed to purchase points', { userId, points, error });
       throw error;
     }
   }

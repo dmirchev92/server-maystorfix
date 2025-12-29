@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (parsedUser.role === 'tradesperson' || parsedUser.role === 'service_provider') {
             try {
               console.log('🖼️ AuthContext - Fetching profile image for user:', parsedUser.id)
-              const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/marketplace/providers/${parsedUser.id}`, {
+              const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/marketplace/providers/${parsedUser.id}`, {
                 headers: {
                   'Authorization': `Bearer ${token}`
                 }
@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('🔐 AuthContext - Starting login process...')
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/auth/login`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (loggedInUser.role === 'tradesperson' || loggedInUser.role === 'service_provider') {
           try {
             console.log('🖼️ AuthContext - Fetching profile image after login for user:', loggedInUser.id)
-            const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/marketplace/providers/${loggedInUser.id}`, {
+            const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/marketplace/providers/${loggedInUser.id}`, {
               headers: {
                 'Authorization': `Bearer ${result.data.tokens.accessToken}`
               }
@@ -199,7 +199,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (userData: any): Promise<boolean> => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/auth/register`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -232,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/auth/refresh`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/auth/refresh`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

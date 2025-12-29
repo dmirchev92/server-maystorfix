@@ -50,8 +50,8 @@ class WebSocketService {
   private listeners: Map<string, Array<(data: any) => void>> = new Map();
   
   // Backend configuration
-  private backendUrl = 'wss://maystorfix.com'; // Production WebSocket URL
-  private apiBaseUrl = 'https://maystorfix.com/api'; // Production API URL
+  private backendUrl = 'wss://snapfix.bg'; // Production WebSocket URL
+  private apiBaseUrl = 'https://snapfix.bg/api'; // Production API URL
 
   private constructor() {
     this.setupEventListeners();

@@ -25,6 +25,9 @@ import CasesScreen from '../screens/CasesScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import PointsScreen from '../screens/PointsScreen';
+import BuyPointsScreen from '../screens/BuyPointsScreen';
+import PricingScreen from '../screens/PricingScreen';
+import VipVisibilityScreen from '../screens/VipVisibilityScreen';
 import MyBidsScreen from '../screens/MyBidsScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PlaceBidScreen from '../screens/PlaceBidScreen';
@@ -111,6 +114,13 @@ function ProviderTabNavigator() {
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Text style={{ color, fontSize: size }}>💎</Text>
           ),
+        }}
+      />
+      <Tab.Screen
+        name="VipVisibility"
+        component={VipVisibilityScreen}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar, accessed from dashboard
         }}
       />
       <Tab.Screen
@@ -324,6 +334,46 @@ function CustomerTabNavigator() {
           ),
         }}
       />
+      <CustomerTab.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{
+          tabBarButton: () => null,
+        }}
+      />
+      <CustomerTab.Screen
+        name="ChangePassword"
+        component={ChangePasswordScreen}
+        options={{
+          tabBarButton: () => null,
+        }}
+      />
+      <CustomerTab.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+        options={{
+          tabBarButton: () => null,
+          headerShown: true,
+          headerTitle: 'Настройки за известия',
+          headerStyle: {
+            backgroundColor: '#0F172A',
+          },
+          headerTintColor: '#fff',
+        }}
+      />
+      <CustomerTab.Screen
+        name="Consent"
+        component={ConsentScreen}
+        options={{
+          tabBarButton: () => null,
+          headerShown: true,
+          headerTitle: 'Настройки за поверителност',
+          headerStyle: {
+            backgroundColor: '#007AFF',
+          },
+          headerTintColor: '#fff',
+        }}
+      />
     </CustomerTab.Navigator>
   );
 }
@@ -475,6 +525,22 @@ export default function AppNavigator({ userRole }: { userRole?: string }) {
             component={CaseBidsScreen}
             options={{
               headerShown: false,
+            }}
+          />
+          <Stack.Screen 
+            name="BuyPoints" 
+            component={BuyPointsScreen}
+            options={{
+              headerShown: true,
+              title: 'Закупуване на точки',
+            }}
+          />
+          <Stack.Screen 
+            name="Pricing" 
+            component={PricingScreen}
+            options={{
+              headerShown: true,
+              title: 'Цени и планове',
             }}
           />
         </Stack.Navigator>

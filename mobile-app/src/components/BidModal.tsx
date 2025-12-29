@@ -25,14 +25,19 @@ interface BidModalProps {
 
 const BUDGET_RANGES = [
   { value: '1-250', label: '1-250 лв' },
-  { value: '250-500', label: '250-500 лв' },
-  { value: '500-750', label: '500-750 лв' },
-  { value: '750-1000', label: '750-1000 лв' },
-  { value: '1000-1250', label: '1000-1250 лв' },
-  { value: '1250-1500', label: '1250-1500 лв' },
-  { value: '1500-1750', label: '1500-1750 лв' },
-  { value: '1750-2000', label: '1750-2000 лв' },
-  { value: '2000+', label: '2000+ лв' },
+  { value: '251-500', label: '251-500 лв' },
+  { value: '501-750', label: '501-750 лв' },
+  { value: '751-1000', label: '751-1000 лв' },
+  { value: '1001-2000', label: '1001-2000 лв' },
+  { value: '2001-3000', label: '2001-3000 лв' },
+  { value: '3001-4000', label: '3001-4000 лв' },
+  { value: '4001-5000', label: '4001-5000 лв' },
+  { value: '5001-6000', label: '5001-6000 лв' },
+  { value: '6001-7000', label: '6001-7000 лв' },
+  { value: '7001-8000', label: '7001-8000 лв' },
+  { value: '8001-9000', label: '8001-9000 лв' },
+  { value: '9001-10000', label: '9001-10000 лв' },
+  { value: '10000+', label: '10000+ лв' },
 ];
 
 const BidModal: React.FC<BidModalProps> = ({
@@ -42,48 +47,73 @@ const BidModal: React.FC<BidModalProps> = ({
   caseBudget,
   onBidPlaced,
 }) => {
-  const [user] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const [proposedBudget, setProposedBudget] = useState('');
   const [loading, setLoading] = useState(false);
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+
+  // Load user data and points balance when modal opens
+  useEffect(() => {
+    if (visible) {
+      loadUserAndPoints();
+    }
+  }, [visible]);
+
+  const loadUserAndPoints = async () => {
+    try {
+      const apiService = ApiService.getInstance();
+      // Load points balance
+      const balanceResponse = await apiService.getPointsBalance();
+      if (balanceResponse.success && balanceResponse.data) {
+        setPointsBalance(balanceResponse.data.current_balance);
+        setUser({ subscription_tier_id: balanceResponse.data.subscription_tier || 'normal' });
+      }
+    } catch (error) {
+      console.error('Error loading points balance:', error);
+    }
+  };
 
   // Calculate point cost based on proposed budget and user tier
-  const calculatePointCost = (budgetRange: string): number => {
-    const userTier = user?.subscription_tier_id || 'free';
+  // Uses new budget ranges matching backend PointsService
+  // Note: Normal tier max budget is 2000, PRO tier has no limit
+  const calculatePointCost = (budgetRange: string): { cost: number; tierRestricted: boolean } => {
+    const userTier = user?.subscription_tier_id || 'normal';
     
-    const budgetMidpoints: { [key: string]: number } = {
-      '1-250': 125,
-      '250-500': 375,
-      '500-750': 625,
-      '750-1000': 875,
-      '1000-1250': 1125,
-      '1250-1500': 1375,
-      '1500-1750': 1625,
-      '1750-2000': 1875,
-      '2000+': 2500,
+    // Points costs by tier (Normal / PRO) - matches database subscription_tiers.limits
+    const pointsCosts: { [key: string]: { normal: number; pro: number } } = {
+      '1-250': { normal: 15, pro: 12 },
+      '251-500': { normal: 25, pro: 20 },
+      '501-750': { normal: 35, pro: 28 },
+      '751-1000': { normal: 45, pro: 36 },
+      '1001-2000': { normal: 70, pro: 56 },
+      '2001-3000': { normal: 0, pro: 100 },
+      '3001-4000': { normal: 0, pro: 140 },
+      '4001-5000': { normal: 0, pro: 180 },
+      '5001-6000': { normal: 0, pro: 220 },
+      '6001-7000': { normal: 0, pro: 260 },
+      '7001-8000': { normal: 0, pro: 300 },
+      '8001-9000': { normal: 0, pro: 340 },
+      '9001-10000': { normal: 0, pro: 380 },
+      '10000+': { normal: 0, pro: 380 },
     };
     
-    const midpoint = budgetMidpoints[budgetRange] || 500;
+    const costs = pointsCosts[budgetRange];
+    if (!costs) return { cost: 0, tierRestricted: false };
     
-    // Point costs by tier and budget
-    if (midpoint <= 250) {
-      return userTier === 'free' ? 6 : userTier === 'normal' ? 4 : 3;
-    } else if (midpoint <= 500) {
-      return userTier === 'free' ? 10 : userTier === 'normal' ? 7 : 5;
-    } else if (midpoint <= 750) {
-      return userTier === 'normal' ? 12 : 8;
-    } else if (midpoint <= 1000) {
-      return userTier === 'normal' ? 18 : 12;
-    } else if (midpoint <= 1500) {
-      return userTier === 'normal' ? 25 : 18;
-    } else if (midpoint <= 2000) {
-      return 25;
-    } else if (midpoint <= 3000) {
-      return 35;
-    } else if (midpoint <= 4000) {
-      return 45;
-    } else {
-      return 55;
-    }
+    const cost = userTier === 'pro' ? costs.pro : costs.normal;
+    const tierRestricted = cost === 0 && costs.pro > 0;
+    
+    return { cost, tierRestricted };
+  };
+  
+  // Helper to get just the cost number for display
+  const getPointCost = (budgetRange: string): number => {
+    return calculatePointCost(budgetRange).cost;
+  };
+  
+  // Check if budget range is restricted for current tier
+  const isBudgetRestricted = (budgetRange: string): boolean => {
+    return calculatePointCost(budgetRange).tierRestricted;
   };
 
   const handleSubmit = async () => {
@@ -92,15 +122,23 @@ const BidModal: React.FC<BidModalProps> = ({
       return;
     }
 
-    const pointCost = calculatePointCost(proposedBudget);
+    const { cost: pointCost, tierRestricted } = calculatePointCost(proposedBudget);
+
+    if (tierRestricted) {
+      Alert.alert(
+        'Ограничение на плана',
+        'Този бюджетен диапазон изисква ПРО план. Моля, надградете плана си за достъп до по-големи бюджети.'
+      );
+      return;
+    }
 
     Alert.alert(
       'Потвърждение',
-      `Сигурни ли сте, че искате да наддавате?\n\n💰 Предлагана цена: ${proposedBudget} лв\n⭐ Ако спечелите: ${pointCost} точки\n\nПродължавате ли?`,
+      `Сигурни ли сте, че искате да участвате?\n\n💰 Предлагана цена: ${proposedBudget} лв\n⭐ Цена при спечелване: ${pointCost} точки\n\n⚠️ Точките ще бъдат удържани само ако спечелите офертата.`,
       [
         { text: 'Отказ', style: 'cancel' },
         {
-          text: 'Наддай',
+          text: 'Изпрати',
           onPress: async () => {
             setLoading(true);
             try {
@@ -161,6 +199,15 @@ const BidModal: React.FC<BidModalProps> = ({
               Изберете цена за вашата оферта
             </Text>
 
+            {/* Points Balance Display */}
+            {pointsBalance !== null && (
+              <View style={styles.balanceBox}>
+                <Text style={styles.balanceText}>
+                  ⭐ Налични точки: <Text style={styles.balanceValue}>{pointsBalance}</Text>
+                </Text>
+              </View>
+            )}
+
             {/* Info Box */}
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
@@ -170,12 +217,18 @@ const BidModal: React.FC<BidModalProps> = ({
               </Text>
               {proposedBudget && (
                 <View style={styles.costPreview}>
-                  <Text style={styles.costText}>
-                    ⭐ Ако спечелите с оферта {proposedBudget} лв:{' '}
-                    <Text style={styles.costHighlight}>
-                      {calculatePointCost(proposedBudget)} точки
+                  {isBudgetRestricted(proposedBudget) ? (
+                    <Text style={styles.costText}>
+                      ⚠️ <Text style={styles.restrictedText}>Изисква ПРО план</Text>
                     </Text>
-                  </Text>
+                  ) : (
+                    <Text style={styles.costText}>
+                      ⭐ Цена при спечелване ({proposedBudget} лв):{' '}
+                      <Text style={styles.costHighlight}>
+                        {getPointCost(proposedBudget)} точки
+                      </Text>
+                    </Text>
+                  )}
                 </View>
               )}
             </View>
@@ -235,7 +288,7 @@ const BidModal: React.FC<BidModalProps> = ({
                 {loading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.submitButtonText}>✅ Направи оферта</Text>
+                  <Text style={styles.submitButtonText}>Изпрати</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -288,6 +341,23 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginBottom: 20,
   },
+  balanceBox: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+  },
+  balanceText: {
+    fontSize: 14,
+    color: '#92400e',
+    fontWeight: '500',
+  },
+  balanceValue: {
+    fontWeight: '700',
+    color: '#d97706',
+  },
   infoBox: {
     backgroundColor: '#eef2ff',
     borderRadius: 12,
@@ -318,6 +388,10 @@ const styles = StyleSheet.create({
   costHighlight: {
     color: '#f59e0b',
     fontWeight: '700',
+  },
+  restrictedText: {
+    color: '#dc2626',
+    fontWeight: '600',
   },
   field: {
     marginBottom: 20,

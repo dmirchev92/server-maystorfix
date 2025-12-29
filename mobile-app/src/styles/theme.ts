@@ -1,4 +1,4 @@
-// Theme configuration for ServiceText Pro
+// Theme configuration for SnapFix
 export default {
   colors: {
     primary: {

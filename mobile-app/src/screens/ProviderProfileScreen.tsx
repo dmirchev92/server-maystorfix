@@ -118,14 +118,14 @@ export default function ProviderProfileScreen() {
               const userId = (me.data as any)?.user?.id || (me.data as any)?.id || 'public';
               Alert.prompt?.('Поставете base64 изображение', undefined, async (base64) => {
                 if (!base64) return;
-                const res = await fetch('https://maystorfix.com/api/v1/uploads/image', {
+                const res = await fetch('https://snapfix.bg/api/v1/uploads/image', {
                   method: 'POST', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ userId, filename: 'avatar.jpg', data: base64 })
                 });
                 const json = await res.json() as any;
                 if (json.success) {
-                  setProfileUrl(`https://maystorfix.com${json.data.url}`);
-                  setForm({ ...form, profileImageUrl: `https://maystorfix.com${json.data.url}` });
+                  setProfileUrl(`https://snapfix.bg${json.data.url}`);
+                  setForm({ ...form, profileImageUrl: `https://snapfix.bg${json.data.url}` });
                 } else {
                   Alert.alert('Грешка', 'Качването неуспешно');
                 }
@@ -189,13 +189,13 @@ export default function ProviderProfileScreen() {
             const userId = (me.data as any)?.user?.id || (me.data as any)?.id || 'public';
             Alert.prompt?.('Поставете base64 изображение', undefined, async (base64) => {
               if (!base64) return;
-              const res = await fetch('https://maystorfix.com/api/v1/uploads/image', {
+              const res = await fetch('https://snapfix.bg/api/v1/uploads/image', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId, filename: `gallery_${Date.now()}.jpg`, data: base64 })
               });
               const json = await res.json() as any;
               if (json.success) {
-                const url = `https://maystorfix.com${json.data.url}`;
+                const url = `https://snapfix.bg${json.data.url}`;
                 setGalleryUrls(prev => [...prev, url]);
               } else {
                 Alert.alert('Грешка', 'Качването неуспешно');

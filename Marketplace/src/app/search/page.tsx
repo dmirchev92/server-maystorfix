@@ -10,6 +10,7 @@ import UnifiedCaseModal from '@/components/UnifiedCaseModal'
 import { Footer } from '@/components/Footer'
 import { apiClient } from '@/lib/api'
 import { CitySelect, SimpleNeighborhoodSelect } from '@/components/LocationSelect'
+import { getCategoryLabel } from '@/constants/serviceCategories'
 
 interface ServiceProvider {
   id: string
@@ -35,6 +36,7 @@ export default function SearchPage() {
   const router = useRouter()
   const { user } = useAuth()
   const [providers, setProviders] = useState<ServiceProvider[]>([])
+  const [vipProviders, setVipProviders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [caseModalOpen, setCaseModalOpen] = useState(false)
@@ -91,6 +93,11 @@ export default function SearchPage() {
           console.log('❌ No providers found in response, setting empty array')
           setProviders([])
         }
+        
+        // Capture VIP providers from response
+        const vipData = response.data?.vipProviders || []
+        console.log('👑 VIP providers:', vipData.length)
+        setVipProviders(vipData)
         
       } catch (err) {
         console.error('❌ Error fetching providers:', err)
@@ -228,20 +235,9 @@ export default function SearchPage() {
     }
   }, [socketService, category, city, neighborhood]) // Re-setup listeners when socket or search filters change
 
+  // Use centralized category labels
   const getCategoryDisplayName = (category: string) => {
-    const categoryNames: { [key: string]: string } = {
-      'electrician': 'Електротехник',
-      'plumber': 'Водопроводчик',
-      'hvac': 'Климатик',
-      'carpenter': 'Дърводелец',
-      'painter': 'Бояджия',
-      'locksmith': 'Ключар',
-      'cleaner': 'Почистване',
-      'gardener': 'Градинар',
-      'handyman': 'Майстор за всичко',
-      'appliance_repair': 'Ремонт на уреди'
-    }
-    return categoryNames[category] || category
+    return getCategoryLabel(category) || category
   }
 
   const getStars = (rating: number) => {
@@ -405,17 +401,19 @@ export default function SearchPage() {
               <div className="w-10 h-10 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white text-lg">🔍</span>
               </div>
-              <h1 className="text-3xl font-bold text-white">
-                Намерени Услуги
+              <h1 className="text-2xl font-bold text-white">
+                Търсене
               </h1>
             </div>
             
             {/* Real-time status indicator */}
             <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${isSocketConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-sm text-slate-300">
-                {isSocketConnected ? 'Актуални данни' : 'Без връзка'}
-              </span>
+              <div className={`w-2 h-2 rounded-full ${isSocketConnected ? 'bg-green-500' : 'bg-white/20'}`}></div>
+              {isSocketConnected && (
+                <span className="text-sm text-slate-300">
+                  Актуални данни
+                </span>
+              )}
               {realTimeUpdates > 0 && (
                 <span className="bg-indigo-500/20 text-indigo-300 text-xs px-2 py-1 rounded-full border border-indigo-400/30">
                   {realTimeUpdates} обновления
@@ -525,16 +523,100 @@ export default function SearchPage() {
               <div className="flex items-center gap-2">
                 <span className="text-indigo-400">📊</span>
                 <p className="text-white font-semibold">
-                  Намерени {providers.length} {providers.length === 1 ? 'услуга' : 'услуги'}
+                  Намерени {providers.length + vipProviders.length} {(providers.length + vipProviders.length) === 1 ? 'резултат' : 'резултата'}
                 </p>
+                {vipProviders.length > 0 && (
+                  <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-sm font-semibold border border-yellow-400/30">
+                    👑 {vipProviders.length} VIP
+                  </span>
+                )}
               </div>
             </div>
 
-            {providers.length === 0 ? (
+            {/* VIP Providers Section */}
+            {vipProviders.length > 0 && (
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <h2 className="text-xl font-bold text-yellow-400">👑 VIP Специалисти</h2>
+                  <span className="text-gray-400 text-sm">Платена видимост</span>
+                </div>
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {vipProviders.map((provider: any) => (
+                    <div key={provider.userId || provider.id} className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border-2 border-yellow-500/50">
+                      <div className="p-6">
+                        {/* VIP Badge */}
+                        <div className="mb-3">
+                          <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-semibold">
+                            👑 VIP • Платена видимост
+                          </span>
+                        </div>
+                        {/* Provider Header */}
+                        <div className="flex items-center gap-3 mb-3">
+                          {provider.profileImageUrl ? (
+                            <img
+                              src={provider.profileImageUrl}
+                              alt={provider.businessName}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-yellow-500/50"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-700 border-2 border-yellow-500/50 rounded-full flex items-center justify-center">
+                              <span className="text-white text-sm font-bold">
+                                {(provider.businessName || provider.providerName || 'S').charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-bold text-white truncate">
+                              {provider.businessName || provider.providerName || 'Специалист'}
+                            </h3>
+                            <p className="text-sm text-indigo-300 truncate">
+                              {provider.categoryLabelBg || provider.categoryId}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Rating */}
+                        <div className="flex items-center mb-4 p-2 bg-yellow-500/10 rounded-lg">
+                          <span className="text-lg mr-2">⭐</span>
+                          <span className="text-sm text-slate-200 font-semibold">
+                            {(provider.rating || 0).toFixed(1)} ({provider.totalReviews || 0} отзива)
+                          </span>
+                        </div>
+
+                        {/* Location */}
+                        <div className="flex items-center text-sm text-slate-300 mb-4">
+                          <span className="mr-2">📍</span>
+                          <span>{provider.city || 'България'}</span>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <a
+                            href={`/provider/${provider.userId}`}
+                            className="flex-1 bg-yellow-600/80 text-white text-center py-2 px-4 rounded-md hover:bg-yellow-600 transition-colors text-sm font-medium"
+                          >
+                            Виж профил
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Divider */}
+                {providers.length > 0 && (
+                  <div className="mt-8 mb-4 border-t border-white/20 pt-4">
+                    <h2 className="text-xl font-bold text-white">Всички резултати</h2>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {providers.length === 0 && vipProviders.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">🔍</div>
                 <h3 className="text-xl font-semibold text-white mb-2">
-                  Няма намерени услуги
+                  Няма резултати
                 </h3>
                 <p className="text-slate-300 mb-6">
                   Опитайте с различни критерии за търсене
@@ -546,7 +628,9 @@ export default function SearchPage() {
                   Върни се към началото
                 </a>
               </div>
-            ) : (
+            )}
+
+            {providers.length > 0 && (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {providers.map((provider) => (
                   <div key={provider.id} className="bg-white/10 backdrop-blur-md rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-white/20">

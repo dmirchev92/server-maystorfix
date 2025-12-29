@@ -14,6 +14,7 @@ import { SMSService } from '../services/SMSService';
 import { ApiService } from '../services/ApiService';
 import { SocketIOService } from '../services/SocketIOService';
 import { ModernCallDetectionService } from '../services/ModernCallDetectionService';
+import { PermissionService } from '../services/PermissionService';
 import theme from '../styles/theme';
 
 interface SMSStats {
@@ -84,7 +85,7 @@ function SMSScreen() {
     sentCount: 0,
     message: 'Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]\n\n',
     processedCalls: 0,
-    filterKnownContacts: true,
+    filterKnownContacts: false, // Default to false until we verify permission
   });
   const [messageText, setMessageText] = useState('');
   const [displayText, setDisplayText] = useState(''); // For showing template with actual link
@@ -182,6 +183,18 @@ function SMSScreen() {
       const perms = await smsService.checkPermissions();
       
       console.log('📊 SMS config loaded (synced with backend):', config);
+      
+      // Check if contacts permission is actually granted
+      const permissionService = PermissionService.getInstance();
+      const hasContactsPermission = await permissionService.hasContactsPermission();
+      console.log('📋 Contacts permission status:', hasContactsPermission);
+      
+      // If filter is ON but permission is NOT granted, disable the filter
+      if (stats.filterKnownContacts && !hasContactsPermission) {
+        console.log('⚠️ Filter is ON but permission denied - disabling filter');
+        await smsService.updateConfig({ filterKnownContacts: false });
+        stats.filterKnownContacts = false;
+      }
       
       setSmsStats(stats);
       setMessageText(config.message); // Template with [chat_link] placeholder for editing
@@ -314,7 +327,7 @@ function SMSScreen() {
         if (!hasPermissions) {
           Alert.alert(
             'Разрешения са необходими',
-            'За автоматични SMS при пропуснати обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > ServiceText Pro > Разрешения.',
+            'За автоматични SMS при пропуснати обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > SnapFix > Разрешения.',
             [{ text: 'OK' }]
           );
           return;

@@ -1,15 +1,15 @@
 {
-  "latestVersion": "1.4",
+  "latestVersion": "1.6",
   "minimumVersion": "1.0.0",
-  "downloadUrl": "https://maystorfix.com/downloads/ServiceTextPro-latest.apk",
+  "downloadUrl": "https://snapfix.bg/downloads/ServiceTextPro-latest.apk",
   "updateRequired": false,
   "releaseNotes": {
-    "bg": "Версия 1.4:\n• Ново табло с бърз преглед на статистики\n• Бързи действия за навигация\n• SMS шаблони (Латиница/Кирилица)\n• Информация за SMS кодиране",
-    "en": "Version 1.4:\n• New dashboard with quick stats overview\n• Quick action navigation\n• SMS templates (Latin/Cyrillic)\n• SMS encoding information"
+    "bg": "Версия 1.6:\n• Подобрена навигация с бутон назад\n• Поправки в регистрацията (цени на планове)\n• VIP търг подобрения\n• Показване на договорена цена в заявки\n• Auto-refresh на екран Приходи",
+    "en": "Version 1.6:\n• Improved navigation with back button\n• Registration fixes (plan prices)\n• VIP auction improvements\n• Show agreed price in cases\n• Auto-refresh on Income screen"
   },
   "features": [
-    "Ново табло",
-    "SMS шаблони",
-    "SMS кодиране"
+    "Подобрена навигация",
+    "VIP търг подобрения",
+    "Auto-refresh"
   ]
 }

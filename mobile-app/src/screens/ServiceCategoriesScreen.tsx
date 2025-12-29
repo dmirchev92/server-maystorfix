@@ -55,7 +55,7 @@ const ServiceCategoriesScreen: React.FC = () => {
       }
 
       const response = await fetch(
-        'https://maystorfix.com/api/v1/provider/categories',
+        'https://snapfix.bg/api/v1/provider/categories',
         {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -120,7 +120,7 @@ const ServiceCategoriesScreen: React.FC = () => {
       }
 
       const response = await fetch(
-        'https://maystorfix.com/api/v1/provider/categories',
+        'https://snapfix.bg/api/v1/provider/categories',
         {
           method: 'PUT',
           headers: {

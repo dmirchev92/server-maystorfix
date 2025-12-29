@@ -89,7 +89,7 @@ export default function SubscriptionScreen() {
 
     Alert.alert(
       'Потвърдете надстройването',
-      `Искате ли да надстроите до ${tierName} за ${price} лв/месец?\n\nЗа да завършите процеса, моля свържете се с нас за плащане.`,
+      `Искате ли да надстроите до ${tierName} за ${price} лв/година (с ДДС)?\n\nЗа да завършите процеса, моля свържете се с нас за плащане.`,
       [
         { text: 'Отказ', style: 'cancel' },
         {
@@ -168,36 +168,30 @@ export default function SubscriptionScreen() {
     const limits = tier.limits;
     
     if (tier.id === 'free') {
-      features.push(`💰 ${limits?.points_monthly || 40} точки месечно`);
+      features.push('🆓 Пробен период');
       features.push(`💵 Заявки до ${limits?.max_case_budget || 500} лв`);
-      features.push('📊 1-500 лв: 8 точки/заявка');
-      features.push('5 заявки или 14 дни пробен период');
+      features.push('5 заявки или 14 дни');
       features.push('Базова видимост');
       features.push('Чат съобщения');
     } else if (tier.id === 'normal') {
-      features.push(`💰 ${limits?.points_monthly || 150} точки месечно`);
+      features.push(`💰 ${limits?.points_yearly_included || 350} точки/година`);
       features.push(`💵 Заявки до ${limits?.max_case_budget || 1500} лв`);
-      features.push('📊 1-500 лв: 8 точки');
-      features.push('📊 500-1000 лв: 15 точки');
-      features.push('📊 1000-1500 лв: 20 точки');
+      features.push('📱 SMS: 2 точки/SMS');
+      features.push('💳 Допълнителни точки: 0.30 лв/точка');
       features.push('До 5 категории услуги');
       features.push('До 20 снимки в галерията');
       features.push('Подобрена видимост в търсенето');
-      features.push('Приоритетни известия');
+      features.push('Премиум значка');
     } else if (tier.id === 'pro') {
-      features.push(`💰 ${limits?.points_monthly || 250} точки месечно`);
+      features.push(`💰 ${limits?.points_yearly_included || 500} точки/година`);
       features.push('💵 Всички бюджети на заявки');
-      features.push('📊 1-500 лв: 5 точки');
-      features.push('📊 500-1000 лв: 10 точки');
-      features.push('📊 1000-1500 лв: 15 точки');
-      features.push('📊 1500-2000 лв: 20 точки');
-      features.push('📊 2000-3000 лв: 30 точки');
-      features.push('📊 3000-5000 лв: 40-50 точки');
+      features.push('📱 SMS: 1 точка/SMS');
+      features.push('💳 Допълнителни точки: 0.25 лв/точка');
       features.push('Неограничени категории');
       features.push('Неограничени снимки');
       features.push('Система за наддаване');
       features.push('Приоритетна поддръжка');
-      features.push('Премиум значка');
+      features.push('PRO значка');
       features.push('Най-висока видимост');
     }
 
@@ -232,10 +226,10 @@ export default function SubscriptionScreen() {
           {pointsBalance && (
             <View style={styles.pointsContainer}>
               <Text style={styles.pointsText}>
-                💰 Налични точки: <Text style={styles.pointsValue}>{pointsBalance.current_balance}</Text> / {pointsBalance.monthly_allowance}
+                💰 Налични точки: <Text style={styles.pointsValue}>{pointsBalance.current_balance}</Text>
               </Text>
               <Text style={styles.pointsSubtext}>
-                Използвани: {pointsBalance.total_spent} | Общо получени: {pointsBalance.total_earned}
+                Годишна квота: {pointsBalance.monthly_allowance} | Използвани: {pointsBalance.total_spent}
               </Text>
             </View>
           )}
@@ -273,10 +267,10 @@ export default function SubscriptionScreen() {
 
               <View style={styles.priceContainer}>
                 <Text style={styles.price}>
-                  {tier.price_monthly > 0 ? `${tier.price_monthly} лв` : 'Безплатно'}
+                  {tier.id === 'normal' ? '349 лв' : tier.id === 'pro' ? '489 лв' : 'Безплатно'}
                 </Text>
-                {tier.price_monthly > 0 && (
-                  <Text style={styles.priceUnit}>на месец</Text>
+                {tier.id !== 'free' && (
+                  <Text style={styles.priceUnit}>на година (с ДДС)</Text>
                 )}
               </View>
 
@@ -293,7 +287,7 @@ export default function SubscriptionScreen() {
               {!isCurrentTier && tier.id !== 'free' && (
                 <TouchableOpacity
                   style={[styles.upgradeButton, { backgroundColor: tierColor }]}
-                  onPress={() => handleUpgrade(tier.id, tier.name_bg, tier.price_monthly)}
+                  onPress={() => handleUpgrade(tier.id, tier.name_bg, tier.id === 'normal' ? 349 : 489)}
                   disabled={upgrading}
                 >
                   {upgrading ? (

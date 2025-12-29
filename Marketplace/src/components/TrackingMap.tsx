@@ -3,7 +3,7 @@ import { GoogleMap, Marker, useLoadScript } from '@react-google-maps/api';
 import io, { Socket } from 'socket.io-client';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || '';
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'https://maystorfix.com';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'https://snapfix.bg';
 
 interface TrackingMapProps {
   caseId: string;

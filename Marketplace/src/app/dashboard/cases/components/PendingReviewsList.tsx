@@ -1,6 +1,7 @@
 'use client'
 
 import { Case } from '@/types/marketplace'
+import { getCategoryLabel } from '@/constants/serviceCategories'
 
 interface PendingReviewsListProps {
   reviews: Case[]
@@ -47,7 +48,7 @@ export function PendingReviewsList({ reviews, onReview }: PendingReviewsListProp
               </div>
               
               <h3 className="text-lg font-semibold text-white mb-2">
-                {caseItem.service_type || caseItem.category || 'Обща услуга'}
+                {getCategoryLabel(caseItem.service_type || caseItem.category) || 'Обща услуга'}
               </h3>
               
               <p className="text-slate-300 text-sm mb-3 line-clamp-2">

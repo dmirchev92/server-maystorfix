@@ -449,7 +449,7 @@ export default function CreateCaseScreen() {
       const token = await ApiService.getInstance().getAuthToken();
       
       // Use correct endpoint: /api/v1/upload/case-screenshots
-      const response = await fetch('https://maystorfix.com/api/v1/upload/case-screenshots', {
+      const response = await fetch('https://snapfix.bg/api/v1/upload/case-screenshots', {
         method: 'POST',
         body: formDataUpload,
         headers: {

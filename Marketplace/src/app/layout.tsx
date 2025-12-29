@@ -9,7 +9,7 @@ import ChatWidget from '@/components/ChatWidget'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ServiceText Pro Marketplace',
+  title: 'SnapFix',
   description: 'Намерете най-добрите професионалисти в България - електротехници, водопроводчици, климатици',
   keywords: 'електротехник, водопроводчик, климатик, майстор, България, София',
 }

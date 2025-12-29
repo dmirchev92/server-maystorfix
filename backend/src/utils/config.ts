@@ -190,21 +190,21 @@ export const config = {
         secure: process.env.SMTP_SECURE !== 'false', // true for 465, false for 587
         user: process.env.SMTP_USER || '',
         password: process.env.SMTP_PASSWORD || '',
-        fromEmail: process.env.SMTP_FROM_EMAIL || 'admin@maystorfix.com',
+        fromEmail: process.env.SMTP_FROM_EMAIL || 'admin@snapfix.bg',
         fromName: process.env.SMTP_FROM_NAME || 'MaystorFix'
       },
       dkim: {
-        domainName: process.env.DKIM_DOMAIN || 'maystorfix.com',
+        domainName: process.env.DKIM_DOMAIN || 'snapfix.bg',
         keySelector: process.env.DKIM_SELECTOR || 'default',
         privateKey: process.env.DKIM_PRIVATE_KEY || ''
       },
       verification: {
         tokenExpiryHours: parseInt(process.env.EMAIL_VERIFICATION_EXPIRY_HOURS || '24', 10),
-        baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL || 'https://maystorfix.com'
+        baseUrl: process.env.EMAIL_VERIFICATION_BASE_URL || 'https://snapfix.bg'
       },
       passwordReset: {
         tokenExpiryHours: parseInt(process.env.PASSWORD_RESET_EXPIRY_HOURS || '1', 10),
-        baseUrl: process.env.PASSWORD_RESET_BASE_URL || 'https://maystorfix.com'
+        baseUrl: process.env.PASSWORD_RESET_BASE_URL || 'https://snapfix.bg'
       },
       subscriptionReminder: {
         daysBeforeExpiry: (process.env.SUBSCRIPTION_REMINDER_DAYS || '7,3,1').split(',').map(d => parseInt(d, 10))

@@ -60,6 +60,9 @@ interface Case {
   customer_budget?: string;
   sp_counter_budget?: string;
   counter_message?: string;
+  // Winning bid info (for assigned cases) - from backend JOIN with sp_case_bids
+  winning_bid_price?: string;
+  winning_provider_id?: string;
 }
 
 interface CaseStats {
@@ -1187,9 +1190,13 @@ export default function CasesScreen() {
                   
                   {/* 2. Key Info - Clean inline format */}
                   <View style={styles.infoRow}>
-                    {caseItem.budget && (
+                    {/* Show agreed price for assigned cases, otherwise show original budget */}
+                    {(caseItem.winning_bid_price || caseItem.sp_counter_budget || caseItem.budget) && (
                       <Text style={styles.infoText}>
-                        <Text style={styles.infoHighlight}>💰 {caseItem.budget} лв</Text>
+                        <Text style={styles.infoHighlight}>
+                          💰 {caseItem.winning_bid_price || caseItem.sp_counter_budget || caseItem.budget} лв
+                          {(viewMode === 'assigned' && (caseItem.winning_bid_price || caseItem.sp_counter_budget)) ? ' (договорена)' : ''}
+                        </Text>
                       </Text>
                     )}
                     {caseItem.bidding_enabled && (

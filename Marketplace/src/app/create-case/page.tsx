@@ -68,10 +68,10 @@ export default function CreateCasePage() {
         const isSpecific = formData.assignmentType === 'specific' && providerId
         
         if (hasBudget && caseId) {
-          const successMessage = `✅ Заявката е създадена успешно!\n\n📋 ${isSpecific ? `Заявката е изпратена директно към ${providerName}` : 'Специалистите ще наддават за вашата заявка'}.\n\n🔗 Линк за преглед на оферти:\nhttps://maystorfix.com/dashboard/cases/${caseId}/bids\n\n💡 Запазете този линк за да видите офертите!`
+          const successMessage = `✅ Заявката е създадена успешно!\n\n📋 ${isSpecific ? `Заявката е изпратена директно към ${providerName}` : 'Специалистите ще наддават за вашата заявка'}.\n\n🔗 Линк за преглед на оферти:\nhttps://snapfix.bg/dashboard/cases/${caseId}/bids\n\n💡 Запазете този линк за да видите офертите!`
           alert(successMessage)
           // Copy link to clipboard
-          navigator.clipboard.writeText(`https://maystorfix.com/dashboard/cases/${caseId}/bids`)
+          navigator.clipboard.writeText(`https://snapfix.bg/dashboard/cases/${caseId}/bids`)
         } else {
           const message = isSpecific 
             ? `Заявката е създадена и изпратена директно към ${providerName}! Ще получите потвърждение скоро.`

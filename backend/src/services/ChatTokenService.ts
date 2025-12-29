@@ -454,7 +454,7 @@ export class ChatTokenService {
    */
   async getChatUrlForUser(userId: string, baseUrl?: string): Promise<string> {
     const { spIdentifier, currentToken } = await this.initializeForUser(userId);
-    const url = baseUrl || process.env.FRONTEND_URL || 'https://maystorfix.com';
+    const url = baseUrl || process.env.FRONTEND_URL || 'https://snapfix.bg';
     return `${url}/u/${spIdentifier}/c/${currentToken}`;
   }
 

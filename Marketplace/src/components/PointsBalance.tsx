@@ -75,7 +75,7 @@ export function PointsBalance() {
             <span className="text-4xl font-bold">{pointsBalance.current_balance}</span>
             <span className="text-xl text-blue-100">/ {pointsBalance.monthly_allowance}</span>
           </div>
-          <p className="text-sm text-blue-100 mt-1">точки за текущия месец</p>
+          <p className="text-sm text-blue-100 mt-1">годишна квота точки</p>
         </div>
 
         {/* Progress Bar */}
@@ -107,7 +107,7 @@ export function PointsBalance() {
         {/* Info */}
         <div className="pt-3 border-t border-blue-400/30">
           <p className="text-xs text-blue-100">
-            ℹ️ Точките се използват за достъп до заявки. Обновяват се всеки месец.
+            ℹ️ Точките се използват за достъп до заявки и SMS. Годишен абонамент.
           </p>
         </div>
       </CardContent>

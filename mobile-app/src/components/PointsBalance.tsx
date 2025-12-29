@@ -66,13 +66,13 @@ export const PointsBalance: React.FC = () => {
         <Text style={styles.emoji}>⭐</Text>
         <View style={styles.headerText}>
           <Text style={styles.title}>Точки</Text>
-          <Text style={styles.tier}>Месечен лимит: {points.monthly_allowance}</Text>
+          <Text style={styles.tier}>Годишна квота: {points.monthly_allowance}</Text>
         </View>
       </View>
       
       <View style={styles.pointsContainer}>
         <Text style={styles.pointsValue}>{points.current_balance}</Text>
-        <Text style={styles.pointsLabel}>точки</Text>
+        <Text style={styles.pointsLabel}>налични точки</Text>
       </View>
 
       {points.monthly_allowance > 0 && (
@@ -81,7 +81,7 @@ export const PointsBalance: React.FC = () => {
             <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%` }]} />
           </View>
           <Text style={styles.progressText}>
-            {points.current_balance} от {points.monthly_allowance} точки използвани
+            {points.current_balance} от {points.monthly_allowance} годишни точки
           </Text>
         </View>
       )}

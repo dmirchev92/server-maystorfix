@@ -30,12 +30,12 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     })
 
     newSocket.on('connect', () => {
-      console.log('✅ Connected to ServiceText Pro backend')
+      console.log('✅ Connected to SnapFix backend')
       setIsConnected(true)
     })
 
     newSocket.on('disconnect', () => {
-      console.log('❌ Disconnected from ServiceText Pro backend')
+      console.log('❌ Disconnected from SnapFix backend')
       setIsConnected(false)
     })
 

@@ -71,19 +71,23 @@ export interface TierLimits {
   bidding_enabled?: boolean;
   max_active_bids?: number;
   // Points system for case access - Granular budget ranges (up to 10k)
-  points_monthly: number;
+  points_monthly: number; // DEPRECATED: use points_yearly_included
+  points_yearly_included?: number; // Yearly included points (Normal: 350, Pro: 500)
   max_case_budget: number;
-  points_cost_1_250: number;       // 1-250 BGN
-  points_cost_250_500: number;     // 250-500 BGN
-  points_cost_500_750: number;     // 500-750 BGN
-  points_cost_750_1000: number;    // 750-1000 BGN
-  points_cost_1000_1500: number;   // 1000-1500 BGN
-  points_cost_1500_2000: number;   // 1500-2000 BGN
-  points_cost_2000_3000: number;   // 2000-3000 BGN
-  points_cost_3000_4000: number;   // 3000-4000 BGN
-  points_cost_4000_5000: number;   // 4000-5000 BGN
-  points_cost_5000_7500: number;   // 5000-7500 BGN
-  points_cost_7500_10000: number;  // 7500-10000 BGN
+  // New budget ranges (ranges start from X01)
+  points_cost_1_250: number;        // 1-250 BGN
+  points_cost_251_500: number;      // 251-500 BGN
+  points_cost_501_750: number;      // 501-750 BGN
+  points_cost_751_1000: number;     // 751-1000 BGN
+  points_cost_1001_2000: number;    // 1001-2000 BGN
+  points_cost_2001_3000: number;    // 2001-3000 BGN
+  points_cost_3001_4000: number;    // 3001-4000 BGN
+  points_cost_4001_5000: number;    // 4001-5000 BGN
+  points_cost_5001_6000: number;    // 5001-6000 BGN
+  points_cost_6001_7000: number;    // 6001-7000 BGN
+  points_cost_7001_8000: number;    // 7001-8000 BGN
+  points_cost_8001_9000: number;    // 8001-9000 BGN
+  points_cost_9001_10000: number;   // 9001-10000 BGN
   // Extra points purchase price (BGN per point, null = cannot purchase)
   extra_points_price?: number | null;
   // SMS points cost per message
@@ -97,6 +101,7 @@ export interface SubscriptionTierData {
   description: string;
   description_bg: string;
   price_monthly: number;
+  price_yearly?: number; // Yearly price (VAT incl.): Normal 349, Pro 489
   currency: string;
   features: TierFeatures;
   limits: TierLimits;
@@ -300,7 +305,9 @@ export interface PointsBalance {
   total_earned: number;
   total_spent: number;
   last_reset?: Date;
-  monthly_allowance: number;
+  monthly_allowance: number; // DEPRECATED: use yearly_allowance
+  yearly_allowance?: number; // Yearly included points
+  subscription_tier?: string; // User's subscription tier (free, normal, pro)
 }
 
 export interface CaseAccessRequest {

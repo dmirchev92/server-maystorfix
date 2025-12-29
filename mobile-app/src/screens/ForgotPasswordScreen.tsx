@@ -1,4 +1,4 @@
-// Forgot Password Screen for ServiceText Pro
+// Forgot Password Screen for SnapFix
 // Allows users to request a password reset email
 
 import React, { useState } from 'react';

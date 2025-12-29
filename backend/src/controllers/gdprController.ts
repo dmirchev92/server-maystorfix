@@ -6,6 +6,7 @@ import { body, query, validationResult } from 'express-validator';
 import rateLimit from 'express-rate-limit';
 
 import { GDPRService } from '../services/GDPRService';
+import { DatabaseFactory } from '../models/DatabaseFactory';
 import config from '../utils/config';
 import logger, { gdprLogger } from '../utils/logger';
 import {
@@ -625,6 +626,165 @@ router.get('/compliance-status',
           dataProcessingBasis: DataProcessingBasis.LEGITIMATE_INTEREST,
           retentionPeriod: 'Compliance status logs kept for 7 years',
           rightsInformation: 'This helps ensure your GDPR rights are protected'
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/v1/gdpr/request-account-deletion
+ * Public endpoint for account deletion requests (Google Play compliance)
+ * No authentication required - users can request deletion even if locked out
+ */
+router.post('/request-account-deletion',
+  rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 5, // 5 requests per hour per IP
+    message: {
+      success: false,
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Твърде много заявки. Моля, опитайте отново по-късно.'
+      }
+    }
+  }),
+  body('email').isEmail().withMessage('Невалиден имейл адрес'),
+  body('reason').optional().isLength({ max: 1000 }).withMessage('Причината не може да надвишава 1000 символа'),
+  handleValidationErrors,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, reason } = req.body;
+      const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
+
+      // Check if user exists
+      const db = DatabaseFactory.getDatabase();
+      const pool = (db as any).getPool();
+      const userResult = await pool.query(
+        'SELECT id, email, first_name, last_name FROM users WHERE LOWER(email) = LOWER($1)',
+        [email]
+      );
+
+      let userId = null;
+      if (userResult.rows.length > 0) {
+        userId = userResult.rows[0].id;
+      }
+
+      // Check for existing pending request
+      const existingRequest = await pool.query(
+        `SELECT id, status, requested_at FROM account_deletion_requests 
+         WHERE LOWER(email) = LOWER($1) AND status = 'pending'
+         ORDER BY requested_at DESC LIMIT 1`,
+        [email]
+      );
+
+      if (existingRequest.rows.length > 0) {
+        const response: APIResponse = {
+          success: true,
+          data: {
+            message: 'Вече имате активна заявка за изтриване на акаунт.',
+            requestId: existingRequest.rows[0].id,
+            status: 'pending',
+            requestedAt: existingRequest.rows[0].requested_at,
+            estimatedProcessingTime: '30 дни'
+          }
+        };
+        return res.json(response);
+      }
+
+      // Create new deletion request
+      const requestId = `del_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await pool.query(
+        `INSERT INTO account_deletion_requests (id, user_id, email, reason, status, requested_at)
+         VALUES ($1, $2, $3, $4, 'pending', NOW())`,
+        [requestId, userId, email.toLowerCase(), reason || null]
+      );
+
+      // Log GDPR action
+      gdprLogger.logPrivacyRightRequest(userId, 'ERASURE', 'submitted');
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          message: 'Заявката за изтриване на акаунт е получена успешно.',
+          requestId,
+          status: 'pending',
+          estimatedProcessingTime: '30 дни',
+          contact: 'За въпроси: admin@snapfix.bg',
+          nextSteps: [
+            'Ще получите имейл потвърждение на посочения адрес.',
+            'Заявката ще бъде обработена в рамките на 30 дни.',
+            'След изтриването всички ваши данни ще бъдат премахнати безвъзвратно.'
+          ]
+        },
+        gdpr: {
+          dataProcessingBasis: DataProcessingBasis.LEGITIMATE_INTEREST,
+          retentionPeriod: 'Заявката се съхранява за 7 години за одит',
+          rightsInformation: 'Това изпълнява правото ви на изтриване по чл. 17 от GDPR'
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /api/v1/gdpr/deletion-request-status
+ * Check status of a deletion request (public endpoint)
+ */
+router.get('/deletion-request-status',
+  query('email').isEmail().withMessage('Невалиден имейл адрес'),
+  handleValidationErrors,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const email = req.query.email as string;
+
+      const db = DatabaseFactory.getDatabase();
+      const pool = (db as any).getPool();
+      const result = await pool.query(
+        `SELECT id, status, requested_at, processed_at, notes 
+         FROM account_deletion_requests 
+         WHERE LOWER(email) = LOWER($1)
+         ORDER BY requested_at DESC LIMIT 1`,
+        [email]
+      );
+
+      if (result.rows.length === 0) {
+        const response: APIResponse = {
+          success: true,
+          data: {
+            found: false,
+            message: 'Не е намерена заявка за изтриване с този имейл адрес.'
+          }
+        };
+        return res.json(response);
+      }
+
+      const request = result.rows[0];
+      const response: APIResponse = {
+        success: true,
+        data: {
+          found: true,
+          requestId: request.id,
+          status: request.status,
+          statusText: {
+            pending: 'Изчаква обработка',
+            processing: 'В процес на обработка',
+            completed: 'Завършена',
+            rejected: 'Отхвърлена'
+          }[request.status] || request.status,
+          requestedAt: request.requested_at,
+          processedAt: request.processed_at,
+          notes: request.notes
         }
       };
 

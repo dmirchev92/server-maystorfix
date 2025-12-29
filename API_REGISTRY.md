@@ -26,6 +26,17 @@ This document lists all existing API endpoints to avoid duplication and ensure c
 ## Points (`/api/v1/points`)
 *   Managed by: `pointsController`
 
+## VIP (`/api/v1/vip`)
+*   Managed by: `vipController`
+*   `GET /config` - Get VIP configuration (prices, timing, slots). Public.
+*   `GET /overview` - Get SP's current VIP status and placements. Auth required.
+*   `GET /auctions` - Get available auctions for SP. Auth required. Query: `vipType`, `categoryId`.
+*   `POST /bid` - Place/increase VIP bid. Auth required. Body: `{ vipType, categoryId, pointsIncrement }`.
+*   `POST /buyout` - Buyout VIP slot (immediate deduction). Auth required. Body: `{ vipType, categoryId }`.
+*   `DELETE /bid/:bidId` - Cancel a bid (during auction only). Auth required.
+*   `GET /leaderboard` - Get auction leaderboard (only during auction). Auth required. Query: `vipType`, `categoryId`, `city`.
+*   `POST /settle` - Trigger auction settlement (admin/scheduler only).
+
 ## Bidding (`/api/v1/bidding`)
 *   Managed by: `biddingController`
 *   `GET /case/:caseId/can-bid` - Check eligibility.
@@ -36,7 +47,8 @@ This document lists all existing API endpoints to avoid duplication and ensure c
 *   `DELETE /bid/:bidId` - Cancel bid.
 
 ## Marketplace / Marketplace Controller
-*   `GET /api/v1/marketplace/providers/search`
+*   `GET /api/v1/marketplace/providers/vip-homepage` - Get VIP providers for homepage. Query: `categoryId` (optional).
+*   `GET /api/v1/marketplace/providers/search` - Search providers. Now includes `vipProviders` array in response.
 *   `GET /api/v1/marketplace/providers/:id`
 *   `POST /api/v1/marketplace/providers/profile`
 *   `GET /api/v1/marketplace/categories`

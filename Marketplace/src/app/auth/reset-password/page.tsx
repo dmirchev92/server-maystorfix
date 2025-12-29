@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.maystorfix.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.snapfix.bg'
 
 function ResetPasswordForm() {
   const router = useRouter()

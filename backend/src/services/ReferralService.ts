@@ -842,7 +842,7 @@ export class ReferralService {
                   }
 
                   // Send SMS via Twilio/Mobica
-                  const claimUrl = `${process.env.MARKETPLACE_URL || 'https://maystorfix.com'}/claim-sms/${token}`;
+                  const claimUrl = `${process.env.MARKETPLACE_URL || 'https://snapfix.bg'}/claim-sms/${token}`;
                   const message = `Поздравления! Спечелихте 30 SMS. Получете ги тук: ${claimUrl}`;
 
                   try {

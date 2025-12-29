@@ -44,7 +44,7 @@ export function HowItWorks() {
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
             <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              Как работи ServiceText Pro
+              Как работи SnapFix
             </span>
           </h2>
           <p className="text-xl text-slate-300 max-w-3xl mx-auto">

@@ -38,7 +38,7 @@ const AppVersionCheck: React.FC = () => {
     try {
       const currentVersion = packageJson.version;
       
-      const response = await fetch('https://maystorfix.com/api/v1/app/version');
+      const response = await fetch('https://snapfix.bg/api/v1/app/version');
       const data = await response.json();
 
       if (data.success && data.data) {
@@ -137,7 +137,7 @@ const AppVersionCheck: React.FC = () => {
         'Моля, отворете браузъра и посетете:\n\n' + versionInfo.downloadUrl,
         [
           { text: 'Отвори в браузър', onPress: () => {
-            Linking.openURL('https://maystorfix.com/downloads/ServiceTextPro-latest.apk');
+            Linking.openURL('https://snapfix.bg/downloads/SnapFix-latest.apk');
           }},
           { text: 'OK' }
         ]

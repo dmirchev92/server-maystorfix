@@ -55,6 +55,7 @@ import { LocationSearchJob } from './jobs/LocationSearchJob';
 import { ScreenshotCleanupJob } from './jobs/ScreenshotCleanupJob';
 import SubscriptionReminderService from './services/SubscriptionReminderService';
 import * as freeInspectionController from './controllers/freeInspectionController';
+import vipController from './controllers/vipController';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
 
@@ -656,7 +657,11 @@ class ServiceTextProServer {
     // NOTE: Trial check is now done at specific endpoints (like acceptCase)
     // Not globally, so users can still access their existing cases
     
+    // VIP routes
+    this.app.use('/api/v1/vip', vipController);
+    
     // Marketplace routes
+    this.app.get('/api/v1/marketplace/providers/vip-homepage', marketplaceController.getVipHomepageProviders);
     this.app.get('/api/v1/marketplace/providers/search', marketplaceController.searchProviders);
     this.app.get('/api/v1/marketplace/providers/:id', marketplaceController.getProvider);
     this.app.post('/api/v1/marketplace/providers/profile', marketplaceController.createOrUpdateProfile);

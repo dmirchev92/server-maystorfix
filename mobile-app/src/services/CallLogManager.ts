@@ -15,8 +15,8 @@ interface MockCallData {
 
 export class CallLogManager {
   private static instance: CallLogManager;
-  private readonly CALL_EVENTS_KEY = '@ServiceTextPro:CallEvents';
-  private readonly PROCESSED_CALLS_KEY = '@ServiceTextPro:ProcessedCalls';
+  private readonly CALL_EVENTS_KEY = '@SnapFix:CallEvents';
+  private readonly PROCESSED_CALLS_KEY = '@SnapFix:ProcessedCalls';
 
   private constructor() {}
 

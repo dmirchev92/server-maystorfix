@@ -362,7 +362,7 @@ router.get('/url',
         throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
       }
 
-      const baseUrl = req.query.baseUrl as string || process.env.FRONTEND_URL || 'https://maystorfix.com';
+      const baseUrl = req.query.baseUrl as string || process.env.FRONTEND_URL || 'https://snapfix.bg';
       const chatUrl = await chatTokenService.getChatUrlForUser(userId, baseUrl);
 
       const response: APIResponse = {

@@ -9,7 +9,7 @@ const VERSION_CONFIG_PATH = path.join(__dirname, '../../config/app-version.json'
 const DEFAULT_VERSION_INFO = {
   latestVersion: '1.0.0',
   minimumVersion: '1.0.0',
-  downloadUrl: 'https://maystorfix.com/downloads/ServiceTextPro-latest.apk',
+  downloadUrl: 'https://snapfix.bg/downloads/ServiceTextPro-latest.apk',
   updateRequired: false,
   releaseNotes: {
     bg: 'Нова версия с подобрения и поправки',

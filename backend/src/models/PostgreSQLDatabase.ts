@@ -569,18 +569,18 @@ export class PostgreSQLDatabase {
       const userId = user.id || this.generateId();
       const publicId = await this.generateUniquePublicId();
       
-      // Get monthly points allocation for the user's tier
-      let monthlyPoints = 0;
+      // Get yearly points allocation for the user's tier
+      let yearlyPoints = 0;
       if (user.role === 'tradesperson' && user.subscription_tier_id) {
         const tierResult = await client.query(
-          `SELECT limits->>'points_monthly' as monthly_points 
+          `SELECT COALESCE(limits->>'points_yearly_included', limits->>'points_monthly') as yearly_points 
            FROM subscription_tiers 
            WHERE id = $1`,
           [user.subscription_tier_id]
         );
         
         if (tierResult.rows.length > 0) {
-          monthlyPoints = parseInt(tierResult.rows[0].monthly_points) || 0;
+          yearlyPoints = parseInt(tierResult.rows[0].yearly_points) || 0;
         }
       }
       
@@ -598,7 +598,7 @@ export class PostgreSQLDatabase {
           user.firstName, user.lastName, user.phoneNumber, user.businessId,
           user.subscription_tier_id, user.subscription_status,
           user.trial_started_at, user.trial_cases_used, user.trial_expired, user.registration_ip,
-          user.dataRetentionUntil, user.isGdprCompliant, monthlyPoints, monthlyPoints,
+          user.dataRetentionUntil, user.isGdprCompliant, yearlyPoints, yearlyPoints,
           new Date(), user.createdAt, user.lastLoginAt, user.updatedAt,
           (user as any).city || null, (user as any).neighborhood || null, (user as any).address || null,
           (user as any).latitude || null, (user as any).longitude || null
@@ -606,15 +606,15 @@ export class PostgreSQLDatabase {
       );
       
       // Record initial points transaction for tradespeople
-      if (user.role === 'tradesperson' && monthlyPoints > 0) {
+      if (user.role === 'tradesperson' && yearlyPoints > 0) {
         await client.query(
           `INSERT INTO sp_points_transactions (
             id, user_id, transaction_type, points_amount, balance_after, reason
-          ) VALUES (gen_random_uuid(), $1, 'reset', $2, $2, 'Initial monthly points allocation')`,
-          [userId, monthlyPoints]
+          ) VALUES (gen_random_uuid(), $1, 'earned', $2, $2, 'Initial yearly points allocation')`,
+          [userId, yearlyPoints]
         );
         
-        logger.info(`Allocated ${monthlyPoints} initial points to new user ${user.email}`);
+        logger.info(`Allocated ${yearlyPoints} initial yearly points to new user ${user.email}`);
       }
       
       await client.query('COMMIT');

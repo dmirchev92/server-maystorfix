@@ -106,7 +106,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         if (response.success && response.data) {
           const categories = (response.data as any[]).map((cat: any) => ({
             id: cat.id,
-            name: cat.name || cat.nameEn || cat.id
+            name: cat.label || cat.name_bg || cat.name || cat.id
           }));
           setServiceCategories(categories);
         }
@@ -428,9 +428,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       return;
     }
 
-    // Provider-specific validation
-    if (userType === 'provider' && (!formData.companyName || !formData.serviceCategory)) {
-      Alert.alert('Грешка', 'Моля попълнете име на компанията и категория услуги');
+    // Provider-specific validation - only serviceCategory is required, companyName is optional
+    if (userType === 'provider' && !formData.serviceCategory) {
+      Alert.alert('Грешка', 'Моля изберете категория услуги');
       return;
     }
 
@@ -647,7 +647,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <Text style={styles.icon}>🔧</Text>
             </View>
             <Text style={styles.title}>
-              {isLogin ? 'Влезте в ServiceText Pro' : 'Създайте акаунт'}
+              {isLogin ? 'Влезте в SnapFix' : 'Създайте акаунт'}
             </Text>
             <Text style={styles.subtitle}>
               {isLogin ? 'Добре дошли отново!' : 'Започнете пътуването си с нас днес.'}
@@ -740,7 +740,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 {userType === 'provider' && (
                   <>
                     <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>Име на компанията *</Text>
+                      <Text style={styles.fieldLabel}>Име на фирма (по избор)</Text>
                       <TextInput
                         style={styles.modernInput}
                         placeholder="Вашата компания ООД"
@@ -765,7 +765,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                               key={category.id}
                               label={category.name}
                               value={category.id}
-                              color="#1e293b"
+                              color="#ffffff"
                             />
                           ))}
                         </Picker>
@@ -787,8 +787,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                           </Text>
                           <Text style={styles.tierPrice}>
                             {selectedTier === 'free' && '0 лв'}
-                            {selectedTier === 'normal' && '250 лв/месец'}
-                            {selectedTier === 'pro' && '350 лв/месец'}
+                            {selectedTier === 'normal' && '349 лв/година (с ДДС)'}
+                            {selectedTier === 'pro' && '489 лв/година (с ДДС)'}
                           </Text>
                         </View>
                         <Text style={styles.tierChangeText}>Промени ▸</Text>
@@ -1038,9 +1038,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <View style={styles.tierOptionContent}>
                 <Text style={styles.tierOptionName}>🆓 Безплатен</Text>
                 <Text style={styles.tierOptionPrice}>0 лв</Text>
-                <Text style={styles.tierFeature}>• 2 категории</Text>
-                <Text style={styles.tierFeature}>• 5 снимки</Text>
-                <Text style={styles.tierFeature}>• 10 казуса/месец</Text>
+                <Text style={styles.tierFeature}>• 14 дни пробен период</Text>
+                <Text style={styles.tierFeature}>• 5 заявки безплатно</Text>
+                <Text style={styles.tierFeature}>• Бюджети до 500 лв</Text>
               </View>
             </TouchableOpacity>
 
@@ -1059,11 +1059,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     <Text style={styles.recommendedText}>Препоръчан</Text>
                   </View>
                 </View>
-                <Text style={styles.tierOptionPrice}>250 лв/месец</Text>
-                <Text style={styles.tierFeature}>• 5 категории</Text>
-                <Text style={styles.tierFeature}>• 20 снимки</Text>
-                <Text style={styles.tierFeature}>• 50 казуса/месец</Text>
-                <Text style={styles.tierFeature}>• Аналитика</Text>
+                <Text style={styles.tierOptionPrice}>349 лв/година (с ДДС)</Text>
+                <Text style={styles.tierFeature}>• 100 точки/година</Text>
+                <Text style={styles.tierFeature}>• Бюджети до 2000 лв</Text>
+                <Text style={styles.tierFeature}>• Пълен достъп до заявки</Text>
               </View>
             </TouchableOpacity>
 
@@ -1077,10 +1076,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               </View>
               <View style={styles.tierOptionContent}>
                 <Text style={styles.tierOptionName}>👑 Професионален</Text>
-                <Text style={styles.tierOptionPrice}>350 лв/месец</Text>
-                <Text style={styles.tierFeature}>• Неограничени категории</Text>
-                <Text style={styles.tierFeature}>• 100 снимки</Text>
-                <Text style={styles.tierFeature}>• Наддаване</Text>
+                <Text style={styles.tierOptionPrice}>489 лв/година (с ДДС)</Text>
+                <Text style={styles.tierFeature}>• 200 точки/година</Text>
+                <Text style={styles.tierFeature}>• Неограничени бюджети</Text>
+                <Text style={styles.tierFeature}>• 20% отстъпка на точки</Text>
                 <Text style={styles.tierFeature}>• Приоритетна поддръжка</Text>
               </View>
             </TouchableOpacity>

@@ -2,7 +2,7 @@ import { Alert, Linking, Platform, PermissionsAndroid } from 'react-native';
 import RNFetchBlob from 'rn-fetch-blob';
 import DeviceInfo from 'react-native-device-info';
 
-const API_BASE_URL = 'https://maystorfix.com/api/v1';
+const API_BASE_URL = 'https://snapfix.bg/api/v1';
 
 interface VersionInfo {
   latestVersion: string;
@@ -167,7 +167,7 @@ class UpdateService {
 
       const { config, fs } = RNFetchBlob;
       const downloadDir = fs.dirs.DownloadDir;
-      const fileName = `ServiceTextPro-${Date.now()}.apk`;
+      const fileName = `SnapFix-${Date.now()}.apk`;
       const filePath = `${downloadDir}/${fileName}`;
 
       console.log('📥 Downloading APK to:', filePath);
@@ -178,7 +178,7 @@ class UpdateService {
         addAndroidDownloads: {
           useDownloadManager: true,
           notification: true,
-          title: 'ServiceText Pro Update',
+          title: 'SnapFix Update',
           description: 'Изтегляне на нова версия...',
           path: filePath,
           mime: 'application/vnd.android.package-archive',

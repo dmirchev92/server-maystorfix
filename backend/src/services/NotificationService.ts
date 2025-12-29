@@ -21,22 +21,51 @@ interface NotificationTemplate {
   message: string;
 }
 
-// Category translations from English to Bulgarian
+// Category translations from English to Bulgarian (supports both with and without cat_ prefix)
 const CATEGORY_TRANSLATIONS: { [key: string]: string } = {
-  'electrician': 'Електроуслуги',
-  'plumber': 'ВиК Услуги',
-  'painter': 'Боядисване',
-  'carpenter': 'Дърводелски услуги',
+  // Without cat_ prefix
+  'electrician': 'Електротехник',
+  'plumber': 'Водопроводчик',
+  'painter': 'Бояджия',
+  'carpenter': 'Дърводелец',
   'hvac': 'Отопление и климатизация',
   'locksmith': 'Ключар',
   'cleaner': 'Почистване',
-  'gardener': 'Озеленяване',
-  'handyman': 'Цялостни ремонти',
-  'roofer': 'Ремонти на покриви',
-  'tiler': 'Плочки и теракот',
-  'appliance_repair': 'Хамалски Услуги',
-  'pest_control': 'Железарски услуги',
-  'moving': 'Дизайн'
+  'gardener': 'Градинар',
+  'handyman': 'Дребни ремонти',
+  'roofer': 'Ремонт на покриви',
+  'tiler': 'Майстор Фаянс',
+  'appliance': 'Ремонт на уреди',
+  'appliance_repair': 'Ремонт на уреди',
+  'renovation': 'Цялостни ремонти',
+  'mover': 'Хамалски услуги',
+  'moving': 'Хамалски услуги',
+  'welder': 'Заварчик',
+  'flooring': 'Подови настилки',
+  'plasterer': 'Шпакловане',
+  'glasswork': 'Стъкларски услуги',
+  'design': 'Дизайн',
+  'general': 'Обща услуга',
+  // With cat_ prefix
+  'cat_electrician': 'Електротехник',
+  'cat_plumber': 'Водопроводчик',
+  'cat_painter': 'Бояджия',
+  'cat_carpenter': 'Дърводелец',
+  'cat_hvac': 'Отопление и климатизация',
+  'cat_locksmith': 'Ключар',
+  'cat_cleaner': 'Почистване',
+  'cat_gardener': 'Градинар',
+  'cat_handyman': 'Дребни ремонти',
+  'cat_roofer': 'Ремонт на покриви',
+  'cat_tiler': 'Майстор Фаянс',
+  'cat_appliance': 'Ремонт на уреди',
+  'cat_renovation': 'Цялостни ремонти',
+  'cat_mover': 'Хамалски услуги',
+  'cat_welder': 'Заварчик',
+  'cat_flooring': 'Подови настилки',
+  'cat_plasterer': 'Шпакловане',
+  'cat_glasswork': 'Стъкларски услуги',
+  'cat_design': 'Дизайн',
 };
 
 export class NotificationService {
@@ -710,19 +739,17 @@ export class NotificationService {
     const title = 'Нова заявка в района ви';
     const categoryBg = CATEGORY_TRANSLATIONS[category] || category;
     
-    // Priority translations
+    // Priority translations - only show for urgent/high, skip normal/low
     const priorityBg: { [key: string]: string } = {
       'urgent': '🔴 СПЕШНО',
-      'high': '🟠 Висок приоритет',
-      'normal': '🟢 Нормален',
-      'low': '⚪ Нисък приоритет'
+      'high': '🟠 Висок приоритет'
     };
     
     let message = `Нова заявка за ${categoryBg} в ${location}.`;
     
-    // Add priority (always show with emoji)
-    if (priority) {
-      message += ` ${priorityBg[priority] || priority}.`;
+    // Add priority only if urgent or high (skip normal/low as they're not meaningful)
+    if (priority && priorityBg[priority]) {
+      message += ` ${priorityBg[priority]}.`;
     }
     
     // Then add budget

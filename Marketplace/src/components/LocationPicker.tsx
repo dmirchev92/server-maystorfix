@@ -27,7 +27,7 @@ async function findNearestNeighborhood(lat: number, lng: number, city?: string):
     const params = new URLSearchParams({ lat: lat.toString(), lng: lng.toString() });
     if (city) params.append('city', city);
     
-    const response = await fetch(`https://maystorfix.com/api/v1/locations/nearest-neighborhood?${params}`);
+    const response = await fetch(`https://snapfix.bg/api/v1/locations/nearest-neighborhood?${params}`);
     const data = await response.json();
     
     if (data.success && data.data?.neighborhood) {

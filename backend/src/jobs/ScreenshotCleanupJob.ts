@@ -108,7 +108,7 @@ export class ScreenshotCleanupJob {
 
         if (fileAge > thirtyDaysInMs) {
           // Check if file exists in database
-          const baseUrl = process.env.BACKEND_URL || 'https://maystorfix.com';
+          const baseUrl = process.env.BACKEND_URL || 'https://snapfix.bg';
           const url = `${baseUrl}/uploads/case-screenshots/${filename}`;
           
           const result = await this.pool.query(

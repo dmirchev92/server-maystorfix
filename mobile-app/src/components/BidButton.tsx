@@ -53,7 +53,7 @@ const BidButton: React.FC<BidButtonProps> = ({
   };
 
   const isDisabled = disabled || !canBid || currentBidders >= maxBidders;
-  const buttonText = currentBidders >= maxBidders ? 'Пълно' : 'Наддай';
+  const buttonText = currentBidders >= maxBidders ? 'Пълно' : 'Кандидатствай';
 
   return (
     <View>

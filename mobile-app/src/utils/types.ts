@@ -1,4 +1,4 @@
-// Core types for ServiceText Pro
+// Core types for SnapFix
 
 export interface CallRecord {
   id: string;

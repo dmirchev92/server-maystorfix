@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
 
@@ -27,6 +27,7 @@ interface Bid {
 }
 
 const MyBidsScreen: React.FC = () => {
+  const navigation = useNavigation<any>();
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,17 +85,34 @@ const MyBidsScreen: React.FC = () => {
     return bid.bid_status === filter;
   });
 
-  const renderBid = ({ item }: { item: Bid }) => (
-    <View style={styles.bidCard}>
-      <View style={styles.bidHeader}>
-        <View style={styles.bidHeaderLeft}>
-          <Text style={styles.bidOrder}>#{item.bid_order}</Text>
-          <Text style={styles.bidDescription} numberOfLines={2}>
-            {item.case_description || 'Заявка'}
-          </Text>
+  const handleBidPress = (bid: Bid) => {
+    navigation.navigate('CaseBids', {
+      caseId: bid.case_id,
+      caseDescription: bid.case_description || `Заявка #${bid.case_id.substring(0, 8)}`,
+    });
+  };
+
+  const renderBid = ({ item }: { item: Bid }) => {
+    const shortCaseId = item.case_id ? item.case_id.substring(0, 8) : '';
+    const displayTitle = item.case_description 
+      ? `${item.case_description} #${shortCaseId}`
+      : `Заявка #${shortCaseId}`;
+    
+    return (
+      <TouchableOpacity 
+        style={styles.bidCard}
+        onPress={() => handleBidPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.bidHeader}>
+          <View style={styles.bidHeaderLeft}>
+            <Text style={styles.bidOrder}>#{item.bid_order}</Text>
+            <Text style={styles.bidDescription} numberOfLines={2}>
+              {displayTitle}
+            </Text>
+          </View>
+          {getStatusBadge(item.bid_status)}
         </View>
-        {getStatusBadge(item.bid_status)}
-      </View>
 
       <View style={styles.bidDetails}>
         {item.case_budget && (
@@ -132,8 +150,13 @@ const MyBidsScreen: React.FC = () => {
           </Text>
         </View>
       </View>
-    </View>
+      
+      <View style={styles.viewCaseHint}>
+        <Text style={styles.viewCaseHintText}>Натисни за детайли →</Text>
+      </View>
+    </TouchableOpacity>
   );
+  };
 
   if (loading) {
     return (
@@ -368,6 +391,18 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.md,
     color: '#94a3b8', // slate-400
     textAlign: 'center',
+  },
+  viewCaseHint: {
+    marginTop: theme.spacing.sm,
+    paddingTop: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(71, 85, 105, 0.3)',
+    alignItems: 'flex-end',
+  },
+  viewCaseHintText: {
+    fontSize: theme.fontSize.xs,
+    color: '#6366f1', // indigo-500
+    fontWeight: theme.fontWeight.medium,
   },
 });
 

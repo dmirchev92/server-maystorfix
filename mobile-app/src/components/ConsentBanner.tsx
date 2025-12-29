@@ -82,11 +82,11 @@ const ConsentBanner: React.FC<ConsentBannerProps> = ({
   };
 
   const openPrivacyPolicy = () => {
-    Linking.openURL('https://servicetextpro.com/privacy');
+    Linking.openURL('https://snapfix.bg/privacy-policy');
   };
 
   const openTerms = () => {
-    Linking.openURL('https://servicetextpro.com/terms');
+    Linking.openURL('https://snapfix.bg/terms');
   };
 
   return (

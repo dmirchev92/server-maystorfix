@@ -35,14 +35,19 @@ interface JobAlertData {
 
 const BUDGET_RANGES = [
   { value: '1-250', label: '1-250 лв' },
-  { value: '250-500', label: '250-500 лв' },
-  { value: '500-750', label: '500-750 лв' },
-  { value: '750-1000', label: '750-1000 лв' },
-  { value: '1000-1250', label: '1000-1250 лв' },
-  { value: '1250-1500', label: '1250-1500 лв' },
-  { value: '1500-1750', label: '1500-1750 лв' },
-  { value: '1750-2000', label: '1750-2000 лв' },
-  { value: '2000+', label: '2000+ лв' },
+  { value: '251-500', label: '251-500 лв' },
+  { value: '501-750', label: '501-750 лв' },
+  { value: '751-1000', label: '751-1000 лв' },
+  { value: '1001-2000', label: '1001-2000 лв' },
+  { value: '2001-3000', label: '2001-3000 лв' },
+  { value: '3001-4000', label: '3001-4000 лв' },
+  { value: '4001-5000', label: '4001-5000 лв' },
+  { value: '5001-6000', label: '5001-6000 лв' },
+  { value: '6001-7000', label: '6001-7000 лв' },
+  { value: '7001-8000', label: '7001-8000 лв' },
+  { value: '8001-9000', label: '8001-9000 лв' },
+  { value: '9001-10000', label: '9001-10000 лв' },
+  { value: '10000+', label: '10000+ лв' },
 ];
 
 const JobAlertModal = () => {
@@ -165,31 +170,27 @@ const JobAlertModal = () => {
   };
 
   // Calculate point cost based on budget range (matching BidModal logic)
+  // Uses new budget ranges matching backend PointsService
   const calculatePointCost = (budgetRange: string): number => {
-    const budgetMidpoints: { [key: string]: number } = {
-      '1-250': 125,
-      '250-500': 375,
-      '500-750': 625,
-      '750-1000': 875,
-      '1000-1250': 1125,
-      '1250-1500': 1375,
-      '1500-1750': 1625,
-      '1750-2000': 1875,
-      '2000+': 2500,
+    // Points costs for Normal tier (most common) - matches database subscription_tiers.limits
+    const pointsCosts: { [key: string]: number } = {
+      '1-250': 15,
+      '251-500': 25,
+      '501-750': 35,
+      '751-1000': 45,
+      '1001-2000': 70,
+      '2001-3000': 100,
+      '3001-4000': 140,
+      '4001-5000': 180,
+      '5001-6000': 220,
+      '6001-7000': 260,
+      '7001-8000': 300,
+      '8001-9000': 340,
+      '9001-10000': 380,
+      '10000+': 380,
     };
     
-    const midpoint = budgetMidpoints[budgetRange] || 500;
-    
-    // Simplified point costs (actual calculation on backend)
-    if (midpoint <= 250) return 6;
-    else if (midpoint <= 500) return 10;
-    else if (midpoint <= 750) return 12;
-    else if (midpoint <= 1000) return 18;
-    else if (midpoint <= 1500) return 25;
-    else if (midpoint <= 2000) return 25;
-    else if (midpoint <= 3000) return 35;
-    else if (midpoint <= 4000) return 45;
-    else return 55;
+    return pointsCosts[budgetRange] || 0;
   };
 
   const handleSubmitBid = async () => {
@@ -320,7 +321,7 @@ const JobAlertModal = () => {
                 
                 {estimatedPoints && estimatedPoints > 0 && (
                   <Text style={styles.estimatedPoints}>
-                    ⭐ Ако спечелите: {estimatedPoints} точка{estimatedPoints > 1 ? 'и' : ''}
+                    ⭐ Цена при спечелване: {estimatedPoints} точк{estimatedPoints > 1 ? 'и' : 'а'}
                   </Text>
                 )}
               </View>
@@ -342,7 +343,7 @@ const JobAlertModal = () => {
               disabled={submitting}
             >
               <Text style={styles.bidButtonText}>
-                {submitting ? 'Изпращане...' : 'НАДДАЙ'}
+                {submitting ? 'Изпращане...' : 'ИЗПРАТИ'}
               </Text>
             </TouchableOpacity>
           </View>

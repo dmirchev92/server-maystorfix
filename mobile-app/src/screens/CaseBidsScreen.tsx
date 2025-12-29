@@ -57,7 +57,7 @@ interface CaseDetails {
 export default function CaseBidsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CaseBidsRouteProp>();
-  const { caseId, caseDescription } = route.params;
+  const { caseId, caseDescription } = route.params || {};
 
   const [bids, setBids] = useState<Bid[]>([]);
   const [caseDetails, setCaseDetails] = useState<CaseDetails | null>(null);
@@ -78,10 +78,22 @@ export default function CaseBidsScreen() {
   }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user && caseId) {
       fetchData();
     }
   }, [user, caseId]);
+
+  // Safety check - if no caseId, show error and go back
+  if (!caseId) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0F172A' }}>
+        <Text style={{ color: '#fff', fontSize: 16, marginBottom: 16 }}>Грешка: Няма избрана заявка</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 12, backgroundColor: '#3B82F6', borderRadius: 8 }}>
+          <Text style={{ color: '#fff' }}>Назад</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const loadUser = async () => {
     try {
@@ -227,7 +239,7 @@ export default function CaseBidsScreen() {
       const response = await ApiService.getInstance().searchProviders({ limit: 1 });
       // Try to find provider by ID in search results or fetch directly
       const providerRes = await fetch(
-        `https://maystorfix.com/api/v1/marketplace/providers?id=${bid.provider_id}`
+        `https://snapfix.bg/api/v1/marketplace/providers?id=${bid.provider_id}`
       );
       const providerData = await providerRes.json();
       if (providerData.success && providerData.data) {
@@ -245,7 +257,7 @@ export default function CaseBidsScreen() {
     setReviewsLoading(true);
     try {
       const response = await fetch(
-        `https://maystorfix.com/api/v1/reviews/provider/${bid.provider_id}`
+        `https://snapfix.bg/api/v1/reviews/provider/${bid.provider_id}`
       );
       const data = await response.json();
       if (data.success && data.data) {
@@ -363,9 +375,9 @@ export default function CaseBidsScreen() {
                 </View>
                 <View style={styles.providerDetails}>
                   <Text style={styles.providerName}>{getProviderDisplayName(bid)}</Text>
-                  {bid.provider_rating != null && bid.provider_rating > 0 ? (
+                  {bid.provider_rating != null && Number(bid.provider_rating) > 0 ? (
                     <Text style={styles.providerRating}>
-                      ⭐ {bid.provider_rating.toFixed(1)}
+                      ⭐ {Number(bid.provider_rating).toFixed(1)}
                     </Text>
                   ) : null}
                 </View>
@@ -736,6 +748,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  providerAvatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#3b82f6',
   },
   providerAvatarText: {
     color: '#fff',

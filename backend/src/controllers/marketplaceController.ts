@@ -4,6 +4,9 @@ import logger from '../utils/logger';
 import config from '../utils/config';
 import { SMSSecurityService } from '../services/SMSSecurityService';
 import { SMSActivityService } from '../services/SMSActivityService';
+import { VipService } from '../services/VipService';
+
+const vipService = new VipService();
 
 const db = DatabaseFactory.getDatabase();
 
@@ -345,11 +348,108 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       filters: { city, neighborhood, category, radius }
     });
 
+    // Get VIP providers for this category if VIP is enabled
+    let vipProviders: any[] = [];
+    if (vipService.isVipEnabled()) {
+      try {
+        // Get HOMEPAGE_VIP providers for this category (shown globally)
+        if (category) {
+          const homepageVipProviders = await vipService.getHomepageVipProviders(category as string);
+          for (const vp of homepageVipProviders) {
+            vipProviders.push({
+              id: vp.userId,
+              email: '',
+              firstName: vp.providerName?.split(' ')[0] || '',
+              lastName: vp.providerName?.split(' ').slice(1).join(' ') || '',
+              phoneNumber: '',
+              businessName: vp.businessName || vp.providerName,
+              serviceCategory: vp.categoryId || category,
+              serviceCategories: [vp.categoryId || category],
+              description: '',
+              experienceYears: 0,
+              hourlyRate: 0,
+              city: vp.city,
+              neighborhood: '',
+              address: '',
+              profilePhone: '',
+              profileEmail: '',
+              website: '',
+              profileImageUrl: vp.profileImageUrl,
+              rating: vp.rating || 0,
+              totalReviews: vp.totalReviews || 0,
+              completedProjects: 0,
+              isActive: true,
+              latitude: null,
+              longitude: null,
+              distance: null,
+              isVip: true,
+              vipType: 'HOMEPAGE_VIP',
+              categoryLabelBg: vp.categoryLabelBg
+            });
+          }
+          logger.info('✅ HOMEPAGE_VIP providers found:', { count: homepageVipProviders.length, category });
+        }
+
+        // Get SEARCH_VIP providers for this category + city
+        if (category && city) {
+          const searchVipProviders = await vipService.getSearchVipProviders(
+            category as string, 
+            city as string
+          );
+          for (const vp of searchVipProviders) {
+            // Avoid duplicates if same provider has both HOMEPAGE_VIP and SEARCH_VIP
+            if (!vipProviders.find(existing => existing.id === vp.userId)) {
+              vipProviders.push({
+                id: vp.userId,
+                email: '',
+                firstName: vp.providerName?.split(' ')[0] || '',
+                lastName: vp.providerName?.split(' ').slice(1).join(' ') || '',
+                phoneNumber: vp.phone || '',
+                businessName: vp.businessName || vp.providerName,
+                serviceCategory: category,
+                serviceCategories: [category],
+                description: vp.description || '',
+                experienceYears: vp.experienceYears || 0,
+                hourlyRate: 0,
+                city: vp.city,
+                neighborhood: vp.neighborhood,
+                address: '',
+                profilePhone: vp.phone,
+                profileEmail: '',
+                website: '',
+                profileImageUrl: vp.profileImageUrl,
+                rating: vp.rating || 0,
+                totalReviews: vp.totalReviews || 0,
+                completedProjects: 0,
+                isActive: true,
+                latitude: null,
+                longitude: null,
+                distance: null,
+                isVip: true,
+                vipType: 'SEARCH_VIP'
+              });
+            }
+          }
+          logger.info('✅ SEARCH_VIP providers found:', { count: searchVipProviders.length, category, city });
+        }
+      } catch (vipError) {
+        logger.warn('⚠️ Failed to get VIP providers:', vipError);
+      }
+    }
+
+    // Add isVip: false to regular providers and filter out VIP users from regular list
+    const vipUserIds = new Set(vipProviders.map(vp => vp.id));
+    const regularProviders = transformedProviders
+      .filter(p => !vipUserIds.has(p.id))
+      .map(p => ({ ...p, isVip: false }));
+
     res.json({
       success: true,
-      data: transformedProviders,
+      data: regularProviders,
+      vipProviders: vipProviders,
       metadata: {
-        total: transformedProviders.length,
+        total: regularProviders.length,
+        vipCount: vipProviders.length,
         limit: Number(limit),
         offset: Number(offset),
         timestamp: new Date().toISOString(),
@@ -963,6 +1063,61 @@ export const updateConversation = async (req: Request, res: Response): Promise<v
       error: {
         code: 'INTERNAL_ERROR',
         message: 'Failed to update conversation'
+      }
+    });
+  }
+};
+
+/**
+ * Get VIP providers for homepage display
+ * Returns VIP providers grouped by category
+ */
+export const getVipHomepageProviders = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { categoryId } = req.query;
+
+    if (!vipService.isVipEnabled()) {
+      res.json({
+        success: true,
+        data: [],
+        metadata: {
+          enabled: false,
+          message: 'VIP функцията не е активна.'
+        }
+      });
+      return;
+    }
+
+    const vipProviders = await vipService.getHomepageVipProviders(categoryId as string | undefined);
+
+    // Group by category for frontend convenience
+    const grouped: { [key: string]: any[] } = {};
+    for (const provider of vipProviders) {
+      const cat = provider.categoryId;
+      if (!grouped[cat]) {
+        grouped[cat] = [];
+      }
+      grouped[cat].push(provider);
+    }
+
+    res.json({
+      success: true,
+      data: vipProviders,
+      grouped: grouped,
+      metadata: {
+        total: vipProviders.length,
+        categoriesCount: Object.keys(grouped).length,
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    logger.error('❌ Error getting VIP homepage providers:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to get VIP providers'
       }
     });
   }

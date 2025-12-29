@@ -55,7 +55,7 @@ const ChangePasswordScreen: React.FC = () => {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       const token = await AsyncStorage.getItem('auth_token');
       
-      const response = await fetch('https://maystorfix.com/api/v1/users/change-password', {
+      const response = await fetch('https://snapfix.bg/api/v1/users/change-password', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

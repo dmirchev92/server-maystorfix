@@ -112,8 +112,9 @@ const PrivacyScreen: React.FC = () => {
       title: 'Трети страни и партньори',
       content: `Може да споделяме данни с:
       
-• Viber Business API (за изпращане на съобщения)
-• WhatsApp Business API (за изпращане на съобщения)
+• Mobica SMS API (за изпращане на SMS съобщения)
+• Google Maps API (за локация и адреси)
+• Firebase (за push известия)
 • Облачни доставчици (за съхранение на данни)
 • Правни консултанти (при необходимост)
 
@@ -125,10 +126,9 @@ const PrivacyScreen: React.FC = () => {
       title: 'Контактна информация',
       content: `За въпроси относно поверителността:
 
-• Email: privacy@servicetextpro.com
-• Телефон: +359 888 123 456
-• Адрес: ул. "Примерна" 123, София 1000
-• DPO: dpo@servicetextpro.com
+• Email: admin@snapfix.bg
+• Уебсайт: snapfix.bg
+• DPO: admin@snapfix.bg
 
 Отговаряме на всички заявки в рамките на 30 дни.`,
       expanded: false,
@@ -146,20 +146,15 @@ const PrivacyScreen: React.FC = () => {
   };
 
   const openPrivacyEmail = () => {
-    Linking.openURL('mailto:privacy@servicetextpro.com');
+    Linking.openURL('mailto:admin@snapfix.bg');
   };
 
   const openDPOEmail = () => {
-    Linking.openURL('mailto:dpo@servicetextpro.com');
+    Linking.openURL('mailto:admin@snapfix.bg');
   };
 
-  const downloadPrivacyPolicy = () => {
-    // TODO: Implement PDF download
-    Alert.alert(
-      'Изтегляне на политиката',
-      'Функцията за изтегляне ще бъде достъпна скоро.',
-      [{ text: 'OK' }]
-    );
+  const openFullPrivacyPolicy = () => {
+    Linking.openURL('https://snapfix.bg/privacy-policy');
   };
 
   return (
@@ -219,9 +214,9 @@ const PrivacyScreen: React.FC = () => {
 
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={downloadPrivacyPolicy}
+          onPress={openFullPrivacyPolicy}
         >
-          <Text style={styles.actionButtonText}>📄 Изтегли политиката</Text>
+          <Text style={styles.actionButtonText}>🌐 Пълна политика на уебсайта</Text>
         </TouchableOpacity>
       </View>
 

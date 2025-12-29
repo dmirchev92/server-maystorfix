@@ -185,9 +185,9 @@ export class ModernCallDetectionService {
         return; // Don't send SMS if user is not authenticated
       }
 
-      console.log('📱 Sending automatic SMS via backend Twilio service for missed call:', event.phoneNumber, 'Call ID:', callId, 'User ID:', userId);
+      console.log('📱 Sending automatic SMS via backend Mobica service for missed call:', event.phoneNumber, 'Call ID:', callId, 'User ID:', userId);
       
-      // NEW: Send SMS via backend Twilio API instead of native SMS
+      // Send SMS via backend Mobica API
       await smsService.sendMissedCallViaTwilio(event.phoneNumber, callId, userId);
       
       // Sync to backend
@@ -246,7 +246,7 @@ export class ModernCallDetectionService {
         PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
         {
           title: 'Phone State Permission',
-          message: 'ServiceText Pro needs access to phone state to detect incoming calls.',
+          message: 'SnapFix needs access to phone state to detect incoming calls.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Deny',
           buttonPositive: 'Allow',
@@ -261,7 +261,7 @@ export class ModernCallDetectionService {
         PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
         {
           title: 'Call Log Permission',
-          message: 'ServiceText Pro needs access to call log to detect missed calls and provide AI responses.',
+          message: 'SnapFix needs access to call log to detect missed calls and provide AI responses.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Deny',
           buttonPositive: 'Allow',

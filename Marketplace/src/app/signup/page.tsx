@@ -43,7 +43,7 @@ export default function SignupPage() {
   const validateReferralCode = async (code: string) => {
     try {
       console.log('🔍 Validating referral code:', code)
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/validate/${code}`)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/referrals/validate/${code}`)
       const data = await response.json()
       console.log('🔍 Referral validation response:', data)
       
@@ -203,7 +203,7 @@ export default function SignupPage() {
       console.log('📝 Sending registration data:', registrationData)
       console.log('🤝 Referral context:', { referralCode, referralValid, referrerName })
       
-      const signupResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/auth/register`, {
+      const signupResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -225,7 +225,7 @@ export default function SignupPage() {
       }
 
       // Create service provider profile
-      const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/marketplace/providers/profile`, {
+      const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/marketplace/providers/profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,7 +260,7 @@ export default function SignupPage() {
             referrerName
           })
           
-          const referralResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/create`, {
+          const referralResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/referrals/create`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -315,7 +315,7 @@ export default function SignupPage() {
           {/* Page Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">
-              🚀 Присъединете се към ServiceText Pro
+              🚀 Присъединете се към SnapFix
             </h1>
             <p className="text-slate-300">
               Създайте профил и започнете да получавате повече клиенти
@@ -563,9 +563,9 @@ export default function SignupPage() {
                     <div className="text-center">
                       <h3 className="text-lg font-bold text-white mb-1">FREE</h3>
                       <p className="text-2xl font-bold text-white mb-2">0 лв</p>
-                      <p className="text-xs text-slate-300 mb-3">на месец</p>
+                      <p className="text-xs text-slate-300 mb-3">пробен период</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
-                        <li>✓ 5 SMS месечно</li>
+                        <li>✓ 2 категории</li>
                         <li>✓ До 5 снимки</li>
                         <li>✓ Основна видимост</li>
                       </ul>
@@ -583,15 +583,15 @@ export default function SignupPage() {
                   >
                     <div className="text-center">
                       <div className="inline-block bg-green-500 text-white text-xs px-2 py-1 rounded mb-1">
-                        🎁 +15 SMS бонус
+                        ⭐ Препоръчан
                       </div>
                       <h3 className="text-lg font-bold text-white mb-1">NORMAL</h3>
-                      <p className="text-2xl font-bold text-white mb-2">20 лв</p>
-                      <p className="text-xs text-slate-300 mb-3">на месец</p>
+                      <p className="text-2xl font-bold text-white mb-2">349 лв</p>
+                      <p className="text-xs text-slate-300 mb-3">на година (с ДДС)</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
-                        <li>✓ 25 SMS месечно</li>
+                        <li>✓ 350 точки/година</li>
                         <li>✓ До 20 снимки</li>
-                        <li>✓ Подобрена видимост</li>
+                        <li>✓ До 1500 лв бюджет</li>
                         <li>✓ Премиум значка</li>
                       </ul>
                     </div>
@@ -608,17 +608,17 @@ export default function SignupPage() {
                   >
                     <div className="text-center">
                       <div className="inline-block bg-purple-500 text-white text-xs px-2 py-1 rounded mb-1">
-                        🎁 +15 SMS бонус
+                        👑 Професионален
                       </div>
                       <h3 className="text-lg font-bold text-white mb-1">PRO</h3>
-                      <p className="text-2xl font-bold text-white mb-2">50 лв</p>
-                      <p className="text-xs text-slate-300 mb-3">на месец</p>
+                      <p className="text-2xl font-bold text-white mb-2">489 лв</p>
+                      <p className="text-xs text-slate-300 mb-3">на година (с ДДС)</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
-                        <li>✓ 100 SMS месечно</li>
-                        <li>✓ До 50 снимки</li>
-                        <li>✓ Максимална видимост</li>
+                        <li>✓ 500 точки/година</li>
+                        <li>✓ До 100 снимки</li>
+                        <li>✓ Всички бюджети</li>
                         <li>✓ PRO значка</li>
-                        <li>✓ Приоритетна поддръжка</li>
+                        <li>✓ Система за наддаване</li>
                       </ul>
                     </div>
                   </div>
@@ -626,7 +626,7 @@ export default function SignupPage() {
                 {referralCode && referralValid && (formData.subscriptionTier === 'normal' || formData.subscriptionTier === 'pro') && (
                   <div className="mt-4 p-3 bg-green-500/20 border border-green-400/30 rounded-lg">
                     <p className="text-sm text-green-300 text-center">
-                      🎉 Вие и {referrerName} ще получите по 15 безплатни SMS при регистрация!
+                      🎉 Вие и {referrerName} ще получите бонус точки при регистрация!
                     </p>
                   </div>
                 )}

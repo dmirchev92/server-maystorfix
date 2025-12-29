@@ -154,19 +154,19 @@ const ConsentScreen: React.FC = () => {
   };
 
   const openPrivacyPolicy = () => {
-    Linking.openURL('https://maystorfix.com/privacy-policy');
+    Linking.openURL('https://snapfix.bg/privacy-policy');
   };
 
   const openTerms = () => {
-    Linking.openURL('https://maystorfix.com/terms');
+    Linking.openURL('https://snapfix.bg/terms');
   };
 
   const openDataRights = () => {
     Alert.alert(
       'Вашите права по GDPR',
-      '✓ Достъп до данните си\n✓ Коригиране на неточни данни\n✓ Изтриване ("право да бъдеш забравен")\n✓ Преносимост на данните\n✓ Оттегляне на съгласие\n\nЗа упражняване на правата си:\ndpo@maystorfix.com',
+      '✓ Достъп до данните си\n✓ Коригиране на неточни данни\n✓ Изтриване ("право да бъдеш забравен")\n✓ Преносимост на данните\n✓ Оттегляне на съгласие\n\nЗа упражняване на правата си:\ndpo@snapfix.bg',
       [
-        { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:dpo@maystorfix.com') },
+        { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:dpo@snapfix.bg') },
         { text: 'OK' }
       ]
     );
@@ -254,7 +254,7 @@ const ConsentScreen: React.FC = () => {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          За въпроси относно поверителността: dpo@maystorfix.com
+          За въпроси относно поверителността: dpo@snapfix.bg
         </Text>
       </View>
     </ScrollView>

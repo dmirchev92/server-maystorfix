@@ -28,6 +28,7 @@ export interface Conversation {
   providerName?: string;
   providerBusinessName?: string;
   providerServiceCategory?: string;
+  providerProfileImageUrl?: string;
   status: 'active' | 'archived';
   lastMessageAt: string;  // Chat API V2 uses lastMessageAt
   createdAt: string;

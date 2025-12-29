@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Case } from '@/types/marketplace'
 import { BUDGET_RANGES } from '@/constants/budgetRanges'
+import { getCategoryLabel } from '@/constants/serviceCategories'
 
 interface ReviewResponseModalProps {
   isOpen: boolean
@@ -68,7 +69,7 @@ export function ReviewResponseModal({ isOpen, caseData, onClose, onRespond, poin
         {/* Case Details */}
         <div className="p-6 border-b border-slate-700">
           <h4 className="text-lg font-semibold text-white mb-2">
-            {caseData.service_type || caseData.category || 'Заявка за услуга'}
+            {getCategoryLabel(caseData.service_type || caseData.category) || 'Заявка за услуга'}
           </h4>
           <p className="text-slate-300 mb-4">{caseData.description}</p>
           

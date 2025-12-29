@@ -400,4 +400,163 @@ router.post(
   }
 );
 
+/**
+ * GET /api/v1/points/topup-options
+ * Get available points top-up options for user's tier
+ */
+router.get(
+  '/topup-options',
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
+        });
+      }
+
+      const topupOptions = await pointsService.getTopupOptions(userId);
+
+      res.json({
+        success: true,
+        data: topupOptions,
+        metadata: {
+          timestamp: new Date()
+        }
+      });
+    } catch (error: any) {
+      logger.error('Failed to get topup options', { error });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'TOPUP_OPTIONS_ERROR',
+          message: error.message || 'Failed to get topup options'
+        }
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/points/purchase
+ * Purchase additional points (manual payment flow)
+ */
+/**
+ * GET /api/v1/points/packages
+ * Get available points packages with discounts for user's tier
+ */
+router.get(
+  '/packages',
+  authenticateToken,
+  async (req: Request, res: Response) => {
+    try {
+      const userId = (req as any).user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
+        });
+      }
+
+      const options = await pointsService.getTopupOptions(userId);
+
+      res.json({
+        success: true,
+        data: options,
+        metadata: {
+          timestamp: new Date()
+        }
+      });
+    } catch (error: any) {
+      logger.error('Failed to get points packages', { error });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'PACKAGES_ERROR',
+          message: error.message || 'Failed to get points packages'
+        }
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/v1/points/purchase
+ * Purchase a points package (temporary - no actual payment)
+ */
+router.post(
+  '/purchase',
+  authenticateToken,
+  [
+    body('points')
+      .isInt({ min: 1 })
+      .withMessage('Points must be a positive integer'),
+    body('payment_reference')
+      .optional()
+      .isString()
+      .withMessage('Payment reference must be a string')
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input data',
+            details: errors.array()
+          }
+        });
+      }
+
+      const userId = (req as any).user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
+        });
+      }
+
+      const { points, payment_reference } = req.body;
+
+      const result = await pointsService.purchasePoints(userId, points, payment_reference);
+
+      logger.info('Points purchased', { userId, points, result });
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Успешно добавени ${result.pointsAdded} точки!`,
+        metadata: {
+          timestamp: new Date()
+        }
+      });
+    } catch (error: any) {
+      logger.error('Failed to purchase points', { error });
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: {
+          code: error.code || 'PURCHASE_ERROR',
+          message: error.message || 'Failed to purchase points'
+        }
+      });
+    }
+  }
+);
+
 export default router;

@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.maystorfix.com'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.snapfix.bg'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
@@ -71,7 +71,7 @@ function VerifyEmailContent() {
             {message}
           </p>
           <p className="mt-2 text-slate-400">
-            Вече можете да използвате всички функции на MaystorFix.
+            Вече можете да използвате всички функции на SnapFix.
           </p>
           
           <div className="mt-8 space-y-4">
@@ -142,8 +142,8 @@ function VerifyEmailContent() {
           </Link>
           <p className="text-sm text-slate-400">
             Ако проблемът продължава, свържете се с нас на{' '}
-            <a href="mailto:support@maystorfix.com" className="text-indigo-400 hover:text-indigo-300">
-              support@maystorfix.com
+            <a href="mailto:support@snapfix.bg" className="text-indigo-400 hover:text-indigo-300">
+              support@snapfix.bg
             </a>
           </p>
         </div>

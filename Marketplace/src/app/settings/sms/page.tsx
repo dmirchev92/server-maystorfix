@@ -128,7 +128,7 @@ export default function SMSSettingsPage() {
       setLoading(true)
       
       // Load SMS configuration from backend
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/sms/config`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/sms/config`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           'Content-Type': 'application/json'
@@ -194,7 +194,7 @@ export default function SMSSettingsPage() {
     try {
       setSaving(true)
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/sms/config`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/sms/config`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -289,7 +289,7 @@ export default function SMSSettingsPage() {
         return
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'
       const fullUrl = `${apiUrl}/chat/tokens/regenerate`
       console.log('🔗 Making request to:', fullUrl)
       
@@ -353,7 +353,7 @@ export default function SMSSettingsPage() {
     try {
       setSaving(true)
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/sms/history/clear`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/sms/history/clear`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,

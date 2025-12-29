@@ -103,13 +103,13 @@ export default function TierComparisonTable({
               
               <div className="mb-4">
                 {tier === 'free' && (
-                  <p className="text-3xl font-bold text-green-600">0 лв<span className="text-sm text-gray-500">/месец</span></p>
+                  <p className="text-3xl font-bold text-green-600">0 лв<span className="text-sm text-gray-500"> пробен</span></p>
                 )}
                 {tier === 'normal' && (
-                  <p className="text-3xl font-bold text-blue-600">250 лв<span className="text-sm text-gray-500">/месец</span></p>
+                  <p className="text-3xl font-bold text-blue-600">349 лв<span className="text-sm text-gray-500">/година</span></p>
                 )}
                 {tier === 'pro' && (
-                  <p className="text-3xl font-bold text-purple-600">350 лв<span className="text-sm text-gray-500">/месец</span></p>
+                  <p className="text-3xl font-bold text-purple-600">489 лв<span className="text-sm text-gray-500">/година</span></p>
                 )}
               </div>
 
@@ -164,7 +164,7 @@ export default function TierComparisonTable({
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-gray-800">Безплатен</h3>
                   <p className="text-2xl font-bold text-green-600">
-                    0 лв<span className="text-sm text-gray-500">/месец</span>
+                    0 лв<span className="text-sm text-gray-500"> пробен</span>
                   </p>
                   {showActions && onSelectTier && (
                     <button
@@ -193,7 +193,7 @@ export default function TierComparisonTable({
                 <div className="space-y-2 mt-2">
                   <h3 className="text-xl font-bold text-gray-800">Нормален</h3>
                   <p className="text-2xl font-bold text-blue-600">
-                    250 лв<span className="text-sm text-gray-500">/месец</span>
+                    349 лв<span className="text-sm text-gray-500">/година (с ДДС)</span>
                   </p>
                   {showActions && onSelectTier && (
                     <button
@@ -219,7 +219,7 @@ export default function TierComparisonTable({
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-gray-800">Професионален</h3>
                   <p className="text-2xl font-bold text-purple-600">
-                    350 лв<span className="text-sm text-gray-500">/месец</span>
+                    489 лв<span className="text-sm text-gray-500">/година (с ДДС)</span>
                   </p>
                   {showActions && onSelectTier && (
                     <button
@@ -257,11 +257,11 @@ export default function TierComparisonTable({
       <div className="mt-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
         <h4 className="font-semibold text-blue-900 mb-2">💡 Важна информация</h4>
         <ul className="space-y-1 text-sm text-blue-800">
-          <li>• Всички цени са в BGN (български лева)</li>
-          <li>• Можете да надградите или понижите нивото по всяко време</li>
-          <li>• Безплатният план е перфектен за начинаещи</li>
+          <li>• Всички цени са годишни и включват ДДС</li>
+          <li>• Нормален: 350 точки/година, Pro: 500 точки/година</li>
+          <li>• Можете да закупите допълнителни точки по всяко време</li>
           <li>• Професионалният план включва система за наддаване за топ позиции</li>
-          <li>• Няма скрити такси или допълнителни разходи</li>
+          <li>• SMS цена: Normal 2 точки, Pro 1 точка</li>
         </ul>
       </div>
     </div>

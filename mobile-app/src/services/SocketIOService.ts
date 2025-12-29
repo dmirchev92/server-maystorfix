@@ -46,7 +46,7 @@ interface Conversation {
 class SocketIOService {
   private static instance: SocketIOService;
   private socket: Socket | null = null;
-  private backendUrl = 'https://maystorfix.com';
+  private backendUrl = 'https://snapfix.bg';
   private messageCallbacks: ((message: Message) => void)[] = [];
   private conversationCallbacks: ((conversation: Conversation) => void)[] = [];
   private typingCallbacks: ((data: { userId: string; isTyping: boolean }) => void)[] = [];

@@ -15,7 +15,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Общи положения</h2>
               <p className="text-gray-700 mb-4">
-                Настоящите Общи условия уреждат отношенията между MaystorFix (наричана по-долу "Платформата") 
+                Настоящите Общи условия уреждат отношенията между SnapFix (наричана по-долу "Платформата") 
                 и потребителите на платформата (клиенти и майстори).
               </p>
               <p className="text-gray-700">
@@ -83,7 +83,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Ограничаване на отговорността</h2>
               <p className="text-gray-700 mb-4">
-                MaystorFix е ПОСРЕДНИЧЕСКА платформа. Ние:
+                SnapFix е ПОСРЕДНИЧЕСКА платформа. Ние:
               </p>
               <ul className="list-disc pl-6 text-gray-700">
                 <li>НЕ сме страна в договорите между клиенти и майстори</li>
@@ -104,7 +104,7 @@ export default function TermsPage() {
                 <li><strong>Оттегляне на съгласие</strong> - по всяко време</li>
               </ul>
               <p className="text-gray-700">
-                За упражняване на правата си: <a href="mailto:dpo@maystorfix.com" className="text-blue-600 hover:underline">dpo@maystorfix.com</a>
+                За упражняване на правата си: <a href="mailto:dpo@snapfix.bg" className="text-blue-600 hover:underline">dpo@snapfix.bg</a>
               </p>
             </section>
 
@@ -129,7 +129,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">10. Контакт</h2>
               <p className="text-gray-700">
-                За въпроси относно тези Условия: <a href="mailto:legal@maystorfix.com" className="text-blue-600 hover:underline">legal@maystorfix.com</a>
+                За въпроси относно тези Условия: <a href="mailto:legal@snapfix.bg" className="text-blue-600 hover:underline">legal@snapfix.bg</a>
               </p>
             </section>
 
@@ -138,7 +138,7 @@ export default function TermsPage() {
                 Пълната версия на Общите условия е достъпна при поискване.
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                © 2025 MaystorFix. Всички права запазени.
+                © 2025 SnapFix. Всички права запазени.
               </p>
             </div>
           </div>

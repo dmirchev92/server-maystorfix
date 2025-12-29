@@ -15,6 +15,8 @@ export type RootStackParamList = {
     caseId: string;
     caseDescription?: string;
   };
+  BuyPoints: undefined;
+  Pricing: undefined;
 };
 
 export type CustomerTabParamList = {
@@ -23,6 +25,10 @@ export type CustomerTabParamList = {
   MyCases: undefined;
   Chat: undefined;
   Settings: undefined;
+  EditProfile: undefined;
+  ChangePassword: undefined;
+  NotificationSettings: undefined;
+  Consent: undefined;
 };
 
 export type MainTabParamList = {
@@ -31,6 +37,7 @@ export type MainTabParamList = {
   Cases: undefined;
   MyBids: undefined;
   Points: undefined;
+  VipVisibility: undefined;
   IncomeDashboard: undefined;
   Notifications: undefined;
   Chat: undefined;

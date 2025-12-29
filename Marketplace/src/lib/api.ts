@@ -12,15 +12,15 @@ const getApiUrl = (): string => {
   
   // Server-side rendering - use production URL
   if (typeof window === 'undefined') {
-    return 'https://maystorfix.com/api/v1'
+    return 'https://snapfix.bg/api/v1'
   }
   
   // Client-side - always use HTTPS for production domain
   const hostname = window.location.hostname
   
   // Production domain - always HTTPS
-  if (hostname === 'maystorfix.com' || hostname === '46.224.11.139') {
-    return 'https://maystorfix.com/api/v1'
+  if (hostname === 'snapfix.bg' || hostname === '46.224.11.139') {
+    return 'https://snapfix.bg/api/v1'
   }
   
   // Local development only - HTTP
@@ -29,7 +29,7 @@ const getApiUrl = (): string => {
   }
   
   // Fallback to safe default
-  return 'https://maystorfix.com/api/v1'
+  return 'https://snapfix.bg/api/v1'
 }
 
 const API_BASE_URL = getApiUrl()
@@ -934,6 +934,66 @@ class ApiClient {
   async deleteAccount(password: string) {
     console.log('🗑️ API Client - Deleting account')
     return this.client.delete('/auth/delete-account', { data: { password } })
+  }
+
+  // ============ VIP Visibility API ============
+
+  async getVipConfig() {
+    console.log('⭐ API Client - Getting VIP config')
+    return this.client.get('/vip/config')
+  }
+
+  async getVipOverview() {
+    console.log('⭐ API Client - Getting VIP overview')
+    return this.client.get('/vip/overview')
+  }
+
+  async getVipAuctions(filters?: { vipType?: string; categoryId?: string }) {
+    console.log('⭐ API Client - Getting VIP auctions:', filters)
+    const params: any = {}
+    if (filters?.vipType) params.vipType = filters.vipType
+    if (filters?.categoryId) params.categoryId = filters.categoryId
+    return this.client.get('/vip/auctions', { params })
+  }
+
+  async placeVipBid(vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP', categoryId: string, pointsIncrement: number) {
+    console.log('⭐ API Client - Placing VIP bid:', { vipType, categoryId, pointsIncrement })
+    return this.client.post('/vip/bid', { vipType, categoryId, pointsIncrement })
+  }
+
+  async buyoutVipSlot(vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP', categoryId: string) {
+    console.log('⭐ API Client - Buying out VIP slot:', { vipType, categoryId })
+    return this.client.post('/vip/buyout', { vipType, categoryId })
+  }
+
+  async cancelVipBid(bidId: string) {
+    console.log('⭐ API Client - Cancelling VIP bid:', bidId)
+    return this.client.delete(`/vip/bid/${bidId}`)
+  }
+
+  async getVipLeaderboard(vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP', categoryId: string, city?: string) {
+    console.log('⭐ API Client - Getting VIP leaderboard:', { vipType, categoryId, city })
+    const params: any = { vipType, categoryId }
+    if (city) params.city = city
+    return this.client.get('/vip/leaderboard', { params })
+  }
+
+  async getVipHomepageProviders(categoryId?: string) {
+    console.log('⭐ API Client - Getting VIP homepage providers:', { categoryId })
+    const params = categoryId ? { categoryId } : {}
+    return this.client.get('/marketplace/providers/vip-homepage', { params })
+  }
+
+  // ============ Points Packages API ============
+
+  async getPointsPackages() {
+    console.log('💰 API Client - Getting points packages')
+    return this.client.get('/points/packages')
+  }
+
+  async purchasePoints(points: number, paymentReference?: string) {
+    console.log('💰 API Client - Purchasing points:', { points, paymentReference })
+    return this.client.post('/points/purchase', { points, payment_reference: paymentReference })
   }
 }
 

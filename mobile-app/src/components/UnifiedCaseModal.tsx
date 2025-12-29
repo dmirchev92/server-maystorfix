@@ -85,7 +85,7 @@ export default function UnifiedCaseModal({
       const token = await AsyncStorage.getItem('auth_token');
 
       // Get current user info
-      const userResponse = await fetch('https://maystorfix.com/api/v1/users/me', {
+      const userResponse = await fetch('https://snapfix.bg/api/v1/users/me', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const userData: any = await userResponse.json();
@@ -111,7 +111,7 @@ export default function UnifiedCaseModal({
 
       console.log('📤 Creating case:', payload);
 
-      const response = await fetch('https://maystorfix.com/api/v1/marketplace/cases', {
+      const response = await fetch('https://snapfix.bg/api/v1/marketplace/cases', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

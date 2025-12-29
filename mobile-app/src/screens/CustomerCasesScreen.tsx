@@ -13,6 +13,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import { getCategoryLabel } from '../constants/serviceCategories';
 import CategoryIcon from '../components/CategoryIcon';
+import ReviewModal from '../components/ReviewModal';
 
 interface Case {
   id: string;
@@ -27,6 +28,7 @@ interface Case {
   phone: string;
   preferred_date: string;
   preferred_time: string;
+  provider_id?: string;
   provider_name?: string;
   bidding_enabled?: boolean;
   current_bidders?: number;
@@ -39,7 +41,11 @@ interface Case {
   customer_budget?: string;
   sp_counter_budget?: string;
   counter_message?: string;
+  // Review fields
+  has_review?: boolean;
 }
+
+type StatusFilter = 'active' | 'completed';
 
 export default function CustomerCasesScreen() {
   const navigation = useNavigation<any>();
@@ -48,6 +54,15 @@ export default function CustomerCasesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
+  
+  // Review modal state
+  const [reviewModal, setReviewModal] = useState<{
+    visible: boolean;
+    caseId: string;
+    providerId: string;
+    providerName: string;
+  }>({ visible: false, caseId: '', providerId: '', providerName: '' });
 
   useEffect(() => {
     loadUser();
@@ -155,6 +170,7 @@ export default function CustomerCasesScreen() {
     try {
       const response = await ApiService.getInstance().getCasesWithFilters({
         customerId: user.id,
+        limit: 100, // Fetch more cases to include completed ones
       });
       if (response.success && response.data) {
         setCases((response.data as any).cases || []);
@@ -213,33 +229,71 @@ export default function CustomerCasesScreen() {
     );
   }
 
+  // Filter cases based on status filter
+  const filteredCases = cases.filter(c => {
+    if (statusFilter === 'active') {
+      return c.status === 'pending' || c.status === 'accepted' || c.status === 'wip';
+    } else {
+      return c.status === 'completed';
+    }
+  });
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Моите заявки</Text>
         <Text style={styles.subtitle}>Преглед на вашите заявки и оферти</Text>
       </View>
+
+      {/* Status Filter Tabs */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={[styles.filterTab, statusFilter === 'active' && styles.filterTabActive]}
+          onPress={() => setStatusFilter('active')}
+        >
+          <Text style={[styles.filterTabText, statusFilter === 'active' && styles.filterTabTextActive]}>
+            📋 Активни ({cases.filter(c => c.status !== 'completed').length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterTab, statusFilter === 'completed' && styles.filterTabActive]}
+          onPress={() => setStatusFilter('completed')}
+        >
+          <Text style={[styles.filterTabText, statusFilter === 'completed' && styles.filterTabTextActive]}>
+            ✅ Завършени ({cases.filter(c => c.status === 'completed').length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />
         }
         contentContainerStyle={styles.list}
       >
-        {cases.length === 0 ? (
+        {filteredCases.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>Все още нямате заявки</Text>
-            <Text style={styles.emptySubtext}>Създайте първата си заявка и получете оферти от специалисти</Text>
-            <TouchableOpacity 
-              style={styles.createButton}
-              onPress={() => navigation.navigate('CreateCase')}
-            >
-              <Text style={styles.createButtonText}>➕ Създай нова заявка</Text>
-            </TouchableOpacity>
+            <Text style={styles.emptyIcon}>{statusFilter === 'active' ? '📭' : '✅'}</Text>
+            <Text style={styles.emptyText}>
+              {statusFilter === 'active' ? 'Нямате активни заявки' : 'Нямате завършени заявки'}
+            </Text>
+            <Text style={styles.emptySubtext}>
+              {statusFilter === 'active' 
+                ? 'Създайте първата си заявка и получете оферти от специалисти'
+                : 'Когато завършите заявка, тя ще се появи тук'}
+            </Text>
+            {statusFilter === 'active' && (
+              <TouchableOpacity 
+                style={styles.createButton}
+                onPress={() => navigation.navigate('CreateCase')}
+              >
+                <Text style={styles.createButtonText}>➕ Създай нова заявка</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <>
-            {cases.map((item) => (
+            {filteredCases.map((item) => (
               <View key={item.id} style={styles.card}>
                 {/* Card Header */}
                 <View style={styles.cardHeader}>
@@ -371,19 +425,10 @@ export default function CustomerCasesScreen() {
                       style={styles.viewBidsButton}
                       onPress={() => {
                         // Navigate to root stack's CaseBids screen
-                        const parent = navigation.getParent();
-                        if (parent) {
-                          parent.navigate('CaseBids', {
-                            caseId: item.id,
-                            caseDescription: item.description,
-                          });
-                        } else {
-                          // Fallback: try direct navigation
-                          navigation.navigate('CaseBids', {
-                            caseId: item.id,
-                            caseDescription: item.description,
-                          });
-                        }
+                        navigation.navigate('CaseBids' as never, {
+                          caseId: item.id,
+                          caseDescription: item.description,
+                        } as never);
                       }}
                     >
                       <Text style={styles.viewBidsButtonText}>
@@ -398,22 +443,40 @@ export default function CustomerCasesScreen() {
                       style={styles.detailsButton}
                       onPress={() => {
                         // Navigate to root stack's CaseBids screen
-                        const parent = navigation.getParent();
-                        if (parent) {
-                          parent.navigate('CaseBids', {
-                            caseId: item.id,
-                            caseDescription: item.description,
-                          });
-                        } else {
-                          navigation.navigate('CaseBids', {
-                            caseId: item.id,
-                            caseDescription: item.description,
-                          });
-                        }
+                        navigation.navigate('CaseBids' as never, {
+                          caseId: item.id,
+                          caseDescription: item.description,
+                        } as never);
                       }}
                     >
                       <Text style={styles.detailsButtonText}>👁️ Детайли</Text>
                     </TouchableOpacity>
+                  )}
+
+                  {/* Review Button - Show for completed cases that haven't been reviewed */}
+                  {item.status === 'completed' && !item.has_review && (item.provider_id || item.assigned_sp_id) && (
+                    <TouchableOpacity
+                      style={styles.reviewButton}
+                      onPress={() => {
+                        const providerId = item.provider_id || item.assigned_sp_id || '';
+                        const providerName = item.provider_name || 'Специалист';
+                        setReviewModal({
+                          visible: true,
+                          caseId: item.id,
+                          providerId,
+                          providerName,
+                        });
+                      }}
+                    >
+                      <Text style={styles.reviewButtonText}>⭐ Оценете</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {/* Already Reviewed Badge */}
+                  {item.status === 'completed' && item.has_review && (
+                    <View style={styles.reviewedBadge}>
+                      <Text style={styles.reviewedBadgeText}>✅ Оценено</Text>
+                    </View>
                   )}
                 </View>
               </View>
@@ -449,6 +512,18 @@ export default function CustomerCasesScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Review Modal */}
+      <ReviewModal
+        visible={reviewModal.visible}
+        onClose={() => setReviewModal({ visible: false, caseId: '', providerId: '', providerName: '' })}
+        caseId={reviewModal.caseId}
+        providerId={reviewModal.providerId}
+        providerName={reviewModal.providerName}
+        onSubmitSuccess={() => {
+          fetchCases(); // Refresh cases to update has_review status
+        }}
+      />
     </View>
   );
 }
@@ -489,6 +564,34 @@ const styles = StyleSheet.create({
   list: {
     padding: 16,
     paddingBottom: 32,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(30, 41, 59, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+    alignItems: 'center',
+  },
+  filterTabActive: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  filterTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  filterTabTextActive: {
+    color: '#fff',
   },
   emptyState: {
     alignItems: 'center',
@@ -794,5 +897,33 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '600',
+  },
+  reviewButton: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  reviewButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  reviewedBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+  },
+  reviewedBadgeText: {
+    color: '#22c55e',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

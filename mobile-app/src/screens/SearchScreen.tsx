@@ -34,6 +34,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SearchScreen = () => {
   const navigation = useNavigation<any>();
   const [providers, setProviders] = useState<any[]>([]);
+  const [vipProviders, setVipProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState({
     category: '',
@@ -122,8 +123,13 @@ const SearchScreen = () => {
           : (response.data as any).data || [];
           
         setProviders(validProviders);
+        
+        // Get VIP providers from response
+        const vipData = (response as any).vipProviders || [];
+        setVipProviders(vipData);
       } else {
         setProviders([]);
+        setVipProviders([]);
       }
     } catch (error) {
       console.error('Error fetching providers:', error);
@@ -155,7 +161,7 @@ const SearchScreen = () => {
     setReviewsLoading(true);
     try {
       const response = await fetch(
-        `https://maystorfix.com/api/v1/reviews/provider/${provider.id}`
+        `https://snapfix.bg/api/v1/reviews/provider/${provider.id}`
       );
       const data = await response.json();
       if (data.success && data.data) {
@@ -201,6 +207,59 @@ const SearchScreen = () => {
       stars.push('☆');
     }
     return stars.join('');
+  };
+
+  // Render VIP provider card (with gold badge)
+  const renderVipProvider = (item: any, index: number) => {
+    const displayName = item.businessName || item.business_name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Specialist';
+    const category = item.serviceCategory || item.service_category;
+    const rating = item.rating || 0;
+    const reviewCount = item.totalReviews || item.total_reviews || 0;
+
+    return (
+      <View key={item.id || index} style={[styles.card, styles.vipCard]}>
+        {/* VIP Badge */}
+        <View style={styles.vipBadge}>
+          <Text style={styles.vipBadgeText}>👑 VIP • Платена видимост</Text>
+        </View>
+        
+        <View style={styles.cardHeader}>
+          {item.profileImageUrl ? (
+            <Image source={{ uri: item.profileImageUrl }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatarPlaceholder, styles.vipAvatarPlaceholder]}>
+              <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+            </View>
+          )}
+          <View style={styles.headerInfo}>
+            <Text style={styles.providerName} numberOfLines={1}>{displayName}</Text>
+            <Text style={styles.providerCategory}>{getCategoryLabel(category)}</Text>
+          </View>
+          <View style={[styles.ratingBadge, styles.vipRatingBadge]}>
+            <Text style={styles.star}>⭐</Text>
+            <Text style={styles.ratingText}>{Number(rating).toFixed(1)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.statsRow}>
+          <Text style={styles.statText} numberOfLines={1}>📍 {item.city || 'София'}{item.neighborhood ? `, ${item.neighborhood}` : ''}</Text>
+          <Text style={styles.statText}>⭐ {rating} ({reviewCount})</Text>
+        </View>
+
+        <Text style={styles.description} numberOfLines={2}>
+          {item.description || 'Професионални услуги с качество и гаранция.'}
+        </Text>
+
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={[styles.profileBtn, styles.vipProfileBtn]} onPress={() => handleViewProfile(item)}>
+            <Text style={styles.btnText}>Виж профил</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.chatBtn, styles.vipChatBtn]} onPress={() => handleChat(item)}>
+            <Text style={styles.btnText}>Чат</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   };
 
   const renderProvider = ({ item }: { item: any }) => {
@@ -321,7 +380,10 @@ const SearchScreen = () => {
 
         {/* Stats */}
         <View style={styles.statsBar}>
-           <Text style={styles.statsText}>📊 Намерени {providers.length} услуги</Text>
+           <Text style={styles.statsText}>📊 Намерени {providers.length + vipProviders.length} услуги</Text>
+           {vipProviders.length > 0 && (
+             <Text style={styles.vipStatsText}>👑 {vipProviders.length} VIP</Text>
+           )}
         </View>
 
         {/* List */}
@@ -333,11 +395,29 @@ const SearchScreen = () => {
             renderItem={renderProvider}
             keyExtractor={(item) => item.id || Math.random().toString()}
             contentContainerStyle={styles.listContent}
+            ListHeaderComponent={
+              vipProviders.length > 0 ? (
+                <View style={styles.vipSection}>
+                  <View style={styles.vipSectionHeader}>
+                    <Text style={styles.vipSectionTitle}>👑 VIP Специалисти</Text>
+                    <Text style={styles.vipSectionSubtitle}>Платена видимост</Text>
+                  </View>
+                  {vipProviders.map((item, index) => renderVipProvider(item, index))}
+                  {providers.length > 0 && (
+                    <View style={styles.sectionDivider}>
+                      <Text style={styles.sectionDividerText}>Всички резултати</Text>
+                    </View>
+                  )}
+                </View>
+              ) : null
+            }
             ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Няма намерени услуги.</Text>
-                <Text style={styles.emptySubText}>Опитайте с други критерии.</Text>
-              </View>
+              vipProviders.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Няма намерени услуги.</Text>
+                  <Text style={styles.emptySubText}>Опитайте с други критерии.</Text>
+                </View>
+              ) : null
             }
           />
         )}
@@ -962,6 +1042,71 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // VIP Styles
+  vipStatsText: {
+    color: '#FFD700',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  vipSection: {
+    marginBottom: 8,
+  },
+  vipSectionHeader: {
+    marginBottom: 12,
+  },
+  vipSectionTitle: {
+    color: '#FFD700',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  vipSectionSubtitle: {
+    color: '#a5b4fc',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  sectionDivider: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    paddingTop: 16,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  sectionDividerText: {
+    color: '#a5b4fc',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  vipCard: {
+    borderColor: '#FFD700',
+    borderWidth: 2,
+    backgroundColor: 'rgba(255, 215, 0, 0.05)',
+  },
+  vipBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  vipBadgeText: {
+    color: '#FFD700',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  vipAvatarPlaceholder: {
+    backgroundColor: '#B8860B',
+  },
+  vipRatingBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  },
+  vipProfileBtn: {
+    backgroundColor: '#B8860B',
+  },
+  vipChatBtn: {
+    backgroundColor: '#DAA520',
   },
 });
 

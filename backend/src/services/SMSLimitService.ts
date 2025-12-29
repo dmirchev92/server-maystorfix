@@ -1,7 +1,9 @@
 /**
  * SMS Points Service
  * SMS is unlimited but costs points:
- * - All users: 1 point per SMS
+ * - FREE: 2 points per SMS (cannot send if no points)
+ * - NORMAL: 2 points per SMS
+ * - PRO: 1 point per SMS
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -11,10 +13,10 @@ import { SubscriptionService } from './SubscriptionService';
 import { SubscriptionTier } from '../types/subscription';
 import logger from '../utils/logger';
 
-// Points cost per SMS by tier - All tiers now pay 1 point per SMS
-const SMS_POINTS_COST = {
-  [SubscriptionTier.FREE]: 1,    // 1 point per SMS
-  [SubscriptionTier.NORMAL]: 1,  // 1 point per SMS
+// Default SMS points cost by tier (fallback if not in DB)
+const DEFAULT_SMS_POINTS_COST = {
+  [SubscriptionTier.FREE]: 2,    // 2 points per SMS
+  [SubscriptionTier.NORMAL]: 2,  // 2 points per SMS
   [SubscriptionTier.PRO]: 1      // 1 point per SMS
 };
 
@@ -31,10 +33,26 @@ export class SMSLimitService {
   private subscriptionService = new SubscriptionService();
 
   /**
-   * Get SMS points cost for a tier
+   * Get SMS points cost for a tier (from DB or fallback)
+   */
+  async getSMSPointsCostFromDB(tier: SubscriptionTier): Promise<number> {
+    try {
+      const query = `SELECT limits->>'sms_points_cost' as sms_cost FROM subscription_tiers WHERE id = $1`;
+      const rows = await this.database.query(query, [tier]);
+      if (rows.length > 0 && rows[0].sms_cost) {
+        return parseInt(rows[0].sms_cost);
+      }
+    } catch (error) {
+      logger.warn('Could not fetch SMS cost from DB, using default', { tier, error });
+    }
+    return DEFAULT_SMS_POINTS_COST[tier] || 2;
+  }
+
+  /**
+   * Get SMS points cost for a tier (sync fallback)
    */
   getSMSPointsCost(tier: SubscriptionTier): number {
-    return SMS_POINTS_COST[tier] || 0;
+    return DEFAULT_SMS_POINTS_COST[tier] || 2;
   }
 
   /**
@@ -45,7 +63,8 @@ export class SMSLimitService {
       // Get user's tier
       const tier = await this.subscriptionService.getUserTier(userId);
 
-      // All tiers can send SMS (costs 1 point per SMS)
+      // Get SMS cost from DB (tier-based: Normal=2, Pro=1)
+      const pointsCost = await this.getSMSPointsCostFromDB(tier);
 
       // Get user's points balance
       const pointsQuery = `SELECT points_balance FROM users WHERE id = $1`;
@@ -56,7 +75,6 @@ export class SMSLimitService {
       }
 
       const pointsBalance = pointsRows[0].points_balance || 0;
-      const pointsCost = SMS_POINTS_COST[tier];
 
       // Check if user has enough points
       const canSend = pointsBalance >= pointsCost;

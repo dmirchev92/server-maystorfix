@@ -33,7 +33,7 @@ interface ScheduleSettings {
 
 const USE_NEW_DASHBOARD_UI = true;
 
-// Service category translations
+// Service category translations (handles both 'locksmith' and 'cat_locksmith' formats)
 const SERVICE_CATEGORY_TRANSLATIONS: { [key: string]: string } = {
   'electrician': 'Електротехник',
   'plumber': 'Водопроводчик',
@@ -47,6 +47,25 @@ const SERVICE_CATEGORY_TRANSLATIONS: { [key: string]: string } = {
   'roofer': 'Покривни работи',
   'tiler': 'Плочкаджия',
   'welder': 'Заварчик',
+  'hvac': 'Отопление и климатизация',
+  'appliance': 'Ремонт на уреди',
+  'mover': 'Хамалски услуги',
+  // cat_ prefixed versions
+  'cat_electrician': 'Електротехник',
+  'cat_plumber': 'Водопроводчик',
+  'cat_handyman': 'Дребни ремонти',
+  'cat_carpenter': 'Дърводелец',
+  'cat_painter': 'Бояджия',
+  'cat_locksmith': 'Ключар',
+  'cat_cleaner': 'Почистване',
+  'cat_gardener': 'Градинар',
+  'cat_mechanic': 'Механик',
+  'cat_roofer': 'Покривни работи',
+  'cat_tiler': 'Плочкаджия',
+  'cat_welder': 'Заварчик',
+  'cat_hvac': 'Отопление и климатизация',
+  'cat_appliance': 'Ремонт на уреди',
+  'cat_mover': 'Хамалски услуги',
 };
 
 interface User {
@@ -331,20 +350,9 @@ function ModernDashboardScreen() {
       console.log('👤 Authentication status:', isAuthenticated);
       
       if (!isAuthenticated) {
-        console.log('⚠️ User not authenticated, using mock user');
-        const mockUser: User = {
-          id: '1',
-          email: 'ivan@test.com',
-          firstName: 'Иван',
-          lastName: 'Петров',
-          phoneNumber: '+359888123456',
-          role: 'tradesperson',
-          businessId: 'business-1',
-          isGdprCompliant: true,
-        };
-        setUser(mockUser);
-        console.log('👤 Mock user set:', mockUser.id);
-        console.log('👤 ========== loadUserData COMPLETE (MOCK) ==========');
+        console.log('⚠️ User not authenticated, triggering logout');
+        AuthBus.emit('logout');
+        console.log('👤 ========== loadUserData ABORTED (NOT AUTHENTICATED) ==========');
         return;
       }
 
@@ -750,7 +758,7 @@ function ModernDashboardScreen() {
         if (!hasPermissions) {
           Alert.alert(
             'Разрешения са необходими',
-            'За автоматични SMS при пропуснати обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > ServiceText Pro > Разрешения.',
+            'За автоматични SMS при пропуснати обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > SnapFix > Разрешения.',
             [{ text: 'OK' }]
           );
           setIsSmsEnabled(false);
@@ -1227,12 +1235,16 @@ function ModernDashboardScreen() {
               <Text style={styles.navIcon}>💎</Text>
               <Text style={styles.navLabel}>Точки</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('VipVisibility')}>
+              <Text style={styles.navIcon}>👑</Text>
+              <Text style={styles.navLabel}>VIP</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('ReferralDashboard')}>
               <Text style={styles.navIcon}>🎯</Text>
               <Text style={styles.navLabel}>Препоръки</Text>
             </TouchableOpacity>
-          </View>
-          <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('MapSearch')}>
               <Text style={styles.navIcon}>🗺️</Text>
               <Text style={styles.navLabel}>Карта</Text>
@@ -1241,6 +1253,8 @@ function ModernDashboardScreen() {
               <Text style={styles.navIcon}>📈</Text>
               <Text style={styles.navLabel}>Приходи</Text>
             </TouchableOpacity>
+          </View>
+          <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Statistics')}>
               <Text style={styles.navIcon}>📊</Text>
               <Text style={styles.navLabel}>Статистики</Text>

@@ -1604,10 +1604,12 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
          c.*,
          CONCAT(u.first_name, ' ', u.last_name) as customer_name,
          b.provider_id as winning_provider_id,
-         b.proposed_budget_range as winning_bid_price
+         b.proposed_budget_range as winning_bid_price,
+         CASE WHEN r.id IS NOT NULL THEN true ELSE false END as has_review
        FROM marketplace_service_cases c
        LEFT JOIN users u ON c.customer_id = u.id
        LEFT JOIN sp_case_bids b ON c.winning_bid_id = b.id
+       LEFT JOIN case_reviews r ON r.case_id = c.id
        ${whereClause}
        ${orderClause}
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,

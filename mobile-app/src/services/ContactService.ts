@@ -29,7 +29,7 @@ export class ContactService {
         PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
         {
           title: 'Contacts Permission',
-          message: 'ServiceText Pro needs permission to read contacts to avoid sending SMS to known contacts like family members.',
+          message: 'SnapFix needs permission to read contacts to avoid sending SMS to known contacts like family members.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Deny',
           buttonPositive: 'Allow',

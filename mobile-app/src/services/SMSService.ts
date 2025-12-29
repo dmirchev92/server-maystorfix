@@ -25,7 +25,7 @@ export class SMSService {
     message: 'Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]\n\n', // Template with [chat_link] placeholder
     sentCount: 0,
     sentCallIds: [],
-    filterKnownContacts: true, // Default to filtering known contacts
+    filterKnownContacts: false, // Default to false - will be enabled only if permission is granted
     userChatLinks: {}, // Per-user chat links
   };
 
@@ -163,7 +163,7 @@ export class SMSService {
         return null;
       }
 
-      const response = await fetch('https://maystorfix.com/api/v1/sms/config', {
+      const response = await fetch('https://snapfix.bg/api/v1/sms/config', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -207,7 +207,7 @@ export class SMSService {
         return;
       }
 
-      const response = await fetch('https://maystorfix.com/api/v1/sms/config', {
+      const response = await fetch('https://snapfix.bg/api/v1/sms/config', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -313,7 +313,7 @@ export class SMSService {
       let publicId: string | null = null;
       try {
         // Ask backend to ensure/give publicId for the actual user id
-        const pubResp = await fetch(`https://maystorfix.com/api/v1/users/${actualUserId}/public-id`, { method: 'GET' });
+        const pubResp = await fetch(`https://snapfix.bg/api/v1/users/${actualUserId}/public-id`, { method: 'GET' });
         if (pubResp.ok) {
           const pubData: any = await pubResp.json();
           publicId = pubData?.data?.publicId || null;
@@ -321,8 +321,8 @@ export class SMSService {
       } catch {}
 
       const chatUrl = publicId
-        ? `https://maystorfix.com/u/${publicId}/c/${chatToken}`
-        : `https://maystorfix.com/c/${chatToken}`;
+        ? `https://snapfix.bg/u/${publicId}/c/${chatToken}`
+        : `https://snapfix.bg/c/${chatToken}`;
 
       // Update config with new link for this specific user (keep using device ID for local storage)
       this.config.userChatLinks[userId] = {
@@ -348,7 +348,7 @@ export class SMSService {
         return null;
       }
 
-      const response = await fetch('https://maystorfix.com/api/v1/chat/tokens/current', {
+      const response = await fetch('https://snapfix.bg/api/v1/chat/tokens/current', {
         method: 'GET',
         headers: { 
           'Content-Type': 'application/json',
@@ -405,7 +405,7 @@ export class SMSService {
       
       // Try authenticated endpoint first
       if (authToken) {
-        const response = await fetch('https://maystorfix.com/api/v1/chat/tokens/regenerate', {
+        const response = await fetch('https://snapfix.bg/api/v1/chat/tokens/regenerate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -435,7 +435,7 @@ export class SMSService {
       // Fallback to device endpoint for device users
       if (userId.startsWith('device_')) {
         console.log('🔄 Using device endpoint for token regeneration');
-        const response = await fetch('https://maystorfix.com/api/v1/chat/tokens/regenerate-device', {
+        const response = await fetch('https://snapfix.bg/api/v1/chat/tokens/regenerate-device', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -483,6 +483,7 @@ export class SMSService {
       
       // Get current user ID
       let userId = await this.getCurrentUserIdAsync();
+      
       if (!userId) {
         userId = await this.getOrCreateDeviceUserId();
       }
@@ -576,7 +577,7 @@ export class SMSService {
         message: 'Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]\n\n',
         sentCount: 0,
         sentCallIds: [],
-        filterKnownContacts: true,
+        filterKnownContacts: false, // Default to false - will be enabled only if permission is granted
         userChatLinks: {},
       };
       
@@ -593,11 +594,11 @@ export class SMSService {
   }
 
   /**
-   * DEPRECATED: SMS permissions no longer needed - using Twilio backend
+   * DEPRECATED: SMS permissions no longer needed - using Mobica backend
    * Kept for backward compatibility only
    */
   public async requestPermissions(): Promise<boolean> {
-    console.log('⚠️ [DEPRECATED] SMS permissions no longer needed - using Twilio backend');
+    console.log('⚠️ [DEPRECATED] SMS permissions no longer needed - using Mobica backend');
     return true; // Always return true since we don't need permissions anymore
   }
 
@@ -695,11 +696,11 @@ export class SMSService {
   }
 
   /**
-   * DEPRECATED: SMS permissions no longer needed - using Twilio backend
+   * DEPRECATED: SMS permissions no longer needed - using Mobica backend
    * Kept for backward compatibility only
    */
   public async checkPermissions(): Promise<SMSPermissions | null> {
-    console.log('⚠️ [DEPRECATED] SMS permissions no longer needed - using Twilio backend');
+    console.log('⚠️ [DEPRECATED] SMS permissions no longer needed - using Mobica backend');
     // Return mock permissions as granted for backward compatibility
     return {
       SEND_SMS: true,
@@ -764,7 +765,7 @@ export class SMSService {
 
       // Get user's business name (optional)
       const userDataStr = await AsyncStorage.getItem('user_data');
-      let businessName = 'ServiceText Pro';
+      let businessName = 'SnapFix';
       if (userDataStr) {
         try {
           const userData = JSON.parse(userDataStr);
@@ -777,7 +778,7 @@ export class SMSService {
       console.log(`📱 [TWILIO] Sending SMS via backend API...`);
       
       // Call backend Twilio API
-      const response = await fetch('https://maystorfix.com/api/v1/sms/send-missed-call', {
+      const response = await fetch('https://snapfix.bg/api/v1/sms/send-missed-call', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -853,7 +854,7 @@ export class SMSService {
   private async generateChatLinkMessage(userId: string): Promise<string> {
     // Generate a short, secure token for SMS efficiency
     const chatToken = this.generateShortSecureToken();
-    const chatUrl = `https://maystorfix.com/c/${chatToken}`;
+    const chatUrl = `https://snapfix.bg/c/${chatToken}`;
     
     // Store the token mapping (this will be sent to backend)
     await this.storeChatTokenMapping(chatToken, userId);
@@ -905,7 +906,7 @@ ${chatUrl}`;
       console.log('🔐 Storing chat token:', { token: token.substring(0, 4) + '...', userId, expiresAt: mappingData.expiresAt });
       
       // Send to backend API to store securely
-      const response = await fetch('https://maystorfix.com/api/v1/chat/tokens', {
+      const response = await fetch('https://snapfix.bg/api/v1/chat/tokens', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -937,7 +938,7 @@ ${chatUrl}`;
    */
   private async getUserPublicId(userId: string): Promise<string> {
     try {
-      const response = await fetch(`https://maystorfix.com/api/v1/users/${userId}/public-id`, {
+      const response = await fetch(`https://snapfix.bg/api/v1/users/${userId}/public-id`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -1008,7 +1009,7 @@ ${chatUrl}`;
       }
 
       console.log('📡 getCurrentUserIdAsync - Calling /auth/me...');
-      const response = await fetch('https://maystorfix.com/api/v1/auth/me', {
+      const response = await fetch('https://snapfix.bg/api/v1/auth/me', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -1070,7 +1071,7 @@ ${chatUrl}`;
       
       // Try authenticated endpoint first
       if (authToken) {
-        const response = await fetch('https://maystorfix.com/api/v1/chat/tokens/initialize', {
+        const response = await fetch('https://snapfix.bg/api/v1/chat/tokens/initialize', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1093,7 +1094,7 @@ ${chatUrl}`;
       // Fallback to device endpoint for device users
       if (userId.startsWith('device_')) {
         console.log('🔄 Using device endpoint for token initialization');
-        const response = await fetch('https://maystorfix.com/api/v1/chat/tokens/initialize-device', {
+        const response = await fetch('https://snapfix.bg/api/v1/chat/tokens/initialize-device', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -1137,7 +1138,7 @@ ${chatUrl}`;
       // Get the actual current user ID instead of using hardcoded value
       let actualUserId = userId;
       try {
-        const currentUserResponse = await fetch('https://maystorfix.com/api/v1/auth/me', {
+        const currentUserResponse = await fetch('https://snapfix.bg/api/v1/auth/me', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -1169,7 +1170,7 @@ ${chatUrl}`;
       } else {
         // Fallback to generated token
         chatToken = this.generateShortSecureToken();
-        chatUrl = `https://maystorfix.com/c/${chatToken}`;
+        chatUrl = `https://snapfix.bg/c/${chatToken}`;
       }
 
       const smsMessage = `Здравейте! Пропуснахте обаждане.
@@ -1177,7 +1178,7 @@ ${chatUrl}`;
 Започнете чат тук:
 ${chatUrl}
 
-ServiceTextPro 💬`;
+SnapFix 💬`;
 
       console.log('✅ REAL TOKEN GENERATED AND STORED!');
       console.log('📱 SMS Message that would be sent:');

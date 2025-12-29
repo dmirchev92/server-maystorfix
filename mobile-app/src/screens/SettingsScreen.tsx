@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,29 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../navigation/types';
 import { AuthBus } from '../utils/AuthBus';
 import ApiService from '../services/ApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Settings'>;
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
+  const [userRole, setUserRole] = useState<string>('provider');
+
+  useEffect(() => {
+    const loadUserRole = async () => {
+      try {
+        const role = await AsyncStorage.getItem('user_role');
+        if (role) {
+          setUserRole(role);
+        }
+      } catch (error) {
+        console.error('Error loading user role:', error);
+      }
+    };
+    loadUserRole();
+  }, []);
+
+  const isProvider = userRole === 'provider';
 
   const handleEditProfile = () => {
     navigation.navigate('EditProfile');
@@ -80,13 +98,15 @@ const SettingsScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💳 Абонамент</Text>
-          <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Subscription')}>
-            <Text style={styles.settingItemText}>Абонаментни планове</Text>
-            <Text style={styles.settingItemArrow}>›</Text>
-          </TouchableOpacity>
-        </View>
+        {isProvider && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>💳 Абонамент</Text>
+            <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Subscription')}>
+              <Text style={styles.settingItemText}>Абонаментни планове</Text>
+              <Text style={styles.settingItemArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🔔 Известия</Text>
@@ -102,20 +122,20 @@ const SettingsScreen: React.FC = () => {
             <Text style={styles.settingItemText}>Настройки за поверителност</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('https://maystorfix.com/privacy-policy')}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('https://snapfix.bg/privacy-policy')}>
             <Text style={styles.settingItemText}>Политика за поверителност</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('https://maystorfix.com/terms')}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('https://snapfix.bg/terms')}>
             <Text style={styles.settingItemText}>Общи условия</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={() => {
             Alert.alert(
               'Вашите права по GDPR',
-              '✓ Достъп до данните си\n✓ Коригиране на неточни данни\n✓ Изтриване на данни\n✓ Преносимост на данните\n✓ Оттегляне на съгласие\n\nКонтакт: dpo@maystorfix.com',
+              '✓ Достъп до данните си\n✓ Коригиране на неточни данни\n✓ Изтриване на данни\n✓ Преносимост на данните\n✓ Оттегляне на съгласие\n\nКонтакт: admin@snapfix.bg',
               [
-                { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:dpo@maystorfix.com') },
+                { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:admin@snapfix.bg') },
                 { text: 'OK' }
               ]
             );
@@ -129,10 +149,10 @@ const SettingsScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>ℹ️ Информация</Text>
           <TouchableOpacity style={styles.settingItem} onPress={() => {
             Alert.alert(
-              'MaystorFix',
-              'Версия: 1.0.0\n\nПлатформа за свързване на клиенти с майстори в България.\n\n📧 Контакт: info@maystorfix.com\n📞 Телефон: +359 888 123 456\n🌐 Уебсайт: maystorfix.com\n\n© 2025 MaystorFix. Всички права запазени.',
+              'SnapFix',
+              'Версия: 1.0.0\n\nПлатформа за свързване на клиенти с майстори в България.\n\n📧 Контакт: admin@snapfix.bg\n🌐 Уебсайт: snapfix.bg\n\n© 2025 SnapFix. Всички права запазени.',
               [
-                { text: 'Уебсайт', onPress: () => Linking.openURL('https://maystorfix.com') },
+                { text: 'Уебсайт', onPress: () => Linking.openURL('https://snapfix.bg') },
                 { text: 'Затвори' }
               ]
             );
@@ -140,7 +160,7 @@ const SettingsScreen: React.FC = () => {
             <Text style={styles.settingItemText}>За приложението</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('mailto:support@maystorfix.com')}>
+          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('mailto:support@snapfix.bg')}>
             <Text style={styles.settingItemText}>Свържи се с нас</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>

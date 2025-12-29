@@ -56,7 +56,7 @@ export default function GDPRPopup() {
         {/* Content */}
         <div className="p-6">
           <p className="text-gray-700 mb-4">
-            MaystorFix използва бисквитки и обработва лични данни за предоставяне на услугите. 
+            SnapFix използва бисквитки и обработва лични данни за предоставяне на услугите. 
             Вашите данни са защитени съгласно <strong>GDPR</strong> и българското законодателство.
           </p>
 
@@ -82,7 +82,7 @@ export default function GDPRPopup() {
                 <li>✓ Оттегляне на съгласие по всяко време</li>
               </ul>
               <p className="mt-3 text-gray-500">
-                DPO контакт: <a href="mailto:dpo@maystorfix.com" className="text-blue-600">dpo@maystorfix.com</a>
+                DPO контакт: <a href="mailto:dpo@snapfix.bg" className="text-blue-600">dpo@snapfix.bg</a>
               </p>
             </div>
           )}

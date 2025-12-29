@@ -472,8 +472,8 @@ class EmailService {
       <div class="footer">
         <p>© ${new Date().getFullYear()} MaystorFix. Всички права запазени.</p>
         <p>
-          <a href="https://maystorfix.com/privacy">Политика за поверителност</a> | 
-          <a href="https://maystorfix.com/terms">Условия за ползване</a>
+          <a href="https://snapfix.bg/privacy">Политика за поверителност</a> | 
+          <a href="https://snapfix.bg/terms">Условия за ползване</a>
         </p>
         <p style="margin-top: 10px;">
           Ако не сте заявили този имейл, моля игнорирайте го.
@@ -574,10 +574,10 @@ class EmailService {
       ${roleSpecificContent}
       
       <div style="text-align: center;">
-        <a href="https://maystorfix.com/dashboard" class="btn">🚀 Към вашия профил</a>
+        <a href="https://snapfix.bg/dashboard" class="btn">🚀 Към вашия профил</a>
       </div>
       
-      <p>Ако имате въпроси, не се колебайте да се свържете с нас на <a href="mailto:support@maystorfix.com">support@maystorfix.com</a></p>
+      <p>Ако имате въпроси, не се колебайте да се свържете с нас на <a href="mailto:support@snapfix.bg">support@snapfix.bg</a></p>
     `;
     return this.getBaseEmailTemplate(content);
   }
@@ -619,10 +619,10 @@ class EmailService {
       </div>
       
       <div style="text-align: center;">
-        <a href="https://maystorfix.com/subscription" class="btn">🔄 Поднови абонамента</a>
+        <a href="https://snapfix.bg/subscription" class="btn">🔄 Поднови абонамента</a>
       </div>
       
-      <p>Ако имате въпроси относно абонамента си, свържете се с нас на <a href="mailto:support@maystorfix.com">support@maystorfix.com</a></p>
+      <p>Ако имате въпроси относно абонамента си, свържете се с нас на <a href="mailto:support@snapfix.bg">support@snapfix.bg</a></p>
     `;
     return this.getBaseEmailTemplate(content);
   }
@@ -651,7 +651,7 @@ class EmailService {
       </div>
       
       <div style="text-align: center;">
-        <a href="https://maystorfix.com/subscription" class="btn">🔓 Поднови абонамента сега</a>
+        <a href="https://snapfix.bg/subscription" class="btn">🔓 Поднови абонамента сега</a>
       </div>
       
       <p style="color: #666; font-size: 14px;">

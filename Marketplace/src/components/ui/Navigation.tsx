@@ -48,6 +48,7 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
     ...(user?.role === 'tradesperson' || user?.role === 'service_provider' ? [
       { href: '/dashboard/cases', label: 'Заявки', icon: '📋' },
       { href: '/provider/dashboard', label: 'Табло', icon: '📊' },
+      { href: '/provider/vip', label: 'VIP', icon: '👑' },
       { href: '/referrals', label: 'Препоръки', icon: '🎯' },
     ] : []),
     // Customer items
@@ -67,7 +68,7 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
   ];
 
   return (
-    <nav className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900/90 text-slate-100 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 shadow-lg relative">
+    <nav className="bg-slate-950/80 supports-[backdrop-filter]:bg-slate-950/60 text-slate-100 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 shadow-lg relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -75,12 +76,12 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
             <div className="w-10 h-10 transform group-hover:scale-110 transition-transform duration-200">
               <img 
                 src="/icon2.png" 
-                alt="MaystorFix" 
+                alt="SnapFix" 
                 className="w-full h-full object-contain"
               />
             </div>
             <span className="text-xl font-bold text-white">
-              MaystorFix
+              SnapFix
             </span>
           </Link>
 
@@ -198,6 +199,14 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
               </div>
             ) : (
               <div className="flex items-center space-x-3">
+                <Link href="/pricing" className="hidden sm:block">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                  >
+                    💰 Цени
+                  </Button>
+                </Link>
                 <Link href="/auth/login">
                   <Button
                     variant="ghost"

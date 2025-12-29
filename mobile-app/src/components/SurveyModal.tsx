@@ -104,7 +104,7 @@ export default function SurveyModal({
       const token = await AsyncStorage.getItem('auth_token');
 
       // Get current user
-      const userResponse = await fetch('https://maystorfix.com/api/v1/users/me', {
+      const userResponse = await fetch('https://snapfix.bg/api/v1/users/me', {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const userData: any = await userResponse.json();
@@ -125,7 +125,7 @@ export default function SurveyModal({
 
       console.log('📤 Submitting review:', payload);
 
-      const response = await fetch('https://maystorfix.com/api/v1/reviews', {
+      const response = await fetch('https://snapfix.bg/api/v1/reviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -22,7 +22,7 @@ export default function ClaimSMSReward() {
     try {
       setClaiming(true)
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/claim-sms/${token}`
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/referrals/claim-sms/${token}`
       )
       
       const data = await response.json()

@@ -7,6 +7,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   TouchableOpacity,
+  BackHandler,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -53,7 +54,18 @@ const PointsScreen: React.FC = () => {
     useCallback(() => {
       fetchData();
       loadUserTier();
-    }, [])
+
+      // Handle hardware back button
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return true; // Prevent default behavior (app exit)
+        }
+        return false; // Let default behavior happen
+      });
+
+      return () => backHandler.remove();
+    }, [navigation])
   );
 
   const loadUserTier = async () => {
@@ -122,9 +134,61 @@ const PointsScreen: React.FC = () => {
     }
   };
 
+  // Category translations for VIP purchases
+  const categoryTranslations: { [key: string]: string } = {
+    'cat_electrician': 'Електротехник',
+    'cat_plumber': 'Водопроводчик',
+    'cat_hvac': 'Отопление и климатизация',
+    'cat_carpenter': 'Дърводелец',
+    'cat_painter': 'Бояджия',
+    'cat_locksmith': 'Ключар',
+    'cat_cleaner': 'Почистване',
+    'cat_gardener': 'Градинар',
+    'cat_handyman': 'Дребни ремонти',
+    'cat_renovation': 'Цялостни ремонти',
+    'cat_roofer': 'Ремонт на покриви',
+    'cat_mover': 'Хамалски услуги',
+    'cat_moving': 'Хамалски услуги',
+    'cat_tiler': 'Майстор Фаянс',
+    'cat_welder': 'Заварчик',
+    'cat_appliance': 'Ремонт на уреди',
+    'cat_appliance_repair': 'Ремонт на уреди',
+    'cat_flooring': 'Подови настилки',
+    'cat_plasterer': 'Шпакловане',
+    'cat_glasswork': 'Стъкларски услуги',
+    'cat_design': 'Дизайн',
+  };
+
   // Translate transaction reasons from English to Bulgarian
-  const translateReason = (reason: string): string => {
+  const translateReason = (reason: string, caseId?: string): string => {
     if (!reason) return 'Транзакция';
+    
+    const lowerReason = reason.toLowerCase();
+    
+    // Handle VIP Buyout patterns: "VIP Buyout - Начална страница - cat_locksmith"
+    if (lowerReason.includes('vip buyout')) {
+      const catMatch = reason.match(/cat_([a-z_]+)/i);
+      if (catMatch) {
+        const catKey = `cat_${catMatch[1]}`;
+        const categoryName = categoryTranslations[catKey] || catMatch[1];
+        return `VIP място - ${categoryName}`;
+      }
+      return 'VIP място';
+    }
+    
+    // Handle SMS sent
+    if (lowerReason === 'sms sent') {
+      return 'Изпратен SMS';
+    }
+    
+    // Handle Winning bid patterns: "Winning bid - full tier-based cost (14 points)"
+    if (lowerReason.includes('winning bid')) {
+      if (caseId) {
+        const shortCaseId = caseId.substring(0, 8);
+        return `Оферта #${shortCaseId}`;
+      }
+      return 'Оферта';
+    }
     
     // Common transaction reason translations
     const translations: { [key: string]: string } = {
@@ -172,9 +236,50 @@ const PointsScreen: React.FC = () => {
       // Trial
       'Trial period bonus': 'Бонус за пробен период',
       'Free trial': 'Безплатен пробен период',
+      
+      // Service categories (English to Bulgarian)
+      'electrician': 'Електротехник',
+      'Electrician': 'Електротехник',
+      'plumber': 'Водопроводчик',
+      'Plumber': 'Водопроводчик',
+      'hvac': 'Отопление и климатизация',
+      'HVAC': 'Отопление и климатизация',
+      'carpenter': 'Дърводелец',
+      'Carpenter': 'Дърводелец',
+      'painter': 'Бояджия',
+      'Painter': 'Бояджия',
+      'locksmith': 'Ключар',
+      'Locksmith': 'Ключар',
+      'cleaner': 'Почистване',
+      'Cleaner': 'Почистване',
+      'gardener': 'Градинар',
+      'Gardener': 'Градинар',
+      'handyman': 'Дребни ремонти',
+      'Handyman': 'Дребни ремонти',
+      'renovation': 'Цялостни ремонти',
+      'Renovation': 'Цялостни ремонти',
+      'roofer': 'Ремонт на покриви',
+      'Roofer': 'Ремонт на покриви',
+      'mover': 'Хамалски услуги',
+      'Mover': 'Хамалски услуги',
+      'moving': 'Хамалски услуги',
+      'Moving': 'Хамалски услуги',
+      'tiler': 'Майстор Фаянс',
+      'Tiler': 'Майстор Фаянс',
+      'welder': 'Заварчик',
+      'Welder': 'Заварчик',
+      'appliance': 'Ремонт на уреди',
+      'Appliance': 'Ремонт на уреди',
+      'appliance_repair': 'Ремонт на уреди',
+      'flooring': 'Подови настилки',
+      'Flooring': 'Подови настилки',
+      'plasterer': 'Шпакловане',
+      'Plasterer': 'Шпакловане',
+      'glasswork': 'Стъкларски услуги',
+      'Glasswork': 'Стъкларски услуги',
+      'design': 'Дизайн',
+      'Design': 'Дизайн',
     };
-    
-    const lowerReason = reason.toLowerCase();
     
     // Handle "direct assignment accepted-budget X-Y" pattern
     if (lowerReason.includes('direct assignment accepted')) {
@@ -226,6 +331,10 @@ const PointsScreen: React.FC = () => {
       return 'Разпределение на точки';
     }
     if (lowerReason.includes('bid')) {
+      if (caseId) {
+        const shortCaseId = caseId.substring(0, 8);
+        return `Оферта #${shortCaseId}`;
+      }
       return 'Оферта';
     }
     if (lowerReason.includes('bonus')) {
@@ -242,7 +351,7 @@ const PointsScreen: React.FC = () => {
         <Text style={styles.transactionIcon}>{getTransactionIcon(item.transaction_type)}</Text>
         <View style={styles.transactionInfo}>
           <Text style={styles.transactionReason} numberOfLines={2}>
-            {translateReason(item.reason)}
+            {translateReason(item.reason, item.case_id)}
           </Text>
           <Text style={styles.transactionDate}>
             {new Date(item.created_at).toLocaleString('bg-BG')}
@@ -275,6 +384,15 @@ const PointsScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      {/* Header with Back Button */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Точки</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       {/* Balance Card */}
       <View style={styles.balanceCard}>
         <Text style={styles.balanceLabel}>Налични точки</Text>
@@ -297,11 +415,11 @@ const PointsScreen: React.FC = () => {
         </View>
 
         <View style={styles.subscriptionInfo}>
-          <Text style={styles.subscriptionText}>
-            📦 {getTierDisplayName(subscriptionTier)} план
+          <Text style={styles.subscriptionText} numberOfLines={1}>
+            {getTierDisplayName(subscriptionTier)} план
           </Text>
-          <Text style={styles.subscriptionText}>
-            🔄 {balance?.monthly_allowance || 50} точки/месец
+          <Text style={styles.subscriptionText} numberOfLines={1}>
+            {balance?.monthly_allowance || 50} точки/год.
           </Text>
         </View>
 
@@ -309,7 +427,7 @@ const PointsScreen: React.FC = () => {
           style={styles.upgradeButton}
           onPress={() => navigation.navigate('Subscription' as never)}
         >
-          <Text style={styles.upgradeButtonText}>⬆️ Надградете плана</Text>
+          <Text style={styles.upgradeButtonText}>Надградете плана</Text>
         </TouchableOpacity>
       </View>
 
@@ -344,6 +462,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f172a', // slate-900
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#1e293b',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(71, 85, 105, 0.5)',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#fff',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
   },
   centerContainer: {
     flex: 1,

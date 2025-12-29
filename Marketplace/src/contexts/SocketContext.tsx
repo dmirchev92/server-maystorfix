@@ -45,7 +45,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
     }
 
     // Create Socket.IO connection to /chat namespace
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'
     const socketUrl = apiUrl.replace('/api/v1', '')
     const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
 

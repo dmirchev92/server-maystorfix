@@ -37,58 +37,51 @@ const serviceCategories = SERVICE_CATEGORIES.map(cat => ({
 
 export function ServiceCategories() {
   return (
-    <section className="py-20 relative overflow-hidden">
-      {/* Industrial Background decoration */}
+    <section className="py-16 sm:py-20 relative overflow-hidden">
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-20 w-72 h-72 bg-indigo-500/10 rounded-lg blur-3xl"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/10 rounded-lg blur-3xl"></div>
+        <div className="absolute top-10 left-10 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
       </div>
-      
+
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold mb-4">
-            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
-              Всички услуги
-            </span>
-          </h2>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto">
-            Изберете категория и намерете подходящия специалист
-          </p>
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-10">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/80">
+              🧰 Категории
+            </div>
+            <h2 className="mt-3 text-3xl md:text-4xl font-bold tracking-tight">
+              <span className="bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
+                Всички услуги
+              </span>
+            </h2>
+            <p className="mt-2 text-lg text-slate-300 max-w-2xl">
+              Изберете категория и намерете подходящия специалист
+            </p>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
           {serviceCategories.map((category) => (
-            <Link key={category.id} href={category.href}>
-              <Card 
-                variant="elevated" 
-                hover 
-                padding="sm"
-                className="group h-full transform transition-all duration-300 hover:scale-105 hover:shadow-xl"
-              >
-                <CardContent className="p-3">
-                  <div className="text-center">
-                    {/* PNG icon with gradient background */}
-                    <div className={`w-16 h-16 mx-auto mb-3 rounded-xl bg-gradient-to-br ${category.gradient} flex items-center justify-center transform group-hover:scale-110 transition-transform duration-300 shadow-md`}>
-                      <Image
-                        src={`/icons/categories/${category.id}.png`}
-                        alt={category.name}
-                        width={48}
-                        height={48}
-                        className="drop-shadow-lg"
-                      />
-                    </div>
-                    
-                    {/* Category name */}
-                    <h3 className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors duration-300 leading-tight">
-                      {category.name}
-                    </h3>
+            <Link key={category.id} href={category.href} className="group">
+              <div className="h-full rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 backdrop-blur-md transition-colors">
+                <div className="p-3">
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-3 rounded-2xl bg-gradient-to-br ${category.gradient} flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow`}>
+                    <Image
+                      src={`/icons/categories/${category.id}.png`}
+                      alt={category.name}
+                      width={48}
+                      height={48}
+                      className="drop-shadow-lg"
+                    />
                   </div>
-                </CardContent>
-              </Card>
+                  <h3 className="text-sm font-semibold text-white/90 group-hover:text-white transition-colors duration-200 leading-tight text-center">
+                    {category.name}
+                  </h3>
+                </div>
+              </div>
             </Link>
           ))}
         </div>
-
       </div>
     </section>
   )

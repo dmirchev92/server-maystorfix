@@ -18,6 +18,7 @@ export interface Conversation {
   providerName?: string
   providerBusinessName?: string | null
   providerServiceCategory?: string
+  providerProfileImageUrl?: string | null
   // Computed fields (not in DB)
   unreadCount?: number
   lastMessage?: Message
@@ -86,6 +87,7 @@ export interface ConversationRow {
   provider_last_name?: string | null
   provider_business_name?: string | null
   provider_service_category?: string | null
+  provider_profile_image_url?: string | null
 }
 
 export interface MessageRow {

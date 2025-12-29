@@ -1,4 +1,4 @@
-// Reset Password Screen for ServiceText Pro
+// Reset Password Screen for SnapFix
 // Allows users to set a new password using a reset token
 
 import React, { useState, useEffect } from 'react';

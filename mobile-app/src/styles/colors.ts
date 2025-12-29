@@ -1,4 +1,4 @@
-// Modern Purple Color Scheme - ServiceText Pro Design System
+// Modern Purple Color Scheme - SnapFix Design System
 export const Colors = {
   // Primary Purple Palette
   primary: '#6366F1',           // Main purple (buttons, links, accents)

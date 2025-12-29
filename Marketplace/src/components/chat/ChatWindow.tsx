@@ -10,6 +10,7 @@ import { useChat } from '@/contexts/ChatContext'
 import { useAuth } from '@/contexts/AuthContext'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
+import { getCategoryLabel } from '@/constants/serviceCategories'
 
 interface ChatWindowProps {
   conversationId: string
@@ -63,7 +64,7 @@ export default function ChatWindow({ conversationId }: ChatWindowProps) {
             </h2>
             {user?.role === 'customer' && conversation.providerServiceCategory ? (
               <p className="text-sm text-gray-500">
-                {conversation.providerServiceCategory}
+                {getCategoryLabel(conversation.providerServiceCategory) || conversation.providerServiceCategory}
               </p>
             ) : (
               <p className="text-sm text-gray-500">

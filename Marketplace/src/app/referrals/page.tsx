@@ -190,7 +190,7 @@ export default function ReferralDashboard() {
   const fetchAggregateProgress = async () => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/referrals/aggregate-progress`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/referrals/aggregate-progress`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -328,7 +328,7 @@ export default function ReferralDashboard() {
               {copiedLink ? '✓ Копирано!' : '📋 Копирай връзката'}
             </button>
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(`Присъедини се към ServiceText Pro и получи достъп до най-добрите майстори в България! ${dashboard.referralLink}`)}`}
+              href={`https://wa.me/?text=${encodeURIComponent(`Присъедини се към SnapFix и получи достъп до най-добрите майстори в България! ${dashboard.referralLink}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"

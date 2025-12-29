@@ -232,16 +232,24 @@ export default function MyBidsPage() {
                 <div key={bid.id} className="p-6 hover:bg-white/5 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-wrap gap-2">
                         <span className="text-sm font-medium text-green-400">
                           #{bid.bid_order}
+                        </span>
+                        <span className="text-sm font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/30">
+                          #{(bid as any).case_number || bid.case_id?.slice(-6).toUpperCase()}
                         </span>
                         {getStatusBadge(bid.bid_status)}
                       </div>
                       
                       <h3 className="mt-2 text-lg font-medium text-white">
-                        {bid.case_description || 'Заявка'}
+                        {bid.case_description || 'Заявка за услуга'}
                       </h3>
+                      {bid.case_description && (
+                        <p className="mt-1 text-sm text-slate-400 line-clamp-2">
+                          {bid.case_description}
+                        </p>
+                      )}
                       
                       <div className="mt-2 flex flex-wrap gap-4 text-sm text-slate-400">
                         {bid.case_budget && (

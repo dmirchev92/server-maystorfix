@@ -8,6 +8,7 @@ import { Footer } from '@/components/Footer'
 import { apiClient } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { Search, MapPin, Navigation, Filter, List as ListIcon, Map as MapIcon, Briefcase, Clock, DollarSign, Tag } from 'lucide-react'
+import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ''
 const libraries: ("places")[] = ["places"]
@@ -338,8 +339,24 @@ export default function MapPage() {
   }
 
   const getCategoryName = (categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId)
-    return category ? category.name : categoryId
+    // Try to find by id first, then by value (which includes cat_ prefix)
+    const category = categories.find(c => 
+      c.id === categoryId || 
+      c.value === categoryId || 
+      c.id === categoryId.replace('cat_', '') ||
+      c.value === `cat_${categoryId}`
+    )
+    // Return label (Bulgarian name) if found, otherwise use SERVICE_CATEGORIES constant
+    if (category) {
+      return category.label || category.name || categoryId
+    }
+    // Fallback to SERVICE_CATEGORIES constant
+    const staticCat = SERVICE_CATEGORIES.find(sc => 
+      sc.value === categoryId || 
+      sc.value === `cat_${categoryId}` ||
+      sc.value.replace('cat_', '') === categoryId
+    )
+    return staticCat ? staticCat.label : categoryId
   }
 
   // Handle bid on case

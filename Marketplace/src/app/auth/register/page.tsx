@@ -521,8 +521,8 @@ function RegisterForm() {
                       <h3 className="text-sm font-semibold text-white">Избран план</h3>
                       <p className="text-sm text-indigo-400 mt-1">
                         {formData.subscription_tier_id === 'free' && 'Безплатен - 0 лв'}
-                        {formData.subscription_tier_id === 'normal' && 'Нормален - 250 лв/месец'}
-                        {formData.subscription_tier_id === 'pro' && 'Професионален - 350 лв/месец'}
+                        {formData.subscription_tier_id === 'normal' && 'Нормален - 349 лв/година (с ДДС)'}
+                        {formData.subscription_tier_id === 'pro' && 'Професионален - 489 лв/година (с ДДС)'}
                       </p>
                     </div>
                     <button

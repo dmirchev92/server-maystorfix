@@ -166,7 +166,7 @@ export default function SettingsPage() {
 
       console.log('📤 Updating profile with payload:', payload)
       
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/marketplace/providers/profile`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/marketplace/providers/profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -406,7 +406,7 @@ export default function SettingsPage() {
 
                               try {
                                 // Upload image
-                                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/uploads/image`, {
+                                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/uploads/image`, {
                                   method: 'POST',
                                   headers: {
                                     'Content-Type': 'application/json',
@@ -424,7 +424,7 @@ export default function SettingsPage() {
                                 if (result.success) {
                                   // result.data.url is like "/uploads/userId/filename.jpg"
                                   // We need to use the base URL without /api/v1
-                                  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1').replace('/api/v1', '')
+                                  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1').replace('/api/v1', '')
                                   const imageUrl = `${baseUrl}${result.data.url}`
                                   console.log('Image URL:', imageUrl)
                                   setProfileData({ ...profileData, profileImageUrl: imageUrl })
@@ -524,7 +524,7 @@ export default function SettingsPage() {
 
                               try {
                                 // Upload image
-                                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1'}/uploads/image`, {
+                                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/uploads/image`, {
                                   method: 'POST',
                                   headers: {
                                     'Content-Type': 'application/json',
@@ -540,7 +540,7 @@ export default function SettingsPage() {
                                 const result = await response.json()
 
                                 if (result.success) {
-                                  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://maystorfix.com/api/v1').replace('/api/v1', '')
+                                  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1').replace('/api/v1', '')
                                   const imageUrl = `${baseUrl}${result.data.url}`
                                   setGalleryImages([...galleryImages, imageUrl])
                                   setSuccess('✅ Снимката е качена успешно!')

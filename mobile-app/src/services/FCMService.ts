@@ -662,11 +662,18 @@ class FCMService {
   /**
    * Handle notification action button press
    */
-  private handleNotificationAction(actionId: string, data: any): void {
-    console.log('🎯 Handling notification action:', actionId, data);
+  private handleNotificationAction(actionId: string, data: any, retryCount: number = 0): void {
+    console.log('🎯 Handling notification action:', actionId, data, 'retry:', retryCount);
 
     if (!this.navigationRef) {
-      console.warn('⚠️ Navigation ref not set, cannot navigate');
+      if (retryCount < 10) {
+        console.warn(`⚠️ Navigation ref not set for action, retrying... (attempt ${retryCount + 1}/10)`);
+        setTimeout(() => {
+          this.handleNotificationAction(actionId, data, retryCount + 1);
+        }, 500);
+        return;
+      }
+      console.error('❌ Navigation ref not set after 10 retries, giving up');
       return;
     }
 
@@ -680,11 +687,20 @@ class FCMService {
         console.error('❌ Error navigating to PlaceBid:', error);
       }
     } else if (actionId === 'view_job_alert') {
-      console.log('🔔 View Job Alert action pressed');
-      // Trigger local job alert modal via SocketIO service
-      setTimeout(() => {
-        SocketIOService.getInstance().triggerLocalJobAlert(data);
-      }, 500);
+      console.log('🔔 View Job Alert action pressed, navigating to case:', data?.caseId);
+      // Navigate directly to PlaceBid screen instead of modal (more reliable when app is in background)
+      if (data?.caseId) {
+        try {
+          this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
+          console.log('✅ Navigation to PlaceBid successful from job alert');
+        } catch (error) {
+          console.error('❌ Error navigating to PlaceBid from job alert:', error);
+          // Fallback to modal if navigation fails
+          setTimeout(() => {
+            SocketIOService.getInstance().triggerLocalJobAlert(data);
+          }, 500);
+        }
+      }
     } else if (actionId === 'dismiss') {
       // Just dismiss the notification (do nothing)
       console.log('✅ Notification dismissed');
@@ -701,8 +717,26 @@ class FCMService {
     console.log('👆 Retry count:', retryCount);
 
     if (data?.type === 'job_incoming') {
-       console.log('🔔 Triggering instant job alert from notification tap');
-       // No need for navigation ref for this one, handled by global modal
+       console.log('🔔 Job incoming notification tapped, caseId:', data?.caseId);
+       // Navigate directly to PlaceBid screen for reliability
+       if (data?.caseId && this.navigationRef) {
+         try {
+           this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
+           console.log('✅ Navigation to PlaceBid successful from job_incoming tap');
+           return;
+         } catch (error) {
+           console.error('❌ Error navigating from job_incoming:', error);
+         }
+       } else if (!this.navigationRef && retryCount < 10) {
+         // Retry if navigation ref not ready yet (app was killed)
+         console.warn(`⚠️ Navigation ref not set for job_incoming, retrying... (attempt ${retryCount + 1}/10)`);
+         setTimeout(() => {
+           this.handleNotificationOpen(data, retryCount + 1);
+         }, 500);
+         return;
+       }
+       // Fallback to modal only if navigation fails after retries
+       console.log('🔔 Falling back to modal for job_incoming');
        setTimeout(() => {
          SocketIOService.getInstance().triggerLocalJobAlert(data);
        }, 1000);

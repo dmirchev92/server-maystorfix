@@ -1,4 +1,4 @@
-// Login Screen for ServiceText Pro
+// Login Screen for SnapFix
 // Handles user authentication and navigation to main app
 
 import React, { useState, useEffect } from 'react';
@@ -155,9 +155,9 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>🔧</Text>
-          <Text style={styles.title}>ServiceText Pro</Text>
+          <Text style={styles.title}>SnapFix</Text>
           <Text style={styles.subtitle}>
-            Управление на пропуснати обаждания за български занаятчии
+            Платформа за свързване на клиенти с майстори
           </Text>
         </View>
 
@@ -231,7 +231,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            © 2024 ServiceText Pro. Всички права запазени.
+            © 2025 SnapFix. Всички права запазени.
           </Text>
         </View>
       </ScrollView>

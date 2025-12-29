@@ -377,7 +377,7 @@ const MapSearchScreen: React.FC = () => {
       [
         { text: 'Отказ', style: 'cancel' },
         {
-          text: 'Наддай',
+          text: 'Кандидатствай',
           onPress: () => {
             // Navigate to provider cases screen with bid parameter
             navigation.navigate('ProviderDashboard', { bidCaseId: caseItem.id });
@@ -447,7 +447,7 @@ const MapSearchScreen: React.FC = () => {
     setReviewsLoading(true);
     try {
       const response = await fetch(
-        `https://maystorfix.com/api/v1/reviews/provider/${provider.id}`
+        `https://snapfix.bg/api/v1/reviews/provider/${provider.id}`
       );
       const data = await response.json();
       if (data.success && data.data) {

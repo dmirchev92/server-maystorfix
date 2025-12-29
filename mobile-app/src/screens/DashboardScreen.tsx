@@ -10,7 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
 
@@ -39,6 +39,7 @@ interface IncomeStats {
 }
 
 export default function DashboardScreen() {
+  const navigation = useNavigation();
   const [user, setUser] = useState<any>(null);
   const [incomeStats, setIncomeStats] = useState<IncomeStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,8 +62,17 @@ export default function DashboardScreen() {
     useCallback(() => {
       if (user) {
         fetchAvailableYears();
+        
+        // Auto-refresh every 30 seconds while screen is focused
+        const refreshInterval = setInterval(() => {
+          if (user && selectedYear) {
+            fetchIncomeStats();
+          }
+        }, 30000);
+        
+        return () => clearInterval(refreshInterval);
       }
-    }, [user])
+    }, [user, selectedYear])
   );
 
   useEffect(() => {
@@ -196,10 +206,16 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header with Back Button */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💰 Приходи</Text>
-        <Text style={styles.headerSubtitle}>Следете вашите приходи и статистики</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('ProviderDashboard' as never)} style={styles.backButton}>
+          <Text style={styles.backButtonText}>←</Text>
+        </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>💰 Приходи</Text>
+          <Text style={styles.headerSubtitle}>Следете вашите приходи и статистики</Text>
+        </View>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
@@ -545,10 +561,25 @@ const styles = StyleSheet.create({
     color: theme.colors.text.secondary,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#1e293b', // slate-800 to match theme
     padding: theme.spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(99, 102, 241, 0.3)', // indigo-500/30
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backButtonText: {
+    fontSize: 24,
+    color: '#fff',
+  },
+  headerCenter: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: theme.typography.h2.fontSize,

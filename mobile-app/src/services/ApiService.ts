@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // API Configuration
-const API_BASE_URL = 'https://maystorfix.com/api/v1';
+const API_BASE_URL = 'https://snapfix.bg/api/v1';
 const API_TIMEOUT = 10000;
 
 // Types
@@ -13,6 +13,9 @@ interface APIResponse<T = any> {
     message: string;
     details?: any;
   };
+  // Additional fields returned by marketplace search
+  vipProviders?: any[];
+  metadata?: any;
 }
 
 interface User {
@@ -117,6 +120,9 @@ export class ApiService {
       return {
         success: true,
         data: data.data || data,
+        // Preserve additional fields like vipProviders, metadata, etc.
+        vipProviders: data.vipProviders,
+        metadata: data.metadata,
       };
     } catch (error) {
       console.error('makeRequest - API request failed:', error);
@@ -637,6 +643,19 @@ export class ApiService {
     return this.makeRequest('/points/balance');
   }
 
+  public async getPointsPackages(): Promise<APIResponse> {
+    console.log('💰 ApiService - Getting points packages');
+    return this.makeRequest('/points/packages', { method: 'GET' });
+  }
+
+  public async purchasePoints(points: number, paymentReference?: string): Promise<APIResponse> {
+    console.log('💰 ApiService - Purchasing points:', { points, paymentReference });
+    return this.makeRequest('/points/purchase', {
+      method: 'POST',
+      body: JSON.stringify({ points, payment_reference: paymentReference }),
+    });
+  }
+
   public async checkCaseAccess(caseId: string, caseBudget: number): Promise<APIResponse> {
     console.log('🔍 ApiService - Checking case access:', caseId);
     return this.makeRequest('/points/check-access', {
@@ -824,10 +843,10 @@ export class ApiService {
   // ============ Free Inspection API ============
 
   /**
-   * Get service categories list
+   * Get service categories list for free inspection
    */
-  public async getServiceCategories(): Promise<APIResponse> {
-    console.log('🔧 ApiService - Fetching service categories');
+  public async getFreeInspectionCategories(): Promise<APIResponse> {
+    console.log('🔧 ApiService - Fetching free inspection categories');
     return this.makeRequest('/free-inspection/categories', { method: 'GET' });
   }
 
@@ -948,6 +967,144 @@ export class ApiService {
       method: 'POST',
     });
   }
+
+  // ============ VIP Visibility API ============
+
+  /**
+   * Get VIP configuration (prices, timing, slots)
+   */
+  public async getVipConfig(): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting VIP config');
+    return this.makeRequest('/vip/config', { method: 'GET' });
+  }
+
+  /**
+   * Get SP's VIP overview (current placements, points balance)
+   */
+  public async getVipOverview(): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting VIP overview');
+    return this.makeRequest('/vip/overview', { method: 'GET' });
+  }
+
+  /**
+   * Get available VIP auctions for SP
+   */
+  public async getVipAuctions(filters?: { vipType?: string; categoryId?: string }): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting VIP auctions:', filters);
+    const params = new URLSearchParams();
+    if (filters?.vipType) params.append('vipType', filters.vipType);
+    if (filters?.categoryId) params.append('categoryId', filters.categoryId);
+    const queryString = params.toString();
+    return this.makeRequest(`/vip/auctions${queryString ? `?${queryString}` : ''}`, { method: 'GET' });
+  }
+
+  /**
+   * Place or increase a VIP bid
+   */
+  public async placeVipBid(
+    vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP',
+    categoryId: string,
+    pointsIncrement: number
+  ): Promise<APIResponse> {
+    console.log('⭐ ApiService - Placing VIP bid:', { vipType, categoryId, pointsIncrement });
+    return this.makeRequest('/vip/bid', {
+      method: 'POST',
+      body: JSON.stringify({ vipType, categoryId, pointsIncrement }),
+    });
+  }
+
+  /**
+   * Buyout a VIP slot (immediate point deduction)
+   */
+  public async buyoutVipSlot(
+    vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP',
+    categoryId: string
+  ): Promise<APIResponse> {
+    console.log('⭐ ApiService - Buying out VIP slot:', { vipType, categoryId });
+    return this.makeRequest('/vip/buyout', {
+      method: 'POST',
+      body: JSON.stringify({ vipType, categoryId }),
+    });
+  }
+
+  /**
+   * Cancel a VIP bid
+   */
+  public async cancelVipBid(bidId: string): Promise<APIResponse> {
+    console.log('⭐ ApiService - Cancelling VIP bid:', bidId);
+    return this.makeRequest(`/vip/bid/${bidId}`, { method: 'DELETE' });
+  }
+
+  /**
+   * Get VIP leaderboard (only during auction)
+   */
+  public async getVipLeaderboard(
+    vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP',
+    categoryId: string,
+    city?: string
+  ): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting VIP leaderboard:', { vipType, categoryId, city });
+    const params = new URLSearchParams({ vipType, categoryId });
+    if (city) params.append('city', city);
+    return this.makeRequest(`/vip/leaderboard?${params.toString()}`, { method: 'GET' });
+  }
+
+  /**
+   * Get VIP providers for homepage
+   */
+  public async getVipHomepageProviders(categoryId?: string): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting VIP homepage providers:', { categoryId });
+    const params = categoryId ? `?categoryId=${categoryId}` : '';
+    return this.makeRequest(`/marketplace/providers/vip-homepage${params}`, { method: 'GET' });
+  }
+
+  // ============ Review API ============
+
+  /**
+   * Get pending reviews for the current customer
+   */
+  public async getPendingReviews(): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting pending reviews');
+    return this.makeRequest('/reviews/pending', { method: 'GET' });
+  }
+
+  /**
+   * Check if customer can review a specific case
+   */
+  public async canReviewCase(caseId: string): Promise<APIResponse> {
+    console.log('⭐ ApiService - Checking if can review case:', caseId);
+    return this.makeRequest(`/reviews/case/${caseId}/can-review`, { method: 'GET' });
+  }
+
+  /**
+   * Create a review for a provider
+   */
+  public async createReview(reviewData: {
+    caseId: string;
+    providerId: string;
+    rating: number;
+    comment?: string;
+    serviceQuality?: number;
+    communication?: number;
+    timeliness?: number;
+    valueForMoney?: number;
+    wouldRecommend?: boolean;
+  }): Promise<APIResponse> {
+    console.log('⭐ ApiService - Creating review for case:', reviewData.caseId);
+    return this.makeRequest('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(reviewData),
+    });
+  }
+
+  /**
+   * Get reviews for a specific provider
+   */
+  public async getProviderReviews(providerId: string): Promise<APIResponse> {
+    console.log('⭐ ApiService - Getting reviews for provider:', providerId);
+    return this.makeRequest(`/reviews/provider/${providerId}`, { method: 'GET' });
+  }
+
 }
 
 export default ApiService;

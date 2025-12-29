@@ -1,7 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 
 // API Configuration
-const API_BASE_URL = 'https://maystorfix.com/api/v1';
+const API_BASE_URL = 'https://snapfix.bg/api/v1';
 
 interface NewMessageNotification {
   messageId: string;
@@ -79,7 +79,7 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('✅ Connected to ServiceText Pro WebSocket server');
+      console.log('✅ Connected to SnapFix WebSocket server');
       this.isConnected = true;
       this.reconnectAttempts = 0;
 

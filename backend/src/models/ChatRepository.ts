@@ -47,7 +47,8 @@ export class ChatRepository {
       createdAt: row.created_at.toISOString(),
       providerName: providerFullName,
       providerBusinessName: row.provider_business_name,
-      providerServiceCategory: row.provider_service_category
+      providerServiceCategory: row.provider_service_category,
+      providerProfileImageUrl: row.provider_profile_image_url
     }
   }
 
@@ -117,7 +118,8 @@ export class ChatRepository {
         u.first_name as provider_first_name,
         u.last_name as provider_last_name,
         spp.business_name as provider_business_name,
-        spp.service_category as provider_service_category
+        spp.service_category as provider_service_category,
+        spp.profile_image_url as provider_profile_image_url
       FROM marketplace_conversations mc
       LEFT JOIN users u ON mc.provider_id = u.id
       LEFT JOIN service_provider_profiles spp ON mc.provider_id = spp.user_id
@@ -149,7 +151,8 @@ export class ChatRepository {
         u.first_name as provider_first_name,
         u.last_name as provider_last_name,
         spp.business_name as provider_business_name,
-        spp.service_category as provider_service_category
+        spp.service_category as provider_service_category,
+        spp.profile_image_url as provider_profile_image_url
       FROM marketplace_conversations mc
       LEFT JOIN users u ON mc.provider_id = u.id
       LEFT JOIN service_provider_profiles spp ON mc.provider_id = spp.user_id
@@ -166,7 +169,8 @@ export class ChatRepository {
         u.first_name as provider_first_name,
         u.last_name as provider_last_name,
         spp.business_name as provider_business_name,
-        spp.service_category as provider_service_category
+        spp.service_category as provider_service_category,
+        spp.profile_image_url as provider_profile_image_url
       FROM marketplace_conversations mc
       LEFT JOIN users u ON mc.provider_id = u.id
       LEFT JOIN service_provider_profiles spp ON mc.provider_id = spp.user_id

@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge, StatusBadge } from '@/components/ui/Badge'
 import { Header } from '@/components/Header'
+import { getCategoryLabel } from '@/constants/serviceCategories'
 
 interface Case {
   id: string
@@ -137,21 +138,9 @@ export default function MyCasesPage() {
     }
   }
 
+  // Use centralized category labels
   const getCategoryDisplayName = (category: string) => {
-    const categoryNames: { [key: string]: string } = {
-      'electrician': 'Електричество',
-      'plumber': 'Водопровод',
-      'hvac': 'Климатик',
-      'carpenter': 'Дърводелство',
-      'painter': 'Боядисване',
-      'locksmith': 'Ключарство',
-      'cleaner': 'Почистване',
-      'gardener': 'Градинарство',
-      'handyman': 'Многопрофилен',
-      'appliance_repair': 'Ремонти',
-      'general': 'Общи'
-    }
-    return categoryNames[category] || category
+    return getCategoryLabel(category) || category
   }
 
   if (loading) {
