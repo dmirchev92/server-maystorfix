@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -161,7 +162,7 @@ export default function CustomerCasesScreen() {
       const userData = (response.data as any)?.user || response.data;
       setUser(userData);
     } catch (error) {
-      console.error('Error loading user:', error);
+      Logger.error('Error loading user:', error);
     }
   };
 
@@ -176,7 +177,7 @@ export default function CustomerCasesScreen() {
         setCases((response.data as any).cases || []);
       }
     } catch (error) {
-      console.error('Error fetching cases:', error);
+      Logger.error('Error fetching cases:', error);
     } finally {
       setLoading(false);
     }

@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -120,7 +121,7 @@ const VipVisibilityScreen: React.FC = () => {
         setAuctions(auctionsRes.data.auctions || []);
       }
     } catch (error) {
-      console.error('Error fetching VIP data:', error);
+      Logger.error('Error fetching VIP data:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -169,7 +170,7 @@ const VipVisibilityScreen: React.FC = () => {
         setLeaderboard([]);
       }
     } catch (error) {
-      console.error('Error fetching leaderboard:', error);
+      Logger.error('Error fetching leaderboard:', error);
       setLeaderboard([]);
     }
   };

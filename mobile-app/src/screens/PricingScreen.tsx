@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -98,7 +99,7 @@ const PricingScreen: React.FC = () => {
         setCurrentTier(user.subscription_tier_id || 'free');
       }
     } catch (error) {
-      console.error('Error loading user tier:', error);
+      Logger.error('Error loading user tier:', error);
     } finally {
       setLoading(false);
     }

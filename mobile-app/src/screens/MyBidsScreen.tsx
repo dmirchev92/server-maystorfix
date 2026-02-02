@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -53,7 +54,7 @@ const MyBidsScreen: React.FC = () => {
         setBids(myBids);
       }
     } catch (error) {
-      console.error('Error fetching bids:', error);
+      Logger.error('Error fetching bids:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

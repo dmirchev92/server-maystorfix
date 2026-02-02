@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { Logger } from '../utils/Logger';
 import messaging from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 import { Platform } from 'react-native';
@@ -42,7 +43,7 @@ class FCMService {
         return this.notificationPreferences;
       }
     } catch (error) {
-      console.error('FCM - Failed to fetch notification preferences:', error);
+      Logger.error('FCM - Failed to fetch notification preferences:', error);
     }
     return null;
   }
@@ -56,7 +57,7 @@ class FCMService {
     
     // Check if push is enabled globally
     if (!prefs.push_enabled) {
-      console.log('📱 FCM - Push notifications disabled globally');
+      Logger.debug('📱 FCM - Push notifications disabled globally');
       return false;
     }
 
@@ -66,32 +67,32 @@ class FCMService {
       case 'case_assigned':
       case 'job_incoming':
         if (!prefs.push_new_cases) {
-          console.log('📱 FCM - New cases notifications disabled');
+          Logger.debug('📱 FCM - New cases notifications disabled');
           return false;
         }
         break;
       case 'chat_message':
         if (!prefs.push_chat_messages) {
-          console.log('📱 FCM - Chat message notifications disabled');
+          Logger.debug('📱 FCM - Chat message notifications disabled');
           return false;
         }
         break;
       case 'bid_won':
         if (!prefs.push_bid_won) {
-          console.log('📱 FCM - Bid won notifications disabled');
+          Logger.debug('📱 FCM - Bid won notifications disabled');
           return false;
         }
         break;
       case 'new_bid_placed':
         if (!prefs.push_new_bids) {
-          console.log('📱 FCM - New bids notifications disabled');
+          Logger.debug('📱 FCM - New bids notifications disabled');
           return false;
         }
         break;
       case 'rating_received':
       case 'review':
         if (!prefs.push_reviews) {
-          console.log('📱 FCM - Review notifications disabled');
+          Logger.debug('📱 FCM - Review notifications disabled');
           return false;
         }
         break;
@@ -99,7 +100,7 @@ class FCMService {
       case 'trial_expiring_soon':
       case 'trial_expired':
         if (!prefs.push_points_subscription) {
-          console.log('📱 FCM - Points/subscription notifications disabled');
+          Logger.debug('📱 FCM - Points/subscription notifications disabled');
           return false;
         }
         break;
@@ -120,7 +121,7 @@ class FCMService {
    */
   setNavigationRef(ref: any): void {
     this.navigationRef = ref;
-    console.log('✅ Navigation reference set for FCM');
+    Logger.debug('✅ Navigation reference set for FCM');
   }
 
   /**
@@ -128,24 +129,24 @@ class FCMService {
    */
   handleInitialNotification(initialNotification: any): void {
     if (!initialNotification) {
-      console.log('⚠️ No initial notification to handle');
+      Logger.debug('⚠️ No initial notification to handle');
       return;
     }
 
-    console.log('📱 FCMService - Handling initial notification from App.tsx:', initialNotification);
+    Logger.debug('📱 FCMService - Handling initial notification from App.tsx:', initialNotification);
     const { notification, pressAction } = initialNotification;
     
     // Check if an action button was pressed
     const actionId = pressAction?.id;
     if (actionId === 'view_and_bid') {
-      console.log('👁️ View and Bid action pressed (from App.tsx)');
+      Logger.debug('👁️ View and Bid action pressed (from App.tsx)');
       this.handleNotificationAction('view_and_bid', notification?.data);
     } else if (actionId === 'dismiss') {
-      console.log('✖️ Dismiss action pressed (from App.tsx)');
+      Logger.debug('✖️ Dismiss action pressed (from App.tsx)');
       this.handleNotificationAction('dismiss', notification?.data);
     } else {
       // Default press (not an action button)
-      console.log('📱 Default notification press (from App.tsx)');
+      Logger.debug('📱 Default notification press (from App.tsx)');
       this.handleNotificationOpen(notification?.data);
     }
   }
@@ -157,20 +158,20 @@ class FCMService {
     // Check if token is registered, if not, force re-initialization
     const isRegistered = await AsyncStorage.getItem('fcm_token_registered');
     if (this.initialized && isRegistered === 'true') {
-      console.log('✅ FCM already initialized and token registered');
+      Logger.debug('✅ FCM already initialized and token registered');
       // Still need to set up notification opened handler for this session
-      console.log('🔔 Setting up notification handlers for this session...');
+      Logger.debug('🔔 Setting up notification handlers for this session...');
       this.setupNotificationOpenedHandler();
       return;
     }
     
     if (!isRegistered) {
-      console.log('⚠️ FCM token not registered, forcing re-initialization');
+      Logger.debug('⚠️ FCM token not registered, forcing re-initialization');
       this.initialized = false;
     }
 
     try {
-      console.log('🔥 Initializing Firebase Cloud Messaging...');
+      Logger.debug('🔥 Initializing Firebase Cloud Messaging...');
       
       // Create notification channels (Android)
       await this.createChannels();
@@ -178,30 +179,30 @@ class FCMService {
       // Create notification categories for action buttons
       await this.createNotificationCategories();
       
-      console.log('🔥 FCM - Step 1: Requesting permission...');
+      Logger.debug('🔥 FCM - Step 1: Requesting permission...');
 
       // Request permission
       const hasPermission = await this.requestPermission();
-      console.log('🔥 FCM - Step 1 result: hasPermission =', hasPermission);
+      Logger.debug('🔥 FCM - Step 1 result: hasPermission =', hasPermission);
       if (!hasPermission) {
-        console.warn('⚠️ FCM permission denied - stopping initialization');
+        Logger.warn('⚠️ FCM permission denied - stopping initialization');
         return;
       }
 
-      console.log('🔥 FCM - Step 2: Getting FCM token...');
+      Logger.debug('🔥 FCM - Step 2: Getting FCM token...');
       // Get FCM token
       const token = await this.getToken();
-      console.log('🔥 FCM - Step 2 result: token =', token ? `${token.substring(0, 30)}...` : 'null');
+      Logger.debug('🔥 FCM - Step 2 result: token =', token ? `${token.substring(0, 30)}...` : 'null');
       if (token) {
-        console.log('🔥 FCM - Step 3: Registering token with backend...');
+        Logger.debug('🔥 FCM - Step 3: Registering token with backend...');
         // Register token with backend
         await this.registerToken(token);
-        console.log('🔥 FCM - Step 3 completed');
+        Logger.debug('🔥 FCM - Step 3 completed');
       } else {
-        console.error('❌ FCM - No token obtained, skipping registration');
+        Logger.error('❌ FCM - No token obtained, skipping registration');
       }
 
-      console.log('🔥 FCM - Step 4: Setting up message handlers...');
+      Logger.debug('🔥 FCM - Step 4: Setting up message handlers...');
       // Setup message handlers
       this.setupForegroundHandler();
       this.setupBackgroundHandler();
@@ -209,10 +210,10 @@ class FCMService {
       this.setupTokenRefreshHandler();
 
       this.initialized = true;
-      console.log('✅ FCM initialized successfully - all steps completed');
+      Logger.debug('✅ FCM initialized successfully - all steps completed');
     } catch (error) {
-      console.error('❌ Error initializing FCM:', error);
-      console.error('❌ FCM Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      Logger.error('❌ Error initializing FCM:', error);
+      Logger.error('❌ FCM Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     }
   }
 
@@ -221,7 +222,7 @@ class FCMService {
    */
   private async createChannels(): Promise<void> {
     try {
-      console.log('🔔 Creating notification channels...');
+      Logger.debug('🔔 Creating notification channels...');
       
       // 1. Chat Messages (High Importance)
       await notifee.createChannel({
@@ -252,9 +253,9 @@ class FCMService {
         lightColor: '#DC2626',
       });
 
-      console.log('✅ Notification channels created');
+      Logger.debug('✅ Notification channels created');
     } catch (error) {
-      console.error('❌ Error creating notification channels:', error);
+      Logger.error('❌ Error creating notification channels:', error);
     }
   }
 
@@ -263,7 +264,7 @@ class FCMService {
    */
   private async createNotificationCategories(): Promise<void> {
     try {
-      console.log('🔔 Creating notification categories for action buttons...');
+      Logger.debug('🔔 Creating notification categories for action buttons...');
       
       const categories = [
         {
@@ -281,14 +282,14 @@ class FCMService {
         },
       ];
       
-      console.log('🔔 Categories to create:', JSON.stringify(categories));
+      Logger.debug('🔔 Categories to create:', JSON.stringify(categories));
       await notifee.setNotificationCategories(categories);
       
       // Verify categories were created
       const createdCategories = await notifee.getNotificationCategories();
-      console.log('✅ Notification categories created:', JSON.stringify(createdCategories));
+      Logger.debug('✅ Notification categories created:', JSON.stringify(createdCategories));
     } catch (error) {
-      console.error('❌ Error creating notification categories:', error);
+      Logger.error('❌ Error creating notification categories:', error);
     }
   }
 
@@ -302,10 +303,10 @@ class FCMService {
         authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
         authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-      console.log('🔔 FCM Permission status:', authStatus, enabled);
+      Logger.debug('🔔 FCM Permission status:', authStatus, enabled);
       return enabled;
     } catch (error) {
-      console.error('❌ Error requesting FCM permission:', error);
+      Logger.error('❌ Error requesting FCM permission:', error);
       return false;
     }
   }
@@ -316,14 +317,14 @@ class FCMService {
   async getToken(): Promise<string | null> {
     try {
       const token = await messaging().getToken();
-      console.log('🔑 FCM Token obtained:', token.substring(0, 20) + '...');
+      Logger.debug('🔑 FCM Token obtained:', token.substring(0, 20) + '...');
       
       // Store token locally
       await AsyncStorage.setItem('fcm_token', token);
       
       return token;
     } catch (error) {
-      console.error('❌ Error getting FCM token:', error);
+      Logger.error('❌ Error getting FCM token:', error);
       return null;
     }
   }
@@ -333,10 +334,10 @@ class FCMService {
    */
   async registerToken(token: string): Promise<void> {
     try {
-      console.log('📤 Registering FCM token with backend...');
-      console.log('📤 Token length:', token.length);
-      console.log('📤 Platform:', Platform.OS);
-      console.log('📤 Platform version:', Platform.Version);
+      Logger.debug('📤 Registering FCM token with backend...');
+      Logger.debug('📤 Token length:', token.length);
+      Logger.debug('📤 Platform:', Platform.OS);
+      Logger.debug('📤 Platform version:', Platform.Version);
 
       const payload = {
         token,
@@ -346,7 +347,7 @@ class FCMService {
           version: Platform.Version,
         },
       };
-      console.log('📤 Request payload:', JSON.stringify(payload, null, 2));
+      Logger.debug('📤 Request payload:', JSON.stringify(payload, null, 2));
 
       const response = await ApiService.getInstance().makeRequest(
         '/device-tokens/register',
@@ -356,20 +357,20 @@ class FCMService {
         }
       );
 
-      console.log('📤 Response received:', JSON.stringify(response, null, 2));
+      Logger.debug('📤 Response received:', JSON.stringify(response, null, 2));
 
       if (response.success) {
-        console.log('✅ FCM token registered with backend successfully');
+        Logger.debug('✅ FCM token registered with backend successfully');
         await AsyncStorage.setItem('fcm_token_registered', 'true');
       } else {
-        console.error('❌ Failed to register FCM token - Response error:', response.error);
-        console.error('❌ Error code:', response.error?.code);
-        console.error('❌ Error message:', response.error?.message);
+        Logger.error('❌ Failed to register FCM token - Response error:', response.error);
+        Logger.error('❌ Error code:', response.error?.code);
+        Logger.error('❌ Error message:', response.error?.message);
       }
     } catch (error) {
-      console.error('❌ Exception while registering FCM token:', error);
-      console.error('❌ Error type:', typeof error);
-      console.error('❌ Error details:', error instanceof Error ? error.message : String(error));
+      Logger.error('❌ Exception while registering FCM token:', error);
+      Logger.error('❌ Error type:', typeof error);
+      Logger.error('❌ Error details:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -379,19 +380,19 @@ class FCMService {
   private setupForegroundHandler(): void {
     // Clean up existing listener if any
     if (this.messageUnsubscribe) {
-      console.log('🔄 Cleaning up existing FCM foreground listener');
+      Logger.debug('🔄 Cleaning up existing FCM foreground listener');
       this.messageUnsubscribe();
       this.messageUnsubscribe = null;
     }
 
-    console.log('✅ Setting up new FCM foreground listener');
+    Logger.debug('✅ Setting up new FCM foreground listener');
     this.messageUnsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('📨 Foreground FCM message received:', remoteMessage);
+      Logger.debug('📨 Foreground FCM message received:', remoteMessage);
 
       // Always skip chat_message in foreground - SocketIO handles it with better UI
       // This prevents duplicate notifications
       if (remoteMessage.data?.type === 'chat_message') {
-        console.log('🚫 FCM - Skipping chat_message in foreground (SocketIO handles it)');
+        Logger.debug('🚫 FCM - Skipping chat_message in foreground (SocketIO handles it)');
         return;
       }
 
@@ -405,7 +406,7 @@ class FCMService {
    */
   private setupBackgroundHandler(): void {
     messaging().setBackgroundMessageHandler(async remoteMessage => {
-      console.log('📨 Background FCM message received:', remoteMessage);
+      Logger.debug('📨 Background FCM message received:', remoteMessage);
 
       // Display notification using notifee
       await this.displayNotification(remoteMessage);
@@ -416,14 +417,14 @@ class FCMService {
    * Setup notification opened handler
    */
   private setupNotificationOpenedHandler(): void {
-    console.log('🔔 Setting up notification opened handlers...');
+    Logger.debug('🔔 Setting up notification opened handlers...');
     
     // Handle notification opened app from quit state (FCM)
     messaging()
       .getInitialNotification()
       .then(remoteMessage => {
         if (remoteMessage) {
-          console.log(
+          Logger.debug(
             '📱 FCM notification caused app to open from quit state:',
             remoteMessage
           );
@@ -434,24 +435,24 @@ class FCMService {
     // Handle notification opened app from quit state (Notifee)
     // Check immediately and also with delays to catch the notification
     const checkInitialNotification = async (attempt: number) => {
-      console.log(`🔍 Checking for initial notifee notification (attempt ${attempt})...`);
+      Logger.debug(`🔍 Checking for initial notifee notification (attempt ${attempt})...`);
       const initialNotification = await notifee.getInitialNotification();
       
       if (initialNotification) {
-        console.log('📱 Notifee notification caused app to open from quit state:', initialNotification);
+        Logger.debug('📱 Notifee notification caused app to open from quit state:', initialNotification);
         const { notification, pressAction } = initialNotification;
         
         // Check if an action button was pressed
         const actionId = pressAction?.id;
         if (actionId === 'view_and_bid') {
-          console.log('👁️ View and Bid action pressed (from quit state)');
+          Logger.debug('👁️ View and Bid action pressed (from quit state)');
           this.handleNotificationAction('view_and_bid', notification?.data);
         } else if (actionId === 'dismiss') {
-          console.log('✖️ Dismiss action pressed (from quit state)');
+          Logger.debug('✖️ Dismiss action pressed (from quit state)');
           this.handleNotificationAction('dismiss', notification?.data);
         } else {
           // Default press (not an action button)
-          console.log('📱 Default notification press (from quit state)');
+          Logger.debug('📱 Default notification press (from quit state)');
           this.handleNotificationOpen(notification?.data);
         }
         return true;
@@ -469,7 +470,7 @@ class FCMService {
 
     // Handle notification opened app from background state (FCM)
     messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log(
+      Logger.debug(
         '📱 FCM notification caused app to open from background state:',
         remoteMessage
       );
@@ -479,20 +480,20 @@ class FCMService {
     // Handle notifee notification press and action buttons (foreground)
     notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS || type === EventType.ACTION_PRESS) {
-        console.log('📱 Notifee notification pressed (foreground):', detail.notification);
-        console.log('📱 Notification data:', detail.notification?.data);
+        Logger.debug('📱 Notifee notification pressed (foreground):', detail.notification);
+        Logger.debug('📱 Notification data:', detail.notification?.data);
         
         // Check if an action button was pressed
         const actionId = detail.pressAction?.id;
         if (actionId === 'view_and_bid') {
-          console.log('👁️ View and Bid action pressed');
+          Logger.debug('👁️ View and Bid action pressed');
           this.handleNotificationAction('view_and_bid', detail.notification?.data);
         } else if (actionId === 'dismiss') {
-          console.log('✖️ Dismiss action pressed');
+          Logger.debug('✖️ Dismiss action pressed');
           this.handleNotificationAction('dismiss', detail.notification?.data);
         } else {
           // Default press (not an action button)
-          console.log('📱 Default notification press (foreground)');
+          Logger.debug('📱 Default notification press (foreground)');
           this.handleNotificationOpen(detail.notification?.data);
         }
       }
@@ -501,16 +502,16 @@ class FCMService {
     // Handle notifee notification press and action buttons (background)
     notifee.onBackgroundEvent(async ({ type, detail }) => {
       if (type === EventType.PRESS || type === EventType.ACTION_PRESS) {
-        console.log('📱 Notifee background notification pressed:', detail.notification);
-        console.log('📱 Notification data:', detail.notification?.data);
+        Logger.debug('📱 Notifee background notification pressed:', detail.notification);
+        Logger.debug('📱 Notification data:', detail.notification?.data);
         
         // Check if an action button was pressed
         const actionId = detail.pressAction?.id;
         if (actionId === 'view_and_bid') {
-          console.log('👁️ View and Bid action pressed (background)');
+          Logger.debug('👁️ View and Bid action pressed (background)');
           // Background actions are handled when app opens
         } else if (actionId === 'dismiss') {
-          console.log('✖️ Dismiss action pressed (background)');
+          Logger.debug('✖️ Dismiss action pressed (background)');
           // Just dismiss
         }
       }
@@ -522,7 +523,7 @@ class FCMService {
    */
   private setupTokenRefreshHandler(): void {
     messaging().onTokenRefresh(async token => {
-      console.log('🔄 FCM token refreshed:', token.substring(0, 20) + '...');
+      Logger.debug('🔄 FCM token refreshed:', token.substring(0, 20) + '...');
       await this.registerToken(token);
     });
   }
@@ -543,7 +544,7 @@ class FCMService {
       const body = notification?.body || data?.body;
 
       if (!title && !body) {
-        console.warn('⚠️ No notification content in FCM message (neither notification nor data payload has title/body)');
+        Logger.warn('⚠️ No notification content in FCM message (neither notification nor data payload has title/body)');
         return;
       }
 
@@ -551,7 +552,7 @@ class FCMService {
       const notificationType = data?.type || 'unknown';
       const shouldShow = await this.shouldShowNotification(notificationType);
       if (!shouldShow) {
-        console.log(`📱 FCM - Skipping notification display for type: ${notificationType} (disabled by user)`);
+        Logger.debug(`📱 FCM - Skipping notification display for type: ${notificationType} (disabled by user)`);
         return;
       }
 
@@ -586,7 +587,7 @@ class FCMService {
 
       // Add action buttons for new_case_available notifications
       if (data?.type === 'new_case_available') {
-        console.log('🔔 Adding action buttons for new_case_available notification');
+        Logger.debug('🔔 Adding action buttons for new_case_available notification');
         
         // Link to the notification category (use categoryId, not category)
         notificationConfig.android.categoryId = 'new_case_available';
@@ -635,7 +636,7 @@ class FCMService {
         const timeout = data.timeoutSeconds ? parseInt(data.timeoutSeconds) * 1000 : 300000;
         notificationConfig.android.timeoutAfter = timeout; 
       } else {
-        console.log('🔔 No action buttons - notification type:', data?.type);
+        Logger.debug('🔔 No action buttons - notification type:', data?.type);
       }
 
       // Add iOS config
@@ -653,9 +654,9 @@ class FCMService {
 
       await notifee.displayNotification(notificationConfig);
 
-      console.log('✅ Notification displayed via notifee');
+      Logger.debug('✅ Notification displayed via notifee');
     } catch (error) {
-      console.error('❌ Error displaying notification:', error);
+      Logger.error('❌ Error displaying notification:', error);
     }
   }
 
@@ -663,38 +664,38 @@ class FCMService {
    * Handle notification action button press
    */
   private handleNotificationAction(actionId: string, data: any, retryCount: number = 0): void {
-    console.log('🎯 Handling notification action:', actionId, data, 'retry:', retryCount);
+    Logger.debug('🎯 Handling notification action:', actionId, data, 'retry:', retryCount);
 
     if (!this.navigationRef) {
       if (retryCount < 10) {
-        console.warn(`⚠️ Navigation ref not set for action, retrying... (attempt ${retryCount + 1}/10)`);
+        Logger.warn(`⚠️ Navigation ref not set for action, retrying... (attempt ${retryCount + 1}/10)`);
         setTimeout(() => {
           this.handleNotificationAction(actionId, data, retryCount + 1);
         }, 500);
         return;
       }
-      console.error('❌ Navigation ref not set after 10 retries, giving up');
+      Logger.error('❌ Navigation ref not set after 10 retries, giving up');
       return;
     }
 
     if (actionId === 'view_and_bid') {
       // Navigate to PlaceBid screen with caseId
-      console.log('📍 Navigating to PlaceBid screen for case:', data.caseId);
+      Logger.debug('📍 Navigating to PlaceBid screen for case:', data.caseId);
       try {
         this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
-        console.log('✅ Navigation to PlaceBid successful');
+        Logger.debug('✅ Navigation to PlaceBid successful');
       } catch (error) {
-        console.error('❌ Error navigating to PlaceBid:', error);
+        Logger.error('❌ Error navigating to PlaceBid:', error);
       }
     } else if (actionId === 'view_job_alert') {
-      console.log('🔔 View Job Alert action pressed, navigating to case:', data?.caseId);
+      Logger.debug('🔔 View Job Alert action pressed, navigating to case:', data?.caseId);
       // Navigate directly to PlaceBid screen instead of modal (more reliable when app is in background)
       if (data?.caseId) {
         try {
           this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
-          console.log('✅ Navigation to PlaceBid successful from job alert');
+          Logger.debug('✅ Navigation to PlaceBid successful from job alert');
         } catch (error) {
-          console.error('❌ Error navigating to PlaceBid from job alert:', error);
+          Logger.error('❌ Error navigating to PlaceBid from job alert:', error);
           // Fallback to modal if navigation fails
           setTimeout(() => {
             SocketIOService.getInstance().triggerLocalJobAlert(data);
@@ -703,7 +704,7 @@ class FCMService {
       }
     } else if (actionId === 'dismiss') {
       // Just dismiss the notification (do nothing)
-      console.log('✅ Notification dismissed');
+      Logger.debug('✅ Notification dismissed');
     }
   }
 
@@ -711,32 +712,32 @@ class FCMService {
    * Handle notification open/tap
    */
   private handleNotificationOpen(data: any, retryCount: number = 0): void {
-    console.log('👆 Handling notification tap - RAW DATA:', JSON.stringify(data));
-    console.log('👆 Data type:', data?.type);
-    console.log('👆 Case ID:', data?.caseId);
-    console.log('👆 Retry count:', retryCount);
+    Logger.debug('👆 Handling notification tap - RAW DATA:', JSON.stringify(data));
+    Logger.debug('👆 Data type:', data?.type);
+    Logger.debug('👆 Case ID:', data?.caseId);
+    Logger.debug('👆 Retry count:', retryCount);
 
     if (data?.type === 'job_incoming') {
-       console.log('🔔 Job incoming notification tapped, caseId:', data?.caseId);
+       Logger.debug('🔔 Job incoming notification tapped, caseId:', data?.caseId);
        // Navigate directly to PlaceBid screen for reliability
        if (data?.caseId && this.navigationRef) {
          try {
            this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
-           console.log('✅ Navigation to PlaceBid successful from job_incoming tap');
+           Logger.debug('✅ Navigation to PlaceBid successful from job_incoming tap');
            return;
          } catch (error) {
-           console.error('❌ Error navigating from job_incoming:', error);
+           Logger.error('❌ Error navigating from job_incoming:', error);
          }
        } else if (!this.navigationRef && retryCount < 10) {
          // Retry if navigation ref not ready yet (app was killed)
-         console.warn(`⚠️ Navigation ref not set for job_incoming, retrying... (attempt ${retryCount + 1}/10)`);
+         Logger.warn(`⚠️ Navigation ref not set for job_incoming, retrying... (attempt ${retryCount + 1}/10)`);
          setTimeout(() => {
            this.handleNotificationOpen(data, retryCount + 1);
          }, 500);
          return;
        }
        // Fallback to modal only if navigation fails after retries
-       console.log('🔔 Falling back to modal for job_incoming');
+       Logger.debug('🔔 Falling back to modal for job_incoming');
        setTimeout(() => {
          SocketIOService.getInstance().triggerLocalJobAlert(data);
        }, 1000);
@@ -745,14 +746,14 @@ class FCMService {
 
     if (!this.navigationRef) {
       if (retryCount < 10) { // Max 10 retries = 5 seconds
-        console.warn(`⚠️ Navigation ref not set, will retry in 500ms... (attempt ${retryCount + 1}/10)`);
+        Logger.warn(`⚠️ Navigation ref not set, will retry in 500ms... (attempt ${retryCount + 1}/10)`);
         // Retry after a delay to allow navigation ref to be set
         setTimeout(() => {
-          console.log('🔄 Retrying navigation after delay...');
+          Logger.debug('🔄 Retrying navigation after delay...');
           this.handleNotificationOpen(data, retryCount + 1);
         }, 500);
       } else {
-        console.error('❌ Navigation ref not set after 10 retries, giving up');
+        Logger.error('❌ Navigation ref not set after 10 retries, giving up');
       }
       return;
     }
@@ -760,30 +761,30 @@ class FCMService {
     // Navigate to appropriate screen based on data.type
     if (data?.type === 'new_case_available') {
       // Navigate directly to PlaceBid screen with caseId
-      console.log('📍 Navigating to PlaceBid screen for case:', data.caseId);
+      Logger.debug('📍 Navigating to PlaceBid screen for case:', data.caseId);
       try {
         this.navigationRef.navigate('PlaceBid', { caseId: data.caseId });
-        console.log('✅ Navigation to PlaceBid successful for case:', data.caseId);
+        Logger.debug('✅ Navigation to PlaceBid successful for case:', data.caseId);
       } catch (error) {
-        console.error('❌ Error navigating to PlaceBid:', error);
+        Logger.error('❌ Error navigating to PlaceBid:', error);
       }
     } else if (data?.type === 'case_assigned') {
       // Navigate to Cases screen
-      console.log('📍 Navigating to Cases screen for assigned case:', data.caseId);
+      Logger.debug('📍 Navigating to Cases screen for assigned case:', data.caseId);
       try {
         this.navigationRef.navigate('Cases');
-        console.log('✅ Navigation to Cases successful');
+        Logger.debug('✅ Navigation to Cases successful');
       } catch (error) {
-        console.error('❌ Error navigating to Cases:', error);
+        Logger.error('❌ Error navigating to Cases:', error);
       }
     } else if (data?.type === 'chat_message') {
       // Navigate to Chat screen
-      console.log('📍 Navigating to Chat screen');
+      Logger.debug('📍 Navigating to Chat screen');
       try {
         this.navigationRef.navigate('Chat');
-        console.log('✅ Navigation to Chat successful');
+        Logger.debug('✅ Navigation to Chat successful');
       } catch (error) {
-        console.error('❌ Error navigating to Chat:', error);
+        Logger.error('❌ Error navigating to Chat:', error);
       }
     }
   }
@@ -795,11 +796,11 @@ class FCMService {
     try {
       const token = await AsyncStorage.getItem('fcm_token');
       if (!token) {
-        console.log('⚠️ No FCM token to deactivate');
+        Logger.debug('⚠️ No FCM token to deactivate');
         return;
       }
 
-      console.log('🔒 Deactivating FCM token on backend...');
+      Logger.debug('🔒 Deactivating FCM token on backend...');
 
       // Deactivate token on backend BEFORE clearing local storage
       // This ensures the notification won't be sent to this device for the old user
@@ -813,12 +814,12 @@ class FCMService {
         );
         
         if (response.success) {
-          console.log('✅ FCM token deactivated on backend');
+          Logger.debug('✅ FCM token deactivated on backend');
         } else {
-          console.warn('⚠️ Failed to deactivate FCM token on backend:', response.error);
+          Logger.warn('⚠️ Failed to deactivate FCM token on backend:', response.error);
         }
       } catch (backendError) {
-        console.warn('⚠️ Error deactivating FCM token on backend:', backendError);
+        Logger.warn('⚠️ Error deactivating FCM token on backend:', backendError);
         // Continue with local cleanup even if backend fails
       }
 
@@ -827,9 +828,9 @@ class FCMService {
       await AsyncStorage.removeItem('fcm_token');
       await AsyncStorage.removeItem('fcm_token_registered');
 
-      console.log('✅ FCM token deleted locally');
+      Logger.debug('✅ FCM token deleted locally');
     } catch (error) {
-      console.error('❌ Error deleting FCM token:', error);
+      Logger.error('❌ Error deleting FCM token:', error);
     }
   }
 }

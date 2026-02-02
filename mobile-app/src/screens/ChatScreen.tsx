@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -48,7 +49,7 @@ function ChatScreen() {
         setHasDataSharingConsent(false);
       }
     } catch (error) {
-      console.error('Error checking consent status:', error);
+      Logger.error('Error checking consent status:', error);
       setHasDataSharingConsent(false);
     }
   };
@@ -56,7 +57,7 @@ function ChatScreen() {
   // Load conversations when screen is focused
   useFocusEffect(
     React.useCallback(() => {
-      console.log('📱 ChatScreen - Screen focused, loading conversations');
+      Logger.debug('📱 ChatScreen - Screen focused, loading conversations');
       
       // Check consent status
       checkConsentStatus();
@@ -69,7 +70,7 @@ function ChatScreen() {
             const user = parsed.user || parsed;
             
             if (user && user.id) {
-                console.log('📱 ChatScreen - Pre-loaded user ID:', user.id);
+                Logger.debug('📱 ChatScreen - Pre-loaded user ID:', user.id);
                 setUserId(user.id);
                 setUserRole(user.role);
             }
@@ -83,7 +84,7 @@ function ChatScreen() {
       
       // Listen for new messages
       const unsubscribeMessage = socketService.onNewMessage((message: any) => {
-        console.log('📱 ChatScreen - New message received, updating conversation preview:', message);
+        Logger.debug('📱 ChatScreen - New message received, updating conversation preview:', message);
         // Update the conversation's last message and timestamp
         setConversations(prev => {
           const index = prev.findIndex(c => c.id === message.conversationId);
@@ -97,10 +98,10 @@ function ChatScreen() {
             };
             // Move to top
             const [conversation] = updated.splice(index, 1);
-            console.log('✅ ChatScreen - Conversation updated and moved to top:', conversation.id);
+            Logger.debug('✅ ChatScreen - Conversation updated and moved to top:', conversation.id);
             return [conversation, ...updated];
           } else {
-            console.log('⚠️ ChatScreen - Conversation not found in list:', message.conversationId);
+            Logger.debug('⚠️ ChatScreen - Conversation not found in list:', message.conversationId);
           }
           return prev;
         });
@@ -108,8 +109,8 @@ function ChatScreen() {
       
       // Listen for conversation updates (includes unread count changes)
       const unsubscribeConversation = socketService.onConversationUpdate((data: any) => {
-        console.log('📱 ChatScreen - Conversation update received:', data);
-        console.log('📱 ChatScreen - lastMessage from socket:', data.lastMessage);
+        Logger.debug('📱 ChatScreen - Conversation update received:', data);
+        Logger.debug('📱 ChatScreen - lastMessage from socket:', data.lastMessage);
         // Update conversation preview with socket data (includes unreadCount and lastMessage)
         setConversations(prev => {
           const index = prev.findIndex(c => c.id === data.conversationId);
@@ -123,11 +124,11 @@ function ChatScreen() {
             };
             // Move to top
             const [conversation] = updated.splice(index, 1);
-            console.log('✅ ChatScreen - Conversation preview updated via socket:', conversation.id);
-            console.log('✅ ChatScreen - Updated lastMessage:', conversation.lastMessage);
+            Logger.debug('✅ ChatScreen - Conversation preview updated via socket:', conversation.id);
+            Logger.debug('✅ ChatScreen - Updated lastMessage:', conversation.lastMessage);
             return [conversation, ...updated];
           } else {
-            console.log('⚠️ ChatScreen - Conversation not found in list:', data.conversationId);
+            Logger.debug('⚠️ ChatScreen - Conversation not found in list:', data.conversationId);
           }
           return prev;
         });
@@ -148,26 +149,26 @@ function ChatScreen() {
         setError(null);
       }
 
-      console.log('📱 ChatScreen - Starting to load conversations');
+      Logger.debug('📱 ChatScreen - Starting to load conversations');
 
       const token = await AsyncStorage.getItem('auth_token');
       if (!token) {
-        console.log('⚠️ No auth token');
+        Logger.debug('⚠️ No auth token');
         setError('Няма токен за автентикация');
         setIsLoading(false);
         return;
       }
 
       // Get current user
-      console.log('📱 ChatScreen - Getting current user');
+      Logger.debug('📱 ChatScreen - Getting current user');
       const userResponse = await ApiService.getInstance().getCurrentUser();
-      console.log('📱 ChatScreen - User response:', userResponse);
+      Logger.debug('📱 ChatScreen - User response:', userResponse);
       
       const userData: any = (userResponse.data as any)?.user || userResponse.data;
-      console.log('📱 ChatScreen - User data:', userData);
+      Logger.debug('📱 ChatScreen - User data:', userData);
 
       if (!userData || !userData.id) {
-        console.error('❌ No user ID found');
+        Logger.error('❌ No user ID found');
         setError('Данните за потребителя не са налични');
         setIsLoading(false);
         return;
@@ -181,31 +182,31 @@ function ChatScreen() {
       
       // Persist to storage to ensure handleConversationPress works even if state was lost
       AsyncStorage.setItem('user', JSON.stringify(userData)).catch(err => 
-        console.error('Failed to update user in storage:', err)
+        Logger.error('Failed to update user in storage:', err)
       );
 
       // Load conversations from API using Chat API V2 (authenticated user)
-      console.log('📱 ChatScreen - Loading conversations via Chat API V2');
+      Logger.debug('📱 ChatScreen - Loading conversations via Chat API V2');
       const response = await ApiService.getInstance().getConversations();
       
-      console.log('📱 ChatScreen - Full API response:', JSON.stringify(response, null, 2));
+      Logger.debug('📱 ChatScreen - Full API response:', JSON.stringify(response, null, 2));
       
       if (response.success && response.data) {
         // Chat API V2 returns: { success: true, data: { conversations: [...] } }
         const conversationsList = (response.data as any).conversations || [];
         
-        console.log(`✅ Loaded ${conversationsList.length} conversations`);
+        Logger.debug(`✅ Loaded ${conversationsList.length} conversations`);
         
         // Deduplicate conversations by ID
         const uniqueConversations = conversationsList.filter((conv: any, index: number, self: any[]) =>
           index === self.findIndex((c: any) => c.id === conv.id)
         );
         
-        console.log(`✅ After deduplication: ${uniqueConversations.length} conversations`);
+        Logger.debug(`✅ After deduplication: ${uniqueConversations.length} conversations`);
         
         // Debug: Log first conversation to see structure
         if (uniqueConversations.length > 0) {
-          console.log('📱 ChatScreen - First conversation:', JSON.stringify(uniqueConversations[0], null, 2));
+          Logger.debug('📱 ChatScreen - First conversation:', JSON.stringify(uniqueConversations[0], null, 2));
         }
         
         setConversations(uniqueConversations);
@@ -213,11 +214,11 @@ function ChatScreen() {
         // Save to AsyncStorage (deduplicated)
         await AsyncStorage.setItem('conversations', JSON.stringify(uniqueConversations));
       } else {
-        console.error('❌ Failed to load conversations:', response.error);
-        console.error('❌ Full response:', JSON.stringify(response, null, 2));
+        Logger.error('❌ Failed to load conversations:', response.error);
+        Logger.error('❌ Full response:', JSON.stringify(response, null, 2));
       }
     } catch (error) {
-      console.error('❌ Error loading conversations:', error);
+      Logger.error('❌ Error loading conversations:', error);
       
       // Try to load from cache
       const cached = await AsyncStorage.getItem('conversations');
@@ -249,10 +250,10 @@ function ChatScreen() {
     let currentUserId = userId;
     
     if (!currentUserId) {
-      console.log('⚠️ userId missing in state, trying to fetch from storage...');
+      Logger.debug('⚠️ userId missing in state, trying to fetch from storage...');
       try {
         const userJson = await AsyncStorage.getItem('user');
-        console.log('📱 ChatScreen - Storage "user" content:', userJson);
+        Logger.debug('📱 ChatScreen - Storage "user" content:', userJson);
         
         if (userJson) {
           const parsed = JSON.parse(userJson);
@@ -260,40 +261,40 @@ function ChatScreen() {
           const user = parsed.user || parsed;
           
           if (user && user.id) {
-             console.log('✅ Found user in storage:', user.id);
+             Logger.debug('✅ Found user in storage:', user.id);
              currentUserId = user.id;
              setUserId(user.id);
              setUserRole(user.role);
           } else {
-             console.error('❌ User object in storage missing ID:', user);
+             Logger.error('❌ User object in storage missing ID:', user);
           }
         } else {
-           console.error('❌ Storage "user" key is empty');
+           Logger.error('❌ Storage "user" key is empty');
         }
       } catch (storageError) {
-        console.error('❌ Error reading user from storage:', storageError);
+        Logger.error('❌ Error reading user from storage:', storageError);
       }
     }
 
     // Last resort: Try to fetch from API if we have a token
     if (!currentUserId) {
-       console.log('⚠️ userId still missing, attempting API fetch as last resort...');
+       Logger.debug('⚠️ userId still missing, attempting API fetch as last resort...');
        try {
          const userResponse = await ApiService.getInstance().getCurrentUser();
          const userData: any = (userResponse.data as any)?.user || userResponse.data;
          if (userData && userData.id) {
-            console.log('✅ Fetched user via API just in time:', userData.id);
+            Logger.debug('✅ Fetched user via API just in time:', userData.id);
             currentUserId = userData.id;
             setUserId(userData.id);
             AsyncStorage.setItem('user', JSON.stringify(userData));
          }
        } catch (apiError) {
-          console.error('❌ Failed to fetch user via API in handleConversationPress:', apiError);
+          Logger.error('❌ Failed to fetch user via API in handleConversationPress:', apiError);
        }
     }
 
     if (!currentUserId) {
-      console.error('❌ Cannot handle press: userId is missing even after storage check and API fallback');
+      Logger.error('❌ Cannot handle press: userId is missing even after storage check and API fallback');
       // Show alert to user
       Alert.alert('Грешка', 'Не можем да идентифицираме потребителя. Моля, излезте и влезте отново.');
       return;
@@ -307,7 +308,7 @@ function ChatScreen() {
     const targetName = isMeProvider ? (conversation.customerName || 'Клиент') : (conversation.providerName || 'Доставчик');
     const targetId = isMeProvider ? conversation.customerId : conversation.providerId;
 
-    console.log('📱 Opening chat with:', {
+    Logger.debug('📱 Opening chat with:', {
       myId: currentUserId,
       isMeProvider,
       targetName,
@@ -316,16 +317,16 @@ function ChatScreen() {
     });
 
     try {
-      console.log('👉 Navigating to ChatDetail...');
+      Logger.debug('👉 Navigating to ChatDetail...');
       // Cast to any to bypass strict type checking for root stack navigation
       (navigation as any).navigate('ChatDetail', {
         conversationId: conversation.id,
         providerId: targetId || '',
         providerName: targetName || '',
       });
-      console.log('✅ Navigation command dispatched');
+      Logger.debug('✅ Navigation command dispatched');
     } catch (navError) {
-      console.error('❌ Navigation failed:', navError);
+      Logger.error('❌ Navigation failed:', navError);
       Alert.alert('Грешка', 'Не успяхме да отворим чата. Моля, опитайте отново.');
     }
   };

@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -123,7 +124,7 @@ export default function SurveyModal({
         comment: surveyData.comment,
       };
 
-      console.log('📤 Submitting review:', payload);
+      Logger.debug('📤 Submitting review:', payload);
 
       const response = await fetch('https://snapfix.bg/api/v1/reviews', {
         method: 'POST',
@@ -157,7 +158,7 @@ export default function SurveyModal({
         throw new Error(result.error?.message || 'Failed to submit review');
       }
     } catch (error: any) {
-      console.error('❌ Error submitting review:', error);
+      Logger.error('❌ Error submitting review:', error);
       Alert.alert('Грешка', error.message || 'Неуспешно изпращане на отзива');
     } finally {
       setLoading(false);

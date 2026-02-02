@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -112,7 +113,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           setServiceCategories(categories);
         }
       } catch (error) {
-        console.log('Failed to load service categories:', error);
+        Logger.debug('Failed to load service categories:', error);
         // Fallback categories - import from constants
         const { SERVICE_CATEGORIES } = require('../constants/serviceCategories');
         setServiceCategories(
@@ -145,7 +146,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         setCities(response.data.cities.map((c: any) => c.label || c.value));
       }
     } catch (error) {
-      console.error('Failed to load cities:', error);
+      Logger.error('Failed to load cities:', error);
       setCities(['София', 'Пловдив', 'Варна', 'Бургас', 'Русе', 'Стара Загора']);
     }
   };
@@ -159,7 +160,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         setNeighborhoods([]);
       }
     } catch (error) {
-      console.error('Failed to load neighborhoods:', error);
+      Logger.error('Failed to load neighborhoods:', error);
       setNeighborhoods([]);
     }
   };
@@ -182,7 +183,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         setShowAddressSuggestions(true);
       }
     } catch (error) {
-      console.error('Address search error:', error);
+      Logger.error('Address search error:', error);
     }
   };
 
@@ -234,7 +235,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         }));
       }
     } catch (error) {
-      console.error('Error getting place details:', error);
+      Logger.error('Error getting place details:', error);
     }
   };
 
@@ -317,14 +318,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             Alert.alert('Внимание', 'Не успяхме да определим местоположението. Моля изберете ръчно.');
           }
         } catch (error) {
-          console.error('Auto-detect location error:', error);
+          Logger.error('Auto-detect location error:', error);
           Alert.alert('Грешка', 'Възникна проблем при определяне на местоположението');
         } finally {
           setDetectingLocation(false);
         }
       },
       (error) => {
-        console.error('Geolocation error:', error.message);
+        Logger.error('Geolocation error:', error.message);
         setDetectingLocation(false);
         Alert.alert('Грешка', 'Не можахме да определим местоположението ви. Проверете GPS настройките.');
       },
@@ -350,9 +351,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       );
 
       if (response.success) {
-        console.log('AuthScreen - Login successful, setting token and calling onAuthSuccess');
+        Logger.debug('AuthScreen - Login successful, setting token and calling onAuthSuccess');
         await ApiService.getInstance().setAuthToken(response.data?.tokens?.accessToken);
-        console.log('AuthScreen - Token set, calling onAuthSuccess with user:', response.data?.user);
+        Logger.debug('AuthScreen - Token set, calling onAuthSuccess with user:', response.data?.user);
         // Remember credentials if requested
         try {
           if (rememberMe) {
@@ -505,10 +506,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
       const response = await ApiService.getInstance().register(registrationData);
 
-      console.log('Registration response:', JSON.stringify(response, null, 2));
+      Logger.debug('Registration response:', JSON.stringify(response, null, 2));
 
       if (response.success) {
-        console.log('Registration successful, tokens:', response.data?.tokens);
+        Logger.debug('Registration successful, tokens:', response.data?.tokens);
         await ApiService.getInstance().setAuthToken(response.data?.tokens?.accessToken);
         // Remember credentials if requested
         try {
@@ -523,11 +524,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
         onAuthSuccess(response.data?.user || { id: 'local', email: formData.email } as any);
       } else {
-        console.log('Registration failed:', response.error);
+        Logger.debug('Registration failed:', response.error);
         Alert.alert('Грешка', response.error?.message || 'Неуспешна регистрация');
       }
     } catch (error) {
-      console.log('Registration error:', error);
+      Logger.debug('Registration error:', error);
       Alert.alert('Грешка', `Възникна грешка при регистрацията: ${error instanceof Error ? error.message : 'Неизвестна грешка'}`);
     } finally {
       setLoading(false);

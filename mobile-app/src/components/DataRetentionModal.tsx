@@ -3,6 +3,7 @@
  * GDPR compliance feature - allows users to consent to continued data storage
  */
 
+import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -41,7 +42,7 @@ const DataRetentionModal: React.FC<DataRetentionModalProps> = ({
         onClose();
       }
     } catch (error) {
-      console.error('Error extending data retention:', error);
+      Logger.error('Error extending data retention:', error);
       onClose();
     }
     setLoading(false);

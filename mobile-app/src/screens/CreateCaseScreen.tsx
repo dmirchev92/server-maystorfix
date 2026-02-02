@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -224,7 +225,7 @@ export default function CreateCaseScreen() {
           setShowPredictions(true);
         }
       } catch (error) {
-        console.error('Places autocomplete error:', error);
+        Logger.error('Places autocomplete error:', error);
       } finally {
         setLoadingPredictions(false);
       }
@@ -288,7 +289,7 @@ export default function CreateCaseScreen() {
         // Use neighborhood if found, otherwise fall back to sublocality
         const finalNeighborhood = detectedNeighborhood || detectedSublocality || '';
         
-        console.log('📍 Location detected:', { city: detectedCity, neighborhood: finalNeighborhood, sublocality: detectedSublocality });
+        Logger.debug('📍 Location detected:', { city: detectedCity, neighborhood: finalNeighborhood, sublocality: detectedSublocality });
         
         setFormData(prev => ({
           ...prev,
@@ -301,7 +302,7 @@ export default function CreateCaseScreen() {
         setLocationDetected(true);
       }
     } catch (error) {
-      console.error('Place details error:', error);
+      Logger.error('Place details error:', error);
     } finally {
       setLoadingPredictions(false);
     }
@@ -316,7 +317,7 @@ export default function CreateCaseScreen() {
         setFormData(prev => ({ ...prev, phone: user.phoneNumber || user.phone_number }));
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      Logger.error('Error loading user:', error);
     }
   };
 
@@ -380,11 +381,11 @@ export default function CreateCaseScreen() {
             setLocationDetected(true);
           }
         } catch (error) {
-          console.log('Auto-detect location error:', error);
+          Logger.debug('Auto-detect location error:', error);
         }
       },
       (error) => {
-        console.log('Location error:', error.message);
+        Logger.debug('Location error:', error.message);
         // Silent fail - user can manually enter address
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
@@ -459,7 +460,7 @@ export default function CreateCaseScreen() {
       });
 
       const result = await response.json();
-      console.log('📸 Upload response:', result);
+      Logger.debug('📸 Upload response:', result);
       
       if (result.success && result.data?.screenshots) {
         // Return array of URLs
@@ -467,7 +468,7 @@ export default function CreateCaseScreen() {
       }
       return [];
     } catch (error) {
-      console.error('❌ Error uploading images:', error);
+      Logger.error('❌ Error uploading images:', error);
       return [];
     } finally {
       setUploadingImages(false);
@@ -533,7 +534,7 @@ export default function CreateCaseScreen() {
         screenshots: screenshotUrls,
       };
 
-      console.log('📝 Creating case:', JSON.stringify(caseData, null, 2));
+      Logger.debug('📝 Creating case:', JSON.stringify(caseData, null, 2));
 
       const result = await ApiService.getInstance().createCase(caseData);
 
@@ -547,7 +548,7 @@ export default function CreateCaseScreen() {
         Alert.alert('Грешка', result.error?.message || 'Неуспешно създаване');
       }
     } catch (error) {
-      console.error('Create case error:', error);
+      Logger.error('Create case error:', error);
       Alert.alert('Грешка', 'Възникна проблем при създаването');
     } finally {
       setLoading(false);

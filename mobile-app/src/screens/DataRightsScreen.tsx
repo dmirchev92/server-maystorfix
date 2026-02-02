@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -64,7 +65,7 @@ const DataRightsScreen: React.FC = () => {
         },
       ]);
     } catch (error) {
-      console.error('Error loading data requests:', error);
+      Logger.error('Error loading data requests:', error);
     } finally {
       setIsLoading(false);
     }
@@ -142,7 +143,7 @@ const DataRightsScreen: React.FC = () => {
       );
 
     } catch (error) {
-      console.error('Error submitting data request:', error);
+      Logger.error('Error submitting data request:', error);
       Alert.alert(
         'Грешка',
         'Възникна проблем при изпращането на заявката. Моля, опитайте отново.',
@@ -162,7 +163,7 @@ const DataRightsScreen: React.FC = () => {
         [{ text: 'OK' }]
       );
     } catch (error) {
-      console.error('Error downloading data:', error);
+      Logger.error('Error downloading data:', error);
     }
   };
 

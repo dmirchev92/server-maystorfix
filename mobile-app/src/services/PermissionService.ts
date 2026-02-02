@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { PermissionsAndroid, Platform, Alert } from 'react-native';
 
 export interface PermissionStatus {
@@ -36,10 +37,10 @@ export class PermissionService {
         PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.SEND_SMS),
       ]);
 
-      console.log('📋 Permission check results:', { contacts, phone, callLog, sms });
+      Logger.debug('📋 Permission check results:', { contacts, phone, callLog, sms });
       return { contacts, phone, callLog, sms };
     } catch (error) {
-      console.error('❌ Error checking permissions:', error);
+      Logger.error('❌ Error checking permissions:', error);
       return { contacts: false, phone: false, callLog: false, sms: false };
     }
   }
@@ -53,7 +54,7 @@ export class PermissionService {
     try {
       return await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
     } catch (error) {
-      console.error('❌ Error checking contacts permission:', error);
+      Logger.error('❌ Error checking contacts permission:', error);
       return false;
     }
   }
@@ -69,11 +70,11 @@ export class PermissionService {
 
     // Only request once per app session
     if (this.permissionsRequested) {
-      console.log('📋 Permissions already requested this session, checking status...');
+      Logger.debug('📋 Permissions already requested this session, checking status...');
       return this.checkAllPermissions();
     }
 
-    console.log('📋 Requesting all permissions on first load...');
+    Logger.debug('📋 Requesting all permissions on first load...');
     this.permissionsRequested = true;
 
     try {
@@ -91,7 +92,7 @@ export class PermissionService {
         sms: results[PermissionsAndroid.PERMISSIONS.SEND_SMS] === PermissionsAndroid.RESULTS.GRANTED,
       };
 
-      console.log('📋 Permission request results:', status);
+      Logger.debug('📋 Permission request results:', status);
 
       // Log which permissions were denied for debugging
       const denied: string[] = [];
@@ -101,12 +102,12 @@ export class PermissionService {
       if (!status.sms) denied.push('SMS');
 
       if (denied.length > 0) {
-        console.log('⚠️ Denied permissions:', denied.join(', '));
+        Logger.debug('⚠️ Denied permissions:', denied.join(', '));
       }
 
       return status;
     } catch (error) {
-      console.error('❌ Error requesting permissions:', error);
+      Logger.error('❌ Error requesting permissions:', error);
       return { contacts: false, phone: false, callLog: false, sms: false };
     }
   }

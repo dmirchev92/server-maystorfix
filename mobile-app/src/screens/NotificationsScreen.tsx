@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -38,7 +39,7 @@ export default function NotificationsScreen() {
         setNotifications(notificationsData);
       }
     } catch (error) {
-      console.error('Error fetching notifications:', error);
+      Logger.error('Error fetching notifications:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,7 +68,7 @@ export default function NotificationsScreen() {
         )
       );
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      Logger.error('Error marking notification as read:', error);
     }
   };
 
@@ -78,7 +79,7 @@ export default function NotificationsScreen() {
       });
       setNotifications(prev => prev.filter(n => n.id !== notificationId));
     } catch (error) {
-      console.error('Error dismissing notification:', error);
+      Logger.error('Error dismissing notification:', error);
     }
   };
 
@@ -213,7 +214,7 @@ export default function NotificationsScreen() {
                   prev.map(n => ({ ...n, read: true }))
                 );
               } catch (error) {
-                console.error('Error marking all as read:', error);
+                Logger.error('Error marking all as read:', error);
               }
             }}
           >

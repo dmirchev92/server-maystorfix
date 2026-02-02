@@ -3,6 +3,7 @@
  * Mobile-first fighting game with Mortal Kombat-style animations
  */
 
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -83,9 +84,9 @@ const GameScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const checkPlayer = async () => {
     setLoading(true);
-    console.log('🎮 Checking player...');
+    Logger.debug('🎮 Checking player...');
     const response = await gameAPI.getPlayer();
-    console.log('🎮 Player check response:', JSON.stringify(response));
+    Logger.debug('🎮 Player check response:', JSON.stringify(response));
     if (response.success && response.data) {
       setPlayer(response.data);
       await loadGameData();
@@ -160,16 +161,16 @@ const GameScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   const loadPlayer = async () => {
-    console.log('🎮 Loading player...');
+    Logger.debug('🎮 Loading player...');
     const response = await gameAPI.getPlayer();
-    console.log('🎮 Player response:', JSON.stringify(response));
+    Logger.debug('🎮 Player response:', JSON.stringify(response));
     if (response.success && response.data) setPlayer(response.data);
   };
 
   const loadOpponents = async () => {
-    console.log('🎮 Loading opponents...');
+    Logger.debug('🎮 Loading opponents...');
     const response = await gameAPI.getOpponents();
-    console.log('🎮 Opponents response:', JSON.stringify(response));
+    Logger.debug('🎮 Opponents response:', JSON.stringify(response));
     if (response.success && response.data) setOpponents(response.data);
   };
 

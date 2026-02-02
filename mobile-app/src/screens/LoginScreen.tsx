@@ -1,6 +1,7 @@
 // Login Screen for SnapFix
 // Handles user authentication and navigation to main app
 
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -96,7 +97,7 @@ const LoginScreen: React.FC<LoginScreenProps> = () => {
       }
     } catch (error: any) {
       // Fallback to mock user if backend fails
-      console.log('Backend login failed, using mock user');
+      Logger.debug('Backend login failed, using mock user');
       const mockUser = {
         id: '1',
         email: 'ivan@example.com',

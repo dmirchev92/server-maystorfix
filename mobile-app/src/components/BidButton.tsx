@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import { TouchableOpacity, Text, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -37,14 +38,14 @@ const BidButton: React.FC<BidButtonProps> = ({
         setCanBid(response.data.allowed);
       }
     } catch (error) {
-      console.error('Error checking bid eligibility:', error);
+      Logger.error('Error checking bid eligibility:', error);
     }
   };
 
   const handlePress = () => {
-    console.log('🔵 BidButton: Opening modal for case:', caseId);
+    Logger.debug('🔵 BidButton: Opening modal for case:', caseId);
     setModalVisible(true);
-    console.log('🔵 BidButton: Modal state set to true');
+    Logger.debug('🔵 BidButton: Modal state set to true');
   };
 
   const handleBidPlaced = () => {

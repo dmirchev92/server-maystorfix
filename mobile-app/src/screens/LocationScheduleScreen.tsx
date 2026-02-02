@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -75,19 +76,19 @@ const LocationScheduleScreen: React.FC = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      console.log('📅 LocationScheduleScreen - Loading settings...');
+      Logger.debug('📅 LocationScheduleScreen - Loading settings...');
       const response = await ApiService.getInstance().getLocationSchedule();
-      console.log('📅 LocationScheduleScreen - Load response:', JSON.stringify(response, null, 2));
+      Logger.debug('📅 LocationScheduleScreen - Load response:', JSON.stringify(response, null, 2));
       if (response.success && response.data) {
         const loadedSettings = {
           ...DEFAULT_SETTINGS,
           ...response.data,
         };
-        console.log('📅 LocationScheduleScreen - Merged settings:', JSON.stringify(loadedSettings, null, 2));
+        Logger.debug('📅 LocationScheduleScreen - Merged settings:', JSON.stringify(loadedSettings, null, 2));
         setSettings(loadedSettings);
       }
     } catch (error) {
-      console.error('Error loading schedule settings:', error);
+      Logger.error('Error loading schedule settings:', error);
       Alert.alert('Грешка', 'Неуспешно зареждане на настройките');
     } finally {
       setLoading(false);
@@ -97,20 +98,20 @@ const LocationScheduleScreen: React.FC = () => {
   const saveSettings = async () => {
     try {
       setSaving(true);
-      console.log('📅 LocationScheduleScreen - Saving settings:', JSON.stringify(settings, null, 2));
+      Logger.debug('📅 LocationScheduleScreen - Saving settings:', JSON.stringify(settings, null, 2));
       const response = await ApiService.getInstance().updateLocationSchedule(settings);
-      console.log('📅 LocationScheduleScreen - Save response:', JSON.stringify(response, null, 2));
+      Logger.debug('📅 LocationScheduleScreen - Save response:', JSON.stringify(response, null, 2));
       if (response.success) {
         Alert.alert('Успех', 'Настройките са запазени успешно');
         // Trigger schedule check to apply changes immediately
-        console.log('📅 LocationScheduleScreen - Triggering schedule check...');
+        Logger.debug('📅 LocationScheduleScreen - Triggering schedule check...');
         await LocationTrackingService.getInstance().checkAndApplySchedule();
-        console.log('📅 LocationScheduleScreen - Schedule check complete');
+        Logger.debug('📅 LocationScheduleScreen - Schedule check complete');
       } else {
         Alert.alert('Грешка', response.error?.message || 'Неуспешно запазване');
       }
     } catch (error) {
-      console.error('Error saving schedule settings:', error);
+      Logger.error('Error saving schedule settings:', error);
       Alert.alert('Грешка', 'Неуспешно запазване на настройките');
     } finally {
       setSaving(false);

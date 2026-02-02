@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -42,7 +43,7 @@ const ServiceCategoriesScreen: React.FC = () => {
         setMaxCategories(limits[tier] || 2);
       }
     } catch (error) {
-      console.error('Error loading user tier:', error);
+      Logger.error('Error loading user tier:', error);
     }
   };
 
@@ -68,7 +69,7 @@ const ServiceCategoriesScreen: React.FC = () => {
         setSelectedCategories(data.categories || []);
       }
     } catch (error) {
-      console.error('Error loading categories:', error);
+      Logger.error('Error loading categories:', error);
       Alert.alert('Грешка', 'Неуспешно зареждане на специализациите');
     } finally {
       setLoading(false);
@@ -139,7 +140,7 @@ const ServiceCategoriesScreen: React.FC = () => {
         Alert.alert('Грешка', data.message || 'Неуспешно обновяване');
       }
     } catch (error) {
-      console.error('Error saving categories:', error);
+      Logger.error('Error saving categories:', error);
       Alert.alert('Грешка', 'Неуспешно обновяване на специализациите');
     } finally {
       setSaving(false);

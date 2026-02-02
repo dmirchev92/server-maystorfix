@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import SocketIOService from '../services/SocketIOService';
@@ -65,26 +66,26 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
         setUser(userData);
         
         // Socket.IO is already initialized in App.tsx, no need to connect again
-        console.log('✅ NotificationContext - User loaded, Socket.IO already initialized');
+        Logger.debug('✅ NotificationContext - User loaded, Socket.IO already initialized');
         
         // Load unread count
         refreshUnreadCount();
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      Logger.error('Error loading user:', error);
     }
   };
 
   const handleAppStateChange = (nextAppState: AppStateStatus) => {
     if (nextAppState === 'active' && user) {
       // App came to foreground
-      console.log('🔄 App became active');
+      Logger.debug('🔄 App became active');
       // Socket.IO reconnection is handled automatically
       // Refresh unread count
       refreshUnreadCount();
     } else if (nextAppState === 'background') {
       // App went to background
-      console.log('📱 App went to background');
+      Logger.debug('📱 App went to background');
     }
   };
 
@@ -95,13 +96,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     try {
       // You can implement an API call to get unread count
       // For now, we'll just log it
-      console.log('🔄 Refreshing unread count...');
+      Logger.debug('🔄 Refreshing unread count...');
       // const response = await ApiService.getInstance().getUnreadNotificationCount();
       // if (response.success && response.data) {
       //   setUnreadCount(response.data.count);
       // }
     } catch (error) {
-      console.error('Error refreshing unread count:', error);
+      Logger.error('Error refreshing unread count:', error);
     }
   };
 
@@ -120,7 +121,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const handleNotificationPress = () => {
     if (currentNotification?.data) {
       // Handle navigation based on notification type
-      console.log('🔔 Notification pressed:', currentNotification.data);
+      Logger.debug('🔔 Notification pressed:', currentNotification.data);
       // You can implement navigation here
       // navigation.navigate('ChatDetail', { conversationId: data.conversationId });
     }

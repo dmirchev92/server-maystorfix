@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -50,7 +51,7 @@ const AnalyticsScreen: React.FC = () => {
     // Simulate loading analytics data
     const loadAnalytics = () => {
       // In a real app, this would fetch from an API
-      console.log('Analytics data loaded');
+      Logger.debug('Analytics data loaded');
     };
 
     loadAnalytics();

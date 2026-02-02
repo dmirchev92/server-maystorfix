@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -34,7 +35,7 @@ const SettingsScreen: React.FC = () => {
           setUserRole(role);
         }
       } catch (error) {
-        console.error('Error loading user role:', error);
+        Logger.error('Error loading user role:', error);
       }
     };
     loadUserRole();
@@ -70,7 +71,7 @@ const SettingsScreen: React.FC = () => {
               // Show success message
               // Alert.alert('Успех', 'Излязохте успешно от профила си'); 
             } catch (error) {
-              console.error('Error logging out:', error);
+              Logger.error('Error logging out:', error);
               // Force logout locally even if API fails
               AuthBus.emit('logout');
             }

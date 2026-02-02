@@ -1,6 +1,7 @@
 // Modern Dashboard Screen with Real Call Detection
 // Integrates with ModernCallDetectionService for Android 15+
 
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -177,54 +178,54 @@ function ModernDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       // Refresh data when screen comes into focus
-      console.log('🔄 useFocusEffect triggered', { hasUser: !!user, userId: user?.id });
+      Logger.debug('🔄 useFocusEffect triggered', { hasUser: !!user, userId: user?.id });
       loadLocationPreference(); // Always load location preference
       loadSmsStatus(); // Always load SMS status
       loadFreeInspectionStatus(); // Load free inspection status
       if (user?.id) {
-        console.log('🔄 Screen focused, refreshing data for user:', user.id);
+        Logger.debug('🔄 Screen focused, refreshing data for user:', user.id);
         loadDashboardData();
         refreshCallDetectionStatus();
         loadRecentActivity();
         loadProviderStats(user.id);
       } else {
-        console.log('⚠️ useFocusEffect: User not loaded yet, skipping refresh');
+        Logger.debug('⚠️ useFocusEffect: User not loaded yet, skipping refresh');
       }
     }, [user?.id])
   );
 
   const initializeScreen = async () => {
     try {
-      console.log('🚀 ========== DASHBOARD INITIALIZATION START ==========');
+      Logger.debug('🚀 ========== DASHBOARD INITIALIZATION START ==========');
       
-      console.log('🚀 Step 1: Loading user data...');
+      Logger.debug('🚀 Step 1: Loading user data...');
       await loadUserData();
-      console.log('🚀 Step 1: User data loaded');
+      Logger.debug('🚀 Step 1: User data loaded');
       
-      console.log('🚀 Step 2: Loading dashboard data...');
+      Logger.debug('🚀 Step 2: Loading dashboard data...');
       await loadDashboardData();
-      console.log('🚀 Step 2: Dashboard data loaded');
+      Logger.debug('🚀 Step 2: Dashboard data loaded');
       
-      console.log('🚀 Step 3: Refreshing call detection status...');
+      Logger.debug('🚀 Step 3: Refreshing call detection status...');
       await refreshCallDetectionStatus();
-      console.log('🚀 Step 3: Call detection status refreshed');
+      Logger.debug('🚀 Step 3: Call detection status refreshed');
       
-      console.log('🚀 Step 4: Loading recent activity...');
+      Logger.debug('🚀 Step 4: Loading recent activity...');
       await loadRecentActivity();
-      console.log('🚀 Step 4: Recent activity loaded');
+      Logger.debug('🚀 Step 4: Recent activity loaded');
       
-      console.log('🚀 Step 5: Testing backend connection...');
+      Logger.debug('🚀 Step 5: Testing backend connection...');
       await testBackendConnection();
-      console.log('🚀 Step 5: Backend connection tested');
+      Logger.debug('🚀 Step 5: Backend connection tested');
       
-      console.log('🚀 Step 6: Checking data retention status...');
+      Logger.debug('🚀 Step 6: Checking data retention status...');
       await checkDataRetentionStatus();
-      console.log('🚀 Step 6: Data retention checked');
+      Logger.debug('🚀 Step 6: Data retention checked');
       
-      console.log('🚀 ========== DASHBOARD INITIALIZATION COMPLETE ==========');
+      Logger.debug('🚀 ========== DASHBOARD INITIALIZATION COMPLETE ==========');
     } catch (error) {
-      console.error('❌ ========== DASHBOARD INITIALIZATION ERROR ==========');
-      console.error('❌ Error initializing screen:', error);
+      Logger.error('❌ ========== DASHBOARD INITIALIZATION ERROR ==========');
+      Logger.error('❌ Error initializing screen:', error);
       Alert.alert('Грешка', 'Проблем при зареждане на данните');
     }
   };
@@ -249,7 +250,7 @@ function ModernDashboardScreen() {
         }
       }
     } catch (error) {
-      console.error('Error checking data retention status:', error);
+      Logger.error('Error checking data retention status:', error);
     }
   };
   
@@ -269,26 +270,26 @@ function ModernDashboardScreen() {
     try {
       const response = await ApiService.getInstance().healthCheck();
       if (response.success) {
-        console.log('✅ Backend connection successful:', response.data);
+        Logger.debug('✅ Backend connection successful:', response.data);
       } else {
-        console.log('❌ Backend connection failed:', response.error);
+        Logger.debug('❌ Backend connection failed:', response.error);
       }
     } catch (error) {
-      console.log('❌ Backend connection error:', error);
+      Logger.debug('❌ Backend connection error:', error);
     }
   };
 
   const testDatabaseConnection = async () => {
     try {
-      console.log('🔍 Testing database connection...');
+      Logger.debug('🔍 Testing database connection...');
       
       // Test 1: Health Check
       const healthResponse = await ApiService.getInstance().healthCheck();
-      console.log('📊 Health Check:', healthResponse);
+      Logger.debug('📊 Health Check:', healthResponse);
       
       // Test 2: Try to get dashboard stats (this will test database queries)
       const statsResponse = await ApiService.getInstance().getDashboardStats();
-      console.log('📈 Dashboard Stats:', statsResponse);
+      Logger.debug('📈 Dashboard Stats:', statsResponse);
       
       // Test 3: Try to sync a test missed call
       const testMissedCall = {
@@ -302,7 +303,7 @@ function ModernDashboardScreen() {
       };
       
       const syncResponse = await ApiService.getInstance().syncMissedCalls([testMissedCall]);
-      console.log('📞 Sync Test:', syncResponse);
+      Logger.debug('📞 Sync Test:', syncResponse);
       
       // Show results to user
       Alert.alert(
@@ -315,7 +316,7 @@ function ModernDashboardScreen() {
       );
       
     } catch (error) {
-      console.error('❌ Database connection test failed:', error);
+      Logger.error('❌ Database connection test failed:', error);
       Alert.alert(
         'Грешка при тест на базата данни',
         `Възникна грешка: ${error}`,
@@ -329,7 +330,7 @@ function ModernDashboardScreen() {
   };
 
   const handleMissedCall = (event: any) => {
-    console.log('📞 New missed call received:', event);
+    Logger.debug('📞 New missed call received:', event);
     
     // Update stats
     setStats(prev => ({
@@ -361,7 +362,7 @@ function ModernDashboardScreen() {
 
   const loadProviderStats = async (userId: string) => {
     try {
-      console.log('📊 Loading provider stats for user:', userId);
+      Logger.debug('📊 Loading provider stats for user:', userId);
       const [statsResponse, providerResponse] = await Promise.all([
         ApiService.getInstance().makeRequest(`/cases/stats?providerId=${userId}`),
         ApiService.getInstance().makeRequest(`/marketplace/providers/${userId}`)
@@ -378,40 +379,40 @@ function ModernDashboardScreen() {
         totalReviews: Number(providerData.totalReviews || providerData.total_reviews) || 0
       };
 
-      console.log('✅ Provider stats loaded:', stats);
+      Logger.debug('✅ Provider stats loaded:', stats);
       setProviderStats(stats);
     } catch (error) {
-      console.error('❌ Error loading provider stats:', error);
+      Logger.error('❌ Error loading provider stats:', error);
     }
   };
 
   const loadUserData = async () => {
     try {
-      console.log('👤 ========== loadUserData START ==========');
+      Logger.debug('👤 ========== loadUserData START ==========');
       
       // Check if user is authenticated first
       const isAuthenticated = ApiService.getInstance().isAuthenticated();
-      console.log('👤 Authentication status:', isAuthenticated);
+      Logger.debug('👤 Authentication status:', isAuthenticated);
       
       if (!isAuthenticated) {
-        console.log('⚠️ User not authenticated, triggering logout');
+        Logger.debug('⚠️ User not authenticated, triggering logout');
         AuthBus.emit('logout');
-        console.log('👤 ========== loadUserData ABORTED (NOT AUTHENTICATED) ==========');
+        Logger.debug('👤 ========== loadUserData ABORTED (NOT AUTHENTICATED) ==========');
         return;
       }
 
-      console.log('� Calling getCurrentUser API...');
+      Logger.debug('� Calling getCurrentUser API...');
       const response = await ApiService.getInstance().getCurrentUser();
-      console.log('� getCurrentUser response:', { success: response.success, hasData: !!response.data });
-      console.log('� Full response data:', JSON.stringify(response.data, null, 2));
+      Logger.debug('� getCurrentUser response:', { success: response.success, hasData: !!response.data });
+      Logger.debug('� Full response data:', JSON.stringify(response.data, null, 2));
       
       if (response.success && response.data) {
-        console.log('✅ User data loaded from backend successfully');
+        Logger.debug('✅ User data loaded from backend successfully');
         // Handle nested user object (common API pattern)
         const rawData: any = response.data;
         const userData: any = rawData.user || rawData;
         
-        console.log('� Checking user fields:', {
+        Logger.debug('� Checking user fields:', {
           id: userData.id,
           firstName: userData.firstName,
           first_name: userData.first_name,
@@ -431,17 +432,17 @@ function ModernDashboardScreen() {
           isGdprCompliant: userData.isGdprCompliant || userData.is_gdpr_compliant || false,
           subscription_tier_id: userData.subscription_tier_id || 'free',
         };
-        console.log('� Mapped user data:', mappedUser);
-        console.log('👤 User ID that will be used for API calls:', mappedUser.id);
+        Logger.debug('� Mapped user data:', mappedUser);
+        Logger.debug('👤 User ID that will be used for API calls:', mappedUser.id);
         
         // Save user to AsyncStorage so other services can access it
         await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
-        console.log('💾 User saved to AsyncStorage for call detection service');
+        Logger.debug('💾 User saved to AsyncStorage for call detection service');
         
-        console.log('👤 Setting user state...');
+        Logger.debug('👤 Setting user state...');
         setUser(mappedUser);
-        console.log('👤 User state set successfully');
-        console.log('👤 ========== loadUserData COMPLETE (REAL USER) ==========');
+        Logger.debug('👤 User state set successfully');
+        Logger.debug('👤 ========== loadUserData COMPLETE (REAL USER) ==========');
         
         // Load service type, profile image, and provider stats
         if (mappedUser.id) {
@@ -462,11 +463,11 @@ function ModernDashboardScreen() {
             // Load provider stats
             await loadProviderStats(mappedUser.id);
           } catch (error) {
-            console.error('Error loading profile data:', error);
+            Logger.error('Error loading profile data:', error);
           }
         }
       } else {
-        console.log('⚠️ No user data from backend, using mock user. Response:', response);
+        Logger.debug('⚠️ No user data from backend, using mock user. Response:', response);
         const mockUser: User = {
           id: '1',
           email: 'ivan@test.com',
@@ -478,12 +479,12 @@ function ModernDashboardScreen() {
           isGdprCompliant: true,
         };
         setUser(mockUser);
-        console.log('� Using mock user for testing:', mockUser.id);
-        console.log('👤 ========== loadUserData COMPLETE (MOCK FALLBACK) ==========');
+        Logger.debug('� Using mock user for testing:', mockUser.id);
+        Logger.debug('👤 ========== loadUserData COMPLETE (MOCK FALLBACK) ==========');
       }
     } catch (error) {
-      console.error('❌ ========== loadUserData ERROR ==========');
-      console.error('❌ Failed to load user data:', error);
+      Logger.error('❌ ========== loadUserData ERROR ==========');
+      Logger.error('❌ Failed to load user data:', error);
       // Set mock user as fallback
       const mockUser: User = {
         id: '1',
@@ -496,60 +497,60 @@ function ModernDashboardScreen() {
         isGdprCompliant: true,
       };
       setUser(mockUser);
-      console.log('� Using mock user as fallback:', mockUser.id);
-      console.log('👤 ========== loadUserData COMPLETE (ERROR FALLBACK) ==========');
+      Logger.debug('� Using mock user as fallback:', mockUser.id);
+      Logger.debug('👤 ========== loadUserData COMPLETE (ERROR FALLBACK) ==========');
     }
   };
 
   const loadDashboardData = async () => {
     try {
-      console.log('📊 ========== loadDashboardData START ==========');
-      console.log('📊 Current user state:', { hasUser: !!user, userId: user?.id });
+      Logger.debug('📊 ========== loadDashboardData START ==========');
+      Logger.debug('📊 Current user state:', { hasUser: !!user, userId: user?.id });
       
       if (!user?.id) {
-        console.log('⚠️ loadDashboardData: No user ID available, cannot fetch stats');
+        Logger.debug('⚠️ loadDashboardData: No user ID available, cannot fetch stats');
         return;
       }
       
-      console.log('📊 Fetching dashboard stats for user:', user.id);
+      Logger.debug('📊 Fetching dashboard stats for user:', user.id);
       
       // Try to get real stats from backend first (pass userId for missed calls count)
       const response = await ApiService.getInstance().getDashboardStats(user.id);
-      console.log('📊 getDashboardStats response:', { success: response.success, data: response.data });
+      Logger.debug('📊 getDashboardStats response:', { success: response.success, data: response.data });
       
       // Get chat source stats (use user.id as providerId for service providers)
       let chatSourceStats = { smsChatCases: 0, searchChatCases: 0 };
       try {
-        console.log('📊 Fetching chat source stats for provider:', user.id);
+        Logger.debug('📊 Fetching chat source stats for provider:', user.id);
         const chatSourceResponse = await ApiService.getInstance().getCaseStatsByChatSource(user.id);
-        console.log('📊 getCaseStatsByChatSource response:', { 
+        Logger.debug('📊 getCaseStatsByChatSource response:', { 
           success: chatSourceResponse.success, 
           data: chatSourceResponse.data 
         });
         
         if (chatSourceResponse.success && chatSourceResponse.data) {
-          console.log('✅ Chat source stats loaded successfully');
+          Logger.debug('✅ Chat source stats loaded successfully');
           const totals = chatSourceResponse.data.totals || chatSourceResponse.data;
           chatSourceStats = {
             smsChatCases: totals.smschat || 0,
             searchChatCases: totals.searchchat || 0,
           };
-          console.log('📊 Parsed chat source stats:', chatSourceStats);
+          Logger.debug('📊 Parsed chat source stats:', chatSourceStats);
         } else {
-          console.log('⚠️ Chat source stats response not successful or no data');
+          Logger.debug('⚠️ Chat source stats response not successful or no data');
         }
       } catch (error) {
-        console.error('❌ Error loading chat source stats:', error);
+        Logger.error('❌ Error loading chat source stats:', error);
       }
       
       if (response.success && response.data) {
-        console.log('✅ Dashboard stats loaded from backend successfully');
+        Logger.debug('✅ Dashboard stats loaded from backend successfully');
         const newStats = {
           ...response.data,
           ...chatSourceStats,
         };
-        console.log('📊 Final merged stats to be set:', newStats);
-        console.log('📊 Stats breakdown:', {
+        Logger.debug('📊 Final merged stats to be set:', newStats);
+        Logger.debug('📊 Stats breakdown:', {
           totalCalls: newStats.totalCalls,
           missedCalls: newStats.missedCalls,
           smsSent: newStats.smsSent,
@@ -558,11 +559,11 @@ function ModernDashboardScreen() {
         });
         setStats(newStats);
         setLastUpdated(new Date());
-        console.log('📊 ========== loadDashboardData SUCCESS ==========');
+        Logger.debug('📊 ========== loadDashboardData SUCCESS ==========');
         return;
       }
       
-      console.log('⚠️ Backend stats not available, using local data');
+      Logger.debug('⚠️ Backend stats not available, using local data');
       
       // Fallback: Get stored missed calls to update stats
       const storedCalls = await callDetectionService.getStoredMissedCalls();
@@ -580,15 +581,15 @@ function ModernDashboardScreen() {
         ...chatSourceStats,
       };
       
-      console.log('📊 Fallback stats:', updatedStats);
+      Logger.debug('📊 Fallback stats:', updatedStats);
       setStats(updatedStats);
       setLastUpdated(new Date());
-      console.log('📊 ========== loadDashboardData FALLBACK ==========');
+      Logger.debug('📊 ========== loadDashboardData FALLBACK ==========');
     } catch (error) {
-      console.error('❌ ========== loadDashboardData ERROR ==========');
-      console.error('❌ Failed to load dashboard data:', error);
+      Logger.error('❌ ========== loadDashboardData ERROR ==========');
+      Logger.error('❌ Failed to load dashboard data:', error);
       if (error instanceof Error) {
-        console.error('❌ Error details:', {
+        Logger.error('❌ Error details:', {
           message: error.message,
           stack: error.stack
         });
@@ -598,11 +599,11 @@ function ModernDashboardScreen() {
 
   const loadRecentActivity = async () => {
     try {
-      console.log('📋 Loading recent activity...');
+      Logger.debug('📋 Loading recent activity...');
       
       // Get real missed calls from local storage
       const storedCalls = await callDetectionService.getStoredMissedCalls();
-      console.log('📞 Found stored calls:', storedCalls.length);
+      Logger.debug('📞 Found stored calls:', storedCalls.length);
       
       // Convert stored calls to activity items
       const callActivities: ActivityItem[] = storedCalls
@@ -620,10 +621,10 @@ function ModernDashboardScreen() {
       const allActivities = callActivities
         .sort((a, b) => b.timestamp - a.timestamp);
 
-      console.log('✅ Recent activity loaded:', allActivities.length, 'items');
+      Logger.debug('✅ Recent activity loaded:', allActivities.length, 'items');
       setRecentActivity(allActivities);
     } catch (error) {
-      console.error('Failed to load recent activity:', error);
+      Logger.error('Failed to load recent activity:', error);
     }
   };
 
@@ -638,30 +639,30 @@ function ModernDashboardScreen() {
         androidVersion: permissions?.androidVersion || 'Unknown',
       });
     } catch (error) {
-      console.error('Failed to refresh call detection status:', error);
+      Logger.error('Failed to refresh call detection status:', error);
     }
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    console.log('🔄 ========== MANUAL REFRESH START ==========');
-    console.log('🔄 Current user:', { hasUser: !!user, userId: user?.id });
+    Logger.debug('🔄 ========== MANUAL REFRESH START ==========');
+    Logger.debug('🔄 Current user:', { hasUser: !!user, userId: user?.id });
     
     try {
-      console.log('🔄 Refreshing dashboard data...');
+      Logger.debug('🔄 Refreshing dashboard data...');
       await loadDashboardData();
-      console.log('🔄 Refreshing call detection status...');
+      Logger.debug('🔄 Refreshing call detection status...');
       await refreshCallDetectionStatus();
-      console.log('🔄 Refreshing recent activity...');
+      Logger.debug('🔄 Refreshing recent activity...');
       await loadRecentActivity();
       if (user?.id) {
-        console.log('🔄 Refreshing provider stats...');
+        Logger.debug('🔄 Refreshing provider stats...');
         await loadProviderStats(user.id);
       }
-      console.log('✅ ========== MANUAL REFRESH COMPLETE ==========');
+      Logger.debug('✅ ========== MANUAL REFRESH COMPLETE ==========');
     } catch (error) {
-      console.error('❌ ========== MANUAL REFRESH ERROR ==========');
-      console.error('❌ Error refreshing dashboard:', error);
+      Logger.error('❌ ========== MANUAL REFRESH ERROR ==========');
+      Logger.error('❌ Error refreshing dashboard:', error);
     }
     
     setIsRefreshing(false);
@@ -672,12 +673,12 @@ function ModernDashboardScreen() {
     try {
       // Get tracking preference
       const enabled = await LocationTrackingService.getInstance().getTrackingPreference();
-      console.log('📍 Dashboard - Tracking preference:', enabled);
+      Logger.debug('📍 Dashboard - Tracking preference:', enabled);
       setIsLocationEnabled(enabled);
       
       // Get schedule settings
       const scheduleResponse = await ApiService.getInstance().getLocationSchedule();
-      console.log('📍 Dashboard - Schedule response:', JSON.stringify(scheduleResponse, null, 2));
+      Logger.debug('📍 Dashboard - Schedule response:', JSON.stringify(scheduleResponse, null, 2));
       if (scheduleResponse.success && scheduleResponse.data) {
         const schedule = scheduleResponse.data;
         const newScheduleSettings = {
@@ -685,7 +686,7 @@ function ModernDashboardScreen() {
           start_time: schedule.start_time || '08:00',
           end_time: schedule.end_time || '21:00',
         };
-        console.log('📍 Dashboard - Setting schedule settings:', JSON.stringify(newScheduleSettings, null, 2));
+        Logger.debug('📍 Dashboard - Setting schedule settings:', JSON.stringify(newScheduleSettings, null, 2));
         setScheduleSettings(newScheduleSettings);
         
         // Determine location mode based on settings
@@ -696,14 +697,14 @@ function ModernDashboardScreen() {
         } else {
           setLocationMode('always');
         }
-        console.log('📍 Dashboard - Location mode set to:', !enabled ? 'off' : (schedule.schedule_enabled ? 'schedule' : 'always'));
+        Logger.debug('📍 Dashboard - Location mode set to:', !enabled ? 'off' : (schedule.schedule_enabled ? 'schedule' : 'always'));
       } else {
         // No schedule data, determine mode from enabled state only
         setLocationMode(enabled ? 'always' : 'off');
-        console.log('📍 Dashboard - No schedule data, mode set to:', enabled ? 'always' : 'off');
+        Logger.debug('📍 Dashboard - No schedule data, mode set to:', enabled ? 'always' : 'off');
       }
     } catch (error) {
-      console.error('Error loading location preference:', error);
+      Logger.error('Error loading location preference:', error);
       setLocationMode('off');
     }
   };
@@ -722,22 +723,22 @@ function ModernDashboardScreen() {
       
       if (stats.isEnabled && !isCallDetectionRunning) {
         // SMS is enabled but call detection isn't running - start it
-        console.log('📱 SMS enabled but call detection not running, syncing...');
+        Logger.debug('📱 SMS enabled but call detection not running, syncing...');
         const hasPermissions = await callDetectionService.checkPermissions();
         if (hasPermissions?.hasAllPermissions) {
           await callDetectionService.startDetection();
           await refreshCallDetectionStatus();
-          console.log('✅ Call detection synced with SMS status');
+          Logger.debug('✅ Call detection synced with SMS status');
         }
       } else if (!stats.isEnabled && isCallDetectionRunning) {
         // SMS is disabled but call detection is running - stop it
-        console.log('📱 SMS disabled but call detection running, syncing...');
+        Logger.debug('📱 SMS disabled but call detection running, syncing...');
         await callDetectionService.stopDetection();
         await refreshCallDetectionStatus();
-        console.log('✅ Call detection stopped (SMS disabled)');
+        Logger.debug('✅ Call detection stopped (SMS disabled)');
       }
     } catch (error) {
-      console.error('Error loading SMS status:', error);
+      Logger.error('Error loading SMS status:', error);
     }
   };
 
@@ -778,7 +779,7 @@ function ModernDashboardScreen() {
           break;
       }
     } catch (error) {
-      console.error('Error changing location mode:', error);
+      Logger.error('Error changing location mode:', error);
       Alert.alert('Грешка', 'Неуспешна промяна на настройките за локация');
       // Revert on error
       await loadLocationPreference();
@@ -841,7 +842,7 @@ function ModernDashboardScreen() {
         await callDetectionService.syncSettingsToNative();
       }
     } catch (error) {
-      console.error('Error toggling SMS with call detection:', error);
+      Logger.error('Error toggling SMS with call detection:', error);
       setIsSmsEnabled(!isSmsEnabled); // Revert
       Alert.alert('Грешка', 'Неуспешна промяна на настройките');
     } finally {
@@ -889,7 +890,7 @@ function ModernDashboardScreen() {
         [{ text: 'OK' }]
       );
     } catch (error) {
-      console.error('Error toggling contact filter:', error);
+      Logger.error('Error toggling contact filter:', error);
       Alert.alert('Грешка', 'Неуспешна промяна на филтъра');
     } finally {
       setIsTogglingFilter(false);
@@ -904,7 +905,7 @@ function ModernDashboardScreen() {
         setFreeInspectionActive(response.data.freeInspectionActive || false);
       }
     } catch (error) {
-      console.error('Error loading free inspection status:', error);
+      Logger.error('Error loading free inspection status:', error);
     }
   };
   
@@ -925,7 +926,7 @@ function ModernDashboardScreen() {
         Alert.alert('Грешка', 'Неуспешна промяна на статуса');
       }
     } catch (error) {
-      console.error('Error toggling free inspection:', error);
+      Logger.error('Error toggling free inspection:', error);
       Alert.alert('Грешка', 'Неуспешна връзка със сървъра');
     } finally {
       setFreeInspectionLoading(false);

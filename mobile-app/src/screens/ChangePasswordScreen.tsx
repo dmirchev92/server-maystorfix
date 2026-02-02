@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -83,7 +84,7 @@ const ChangePasswordScreen: React.FC = () => {
         Alert.alert('Грешка', errorData.error?.message || 'Неуспешна промяна на паролата');
       }
     } catch (error) {
-      console.error('Error changing password:', error);
+      Logger.error('Error changing password:', error);
       Alert.alert('Грешка', 'Неуспешна промяна на паролата');
     } finally {
       setSaving(false);

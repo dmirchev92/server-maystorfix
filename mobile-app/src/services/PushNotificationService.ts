@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import notifee, { AndroidImportance, AndroidStyle, EventType } from '@notifee/react-native';
 import { Platform } from 'react-native';
 import ApiService from './ApiService';
@@ -33,7 +34,7 @@ class PushNotificationService {
    */
   public async initialize(): Promise<void> {
     try {
-      console.log('🔔 Initializing Push Notification Service...');
+      Logger.debug('🔔 Initializing Push Notification Service...');
 
       // Request permissions
       await this.requestPermissions();
@@ -44,9 +45,9 @@ class PushNotificationService {
       // Set up notification event listeners
       this.setupNotificationListeners();
 
-      console.log('✅ Push Notification Service initialized');
+      Logger.debug('✅ Push Notification Service initialized');
     } catch (error) {
-      console.error('❌ Error initializing push notifications:', error);
+      Logger.error('❌ Error initializing push notifications:', error);
     }
   }
 
@@ -55,15 +56,15 @@ class PushNotificationService {
    */
   public async requestPermissions(): Promise<boolean> {
     try {
-      console.log('🔔 Requesting notification permissions...');
+      Logger.debug('🔔 Requesting notification permissions...');
       
       const settings = await notifee.requestPermission();
       
-      console.log('🔔 Permission status:', settings.authorizationStatus);
+      Logger.debug('🔔 Permission status:', settings.authorizationStatus);
       
       return settings.authorizationStatus === 1; // 1 = AUTHORIZED
     } catch (error) {
-      console.error('❌ Error requesting permissions:', error);
+      Logger.error('❌ Error requesting permissions:', error);
       return false;
     }
   }
@@ -106,9 +107,9 @@ class PushNotificationService {
         badge: true,
       });
 
-      console.log('✅ Notification channels created');
+      Logger.debug('✅ Notification channels created');
     } catch (error) {
-      console.error('❌ Error creating channels:', error);
+      Logger.error('❌ Error creating channels:', error);
     }
   }
 
@@ -118,20 +119,20 @@ class PushNotificationService {
   private setupNotificationListeners(): void {
     // Handle notification press
     notifee.onForegroundEvent(async ({ type, detail }) => {
-      console.log('🔔 Foreground notification event:', type);
+      Logger.debug('🔔 Foreground notification event:', type);
 
       if (type === EventType.PRESS) {
-        console.log('🔔 Notification pressed:', detail.notification);
+        Logger.debug('🔔 Notification pressed:', detail.notification);
         await this.handleNotificationPress(detail.notification?.data as unknown as NotificationData);
       }
     });
 
     // Handle background notification press
     notifee.onBackgroundEvent(async ({ type, detail }) => {
-      console.log('🔔 Background notification event:', type);
+      Logger.debug('🔔 Background notification event:', type);
 
       if (type === EventType.PRESS) {
-        console.log('🔔 Notification pressed (background):', detail.notification);
+        Logger.debug('🔔 Notification pressed (background):', detail.notification);
         await this.handleNotificationPress(detail.notification?.data as unknown as NotificationData);
       }
     });
@@ -143,17 +144,17 @@ class PushNotificationService {
   private async handleNotificationPress(data: NotificationData): Promise<void> {
     if (!data) return;
 
-    console.log('🔔 Handling notification press:', data);
+    Logger.debug('🔔 Handling notification press:', data);
 
     // Store navigation intent for app to handle
     // The app will check this on startup/resume
     if (data.type === 'message' && data.conversationId) {
       // Navigate to chat
-      console.log('💬 Should navigate to conversation:', data.conversationId);
+      Logger.debug('💬 Should navigate to conversation:', data.conversationId);
       // TODO: Implement navigation
     } else if (data.type === 'case' && data.caseId) {
       // Navigate to case details
-      console.log('📋 Should navigate to case:', data.caseId);
+      Logger.debug('📋 Should navigate to case:', data.caseId);
       // TODO: Implement navigation
     }
   }
@@ -168,7 +169,7 @@ class PushNotificationService {
     senderId: string;
   }): Promise<void> {
     try {
-      console.log('💬 Showing message notification:', data.senderName);
+      Logger.debug('💬 Showing message notification:', data.senderName);
 
       await notifee.displayNotification({
         title: data.senderName,
@@ -208,9 +209,9 @@ class PushNotificationService {
         } as any,
       });
 
-      console.log('✅ Message notification displayed');
+      Logger.debug('✅ Message notification displayed');
     } catch (error) {
-      console.error('❌ Error showing message notification:', error);
+      Logger.error('❌ Error showing message notification:', error);
     }
   }
 
@@ -224,7 +225,7 @@ class PushNotificationService {
     type: 'new' | 'assigned' | 'update';
   }): Promise<void> {
     try {
-      console.log('📋 Showing case notification:', data.title);
+      Logger.debug('📋 Showing case notification:', data.title);
 
       const icon = data.type === 'new' ? '📋' : data.type === 'assigned' ? '🎯' : '🔄';
 
@@ -248,9 +249,9 @@ class PushNotificationService {
         } as any,
       });
 
-      console.log('✅ Case notification displayed');
+      Logger.debug('✅ Case notification displayed');
     } catch (error) {
-      console.error('❌ Error showing case notification:', error);
+      Logger.error('❌ Error showing case notification:', error);
     }
   }
 
@@ -263,7 +264,7 @@ class PushNotificationService {
     data?: any;
   }): Promise<void> {
     try {
-      console.log('🔔 Showing notification:', data.title);
+      Logger.debug('🔔 Showing notification:', data.title);
 
       await notifee.displayNotification({
         title: data.title,
@@ -281,9 +282,9 @@ class PushNotificationService {
         data: data.data,
       });
 
-      console.log('✅ Notification displayed');
+      Logger.debug('✅ Notification displayed');
     } catch (error) {
-      console.error('❌ Error showing notification:', error);
+      Logger.error('❌ Error showing notification:', error);
     }
   }
 
@@ -293,9 +294,9 @@ class PushNotificationService {
   public async cancelNotification(notificationId: string): Promise<void> {
     try {
       await notifee.cancelNotification(notificationId);
-      console.log('✅ Notification cancelled:', notificationId);
+      Logger.debug('✅ Notification cancelled:', notificationId);
     } catch (error) {
-      console.error('❌ Error cancelling notification:', error);
+      Logger.error('❌ Error cancelling notification:', error);
     }
   }
 
@@ -305,9 +306,9 @@ class PushNotificationService {
   public async cancelAllNotifications(): Promise<void> {
     try {
       await notifee.cancelAllNotifications();
-      console.log('✅ All notifications cancelled');
+      Logger.debug('✅ All notifications cancelled');
     } catch (error) {
-      console.error('❌ Error cancelling all notifications:', error);
+      Logger.error('❌ Error cancelling all notifications:', error);
     }
   }
 
@@ -319,7 +320,7 @@ class PushNotificationService {
       const count = await notifee.getBadgeCount();
       return count;
     } catch (error) {
-      console.error('❌ Error getting badge count:', error);
+      Logger.error('❌ Error getting badge count:', error);
       return 0;
     }
   }
@@ -330,9 +331,9 @@ class PushNotificationService {
   public async setBadgeCount(count: number): Promise<void> {
     try {
       await notifee.setBadgeCount(count);
-      console.log('✅ Badge count set:', count);
+      Logger.debug('✅ Badge count set:', count);
     } catch (error) {
-      console.error('❌ Error setting badge count:', error);
+      Logger.error('❌ Error setting badge count:', error);
     }
   }
 
@@ -344,7 +345,7 @@ class PushNotificationService {
       const current = await this.getBadgeCount();
       await this.setBadgeCount(current + 1);
     } catch (error) {
-      console.error('❌ Error incrementing badge:', error);
+      Logger.error('❌ Error incrementing badge:', error);
     }
   }
 
@@ -354,9 +355,9 @@ class PushNotificationService {
   public async clearBadge(): Promise<void> {
     try {
       await this.setBadgeCount(0);
-      console.log('✅ Badge cleared');
+      Logger.debug('✅ Badge cleared');
     } catch (error) {
-      console.error('❌ Error clearing badge:', error);
+      Logger.error('❌ Error clearing badge:', error);
     }
   }
 }

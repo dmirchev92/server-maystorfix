@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { NativeEventEmitter, NativeModules } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 
@@ -69,7 +70,7 @@ class WebSocketService {
    */
   private setupEventListeners(): void {
     // No native call detection listeners needed
-    console.log('WebSocket event listeners set up (no native detection)');
+    Logger.debug('WebSocket event listeners set up (no native detection)');
   }
 
   /**
@@ -78,17 +79,17 @@ class WebSocketService {
   public async connect(): Promise<boolean> {
     try {
       if (this.isConnected) {
-        console.log('WebSocket already connected');
+        Logger.debug('WebSocket already connected');
         return true;
       }
 
-      console.log('Connecting to WebSocket server...');
+      Logger.debug('Connecting to WebSocket server...');
       
       this.ws = new WebSocket(this.backendUrl) as any;
       
       if (this.ws) {
         this.ws.onopen = () => {
-        console.log('WebSocket connected successfully');
+        Logger.debug('WebSocket connected successfully');
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.startHeartbeat();
@@ -101,12 +102,12 @@ class WebSocketService {
           const message: WebSocketMessage = JSON.parse(event.data);
           this.handleMessage(message);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          Logger.error('Error parsing WebSocket message:', error);
         }
       };
 
         this.ws.onclose = (event) => {
-        console.log('WebSocket connection closed:', event.code, event.reason);
+        Logger.debug('WebSocket connection closed:', event.code, event.reason);
         this.isConnected = false;
         this.stopHeartbeat();
         this.emit('disconnected', { 
@@ -120,14 +121,14 @@ class WebSocketService {
       };
 
         this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        Logger.error('WebSocket error:', error);
         this.emit('error', { error, timestamp: Date.now() });
       };
       }
 
       return true;
     } catch (error) {
-      console.error('Error connecting to WebSocket:', error);
+      Logger.error('Error connecting to WebSocket:', error);
       return false;
     }
   }
@@ -159,15 +160,15 @@ class WebSocketService {
     if (this.isConnected && this.ws) {
       try {
         this.ws.send(JSON.stringify(message));
-        console.log('WebSocket message sent:', type);
+        Logger.debug('WebSocket message sent:', type);
         return true;
       } catch (error) {
-        console.error('Error sending WebSocket message:', error);
+        Logger.error('Error sending WebSocket message:', error);
         this.messageQueue.push(message);
         return false;
       }
     } else {
-      console.log('WebSocket not connected, queuing message:', type);
+      Logger.debug('WebSocket not connected, queuing message:', type);
       this.messageQueue.push(message);
       return false;
     }
@@ -178,7 +179,7 @@ class WebSocketService {
    */
   private async handleMissedCallEvent(event: any): Promise<void> {
     try {
-      console.log('Processing missed call event:', event);
+      Logger.debug('Processing missed call event:', event);
 
       const callEventData: CallEventData = {
         phoneNumber: event.phoneNumber,
@@ -195,7 +196,7 @@ class WebSocketService {
       await this.sendMissedCallToAPI(callEventData);
 
     } catch (error) {
-      console.error('Error handling missed call event:', error);
+      Logger.error('Error handling missed call event:', error);
     }
   }
 
@@ -218,9 +219,9 @@ class WebSocketService {
       }
 
       const result = await response.json();
-      console.log('Missed call sent to API:', result);
+      Logger.debug('Missed call sent to API:', result);
     } catch (error) {
-      console.error('Error sending missed call to API:', error);
+      Logger.error('Error sending missed call to API:', error);
     }
   }
 
@@ -228,7 +229,7 @@ class WebSocketService {
    * Handle incoming WebSocket messages
    */
   private handleMessage(message: WebSocketMessage): void {
-    console.log('WebSocket message received:', message.type);
+    Logger.debug('WebSocket message received:', message.type);
 
     switch (message.type) {
       case 'ai_response_generated':
@@ -253,7 +254,7 @@ class WebSocketService {
         // Heartbeat response
         break;
       default:
-        console.log('Unknown message type:', message.type);
+        Logger.debug('Unknown message type:', message.type);
     }
 
     // Emit to listeners
@@ -264,7 +265,7 @@ class WebSocketService {
    * Handle AI response from backend
    */
   private handleAIResponse(data: AIResponseData): void {
-    console.log('AI response received:', data);
+    Logger.debug('AI response received:', data);
     this.emit('ai_response', data);
   }
 
@@ -272,7 +273,7 @@ class WebSocketService {
    * Handle conversation update from backend
    */
   private handleConversationUpdate(data: ConversationUpdate): void {
-    console.log('Conversation update received:', data);
+    Logger.debug('Conversation update received:', data);
     this.emit('conversation_update', data);
   }
 
@@ -280,7 +281,7 @@ class WebSocketService {
    * Handle handoff request from backend
    */
   private handleHandoffRequest(data: any): void {
-    console.log('Handoff request received:', data);
+    Logger.debug('Handoff request received:', data);
     this.emit('handoff_request', data);
   }
 
@@ -288,7 +289,7 @@ class WebSocketService {
    * Handle message delivery status
    */
   private handleMessageDelivery(data: any): void {
-    console.log('Message delivery status:', data);
+    Logger.debug('Message delivery status:', data);
     this.emit('message_delivery', data);
   }
 
@@ -296,7 +297,7 @@ class WebSocketService {
    * Handle new message notification from marketplace
    */
   private handleNewMessageNotification(data: any): void {
-    console.log('📱 New message notification received:', data);
+    Logger.debug('📱 New message notification received:', data);
     this.emit('new_message_notification', data);
   }
 
@@ -304,7 +305,7 @@ class WebSocketService {
    * Handle new message in conversation
    */
   private handleNewMessage(data: any): void {
-    console.log('📱 New message received:', data);
+    Logger.debug('📱 New message received:', data);
     this.emit('new_message', data);
   }
 
@@ -347,13 +348,13 @@ class WebSocketService {
   private attemptReconnect(): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+      Logger.debug(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
       
       setTimeout(() => {
         this.connect();
       }, this.reconnectInterval);
     } else {
-      console.error('Max reconnection attempts reached');
+      Logger.error('Max reconnection attempts reached');
       this.emit('reconnect_failed', { attempts: this.reconnectAttempts });
     }
   }
@@ -391,7 +392,7 @@ class WebSocketService {
         try {
           listener(data);
         } catch (error) {
-          console.error('Error in event listener:', error);
+          Logger.error('Error in event listener:', error);
         }
       });
     }
@@ -403,9 +404,9 @@ class WebSocketService {
   public authenticate(token: string, userId: string): void {
     if (this.isConnected) {
       this.sendMessage('authenticate', { token, userId });
-      console.log('🔐 Mobile app WebSocket authentication sent');
+      Logger.debug('🔐 Mobile app WebSocket authentication sent');
     } else {
-      console.warn('⚠️ Cannot authenticate - WebSocket not connected');
+      Logger.warn('⚠️ Cannot authenticate - WebSocket not connected');
     }
   }
 
@@ -415,9 +416,9 @@ class WebSocketService {
   public joinUserRoom(userId: string): void {
     if (this.isConnected) {
       this.sendMessage('join-user-room', userId);
-      console.log('👤 Mobile app joined user room:', userId);
+      Logger.debug('👤 Mobile app joined user room:', userId);
     } else {
-      console.warn('⚠️ Cannot join user room - WebSocket not connected');
+      Logger.warn('⚠️ Cannot join user room - WebSocket not connected');
     }
   }
 
@@ -427,9 +428,9 @@ class WebSocketService {
   public joinConversation(conversationId: string): void {
     if (this.isConnected) {
       this.sendMessage('join-conversation', conversationId);
-      console.log('💬 Mobile app joined conversation room:', conversationId);
+      Logger.debug('💬 Mobile app joined conversation room:', conversationId);
     } else {
-      console.warn('⚠️ Cannot join conversation - WebSocket not connected');
+      Logger.warn('⚠️ Cannot join conversation - WebSocket not connected');
     }
   }
 

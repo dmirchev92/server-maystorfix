@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   Modal,
@@ -69,7 +70,7 @@ const BidModal: React.FC<BidModalProps> = ({
         setUser({ subscription_tier_id: balanceResponse.data.subscription_tier || 'normal' });
       }
     } catch (error) {
-      console.error('Error loading points balance:', error);
+      Logger.error('Error loading points balance:', error);
     }
   };
 
@@ -196,7 +197,7 @@ const BidModal: React.FC<BidModalProps> = ({
     );
   };
 
-  console.log('🎯 BidModal render:', { visible, caseBudget, proposedBudget });
+  Logger.debug('🎯 BidModal render:', { visible, caseBudget, proposedBudget });
 
   return (
     <Modal

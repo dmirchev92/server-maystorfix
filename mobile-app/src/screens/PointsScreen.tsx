@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -77,7 +78,7 @@ const PointsScreen: React.FC = () => {
         setSubscriptionTier(user.subscription_tier_id || 'free');
       }
     } catch (error) {
-      console.error('Error loading user tier:', error);
+      Logger.error('Error loading user tier:', error);
     }
   };
 
@@ -97,7 +98,7 @@ const PointsScreen: React.FC = () => {
         setTransactions(transactionsResponse.data.transactions || transactionsResponse.data || []);
       }
     } catch (error) {
-      console.error('Error fetching points data:', error);
+      Logger.error('Error fetching points data:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);

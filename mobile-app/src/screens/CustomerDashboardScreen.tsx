@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -59,7 +60,7 @@ export default function CustomerDashboardScreen() {
         setUser(userData);
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      Logger.error('Error loading user:', error);
     }
   };
 
@@ -95,11 +96,11 @@ export default function CustomerDashboardScreen() {
           setVipProviders(vipResponse.data.slice(0, 6));
         }
       } catch (vipError) {
-        console.log('VIP providers not available:', vipError);
+        Logger.debug('VIP providers not available:', vipError);
       }
 
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      Logger.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
@@ -129,7 +130,7 @@ export default function CustomerDashboardScreen() {
         setVipReviews([]);
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      Logger.error('Error fetching reviews:', error);
       setVipReviews([]);
     } finally {
       setReviewsLoading(false);
@@ -189,7 +190,7 @@ export default function CustomerDashboardScreen() {
             try {
               await ApiService.getInstance().logout();
             } catch (error) {
-              console.error('Logout error:', error);
+              Logger.error('Logout error:', error);
             }
             // Emit logout event to trigger app-wide logout
             AuthBus.emit('logout');

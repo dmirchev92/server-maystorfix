@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -74,7 +75,7 @@ export default function SubscriptionScreen() {
         setPointsBalance(pointsResponse.data);
       }
     } catch (error) {
-      console.error('Error loading subscription data:', error);
+      Logger.error('Error loading subscription data:', error);
       Alert.alert('Грешка', 'Не успяхме да заредим информацията за абонаментите');
     } finally {
       setLoading(false);
@@ -126,7 +127,7 @@ export default function SubscriptionScreen() {
                 Alert.alert('Грешка', response.error?.message || 'Възникна грешка при надстройването');
               }
             } catch (error) {
-              console.error('Error upgrading subscription:', error);
+              Logger.error('Error upgrading subscription:', error);
               Alert.alert('Грешка', 'Не успяхме да обработим заявката за надстройване');
             } finally {
               setUpgrading(false);

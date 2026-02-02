@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -64,7 +65,7 @@ export default function IncomeCompletionModal({
       setPaymentMethod('');
       setIncomeNotes('');
     } catch (error) {
-      console.error('Error completing case:', error);
+      Logger.error('Error completing case:', error);
       Alert.alert('Грешка', 'Възникна грешка при завършването на заявката');
     } finally {
       setIsSubmitting(false);

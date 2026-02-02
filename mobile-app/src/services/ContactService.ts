@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { PermissionsAndroid, Platform } from 'react-native';
 import Contacts from 'react-native-contacts';
 
@@ -23,7 +24,7 @@ export class ContactService {
     if (Platform.OS !== 'android') return false;
 
     try {
-      console.log('📋 Requesting contacts permission...');
+      Logger.debug('📋 Requesting contacts permission...');
       
       const result = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
@@ -36,14 +37,14 @@ export class ContactService {
         }
       );
 
-      console.log('📱 READ_CONTACTS result:', result);
+      Logger.debug('📱 READ_CONTACTS result:', result);
 
       const granted = result === PermissionsAndroid.RESULTS.GRANTED;
       
-      console.log('📋 Contacts Permission result:', granted ? '✅ Granted' : '❌ Denied');
+      Logger.debug('📋 Contacts Permission result:', granted ? '✅ Granted' : '❌ Denied');
       return granted;
     } catch (error) {
-      console.error('❌ Error requesting contacts permission:', error);
+      Logger.error('❌ Error requesting contacts permission:', error);
       return false;
     }
   }
@@ -53,22 +54,22 @@ export class ContactService {
 
     try {
       const hasPermission = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CONTACTS);
-      console.log('📋 Contacts permission check:', hasPermission ? '✅ Granted' : '❌ Denied');
+      Logger.debug('📋 Contacts permission check:', hasPermission ? '✅ Granted' : '❌ Denied');
       return hasPermission;
     } catch (error) {
-      console.error('❌ Error checking contacts permission:', error);
+      Logger.error('❌ Error checking contacts permission:', error);
       return false;
     }
   }
 
   public async isPhoneNumberInContacts(phoneNumber: string): Promise<ContactInfo> {
     try {
-      console.log(`📞 Checking if ${phoneNumber} is in contacts...`);
+      Logger.debug(`📞 Checking if ${phoneNumber} is in contacts...`);
 
       // Check permission first
       const hasPermission = await this.checkContactsPermission();
       if (!hasPermission) {
-        console.log('❌ No contacts permission, assuming number is not in contacts');
+        Logger.debug('❌ No contacts permission, assuming number is not in contacts');
         return {
           isInContacts: false,
           phoneNumber: phoneNumber,
@@ -77,11 +78,11 @@ export class ContactService {
 
       // Normalize phone number for comparison
       const normalizedNumber = this.normalizePhoneNumber(phoneNumber);
-      console.log(`📞 Normalized number: ${normalizedNumber}`);
+      Logger.debug(`📞 Normalized number: ${normalizedNumber}`);
 
       // Get all contacts
       const contacts = await Contacts.getAll();
-      console.log(`📞 Found ${contacts.length} contacts in device`);
+      Logger.debug(`📞 Found ${contacts.length} contacts in device`);
 
       // Check if the phone number exists in any contact
       for (const contact of contacts) {
@@ -91,7 +92,7 @@ export class ContactService {
             
             // Compare normalized numbers
             if (contactNormalized === normalizedNumber) {
-              console.log(`📞 Found contact: ${contact.displayName} with number ${phone.number}`);
+              Logger.debug(`📞 Found contact: ${contact.displayName} with number ${phone.number}`);
               return {
                 isInContacts: true,
                 contactName: contact.displayName || contact.givenName || 'Unknown',
@@ -102,14 +103,14 @@ export class ContactService {
         }
       }
 
-      console.log(`📞 Number ${phoneNumber} not found in contacts`);
+      Logger.debug(`📞 Number ${phoneNumber} not found in contacts`);
       return {
         isInContacts: false,
         phoneNumber: phoneNumber,
       };
 
     } catch (error) {
-      console.error('❌ Error checking contacts:', error);
+      Logger.error('❌ Error checking contacts:', error);
       return {
         isInContacts: false,
         phoneNumber: phoneNumber,
@@ -138,7 +139,7 @@ export class ContactService {
       normalized = '+359' + normalized;
     }
     
-    console.log(`📞 Normalized ${phoneNumber} to ${normalized}`);
+    Logger.debug(`📞 Normalized ${phoneNumber} to ${normalized}`);
     return normalized;
   }
 
@@ -147,7 +148,7 @@ export class ContactService {
       const contactInfo = await this.isPhoneNumberInContacts(phoneNumber);
       return contactInfo.contactName || null;
     } catch (error) {
-      console.error('❌ Error getting contact name:', error);
+      Logger.error('❌ Error getting contact name:', error);
       return null;
     }
   }
@@ -156,14 +157,14 @@ export class ContactService {
   public async markAsKnownContact(phoneNumber: string, contactName: string): Promise<void> {
     // This could be used to build a local database of known contacts
     // For now, it's a placeholder for future enhancement
-    console.log(`📞 Marking ${phoneNumber} as known contact: ${contactName}`);
+    Logger.debug(`📞 Marking ${phoneNumber} as known contact: ${contactName}`);
   }
 
   // Method to get all known contacts (for future use)
   public async getKnownContacts(): Promise<ContactInfo[]> {
     // This could return a list of all known contacts
     // For now, it's a placeholder for future enhancement
-    console.log('📞 Getting known contacts...');
+    Logger.debug('📞 Getting known contacts...');
     return [];
   }
 }

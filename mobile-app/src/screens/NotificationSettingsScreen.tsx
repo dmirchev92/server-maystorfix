@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -74,7 +75,7 @@ const NotificationSettingsScreen: React.FC = () => {
         setPreferences(response.data);
       }
     } catch (error) {
-      console.error('Error fetching notification preferences:', error);
+      Logger.error('Error fetching notification preferences:', error);
       Alert.alert('Грешка', 'Неуспешно зареждане на настройките');
     } finally {
       setLoading(false);
@@ -111,7 +112,7 @@ const NotificationSettingsScreen: React.FC = () => {
         SocketIOService.getInstance().refreshNotificationPreferences();
       }
     } catch (error) {
-      console.error('Error updating notification preference:', error);
+      Logger.error('Error updating notification preference:', error);
       setPreferences(oldPreferences);
       Alert.alert('Грешка', 'Неуспешно запазване на настройките');
     } finally {
@@ -136,7 +137,7 @@ const NotificationSettingsScreen: React.FC = () => {
                 Alert.alert('Успех', 'Настройките са възстановени');
               }
             } catch (error) {
-              console.error('Error resetting preferences:', error);
+              Logger.error('Error resetting preferences:', error);
               Alert.alert('Грешка', 'Неуспешно възстановяване');
             } finally {
               setSaving(false);

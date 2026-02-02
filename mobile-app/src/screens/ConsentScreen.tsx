@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -82,10 +83,10 @@ const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
           return consent;
         }));
         
-        console.log('🔒 Loaded consents from backend:', backendConsents);
+        Logger.debug('🔒 Loaded consents from backend:', backendConsents);
       }
     } catch (error) {
-      console.error('Error loading consents:', error);
+      Logger.error('Error loading consents:', error);
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +154,7 @@ const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
         throw new Error(response.error?.message || 'Failed to save consents');
       }
       
-      console.log('🔒 Consents saved to backend:', response.data);
+      Logger.debug('🔒 Consents saved to backend:', response.data);
 
       // Update local Redux state (for UI consistency)
       const consentDetails = consents.map(consent => ({
@@ -177,7 +178,7 @@ const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
       );
 
     } catch (error) {
-      console.error('Error saving consents:', error);
+      Logger.error('Error saving consents:', error);
       Alert.alert(
         'Грешка',
         'Възникна проблем при запазването на предпочитанията. Моля, опитайте отново.',

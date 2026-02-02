@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
@@ -53,11 +54,11 @@ export default function ProviderProfileScreen() {
           const userId = (userRes.data as any)?.user?.id || (userRes.data as any)?.id;
           if (userId) {
             setForm(prev => ({ ...prev, userId }));
-            console.log('🔄 Loaded user ID for profile sync:', userId);
+            Logger.debug('🔄 Loaded user ID for profile sync:', userId);
           }
         }
       } catch (error) {
-        console.error('Error loading profile data:', error);
+        Logger.error('Error loading profile data:', error);
       }
     })();
   }, []);
@@ -81,22 +82,22 @@ export default function ProviderProfileScreen() {
         certificates: certificates.split('\n').map(line => ({ title: line.trim() }))
       };
 
-      console.log(' Saving provider profile with marketplace sync:', payload);
+      Logger.debug(' Saving provider profile with marketplace sync:', payload);
       const response = await ApiService.getInstance().upsertProviderProfile(payload);
       
       if (response.success) {
-        console.log(' Profile updated successfully - marketplace sync triggered');
+        Logger.debug(' Profile updated successfully - marketplace sync triggered');
         Alert.alert(
           'Успех', 
           'Профилът е обновен успешно!\n\nПромените ще се появят в търсачката след моменти.',
           [{ text: 'OK', style: 'default' }]
         );
       } else {
-        console.error(' Profile update failed:', response.error);
+        Logger.error(' Profile update failed:', response.error);
         Alert.alert('Грешка', response.error?.message || 'Неуспешно обновяване на профила');
       }
     } catch (error) {
-      console.error(' Error saving profile:', error);
+      Logger.error(' Error saving profile:', error);
       Alert.alert('Грешка', 'Неуспешно запазване на профила. Проверете връзката си и опитайте отново.');
     } finally {
       setSaving(false);

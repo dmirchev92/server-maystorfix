@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CallRecord, CallEvent, Contact } from '../utils/types';
@@ -41,7 +42,7 @@ export class CallLogManager {
         return await this.getMockCallData(limit);
       }
     } catch (error) {
-      console.error('Error getting recent calls:', error);
+      Logger.error('Error getting recent calls:', error);
       return [];
     }
   }
@@ -117,7 +118,7 @@ export class CallLogManager {
       
       await AsyncStorage.setItem(this.CALL_EVENTS_KEY, JSON.stringify(existingEvents));
     } catch (error) {
-      console.error('Error storing call event:', error);
+      Logger.error('Error storing call event:', error);
     }
   }
 
@@ -132,7 +133,7 @@ export class CallLogManager {
       }
       return [];
     } catch (error) {
-      console.error('Error getting stored call events:', error);
+      Logger.error('Error getting stored call events:', error);
       return [];
     }
   }
@@ -150,7 +151,7 @@ export class CallLogManager {
         await AsyncStorage.setItem(this.CALL_EVENTS_KEY, JSON.stringify(events));
       }
     } catch (error) {
-      console.error('Error marking event as processed:', error);
+      Logger.error('Error marking event as processed:', error);
     }
   }
 
@@ -167,7 +168,7 @@ export class CallLogManager {
         await AsyncStorage.setItem(this.CALL_EVENTS_KEY, JSON.stringify(events));
       }
     } catch (error) {
-      console.error('Error marking event as response triggered:', error);
+      Logger.error('Error marking event as response triggered:', error);
     }
   }
 
@@ -201,7 +202,7 @@ export class CallLogManager {
         averageDuration: Math.round(averageDuration),
       };
     } catch (error) {
-      console.error('Error getting call statistics:', error);
+      Logger.error('Error getting call statistics:', error);
       return {
         total: 0,
         missed: 0,
@@ -220,7 +221,7 @@ export class CallLogManager {
       await AsyncStorage.removeItem(this.CALL_EVENTS_KEY);
       await AsyncStorage.removeItem(this.PROCESSED_CALLS_KEY);
     } catch (error) {
-      console.error('Error clearing call events:', error);
+      Logger.error('Error clearing call events:', error);
     }
   }
 
@@ -232,7 +233,7 @@ export class CallLogManager {
       const events = await this.getStoredCallEvents();
       return events.filter(e => e.callRecord.phoneNumber === phoneNumber);
     } catch (error) {
-      console.error('Error getting call events by phone:', error);
+      Logger.error('Error getting call events by phone:', error);
       return [];
     }
   }
@@ -245,7 +246,7 @@ export class CallLogManager {
       const events = await this.getStoredCallEvents();
       return events.filter(e => e.timestamp >= startDate && e.timestamp <= endDate);
     } catch (error) {
-      console.error('Error getting call events by date range:', error);
+      Logger.error('Error getting call events by date range:', error);
       return [];
     }
   }
@@ -258,7 +259,7 @@ export class CallLogManager {
       const events = await this.getStoredCallEvents();
       return events.filter(e => !e.processed);
     } catch (error) {
-      console.error('Error getting unprocessed events:', error);
+      Logger.error('Error getting unprocessed events:', error);
       return [];
     }
   }
@@ -271,7 +272,7 @@ export class CallLogManager {
       const events = await this.getStoredCallEvents();
       return events.filter(e => !e.responseTriggered);
     } catch (error) {
-      console.error('Error getting events without response:', error);
+      Logger.error('Error getting events without response:', error);
       return [];
     }
   }

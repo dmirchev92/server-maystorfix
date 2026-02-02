@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -68,7 +69,7 @@ const JobAlertModal = () => {
   useEffect(() => {
     // Listen for incoming jobs
     const unsubscribe = SocketIOService.getInstance().onJobIncoming((data) => {
-      console.log('📱 JobAlertModal - Received job:', data);
+      Logger.debug('📱 JobAlertModal - Received job:', data);
       setJobData(data);
       setTimeLeft(data.timeoutSeconds || 300);
       setVisible(true);
@@ -76,7 +77,7 @@ const JobAlertModal = () => {
       // Extract screenshots from notification data if available
       if (data.screenshots && Array.isArray(data.screenshots)) {
         const imageUrls = data.screenshots.map((s: any) => s.url || s);
-        console.log('📷 Extracted screenshots from notification:', imageUrls);
+        Logger.debug('📷 Extracted screenshots from notification:', imageUrls);
         setCaseImages(imageUrls);
       } else {
         // Fallback: fetch case details if screenshots not in notification
@@ -141,11 +142,11 @@ const JobAlertModal = () => {
         // Extract screenshots from case data
         const screenshots = response.data.screenshots || [];
         const imageUrls = screenshots.map((s: any) => s.url);
-        console.log('📷 Fetched case screenshots:', imageUrls);
+        Logger.debug('📷 Fetched case screenshots:', imageUrls);
         setCaseImages(imageUrls);
       }
     } catch (error) {
-      console.error('Error fetching case details:', error);
+      Logger.error('Error fetching case details:', error);
     } finally {
       setLoadingImages(false);
     }

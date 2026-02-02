@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { Alert, Linking, Platform, PermissionsAndroid } from 'react-native';
 import RNFetchBlob from 'rn-fetch-blob';
 import DeviceInfo from 'react-native-device-info';
@@ -57,27 +58,27 @@ class UpdateService {
 
     try {
       const currentVersion = DeviceInfo.getVersion();
-      console.log('📱 Current app version:', currentVersion);
+      Logger.debug('📱 Current app version:', currentVersion);
 
       const response = await fetch(`${API_BASE_URL}/app/version`);
       const result = await response.json();
 
       if (!result.success || !result.data) {
-        console.log('❌ Failed to fetch version info');
+        Logger.debug('❌ Failed to fetch version info');
         return { hasUpdate: false, currentVersion };
       }
 
       const versionInfo: VersionInfo = result.data;
-      console.log('🌐 Latest version:', versionInfo.latestVersion);
+      Logger.debug('🌐 Latest version:', versionInfo.latestVersion);
 
       const comparison = this.compareVersions(currentVersion, versionInfo.latestVersion);
       const hasUpdate = comparison < 0;
 
-      console.log(`📊 Version comparison: ${currentVersion} vs ${versionInfo.latestVersion} = ${hasUpdate ? 'UPDATE AVAILABLE' : 'UP TO DATE'}`);
+      Logger.debug(`📊 Version comparison: ${currentVersion} vs ${versionInfo.latestVersion} = ${hasUpdate ? 'UPDATE AVAILABLE' : 'UP TO DATE'}`);
 
       return { hasUpdate, versionInfo, currentVersion };
     } catch (error) {
-      console.error('❌ Error checking for update:', error);
+      Logger.error('❌ Error checking for update:', error);
       return { hasUpdate: false, currentVersion: DeviceInfo.getVersion() };
     } finally {
       this.isChecking = false;
@@ -134,7 +135,7 @@ class UpdateService {
 
       return granted === PermissionsAndroid.RESULTS.GRANTED;
     } catch (err) {
-      console.error('Permission error:', err);
+      Logger.error('Permission error:', err);
       return false;
     }
   }
@@ -170,8 +171,8 @@ class UpdateService {
       const fileName = `SnapFix-${Date.now()}.apk`;
       const filePath = `${downloadDir}/${fileName}`;
 
-      console.log('📥 Downloading APK to:', filePath);
-      console.log('📥 Download URL:', downloadUrl);
+      Logger.debug('📥 Downloading APK to:', filePath);
+      Logger.debug('📥 Download URL:', downloadUrl);
 
       const res = await config({
         fileCache: true,
@@ -185,13 +186,13 @@ class UpdateService {
         },
       }).fetch('GET', downloadUrl);
 
-      console.log('✅ Download complete:', res.path());
+      Logger.debug('✅ Download complete:', res.path());
 
       // Install the APK
       await this.installApk(res.path());
 
     } catch (error: any) {
-      console.error('❌ Download error:', error);
+      Logger.error('❌ Download error:', error);
       Alert.alert(
         'Грешка при изтегляне',
         `Не успяхме да изтеглим обновлението: ${error.message}\n\nИскате ли да отворите линка в браузъра?`,
@@ -210,7 +211,7 @@ class UpdateService {
    */
   private async installApk(filePath: string): Promise<void> {
     try {
-      console.log('📦 Installing APK from:', filePath);
+      Logger.debug('📦 Installing APK from:', filePath);
 
       // Use Android intent to install APK
       const { android } = RNFetchBlob;
@@ -219,9 +220,9 @@ class UpdateService {
         'application/vnd.android.package-archive'
       );
 
-      console.log('✅ Installation intent launched');
+      Logger.debug('✅ Installation intent launched');
     } catch (error) {
-      console.error('❌ Installation error:', error);
+      Logger.error('❌ Installation error:', error);
       Alert.alert(
         'Инсталиране',
         'APK файлът е изтеглен. Моля отворете папката Downloads и инсталирайте ръчно.',
@@ -247,7 +248,7 @@ class UpdateService {
         }, 2000);
       }
     } catch (error) {
-      console.error('❌ Startup update check failed:', error);
+      Logger.error('❌ Startup update check failed:', error);
     }
   }
 }

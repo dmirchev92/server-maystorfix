@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -105,22 +106,22 @@ const MapSearchScreen: React.FC = () => {
         if (!userData) {
           userData = await AsyncStorage.getItem('user_data');
         }
-        console.log('🔍 MapSearchScreen - Raw user data:', userData);
+        Logger.debug('🔍 MapSearchScreen - Raw user data:', userData);
         if (userData) {
           const user = JSON.parse(userData);
-          console.log('🔍 MapSearchScreen - User role:', user.role);
-          console.log('🔍 MapSearchScreen - Subscription tier:', user.subscription_tier_id);
+          Logger.debug('🔍 MapSearchScreen - User role:', user.role);
+          Logger.debug('🔍 MapSearchScreen - Subscription tier:', user.subscription_tier_id);
           // Check for both tradesperson and service_provider roles
           const isProviderRole = user.role === 'tradesperson' || user.role === 'service_provider';
-          console.log('🔍 MapSearchScreen - Is Provider:', isProviderRole);
+          Logger.debug('🔍 MapSearchScreen - Is Provider:', isProviderRole);
           setIsProvider(isProviderRole);
           // Set subscription tier
           setSubscriptionTier(user.subscription_tier_id || 'free');
         } else {
-          console.log('🔍 MapSearchScreen - No user data found, defaulting to customer view');
+          Logger.debug('🔍 MapSearchScreen - No user data found, defaulting to customer view');
         }
       } catch (error) {
-        console.error('Error loading user role:', error);
+        Logger.error('Error loading user role:', error);
       } finally {
         setUserLoaded(true);
       }
@@ -135,7 +136,7 @@ const MapSearchScreen: React.FC = () => {
         const categories = await CategoryService.getInstance().getCategories();
         setServiceCategories(categories);
       } catch (error) {
-        console.error('Error loading categories:', error);
+        Logger.error('Error loading categories:', error);
       }
     };
     loadCategories();
@@ -147,7 +148,7 @@ const MapSearchScreen: React.FC = () => {
       if (isProvider || !userLoaded) return;
       
       try {
-        console.log('🔧 MapSearchScreen - Loading free inspection preferences');
+        Logger.debug('🔧 MapSearchScreen - Loading free inspection preferences');
         const response = await ApiService.getInstance().getFreeInspectionPreferences();
         if (response.success && response.data) {
           setFreeInspectionAlertsEnabled(response.data.enabled || false);
@@ -156,10 +157,10 @@ const MapSearchScreen: React.FC = () => {
           const cats = response.data.categories;
           setFreeInspectionCategory(Array.isArray(cats) && cats.length > 0 ? cats[0] : '');
           setShowOnlyFreeInspection(response.data.showOnlyFreeInspection || false);
-          console.log('🔧 Free inspection prefs loaded:', response.data);
+          Logger.debug('🔧 Free inspection prefs loaded:', response.data);
         }
       } catch (error) {
-        console.error('Error loading free inspection preferences:', error);
+        Logger.error('Error loading free inspection preferences:', error);
       } finally {
         setFreeInspectionPrefsLoaded(true);
       }
@@ -184,7 +185,7 @@ const MapSearchScreen: React.FC = () => {
           latitudeDelta: 0.05,
           longitudeDelta: 0.05,
         };
-        console.log('📍 Got user location:', latitude, longitude, 'isProvider:', isProvider);
+        Logger.debug('📍 Got user location:', latitude, longitude, 'isProvider:', isProvider);
         setRegion(userLocation);
         
         // Animate to user location after map is ready
@@ -202,7 +203,7 @@ const MapSearchScreen: React.FC = () => {
         // Free/Normal providers: don't fetch cases, just show map for location sharing
       },
       (error) => {
-        console.log('📍 Location error, using Sofia default:', error.message);
+        Logger.debug('📍 Location error, using Sofia default:', error.message);
         // Fallback to Sofia if location fails
         if (isProvider && canViewCasesOnMap) {
           fetchCases(INITIAL_REGION);
@@ -245,7 +246,7 @@ const MapSearchScreen: React.FC = () => {
     setIsLoading(true);
     setFetchError(null);
     try {
-      console.log('🔍 MapSearchScreen - Fetching providers with params:', {
+      Logger.debug('🔍 MapSearchScreen - Fetching providers with params:', {
         lat: searchRegion.latitude,
         lng: searchRegion.longitude,
         radius: selectedRadius,
@@ -264,14 +265,14 @@ const MapSearchScreen: React.FC = () => {
         freeInspectionOnly: showOnlyFreeInspection,
       });
 
-      console.log('📡 MapSearchScreen - API Response:', {
+      Logger.debug('📡 MapSearchScreen - API Response:', {
         success: response.success,
         dataLength: response.data?.providers?.length || 0,
         data: response.data
       });
 
       if (response.success && response.data?.providers) {
-        console.log('📊 MapSearchScreen - Raw providers:', response.data.providers);
+        Logger.debug('📊 MapSearchScreen - Raw providers:', response.data.providers);
         
         const validProviders = (response.data.providers as any[]).filter(p => {
           const lat = parseCoord(p.latitude);
@@ -280,8 +281,8 @@ const MapSearchScreen: React.FC = () => {
           return isValid;
         });
         
-        console.log('✅ MapSearchScreen - Valid providers count:', validProviders.length);
-        console.log('✅ MapSearchScreen - Valid providers (first 3):', validProviders.slice(0, 3));
+        Logger.debug('✅ MapSearchScreen - Valid providers count:', validProviders.length);
+        Logger.debug('✅ MapSearchScreen - Valid providers (first 3):', validProviders.slice(0, 3));
         
         setProviders(validProviders);
         setLastSearchLocation(searchRegion);
@@ -301,11 +302,11 @@ const MapSearchScreen: React.FC = () => {
           }, 500);
         }
       } else {
-        console.warn('⚠️ MapSearchScreen - No data returned or unsuccessful response');
+        Logger.warn('⚠️ MapSearchScreen - No data returned or unsuccessful response');
         setFetchError('No data returned');
       }
     } catch (error) {
-      console.error('❌ MapSearchScreen - Error fetching providers:', error);
+      Logger.error('❌ MapSearchScreen - Error fetching providers:', error);
       setFetchError('Грешка при връзката');
     } finally {
       setIsLoading(false);
@@ -317,7 +318,7 @@ const MapSearchScreen: React.FC = () => {
     setIsLoading(true);
     setFetchError(null);
     try {
-      console.log('🔍 MapSearchScreen - Fetching cases for provider with params:', {
+      Logger.debug('🔍 MapSearchScreen - Fetching cases for provider with params:', {
         lat: searchRegion.latitude,
         lng: searchRegion.longitude,
         radius: selectedRadius
@@ -330,7 +331,7 @@ const MapSearchScreen: React.FC = () => {
         selectedCategory || undefined
       );
 
-      console.log('📡 MapSearchScreen - Cases API Response:', response);
+      Logger.debug('📡 MapSearchScreen - Cases API Response:', response);
 
       if (response.success && response.data?.cases) {
         const validCases = response.data.cases.filter((c: any) => {
@@ -339,7 +340,7 @@ const MapSearchScreen: React.FC = () => {
           return lat !== 0 && lng !== 0;
         });
         
-        console.log('✅ MapSearchScreen - Valid cases count:', validCases.length);
+        Logger.debug('✅ MapSearchScreen - Valid cases count:', validCases.length);
         setCases(validCases);
         setLastSearchLocation(searchRegion);
 
@@ -358,11 +359,11 @@ const MapSearchScreen: React.FC = () => {
           }, 500);
         }
       } else {
-        console.warn('⚠️ MapSearchScreen - No cases returned');
+        Logger.warn('⚠️ MapSearchScreen - No cases returned');
         setCases([]);
       }
     } catch (error) {
-      console.error('❌ MapSearchScreen - Error fetching cases:', error);
+      Logger.error('❌ MapSearchScreen - Error fetching cases:', error);
       setFetchError('Грешка при зареждане на заявките');
     } finally {
       setIsLoading(false);
@@ -431,7 +432,7 @@ const MapSearchScreen: React.FC = () => {
         }
       },
       (error) => {
-        console.error(error);
+        Logger.error(error);
         Alert.alert('Грешка с локацията', 'Не успяхме да определим вашето местоположение.');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
@@ -457,7 +458,7 @@ const MapSearchScreen: React.FC = () => {
         setProviderReviews([]);
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      Logger.error('Error fetching reviews:', error);
       setProviderReviews([]);
     } finally {
       setReviewsLoading(false);
@@ -686,7 +687,7 @@ const MapSearchScreen: React.FC = () => {
             setSelectedCase(null);
           }}
           onMapReady={() => {
-            console.log('🗺️ MAP IS READY');
+            Logger.debug('🗺️ MAP IS READY');
             setMapReady(true);
           }}
           // Clustering options - red for cases (SP view), red for providers (customer view)

@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -83,7 +84,7 @@ const ReferralDashboardScreen: React.FC = () => {
       const data: any = await response.json();
       setDashboard(data.data);
     } catch (err) {
-      console.error('Error fetching referral dashboard:', err);
+      Logger.error('Error fetching referral dashboard:', err);
       setError('Грешка при зареждане на данните');
     } finally {
       setLoading(false);
@@ -112,7 +113,7 @@ const ReferralDashboardScreen: React.FC = () => {
         title: 'SnapFix Покана',
       });
     } catch (error) {
-      console.error('Error sharing:', error);
+      Logger.error('Error sharing:', error);
     }
   };
 

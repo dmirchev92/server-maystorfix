@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import ApiService from './ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -66,11 +67,11 @@ class CategoryService {
           timestamp: this.lastFetch
         }));
         
-        console.log('📂 Categories fetched from API:', this.categories.length);
+        Logger.debug('📂 Categories fetched from API:', this.categories.length);
         return this.categories;
       }
     } catch (error) {
-      console.error('❌ Error fetching categories from API:', error);
+      Logger.error('❌ Error fetching categories from API:', error);
     }
 
     // Fallback to cached data
@@ -80,15 +81,15 @@ class CategoryService {
         const { categories, timestamp } = JSON.parse(cached);
         this.categories = categories;
         this.lastFetch = timestamp;
-        console.log('📂 Categories loaded from cache:', this.categories.length);
+        Logger.debug('📂 Categories loaded from cache:', this.categories.length);
         return this.categories;
       }
     } catch (error) {
-      console.error('❌ Error loading cached categories:', error);
+      Logger.error('❌ Error loading cached categories:', error);
     }
 
     // Final fallback to hardcoded defaults
-    console.log('📂 Using default hardcoded categories');
+    Logger.debug('📂 Using default hardcoded categories');
     return this.getDefaultCategories();
   }
 

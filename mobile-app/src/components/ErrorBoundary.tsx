@@ -8,6 +8,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 
+import { Logger } from '../utils/Logger';
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -39,8 +41,8 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ errorInfo });
     
     // Log to console for debugging
-    console.error('ErrorBoundary caught an error:', error);
-    console.error('Component stack:', errorInfo.componentStack);
+    Logger.error('ErrorBoundary caught an error:', error);
+    Logger.error('Component stack:', errorInfo.componentStack);
 
     // Call custom error handler if provided
     if (this.props.onError) {

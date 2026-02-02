@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -25,7 +26,7 @@ const PointsBalanceWidget: React.FC<PointsBalanceWidgetProps> = ({ onPress, comp
         setBalance(response.data.current_balance || response.data.balance || 0);
       }
     } catch (error) {
-      console.error('Error fetching points balance:', error);
+      Logger.error('Error fetching points balance:', error);
     } finally {
       setLoading(false);
     }

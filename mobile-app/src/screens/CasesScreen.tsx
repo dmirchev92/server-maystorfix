@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -223,7 +224,7 @@ export default function CasesScreen() {
         setPendingReviews(response.data.cases);
       }
     } catch (error) {
-      console.error('Error fetching pending reviews:', error);
+      Logger.error('Error fetching pending reviews:', error);
     }
   };
 
@@ -264,7 +265,7 @@ export default function CasesScreen() {
         await fetchStats();
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      Logger.error('Error loading user:', error);
     } finally {
       setLoading(false);
     }
@@ -275,17 +276,17 @@ export default function CasesScreen() {
 
     try {
       setLoading(true);
-      console.log('🔍 Fetching cases with filters:', { viewMode, statusFilter });
+      Logger.debug('🔍 Fetching cases with filters:', { viewMode, statusFilter });
 
       // Handle bids view mode separately
       if (viewMode === 'bids') {
-        console.log('💰 Fetching my bids');
+        Logger.debug('💰 Fetching my bids');
         const bidsResponse = await ApiService.getInstance().getMyBids();
-        console.log('💰 Bids response:', bidsResponse);
+        Logger.debug('💰 Bids response:', bidsResponse);
         if (bidsResponse.success && bidsResponse.data?.bids) {
           setMyBids(bidsResponse.data.bids);
         } else {
-          console.error('💰 Failed to fetch bids:', bidsResponse.error);
+          Logger.error('💰 Failed to fetch bids:', bidsResponse.error);
           setMyBids([]);
         }
         setLoading(false);
@@ -299,7 +300,7 @@ export default function CasesScreen() {
       const filterParams: any = {};
       
       if (viewMode === 'assigned') {
-        console.log('📋 Fetching assigned cases for user:', user?.id);
+        Logger.debug('📋 Fetching assigned cases for user:', user?.id);
         filterParams.providerId = user?.id;
         if (statusFilter) {
           // 'wip' filter should include both 'accepted' and 'wip' statuses (both are "in progress")
@@ -310,10 +311,10 @@ export default function CasesScreen() {
           }
         }
       } else if (viewMode === 'declined') {
-        console.log('❌ Fetching declined cases for user:', user?.id);
+        Logger.debug('❌ Fetching declined cases for user:', user?.id);
         // Use dedicated endpoint for declined cases
         const declinedResponse = await ApiService.getInstance().getDeclinedCases(user.id);
-        console.log('❌ Declined cases response:', declinedResponse);
+        Logger.debug('❌ Declined cases response:', declinedResponse);
         if (declinedResponse.success && declinedResponse.data) {
           setCases(declinedResponse.data);
         } else {
@@ -322,35 +323,35 @@ export default function CasesScreen() {
         setLoading(false);
         return;
       } else {
-        console.log('🆕 Fetching available cases');
+        Logger.debug('🆕 Fetching available cases');
         filterParams.status = 'pending';
         filterParams.onlyUnassigned = 'true';
         filterParams.excludeDeclinedBy = user.id;
         filterParams.excludeBiddedBy = user.id;  // Exclude cases already bid on
       }
 
-      console.log('📋 CasesScreen - Filter params:', filterParams);
+      Logger.debug('📋 CasesScreen - Filter params:', filterParams);
       const response = await ApiService.getInstance().getCasesWithFilters(filterParams);
-      console.log('📋 CasesScreen - API response:', response);
-      console.log('📋 CasesScreen - Response.data:', response.data);
+      Logger.debug('📋 CasesScreen - API response:', response);
+      Logger.debug('📋 CasesScreen - Response.data:', response.data);
       
       if (response.success && response.data) {
         const cases = response.data.cases || [];
-        console.log('📋 CasesScreen - Cases found:', cases.length);
-        console.log('📋 CasesScreen - First case:', cases[0]);
+        Logger.debug('📋 CasesScreen - Cases found:', cases.length);
+        Logger.debug('📋 CasesScreen - First case:', cases[0]);
         
         cases.forEach((c: any, idx: number) => {
-          console.log(`📋 Case ${idx + 1}: id=${c.id}, status="${c.status}", viewMode=${viewMode}`);
+          Logger.debug(`📋 Case ${idx + 1}: id=${c.id}, status="${c.status}", viewMode=${viewMode}`);
         });
         
         setCases(cases);
       } else {
-        console.error('📋 CasesScreen - Failed to fetch cases:', response.error);
+        Logger.error('📋 CasesScreen - Failed to fetch cases:', response.error);
         Alert.alert('Грешка', response.error?.message || 'Не успяхме да заредим заявките');
         setCases([]);
       }
     } catch (error) {
-      console.error('📋 CasesScreen - Error fetching cases:', error);
+      Logger.error('📋 CasesScreen - Error fetching cases:', error);
       Alert.alert('Грешка', 'Не успяхме да заредим заявките');
       setCases([]);
     } finally {
@@ -363,13 +364,13 @@ export default function CasesScreen() {
 
     try {
       const response = await ApiService.getInstance().getCaseStats(user.id);
-      console.log('📊 CasesScreen - Stats response:', response);
+      Logger.debug('📊 CasesScreen - Stats response:', response);
       if (response.success && response.data) {
         // Backend returns { success: true, data: { total, pending, accepted, ... } }
         setStats(response.data);
       }
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      Logger.error('Error fetching stats:', error);
     }
   };
 
@@ -426,7 +427,7 @@ export default function CasesScreen() {
                 }
               }
             } catch (error) {
-              console.error('Error accepting case:', error);
+              Logger.error('Error accepting case:', error);
               Alert.alert('Грешка', 'Не успяхме да приемем заявката');
             }
           },
@@ -462,7 +463,7 @@ export default function CasesScreen() {
                 Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
               }
             } catch (error) {
-              console.error('Error declining case:', error);
+              Logger.error('Error declining case:', error);
               Alert.alert('Грешка', 'Не успяхме да откажем заявката');
             }
           },
@@ -514,7 +515,7 @@ export default function CasesScreen() {
         Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
       }
     } catch (error) {
-      console.error('Error completing case:', error);
+      Logger.error('Error completing case:', error);
       Alert.alert('Грешка', 'Не успяхме да завършим заявката');
     }
   };
@@ -533,7 +534,7 @@ export default function CasesScreen() {
         Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
       }
     } catch (error) {
-      console.error('Error un-declining case:', error);
+      Logger.error('Error un-declining case:', error);
       Alert.alert('Грешка', 'Не успяхме да възстановим заявката');
     }
   };
@@ -576,7 +577,7 @@ export default function CasesScreen() {
             const id = Geolocation.watchPosition(
               (position) => {
                 const { latitude, longitude, heading, speed } = position.coords;
-                console.log('📍 New location:', latitude, longitude);
+                Logger.debug('📍 New location:', latitude, longitude);
                 ApiService.getInstance().updateLocation({
                   caseId,
                   latitude,
@@ -586,7 +587,7 @@ export default function CasesScreen() {
                 });
               },
               (error) => {
-                console.error('Geolocation error:', error);
+                Logger.error('Geolocation error:', error);
               },
               { enableHighAccuracy: true, distanceFilter: 10, interval: 10000, fastestInterval: 5000 }
             );
@@ -637,7 +638,7 @@ export default function CasesScreen() {
     }
 
     // Debug logging
-    console.log('📋 Case assignment check:', {
+    Logger.debug('📋 Case assignment check:', {
       caseId: caseItem.id,
       assignment_type: caseItem.assignment_type,
       provider_id: caseItem.provider_id,
@@ -653,7 +654,7 @@ export default function CasesScreen() {
     const assignmentType = caseItem.assignment_type;
     const hasProviderId = !!caseItem.provider_id;
     
-    console.log('📋 Badge decision:', {
+    Logger.debug('📋 Badge decision:', {
       assignmentType,
       hasProviderId,
       provider_id: caseItem.provider_id,
@@ -1153,7 +1154,7 @@ export default function CasesScreen() {
             const isExpanded = expandedCases.has(caseItem.id);
             
             // Debug logging for button visibility
-            console.log('📋 Case render:', {
+            Logger.debug('📋 Case render:', {
               id: caseItem.id,
               status: caseItem.status,
               viewMode: viewMode,
@@ -1370,7 +1371,7 @@ export default function CasesScreen() {
                       <TouchableOpacity
                         style={[styles.actionButton, styles.declineButton, styles.buttonWrapper]}
                         onPress={() => {
-                          console.log('❌ Decline button pressed for case:', caseItem.id);
+                          Logger.debug('❌ Decline button pressed for case:', caseItem.id);
                           handleDeclineCase(caseItem.id);
                         }}
                       >
@@ -1401,7 +1402,7 @@ export default function CasesScreen() {
                     <TouchableOpacity
                       style={[styles.actionButton, styles.undeclineButton]}
                       onPress={() => {
-                        console.log('↩️ Restore button pressed for case:', caseItem.id);
+                        Logger.debug('↩️ Restore button pressed for case:', caseItem.id);
                         handleUndeclineCase(caseItem.id);
                       }}
                     >

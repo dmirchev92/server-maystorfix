@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -106,13 +107,13 @@ function SMSScreen() {
     
     // Set up Socket.IO listener for real-time SMS config updates
     const handleSMSConfigUpdate = async (data: any) => {
-      console.log('🔔 Received SMS config update via Socket.IO:', data);
+      Logger.debug('🔔 Received SMS config update via Socket.IO:', data);
       
       // Refresh config from API to get latest state
       await smsService.refreshConfigFromAPI();
       const stats = smsService.getStats();
       
-      console.log('✅ SMS config updated in real-time:', stats);
+      Logger.debug('✅ SMS config updated in real-time:', stats);
       setSmsStats(stats);
       
       // Also refresh the message with current link
@@ -121,19 +122,19 @@ function SMSScreen() {
     };
     
     socketService.onSMSConfigUpdate(handleSMSConfigUpdate);
-    console.log('👂 Socket.IO listener registered for SMS config updates');
+    Logger.debug('👂 Socket.IO listener registered for SMS config updates');
     
     // Set up auto-refresh every 30 seconds to sync with marketplace (fallback)
     const interval = setInterval(async () => {
-      console.log('🔄 Auto-syncing SMS config from backend...');
+      Logger.debug('🔄 Auto-syncing SMS config from backend...');
       try {
         // Refresh config from API to sync with marketplace changes
         await smsService.refreshConfigFromAPI();
         const config = smsService.getConfig();
         const stats = smsService.getStats();
         
-        console.log('📊 Auto-sync - Old state:', smsStats.isEnabled);
-        console.log('📊 Auto-sync - New state:', stats.isEnabled);
+        Logger.debug('📊 Auto-sync - Old state:', smsStats.isEnabled);
+        Logger.debug('📊 Auto-sync - New state:', stats.isEnabled);
         
         // Background permission check - verify permissions are still valid
         if (stats.isEnabled) {
@@ -141,7 +142,7 @@ function SMSScreen() {
           const permissionStatus = await callDetectionService.checkPermissions();
           
           if (!permissionStatus?.hasAllPermissions) {
-            console.log('⚠️ Background check: Permissions revoked while SMS was ON');
+            Logger.debug('⚠️ Background check: Permissions revoked while SMS was ON');
             await smsService.updateConfig({ isEnabled: false });
             await callDetectionService.stopDetection();
             stats.isEnabled = false;
@@ -163,9 +164,9 @@ function SMSScreen() {
         const messageWithLink = await smsService.getMessageWithCurrentLink();
         setDisplayText(messageWithLink);
         
-        console.log('✅ Auto-sync complete, state updated');
+        Logger.debug('✅ Auto-sync complete, state updated');
       } catch (error) {
-        console.log('⚠️ Auto-sync failed:', error);
+        Logger.debug('⚠️ Auto-sync failed:', error);
       }
     }, 30000); // 30 seconds
     
@@ -190,13 +191,13 @@ function SMSScreen() {
 
   const loadSMSData = async () => {
     try {
-      console.log('📊 Loading SMS data...');
+      Logger.debug('📊 Loading SMS data...');
       
       // DO NOT reset template - preserve user's saved template (Bulgarian/Custom)
       // await smsService.resetMessageTemplate(); // REMOVED - was overwriting user templates!
       
       // Refresh config from API to sync with web app
-      console.log('🔄 Refreshing config from backend API...');
+      Logger.debug('🔄 Refreshing config from backend API...');
       await smsService.refreshConfigFromAPI();
       
       // Get config after refresh
@@ -207,12 +208,12 @@ function SMSScreen() {
       // IMPORTANT: Verify permissions if SMS is enabled
       // This catches cases where permissions were revoked after app update
       if (stats.isEnabled) {
-        console.log('🔍 SMS is enabled - verifying permissions...');
+        Logger.debug('🔍 SMS is enabled - verifying permissions...');
         const callDetectionService = ModernCallDetectionService.getInstance();
         const permissionStatus = await callDetectionService.checkPermissions();
         
         if (!permissionStatus?.hasAllPermissions) {
-          console.log('⚠️ Permissions revoked! SMS was ON but permissions are missing');
+          Logger.debug('⚠️ Permissions revoked! SMS was ON but permissions are missing');
           
           // Auto-disable SMS since permissions are gone
           await smsService.updateConfig({ isEnabled: false });
@@ -226,22 +227,22 @@ function SMSScreen() {
             [{ text: 'Разбрах' }]
           );
         } else {
-          console.log('✅ Permissions verified - SMS can work properly');
+          Logger.debug('✅ Permissions verified - SMS can work properly');
           // Sync settings to native for background operation
           await callDetectionService.syncSettingsToNative();
         }
       }
       
-      console.log('📊 SMS config loaded (synced with backend):', config);
+      Logger.debug('📊 SMS config loaded (synced with backend):', config);
       
       // Check if contacts permission is actually granted
       const permissionService = PermissionService.getInstance();
       const hasContactsPermission = await permissionService.hasContactsPermission();
-      console.log('📋 Contacts permission status:', hasContactsPermission);
+      Logger.debug('📋 Contacts permission status:', hasContactsPermission);
       
       // If filter is ON but permission is NOT granted, disable the filter
       if (stats.filterKnownContacts && !hasContactsPermission) {
-        console.log('⚠️ Filter is ON but permission denied - disabling filter');
+        Logger.debug('⚠️ Filter is ON but permission denied - disabling filter');
         await smsService.updateConfig({ filterKnownContacts: false });
         stats.filterKnownContacts = false;
       }
@@ -250,13 +251,13 @@ function SMSScreen() {
       setMessageText(config.message); // Template with [chat_link] placeholder for editing
       
       // Refresh token from backend first (this ensures we get the latest token)
-      console.log('🔄 Refreshing chat link from backend...');
+      Logger.debug('🔄 Refreshing chat link from backend...');
       const currentLink = await smsService.getCurrentChatLink();
-      console.log('📱 Current chat link from backend:', currentLink);
+      Logger.debug('📱 Current chat link from backend:', currentLink);
       
       // If no chat link exists, try to generate one automatically
       if (currentLink === 'Generating chat link...' || currentLink === 'No link available') {
-        console.log('🔄 No chat link found, attempting automatic generation...');
+        Logger.debug('🔄 No chat link found, attempting automatic generation...');
         setIsGeneratingLink(true);
         
         // Try to generate chat link in background (with timeout)
@@ -268,9 +269,9 @@ function SMSScreen() {
             const newMessageWithLink = await smsService.getMessageWithCurrentLink();
             setDisplayText(newMessageWithLink);
             setIsGeneratingLink(false);
-            console.log('✅ Chat link generated automatically:', newLink);
+            Logger.debug('✅ Chat link generated automatically:', newLink);
           } catch (error) {
-            console.log('⚠️ Automatic chat link generation failed:', error);
+            Logger.debug('⚠️ Automatic chat link generation failed:', error);
             setIsGeneratingLink(false);
             // Show fallback message
             setDisplayText(config.message.replace('[chat_link]', 'Chat link generation failed'));
@@ -279,12 +280,12 @@ function SMSScreen() {
       }
       
       const messageWithLink = await smsService.getMessageWithCurrentLink();
-      console.log('📱 Message with current link:', messageWithLink);
+      Logger.debug('📱 Message with current link:', messageWithLink);
       
       setDisplayText(messageWithLink);
       setPermissions(perms);
       
-      console.log('✅ SMS data loaded successfully');
+      Logger.debug('✅ SMS data loaded successfully');
       
       // Detect which template is being used
       if (config.message === SMS_TEMPLATES.latin.text) {
@@ -299,7 +300,7 @@ function SMSScreen() {
       // Load SMS points status
       await loadSMSPointsStatus();
     } catch (error) {
-      console.error('❌ Error loading SMS data:', error);
+      Logger.error('❌ Error loading SMS data:', error);
     }
   };
 
@@ -310,7 +311,7 @@ function SMSScreen() {
         setSmsPointsStatus(response.data as SMSPointsStatus);
       }
     } catch (error) {
-      console.error('Error loading SMS points status:', error);
+      Logger.error('Error loading SMS points status:', error);
     }
   };
 
@@ -359,10 +360,10 @@ function SMSScreen() {
   };
 
   const handleRefresh = async () => {
-    console.log('🔄 SMSScreen - Manual refresh triggered');
+    Logger.debug('🔄 SMSScreen - Manual refresh triggered');
     setIsRefreshing(true);
     await loadSMSData();
-    console.log('✅ SMSScreen - Manual refresh completed');
+    Logger.debug('✅ SMSScreen - Manual refresh completed');
     setIsRefreshing(false);
   };
 
@@ -411,21 +412,21 @@ function SMSScreen() {
       
       await loadSMSData();
     } catch (error) {
-      console.error('Error toggling SMS:', error);
+      Logger.error('Error toggling SMS:', error);
       Alert.alert('Грешка', 'Неуспешна промяна на SMS настройките');
     }
   };
 
   const handleToggleContactFiltering = async () => {
     try {
-      console.log('Current filterKnownContacts:', smsStats.filterKnownContacts);
+      Logger.debug('Current filterKnownContacts:', smsStats.filterKnownContacts);
       
       // Handle undefined case - default to false (include contacts)
       const currentFiltering = smsStats.filterKnownContacts ?? false;
       
       // Toggle the filtering state
       const newFiltering = !currentFiltering;
-      console.log('New filtering state:', newFiltering);
+      Logger.debug('New filtering state:', newFiltering);
       
       // If enabling filtering, request contacts permission
       if (newFiltering) {
@@ -468,7 +469,7 @@ function SMSScreen() {
       await callDetectionService.syncSettingsToNative();
       
     } catch (error) {
-      console.error('Error toggling contact filtering:', error);
+      Logger.error('Error toggling contact filtering:', error);
       Alert.alert('Грешка', 'Неуспешна промяна на филтрирането');
     }
   };

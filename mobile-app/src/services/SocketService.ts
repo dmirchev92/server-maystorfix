@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { io, Socket } from 'socket.io-client';
 
 // API Configuration
@@ -48,7 +49,7 @@ class SocketService {
    */
   public connect(userId: string, token?: string): void {
     if (this.socket?.connected) {
-      console.log('🔌 Socket already connected');
+      Logger.debug('🔌 Socket already connected');
       return;
     }
 
@@ -57,8 +58,8 @@ class SocketService {
     // Get the base URL for WebSocket connection
     const socketUrl = API_BASE_URL.replace('/api/v1', '');
     
-    console.log('🔌 Connecting to WebSocket server:', socketUrl);
-    console.log('👤 User ID:', userId);
+    Logger.debug('🔌 Connecting to WebSocket server:', socketUrl);
+    Logger.debug('👤 User ID:', userId);
 
     this.socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
@@ -79,7 +80,7 @@ class SocketService {
     if (!this.socket) return;
 
     this.socket.on('connect', () => {
-      console.log('✅ Connected to SnapFix WebSocket server');
+      Logger.debug('✅ Connected to SnapFix WebSocket server');
       this.isConnected = true;
       this.reconnectAttempts = 0;
 
@@ -90,7 +91,7 @@ class SocketService {
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log('❌ Disconnected from WebSocket server:', reason);
+      Logger.debug('❌ Disconnected from WebSocket server:', reason);
       this.isConnected = false;
       
       if (reason === 'io server disconnect') {
@@ -100,24 +101,24 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error) => {
-      console.error('❌ WebSocket connection error:', error);
+      Logger.error('❌ WebSocket connection error:', error);
       this.isConnected = false;
       this.reconnect();
     });
 
     this.socket.on('reconnect', (attemptNumber) => {
-      console.log('🔄 Reconnected to WebSocket server after', attemptNumber, 'attempts');
+      Logger.debug('🔄 Reconnected to WebSocket server after', attemptNumber, 'attempts');
       this.isConnected = true;
       this.reconnectAttempts = 0;
     });
 
     this.socket.on('reconnect_error', (error) => {
-      console.error('❌ WebSocket reconnection error:', error);
+      Logger.error('❌ WebSocket reconnection error:', error);
       this.reconnectAttempts++;
     });
 
     this.socket.on('reconnect_failed', () => {
-      console.error('❌ Failed to reconnect to WebSocket server after', this.maxReconnectAttempts, 'attempts');
+      Logger.error('❌ Failed to reconnect to WebSocket server after', this.maxReconnectAttempts, 'attempts');
       this.isConnected = false;
     });
   }
@@ -127,12 +128,12 @@ class SocketService {
    */
   private reconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('❌ Max reconnection attempts reached');
+      Logger.error('❌ Max reconnection attempts reached');
       return;
     }
 
     this.reconnectAttempts++;
-    console.log(`🔄 Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+    Logger.debug(`🔄 Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
     
     setTimeout(() => {
       if (this.userId) {
@@ -146,11 +147,11 @@ class SocketService {
    */
   public joinUserRoom(userId: string): void {
     if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ Socket not connected, cannot join user room');
+      Logger.warn('⚠️ Socket not connected, cannot join user room');
       return;
     }
 
-    console.log('👤 Joining user room:', userId);
+    Logger.debug('👤 Joining user room:', userId);
     this.socket.emit('join-user-room', userId);
   }
 
@@ -159,11 +160,11 @@ class SocketService {
    */
   public joinConversation(conversationId: string): void {
     if (!this.socket || !this.isConnected) {
-      console.warn('⚠️ Socket not connected, cannot join conversation');
+      Logger.warn('⚠️ Socket not connected, cannot join conversation');
       return;
     }
 
-    console.log('💬 Joining conversation room:', conversationId);
+    Logger.debug('💬 Joining conversation room:', conversationId);
     this.socket.emit('join-conversation', conversationId);
   }
 
@@ -175,7 +176,7 @@ class SocketService {
       return;
     }
 
-    console.log('💬 Leaving conversation room:', conversationId);
+    Logger.debug('💬 Leaving conversation room:', conversationId);
     this.socket.emit('leave-conversation', conversationId);
   }
 
@@ -184,13 +185,13 @@ class SocketService {
    */
   public onNewMessageNotification(callback: (data: NewMessageNotification) => void): void {
     if (!this.socket) {
-      console.warn('⚠️ Socket not initialized, cannot listen for message notifications');
+      Logger.warn('⚠️ Socket not initialized, cannot listen for message notifications');
       return;
     }
 
-    console.log('📡 Listening for new message notifications');
+    Logger.debug('📡 Listening for new message notifications');
     this.socket.on('new_message_notification', (data) => {
-      console.log('📨 Received new message notification:', data);
+      Logger.debug('📨 Received new message notification:', data);
       callback(data);
     });
   }
@@ -200,13 +201,13 @@ class SocketService {
    */
   public onNewMessage(callback: (data: any) => void): void {
     if (!this.socket) {
-      console.warn('⚠️ Socket not initialized, cannot listen for new messages');
+      Logger.warn('⚠️ Socket not initialized, cannot listen for new messages');
       return;
     }
 
-    console.log('📡 Listening for new messages');
+    Logger.debug('📡 Listening for new messages');
     this.socket.on('new_message', (data) => {
-      console.log('💬 Received new message:', data);
+      Logger.debug('💬 Received new message:', data);
       callback(data);
     });
   }
@@ -216,13 +217,13 @@ class SocketService {
    */
   public onNewCaseNotification(callback: (data: NewCaseNotification) => void): void {
     if (!this.socket) {
-      console.warn('⚠️ Socket not initialized, cannot listen for case notifications');
+      Logger.warn('⚠️ Socket not initialized, cannot listen for case notifications');
       return;
     }
 
-    console.log('📡 Listening for new case notifications');
+    Logger.debug('📡 Listening for new case notifications');
     this.socket.on('new_case_notification', (data) => {
-      console.log('📋 Received new case notification:', data);
+      Logger.debug('📋 Received new case notification:', data);
       callback(data);
     });
   }
@@ -232,13 +233,13 @@ class SocketService {
    */
   public onCaseAssigned(callback: (data: any) => void): void {
     if (!this.socket) {
-      console.warn('⚠️ Socket not initialized, cannot listen for case assignments');
+      Logger.warn('⚠️ Socket not initialized, cannot listen for case assignments');
       return;
     }
 
-    console.log('📡 Listening for case assignments');
+    Logger.debug('📡 Listening for case assignments');
     this.socket.on('case_assigned', (data) => {
-      console.log('🎯 Received case assignment:', data);
+      Logger.debug('🎯 Received case assignment:', data);
       callback(data);
     });
   }
@@ -248,13 +249,13 @@ class SocketService {
    */
   public onCaseStatusUpdate(callback: (data: any) => void): void {
     if (!this.socket) {
-      console.warn('⚠️ Socket not initialized, cannot listen for case status updates');
+      Logger.warn('⚠️ Socket not initialized, cannot listen for case status updates');
       return;
     }
 
-    console.log('📡 Listening for case status updates');
+    Logger.debug('📡 Listening for case status updates');
     this.socket.on('case_status_update', (data) => {
-      console.log('🔄 Received case status update:', data);
+      Logger.debug('🔄 Received case status update:', data);
       callback(data);
     });
   }
@@ -264,7 +265,7 @@ class SocketService {
    */
   public removeListener(event: string): void {
     if (this.socket) {
-      console.log('🔇 Removing listener for:', event);
+      Logger.debug('🔇 Removing listener for:', event);
       this.socket.off(event);
     }
   }
@@ -274,7 +275,7 @@ class SocketService {
    */
   public removeAllListeners(): void {
     if (this.socket) {
-      console.log('🔇 Removing all listeners');
+      Logger.debug('🔇 Removing all listeners');
       this.socket.removeAllListeners();
     }
   }
@@ -291,7 +292,7 @@ class SocketService {
    */
   public disconnect(): void {
     if (this.socket) {
-      console.log('🔌 Disconnecting from WebSocket server');
+      Logger.debug('🔌 Disconnecting from WebSocket server');
       this.socket.disconnect();
       this.isConnected = false;
       this.userId = null;

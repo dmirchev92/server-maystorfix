@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Logger } from '../utils/Logger';
 
 // API Configuration
 const API_BASE_URL = 'https://snapfix.bg/api/v1';
@@ -50,7 +51,7 @@ export class ApiService {
     try {
       this.authToken = await AsyncStorage.getItem('auth_token');
     } catch (error) {
-      console.error('Error loading auth token:', error);
+      Logger.error('Error loading auth token:', error);
     }
   }
 
@@ -59,7 +60,7 @@ export class ApiService {
       this.authToken = token;
       await AsyncStorage.setItem('auth_token', token);
     } catch (error) {
-      console.error('Error saving auth token:', error);
+      Logger.error('Error saving auth token:', error);
     }
   }
 
@@ -81,8 +82,8 @@ export class ApiService {
       await this.tokenLoaded;
       
       const url = `${API_BASE_URL}${endpoint}`;
-      console.log('makeRequest - URL:', url);
-      console.log('makeRequest - Auth token present:', !!this.authToken);
+      Logger.debug('makeRequest - URL:', url);
+      Logger.debug('makeRequest - Auth token present:', !!this.authToken);
       const headers: any = {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -91,7 +92,7 @@ export class ApiService {
       if (this.authToken) {
         headers.Authorization = `Bearer ${this.authToken}`;
       } else {
-        console.warn('⚠️ makeRequest - No auth token available for:', endpoint);
+        Logger.warn('makeRequest - No auth token available for:', endpoint);
       }
 
       const response = await fetch(url, {
@@ -99,14 +100,14 @@ export class ApiService {
         headers,
       });
 
-      console.log('makeRequest - Response status:', response.status);
-      console.log('makeRequest - Response ok:', response.ok);
+      Logger.debug('makeRequest - Response status:', response.status);
+      Logger.debug('makeRequest - Response ok:', response.ok);
 
       const data: any = await response.json();
-      console.log('makeRequest - Response data:', data);
+      Logger.debug('makeRequest - Response data:', data);
 
       if (!response.ok) {
-        console.log('makeRequest - Response not ok, returning error');
+        Logger.debug('makeRequest - Response not ok, returning error');
         return {
           success: false,
           error: {
@@ -116,7 +117,7 @@ export class ApiService {
         };
       }
 
-      console.log('makeRequest - Response ok, returning success');
+      Logger.debug('makeRequest - Response ok, returning success');
       return {
         success: true,
         data: data.data || data,
@@ -125,7 +126,7 @@ export class ApiService {
         metadata: data.metadata,
       };
     } catch (error) {
-      console.error('makeRequest - API request failed:', error);
+      Logger.error('makeRequest - API request failed:', error);
       return {
         success: false,
         error: {
@@ -192,12 +193,12 @@ export class ApiService {
     // IMPORTANT: Deactivate FCM token BEFORE clearing auth token
     // This ensures the device won't receive notifications for the old user
     try {
-      console.log('🔒 Logout - Deactivating FCM token...');
+      Logger.debug('🔒 Logout - Deactivating FCM token...');
       const FCMService = require('./FCMService').default;
       await FCMService.getInstance().deleteToken();
-      console.log('✅ Logout - FCM token deactivated');
+      Logger.debug('✅ Logout - FCM token deactivated');
     } catch (fcmError) {
-      console.warn('⚠️ Logout - Error deactivating FCM token:', fcmError);
+      Logger.warn('⚠️ Logout - Error deactivating FCM token:', fcmError);
       // Continue with logout even if FCM fails
     }
 
@@ -246,16 +247,16 @@ export class ApiService {
     role: 'tradesperson';
     gdprConsents?: string[];
   }): Promise<APIResponse<{ user: User; tokens: any }>> {
-    console.log('ApiService register - sending data:', userData);
+    Logger.debug('ApiService register - sending data:', userData);
     const response = await this.makeRequest<any>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
 
-    console.log('ApiService register - received response:', response);
+    Logger.debug('ApiService register - received response:', response);
 
     if (response.success && response.data?.tokens?.accessToken) {
-      console.log('ApiService register - saving auth token');
+      Logger.debug('ApiService register - saving auth token');
       await this.saveAuthToken(response.data.tokens.accessToken);
     }
 
@@ -296,7 +297,7 @@ export class ApiService {
 
   // Chat Methods - Using Chat API V2 (matches web app)
   public async getConversations(): Promise<APIResponse> {
-    console.log('📱 ApiService - Getting conversations via Chat API V2');
+    Logger.debug('📱 ApiService - Getting conversations via Chat API V2');
     // Chat API V2 automatically gets conversations for authenticated user
     // No need to pass userId - it's extracted from auth token
     return this.makeRequest(`/chat/conversations`);
@@ -314,7 +315,7 @@ export class ApiService {
     initialMessage?: string;
     chatSource?: string;
   }): Promise<APIResponse> {
-    console.log('📱 ApiService - Creating new conversation with provider:', data.providerId);
+    Logger.debug('📱 ApiService - Creating new conversation with provider:', data.providerId);
     return this.makeRequest('/chat/conversations', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -330,7 +331,7 @@ export class ApiService {
     conversationId: string, 
     conversationType: 'phone' | 'marketplace'
   ): Promise<APIResponse> {
-    console.log('📱 ApiService - Getting messages for conversation:', conversationId, 'type:', conversationType);
+    Logger.debug('📱 ApiService - Getting messages for conversation:', conversationId, 'type:', conversationType);
     
     if (conversationType === 'marketplace') {
       // Use marketplace endpoint
@@ -359,7 +360,7 @@ export class ApiService {
           senderName = `${user.firstName} ${user.lastName}`;
         }
       } catch (error) {
-        console.warn('Could not get current user for sender name:', error);
+        Logger.warn('Could not get current user for sender name:', error);
       }
 
       const data = {
@@ -369,14 +370,14 @@ export class ApiService {
         message: messageData.text,
       };
       
-      console.log('📱 ApiService - Sending marketplace message');
+      Logger.debug('📱 ApiService - Sending marketplace message');
       return this.makeRequest('/chat/messages', {
         method: 'POST',
         body: JSON.stringify(data),
       });
     } else {
       // For phone conversations, use the phone message format
-      console.log('📱 ApiService - Sending phone message');
+      Logger.debug('📱 ApiService - Sending phone message');
       return this.makeRequest('/messaging/send', {
         method: 'POST',
         body: JSON.stringify({
@@ -394,7 +395,7 @@ export class ApiService {
     senderName: string;
     message: string;
   }): Promise<APIResponse> {
-    console.log('📱 ApiService - Sending marketplace message');
+    Logger.debug('📱 ApiService - Sending marketplace message');
     return this.makeRequest('/chat/messages', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -405,7 +406,7 @@ export class ApiService {
     conversationId: string, 
     senderType: 'customer' | 'provider'
   ): Promise<APIResponse> {
-    console.log('📱 ApiService - Marking messages as read');
+    Logger.debug('📱 ApiService - Marking messages as read');
     return this.makeRequest(`/chat/conversations/${conversationId}/read`, {
       method: 'POST',
       body: JSON.stringify({ senderType }),
@@ -413,7 +414,7 @@ export class ApiService {
   }
 
   public async requestHandoff(conversationId: string): Promise<APIResponse> {
-    console.log('📱 ApiService - Requesting handoff for conversation:', conversationId);
+    Logger.debug('📱 ApiService - Requesting handoff for conversation:', conversationId);
     return this.makeRequest(`/chat/conversations/${conversationId}/handoff`, {
       method: 'POST',
     });
@@ -447,14 +448,14 @@ export class ApiService {
     limit?: number;
     t?: number;
   }): Promise<APIResponse> {
-    console.log('🔍 ApiService - Searching providers:', params);
+    Logger.debug('🔍 ApiService - Searching providers:', params);
     const queryString = new URLSearchParams(params as any).toString();
     // Using the endpoint from memory/web app
     return this.makeRequest(`/marketplace/providers/search?${queryString}`);
   }
 
   public async closeConversation(conversationId: string): Promise<APIResponse> {
-    console.log('📱 ApiService - Closing conversation:', conversationId);
+    Logger.debug('📱 ApiService - Closing conversation:', conversationId);
     return this.makeRequest(`/chat/conversations/${conversationId}/close`, {
       method: 'POST',
     });
@@ -462,7 +463,7 @@ export class ApiService {
 
   // Case Management Methods
   public async createCase(caseData: any): Promise<APIResponse> {
-    console.log('📝 ApiService - Creating case:', caseData);
+    Logger.debug('📝 ApiService - Creating case:', caseData);
     return this.makeRequest('/cases', {
       method: 'POST',
       body: JSON.stringify(caseData),
@@ -484,7 +485,7 @@ export class ApiService {
     page?: number;
     limit?: number;
   }): Promise<APIResponse> {
-    console.log('📋 ApiService - Getting cases with filters:', filters);
+    Logger.debug('📋 ApiService - Getting cases with filters:', filters);
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
@@ -492,9 +493,9 @@ export class ApiService {
       }
     });
     const url = `/cases?${params.toString()}`;
-    console.log('📋 ApiService - Request URL:', url);
+    Logger.debug('📋 ApiService - Request URL:', url);
     const response = await this.makeRequest(url);
-    console.log('📋 ApiService - Cases response:', {
+    Logger.debug('📋 ApiService - Cases response:', {
       success: response.success,
       hasData: !!response.data,
       dataKeys: response.data ? Object.keys(response.data as any) : [],
@@ -504,39 +505,39 @@ export class ApiService {
   }
 
   public async getCaseStats(providerId?: string): Promise<APIResponse> {
-    console.log('📊 ApiService - Getting case stats for provider:', providerId);
+    Logger.debug('📊 ApiService - Getting case stats for provider:', providerId);
     const params = providerId ? `?providerId=${providerId}` : '';
     return this.makeRequest(`/cases/stats${params}`);
   }
 
   public async getCaseStatsByChatSource(providerId?: string): Promise<APIResponse> {
-    console.log('📊 ApiService - Getting case stats by chat source for provider:', providerId);
+    Logger.debug('📊 ApiService - Getting case stats by chat source for provider:', providerId);
     const params = providerId ? `?providerId=${providerId}` : '';
     return this.makeRequest(`/cases/stats/chat-source${params}`);
   }
 
   public async acceptCase(caseId: string, providerId: string, providerName: string): Promise<APIResponse> {
-    console.log('✅ ApiService - Accepting case:', caseId, 'by provider:', providerId, providerName);
+    Logger.debug('✅ ApiService - Accepting case:', caseId, 'by provider:', providerId, providerName);
     const response = await this.makeRequest(`/cases/${caseId}/accept`, {
       method: 'POST',
       body: JSON.stringify({ providerId, providerName }),
     });
-    console.log('✅ ApiService - Accept case response:', response);
+    Logger.debug('✅ ApiService - Accept case response:', response);
     return response;
   }
 
   public async declineCase(caseId: string, providerId: string, reason?: string): Promise<APIResponse> {
-    console.log('🚫 ApiService - Declining case:', caseId, 'by provider:', providerId, 'reason:', reason);
+    Logger.debug('🚫 ApiService - Declining case:', caseId, 'by provider:', providerId, 'reason:', reason);
     const response = await this.makeRequest(`/cases/${caseId}/decline`, {
       method: 'POST',
       body: JSON.stringify({ providerId, reason }),
     });
-    console.log('🚫 ApiService - Decline case response:', response);
+    Logger.debug('🚫 ApiService - Decline case response:', response);
     return response;
   }
 
   public async undeclineCase(caseId: string, providerId: string): Promise<APIResponse> {
-    console.log('✅ ApiService - Un-declining case:', caseId);
+    Logger.debug('✅ ApiService - Un-declining case:', caseId);
     return this.makeRequest(`/cases/${caseId}/undecline`, {
       method: 'POST',
       body: JSON.stringify({ providerId }),
@@ -544,7 +545,7 @@ export class ApiService {
   }
 
   public async getDeclinedCases(providerId: string): Promise<APIResponse> {
-    console.log('🚫 ApiService - Getting declined cases for provider:', providerId);
+    Logger.debug('🚫 ApiService - Getting declined cases for provider:', providerId);
     return this.makeRequest(`/cases/declined/${providerId}`);
   }
 
@@ -553,17 +554,17 @@ export class ApiService {
     paymentMethod?: string;
     notes?: string;
   }): Promise<APIResponse> {
-    console.log('🏁 ApiService - Completing case:', caseId, 'notes:', completionNotes, 'income:', income);
+    Logger.debug('🏁 ApiService - Completing case:', caseId, 'notes:', completionNotes, 'income:', income);
     const response = await this.makeRequest(`/cases/${caseId}/complete`, {
       method: 'POST',
       body: JSON.stringify({ completionNotes, income }),
     });
-    console.log('🏁 ApiService - Complete case response:', response);
+    Logger.debug('🏁 ApiService - Complete case response:', response);
     return response;
   }
 
   public async updateCaseStatus(caseId: string, status: string, message?: string): Promise<APIResponse> {
-    console.log('📋 ApiService - Updating case status:', caseId, status);
+    Logger.debug('📋 ApiService - Updating case status:', caseId, status);
     return this.makeRequest(`/cases/${caseId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status, message }),
@@ -571,13 +572,13 @@ export class ApiService {
   }
 
   public async getCase(caseId: string): Promise<APIResponse> {
-    console.log('📋 ApiService - Getting case:', caseId);
+    Logger.debug('📋 ApiService - Getting case:', caseId);
     return this.makeRequest(`/cases/${caseId}`);
   }
 
   // Income/Dashboard methods
   public async getIncomeStats(providerId: string, startDate?: string, endDate?: string): Promise<APIResponse> {
-    console.log('💰 ApiService - Getting income stats for provider:', providerId);
+    Logger.debug('💰 ApiService - Getting income stats for provider:', providerId);
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
@@ -586,49 +587,49 @@ export class ApiService {
   }
 
   public async getIncomeYears(providerId: string): Promise<APIResponse> {
-    console.log('📅 ApiService - Getting income years for provider:', providerId);
+    Logger.debug('📅 ApiService - Getting income years for provider:', providerId);
     return this.makeRequest(`/income/provider/${providerId}/years`);
   }
 
   public async getIncomeTransactionsByMonth(providerId: string, month: string): Promise<APIResponse> {
-    console.log('📊 ApiService - Getting income transactions for month:', month);
+    Logger.debug('📊 ApiService - Getting income transactions for month:', month);
     return this.makeRequest(`/income/provider/${providerId}/month/${month}`);
   }
 
   // Points/Rewards methods
   public async getPoints(): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting user points');
+    Logger.debug('⭐ ApiService - Getting user points');
     return this.makeRequest('/points/balance');
   }
 
   public async getIncomeTransactions(providerId: string): Promise<APIResponse> {
-    console.log('💵 ApiService - Getting income transactions for provider:', providerId);
+    Logger.debug('💵 ApiService - Getting income transactions for provider:', providerId);
     return this.makeRequest(`/income/provider/${providerId}/transactions`);
   }
 
   public async getIncomeTransactionsByMethod(providerId: string, paymentMethod: string): Promise<APIResponse> {
-    console.log('💳 ApiService - Getting income transactions by method:', paymentMethod);
+    Logger.debug('💳 ApiService - Getting income transactions by method:', paymentMethod);
     return this.makeRequest(`/income/provider/${providerId}/method/${encodeURIComponent(paymentMethod)}`);
   }
 
   // Subscription methods
   public async getSubscriptionTiers(): Promise<APIResponse> {
-    console.log('🎯 ApiService - Getting subscription tiers');
+    Logger.debug('🎯 ApiService - Getting subscription tiers');
     return this.makeRequest('/subscriptions/tiers');
   }
 
   public async getTierComparison(): Promise<APIResponse> {
-    console.log('📊 ApiService - Getting tier comparison');
+    Logger.debug('📊 ApiService - Getting tier comparison');
     return this.makeRequest('/subscriptions/tiers/comparison');
   }
 
   public async getMySubscription(): Promise<APIResponse> {
-    console.log('💎 ApiService - Getting my subscription');
+    Logger.debug('💎 ApiService - Getting my subscription');
     return this.makeRequest('/subscriptions/my-subscription');
   }
 
   public async upgradeSubscription(tierId: string, paymentMethod?: string, autoRenew?: boolean): Promise<APIResponse> {
-    console.log('⬆️ ApiService - Upgrading subscription to:', tierId);
+    Logger.debug('⬆️ ApiService - Upgrading subscription to:', tierId);
     return this.makeRequest('/subscriptions/upgrade', {
       method: 'POST',
       body: JSON.stringify({ tier_id: tierId, payment_method: paymentMethod, auto_renew: autoRenew }),
@@ -636,7 +637,7 @@ export class ApiService {
   }
 
   public async cancelSubscription(subscriptionId: string, reason?: string, immediate?: boolean): Promise<APIResponse> {
-    console.log('❌ ApiService - Cancelling subscription:', subscriptionId);
+    Logger.debug('❌ ApiService - Cancelling subscription:', subscriptionId);
     return this.makeRequest('/subscriptions/cancel', {
       method: 'POST',
       body: JSON.stringify({ subscription_id: subscriptionId, reason, immediate }),
@@ -644,23 +645,23 @@ export class ApiService {
   }
 
   public async checkFeatureAccess(feature: string): Promise<APIResponse> {
-    console.log('🔍 ApiService - Checking feature access:', feature);
+    Logger.debug('🔍 ApiService - Checking feature access:', feature);
     return this.makeRequest(`/subscriptions/feature-access/${feature}`);
   }
 
   // Points methods
   public async getPointsBalance(): Promise<APIResponse> {
-    console.log('💰 ApiService - Getting points balance');
+    Logger.debug('💰 ApiService - Getting points balance');
     return this.makeRequest('/points/balance');
   }
 
   public async getPointsPackages(): Promise<APIResponse> {
-    console.log('💰 ApiService - Getting points packages');
+    Logger.debug('💰 ApiService - Getting points packages');
     return this.makeRequest('/points/packages', { method: 'GET' });
   }
 
   public async purchasePoints(points: number, paymentReference?: string): Promise<APIResponse> {
-    console.log('💰 ApiService - Purchasing points:', { points, paymentReference });
+    Logger.debug('💰 ApiService - Purchasing points:', { points, paymentReference });
     return this.makeRequest('/points/purchase', {
       method: 'POST',
       body: JSON.stringify({ points, payment_reference: paymentReference }),
@@ -668,7 +669,7 @@ export class ApiService {
   }
 
   public async checkCaseAccess(caseId: string, caseBudget: number): Promise<APIResponse> {
-    console.log('🔍 ApiService - Checking case access:', caseId);
+    Logger.debug('🔍 ApiService - Checking case access:', caseId);
     return this.makeRequest('/points/check-access', {
       method: 'POST',
       body: JSON.stringify({ case_id: caseId, case_budget: caseBudget }),
@@ -676,7 +677,7 @@ export class ApiService {
   }
 
   public async spendPointsForCase(caseId: string, caseBudget: number): Promise<APIResponse> {
-    console.log('💸 ApiService - Spending points for case:', caseId);
+    Logger.debug('💸 ApiService - Spending points for case:', caseId);
     return this.makeRequest('/points/spend', {
       method: 'POST',
       body: JSON.stringify({ case_id: caseId, case_budget: caseBudget }),
@@ -684,7 +685,7 @@ export class ApiService {
   }
 
   public async getPointsTransactions(limit?: number, offset?: number): Promise<APIResponse> {
-    console.log('📜 ApiService - Getting points transactions');
+    Logger.debug('📜 ApiService - Getting points transactions');
     const params = new URLSearchParams();
     if (limit) params.append('limit', limit.toString());
     if (offset) params.append('offset', offset.toString());
@@ -692,13 +693,13 @@ export class ApiService {
   }
 
   public async getAccessedCases(): Promise<APIResponse> {
-    console.log('📋 ApiService - Getting accessed cases');
+    Logger.debug('📋 ApiService - Getting accessed cases');
     return this.makeRequest('/points/accessed-cases');
   }
 
   // Bidding methods
   public async canBidOnCase(caseId: string): Promise<APIResponse> {
-    console.log('🎯 ApiService - Checking if can bid on case:', caseId);
+    Logger.debug('🎯 ApiService - Checking if can bid on case:', caseId);
     return this.makeRequest(`/bidding/case/${caseId}/can-bid`);
   }
 
@@ -707,7 +708,7 @@ export class ApiService {
     proposedBudgetRange: string, 
     bidComment?: string
   ): Promise<APIResponse> {
-    console.log('💰 ApiService - Placing bid on case:', caseId, 'with budget:', proposedBudgetRange);
+    Logger.debug('💰 ApiService - Placing bid on case:', caseId, 'with budget:', proposedBudgetRange);
     return this.makeRequest(`/bidding/case/${caseId}/bid`, {
       method: 'POST',
       body: JSON.stringify({
@@ -718,12 +719,12 @@ export class ApiService {
   }
 
   public async getCaseBids(caseId: string, includeProviderInfo: boolean = false): Promise<APIResponse> {
-    console.log('👥 ApiService - Getting bids for case:', caseId);
+    Logger.debug('👥 ApiService - Getting bids for case:', caseId);
     return this.makeRequest(`/bidding/case/${caseId}/bids?includeProviderInfo=${includeProviderInfo}`);
   }
 
   public async selectWinningBid(caseId: string, bidId: string): Promise<APIResponse> {
-    console.log('✅ ApiService - Selecting winning bid:', bidId);
+    Logger.debug('✅ ApiService - Selecting winning bid:', bidId);
     return this.makeRequest(`/bidding/case/${caseId}/select-winner`, {
       method: 'POST',
       body: JSON.stringify({ winning_bid_id: bidId }),
@@ -731,7 +732,7 @@ export class ApiService {
   }
 
   public async getMyBids(): Promise<APIResponse> {
-    console.log('📋 ApiService - Getting my bids');
+    Logger.debug('📋 ApiService - Getting my bids');
     return this.makeRequest('/bidding/my-bids');
   }
 
@@ -743,7 +744,7 @@ export class ApiService {
     heading?: number;
     speed?: number;
   }): Promise<APIResponse> {
-    console.log('📍 ApiService - Updating location:', data);
+    Logger.debug('📍 ApiService - Updating location:', data);
     return this.makeRequest('/tracking/update', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -756,7 +757,7 @@ export class ApiService {
    * Get location schedule settings
    */
   public async getLocationSchedule(): Promise<APIResponse> {
-    console.log('📅 ApiService - Getting location schedule');
+    Logger.debug('📅 ApiService - Getting location schedule');
     return this.makeRequest('/tracking/schedule', { method: 'GET' });
   }
 
@@ -776,7 +777,7 @@ export class ApiService {
     saturday_enabled?: boolean;
     sunday_enabled?: boolean;
   }): Promise<APIResponse> {
-    console.log('📅 ApiService - Updating location schedule:', data);
+    Logger.debug('📅 ApiService - Updating location schedule:', data);
     return this.makeRequest('/tracking/schedule', {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -787,7 +788,7 @@ export class ApiService {
    * Check if location sharing should be active based on schedule
    */
   public async checkLocationSchedule(): Promise<APIResponse> {
-    console.log('📅 ApiService - Checking location schedule');
+    Logger.debug('📅 ApiService - Checking location schedule');
     return this.makeRequest('/tracking/schedule/check', { method: 'GET' });
   }
 
@@ -797,7 +798,7 @@ export class ApiService {
    * Get all Bulgarian cities
    */
   public async getCities(): Promise<APIResponse> {
-    console.log('📍 ApiService - Fetching cities');
+    Logger.debug('📍 ApiService - Fetching cities');
     return this.makeRequest('/locations/cities', { method: 'GET' });
   }
 
@@ -805,7 +806,7 @@ export class ApiService {
    * Get neighborhoods for a specific city
    */
   public async getNeighborhoods(city: string): Promise<APIResponse> {
-    console.log('📍 ApiService - Fetching neighborhoods for:', city);
+    Logger.debug('📍 ApiService - Fetching neighborhoods for:', city);
     return this.makeRequest(`/locations/neighborhoods/${encodeURIComponent(city)}`, { method: 'GET' });
   }
 
@@ -813,7 +814,7 @@ export class ApiService {
    * Get all locations (cities and neighborhoods) for caching
    */
   public async getAllLocations(): Promise<APIResponse> {
-    console.log('📍 ApiService - Fetching all locations');
+    Logger.debug('📍 ApiService - Fetching all locations');
     return this.makeRequest('/locations/all', { method: 'GET' });
   }
 
@@ -821,7 +822,7 @@ export class ApiService {
    * Search locations by query
    */
   public async searchLocations(query: string, type?: 'city' | 'neighborhood'): Promise<APIResponse> {
-    console.log('📍 ApiService - Searching locations:', query, type);
+    Logger.debug('📍 ApiService - Searching locations:', query, type);
     const params = new URLSearchParams({ q: query });
     if (type) params.append('type', type);
     return this.makeRequest(`/locations/search?${params.toString()}`, { method: 'GET' });
@@ -831,7 +832,7 @@ export class ApiService {
    * Find nearest neighborhood based on coordinates
    */
   public async getNearestNeighborhood(lat: number, lng: number, city?: string): Promise<APIResponse> {
-    console.log('📍 ApiService - Finding nearest neighborhood:', { lat, lng, city });
+    Logger.debug('📍 ApiService - Finding nearest neighborhood:', { lat, lng, city });
     const params = new URLSearchParams({ lat: lat.toString(), lng: lng.toString() });
     if (city) params.append('city', city);
     return this.makeRequest(`/locations/nearest-neighborhood?${params.toString()}`, { method: 'GET' });
@@ -841,7 +842,7 @@ export class ApiService {
    * Get cases for map view (for providers)
    */
   public async getCasesForMap(latitude: number, longitude: number, radius?: number, category?: string): Promise<APIResponse> {
-    console.log('📍 ApiService - Fetching cases for map:', { latitude, longitude, radius, category });
+    Logger.debug('📍 ApiService - Fetching cases for map:', { latitude, longitude, radius, category });
     const params = new URLSearchParams({
       latitude: latitude.toString(),
       longitude: longitude.toString(),
@@ -857,7 +858,7 @@ export class ApiService {
    * Get service categories list for free inspection
    */
   public async getFreeInspectionCategories(): Promise<APIResponse> {
-    console.log('🔧 ApiService - Fetching free inspection categories');
+    Logger.debug('🔧 ApiService - Fetching free inspection categories');
     return this.makeRequest('/free-inspection/categories', { method: 'GET' });
   }
 
@@ -865,7 +866,7 @@ export class ApiService {
    * SP: Get free inspection status
    */
   public async getFreeInspectionStatus(): Promise<APIResponse> {
-    console.log('🔧 ApiService - Getting free inspection status');
+    Logger.debug('🔧 ApiService - Getting free inspection status');
     return this.makeRequest('/free-inspection/status', { method: 'GET' });
   }
 
@@ -873,7 +874,7 @@ export class ApiService {
    * SP: Toggle free inspection mode
    */
   public async toggleFreeInspection(active: boolean): Promise<APIResponse> {
-    console.log('🔧 ApiService - Toggling free inspection:', active);
+    Logger.debug('🔧 ApiService - Toggling free inspection:', active);
     return this.makeRequest('/free-inspection/toggle', {
       method: 'POST',
       body: JSON.stringify({ active }),
@@ -884,7 +885,7 @@ export class ApiService {
    * Customer: Get free inspection preferences
    */
   public async getFreeInspectionPreferences(): Promise<APIResponse> {
-    console.log('🔧 ApiService - Getting free inspection preferences');
+    Logger.debug('🔧 ApiService - Getting free inspection preferences');
     return this.makeRequest('/free-inspection/preferences', { method: 'GET' });
   }
 
@@ -899,7 +900,7 @@ export class ApiService {
     latitude?: number;
     longitude?: number;
   }): Promise<APIResponse> {
-    console.log('🔧 ApiService - Updating free inspection preferences:', preferences);
+    Logger.debug('🔧 ApiService - Updating free inspection preferences:', preferences);
     return this.makeRequest('/free-inspection/preferences', {
       method: 'PUT',
       body: JSON.stringify(preferences),
@@ -916,7 +917,7 @@ export class ApiService {
     category?: string;
     freeInspectionOnly?: boolean;
   }): Promise<APIResponse> {
-    console.log('🔧 ApiService - Fetching providers for map:', params);
+    Logger.debug('🔧 ApiService - Fetching providers for map:', params);
     const queryParams = new URLSearchParams({
       latitude: params.latitude.toString(),
       longitude: params.longitude.toString(),
@@ -938,7 +939,7 @@ export class ApiService {
     counterBudget?: string,
     message?: string
   ): Promise<APIResponse> {
-    console.log('📋 ApiService - SP responding to direct assignment:', { caseId, action, counterBudget });
+    Logger.debug('📋 ApiService - SP responding to direct assignment:', { caseId, action, counterBudget });
     return this.makeRequest(`/direct-assignment/${caseId}/sp-respond`, {
       method: 'POST',
       body: JSON.stringify({ action, counterBudget, message }),
@@ -952,7 +953,7 @@ export class ApiService {
     caseId: string,
     action: 'accept' | 'decline'
   ): Promise<APIResponse> {
-    console.log('📋 ApiService - Customer responding to counter-offer:', { caseId, action });
+    Logger.debug('📋 ApiService - Customer responding to counter-offer:', { caseId, action });
     return this.makeRequest(`/direct-assignment/${caseId}/customer-respond`, {
       method: 'POST',
       body: JSON.stringify({ action }),
@@ -963,7 +964,7 @@ export class ApiService {
    * Customer sends declined case to marketplace
    */
   public async sendCaseToMarketplace(caseId: string): Promise<APIResponse> {
-    console.log('📋 ApiService - Sending case to marketplace:', caseId);
+    Logger.debug('📋 ApiService - Sending case to marketplace:', caseId);
     return this.makeRequest(`/direct-assignment/${caseId}/send-to-marketplace`, {
       method: 'POST',
     });
@@ -973,7 +974,7 @@ export class ApiService {
    * Customer cancels a case
    */
   public async cancelCase(caseId: string): Promise<APIResponse> {
-    console.log('📋 ApiService - Cancelling case:', caseId);
+    Logger.debug('📋 ApiService - Cancelling case:', caseId);
     return this.makeRequest(`/direct-assignment/${caseId}/cancel`, {
       method: 'POST',
     });
@@ -985,7 +986,7 @@ export class ApiService {
    * Get VIP configuration (prices, timing, slots)
    */
   public async getVipConfig(): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting VIP config');
+    Logger.debug('⭐ ApiService - Getting VIP config');
     return this.makeRequest('/vip/config', { method: 'GET' });
   }
 
@@ -993,7 +994,7 @@ export class ApiService {
    * Get SP's VIP overview (current placements, points balance)
    */
   public async getVipOverview(): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting VIP overview');
+    Logger.debug('⭐ ApiService - Getting VIP overview');
     return this.makeRequest('/vip/overview', { method: 'GET' });
   }
 
@@ -1001,7 +1002,7 @@ export class ApiService {
    * Get available VIP auctions for SP
    */
   public async getVipAuctions(filters?: { vipType?: string; categoryId?: string }): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting VIP auctions:', filters);
+    Logger.debug('⭐ ApiService - Getting VIP auctions:', filters);
     const params = new URLSearchParams();
     if (filters?.vipType) params.append('vipType', filters.vipType);
     if (filters?.categoryId) params.append('categoryId', filters.categoryId);
@@ -1017,7 +1018,7 @@ export class ApiService {
     categoryId: string,
     pointsIncrement: number
   ): Promise<APIResponse> {
-    console.log('⭐ ApiService - Placing VIP bid:', { vipType, categoryId, pointsIncrement });
+    Logger.debug('⭐ ApiService - Placing VIP bid:', { vipType, categoryId, pointsIncrement });
     return this.makeRequest('/vip/bid', {
       method: 'POST',
       body: JSON.stringify({ vipType, categoryId, pointsIncrement }),
@@ -1031,7 +1032,7 @@ export class ApiService {
     vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP',
     categoryId: string
   ): Promise<APIResponse> {
-    console.log('⭐ ApiService - Buying out VIP slot:', { vipType, categoryId });
+    Logger.debug('⭐ ApiService - Buying out VIP slot:', { vipType, categoryId });
     return this.makeRequest('/vip/buyout', {
       method: 'POST',
       body: JSON.stringify({ vipType, categoryId }),
@@ -1042,7 +1043,7 @@ export class ApiService {
    * Cancel a VIP bid
    */
   public async cancelVipBid(bidId: string): Promise<APIResponse> {
-    console.log('⭐ ApiService - Cancelling VIP bid:', bidId);
+    Logger.debug('⭐ ApiService - Cancelling VIP bid:', bidId);
     return this.makeRequest(`/vip/bid/${bidId}`, { method: 'DELETE' });
   }
 
@@ -1054,7 +1055,7 @@ export class ApiService {
     categoryId: string,
     city?: string
   ): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting VIP leaderboard:', { vipType, categoryId, city });
+    Logger.debug('⭐ ApiService - Getting VIP leaderboard:', { vipType, categoryId, city });
     const params = new URLSearchParams({ vipType, categoryId });
     if (city) params.append('city', city);
     return this.makeRequest(`/vip/leaderboard?${params.toString()}`, { method: 'GET' });
@@ -1064,7 +1065,7 @@ export class ApiService {
    * Get VIP providers for homepage
    */
   public async getVipHomepageProviders(categoryId?: string): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting VIP homepage providers:', { categoryId });
+    Logger.debug('⭐ ApiService - Getting VIP homepage providers:', { categoryId });
     const params = categoryId ? `?categoryId=${categoryId}` : '';
     return this.makeRequest(`/marketplace/providers/vip-homepage${params}`, { method: 'GET' });
   }
@@ -1075,7 +1076,7 @@ export class ApiService {
    * Get pending reviews for the current customer
    */
   public async getPendingReviews(): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting pending reviews');
+    Logger.debug('⭐ ApiService - Getting pending reviews');
     return this.makeRequest('/reviews/pending', { method: 'GET' });
   }
 
@@ -1083,7 +1084,7 @@ export class ApiService {
    * Check if customer can review a specific case
    */
   public async canReviewCase(caseId: string): Promise<APIResponse> {
-    console.log('⭐ ApiService - Checking if can review case:', caseId);
+    Logger.debug('⭐ ApiService - Checking if can review case:', caseId);
     return this.makeRequest(`/reviews/case/${caseId}/can-review`, { method: 'GET' });
   }
 
@@ -1101,7 +1102,7 @@ export class ApiService {
     valueForMoney?: number;
     wouldRecommend?: boolean;
   }): Promise<APIResponse> {
-    console.log('⭐ ApiService - Creating review for case:', reviewData.caseId);
+    Logger.debug('⭐ ApiService - Creating review for case:', reviewData.caseId);
     return this.makeRequest('/reviews', {
       method: 'POST',
       body: JSON.stringify(reviewData),
@@ -1112,7 +1113,7 @@ export class ApiService {
    * Get reviews for a specific provider
    */
   public async getProviderReviews(providerId: string): Promise<APIResponse> {
-    console.log('⭐ ApiService - Getting reviews for provider:', providerId);
+    Logger.debug('⭐ ApiService - Getting reviews for provider:', providerId);
     return this.makeRequest(`/reviews/provider/${providerId}`, { method: 'GET' });
   }
 
@@ -1122,7 +1123,7 @@ export class ApiService {
    * Get current user's GDPR consent preferences
    */
   public async getConsents(): Promise<APIResponse> {
-    console.log('🔒 ApiService - Getting GDPR consents');
+    Logger.debug('🔒 ApiService - Getting GDPR consents');
     return this.makeRequest('/gdpr/my-consents', { method: 'GET' });
   }
 
@@ -1134,7 +1135,7 @@ export class ApiService {
     granted: boolean;
     legalBasis?: string;
   }>): Promise<APIResponse> {
-    console.log('🔒 ApiService - Updating GDPR consents:', consents);
+    Logger.debug('🔒 ApiService - Updating GDPR consents:', consents);
     return this.makeRequest('/gdpr/update-consents', {
       method: 'POST',
       body: JSON.stringify({ consents }),

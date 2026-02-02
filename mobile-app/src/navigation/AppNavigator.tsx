@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -485,8 +486,8 @@ function SettingsMainScreen({ navigation }: any) {
       </ScrollView>
       <ConsentBanner 
         visible={true}
-        onAccept={() => console.log('Consent accepted')}
-        onDecline={() => console.log('Consent declined')}
+        onAccept={() => Logger.debug('Consent accepted')}
+        onDecline={() => Logger.debug('Consent declined')}
         onCustomize={() => navigation.navigate('Consent')}
       />
     </View>

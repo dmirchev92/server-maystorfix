@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -70,7 +71,7 @@ const BuyPointsScreen: React.FC = () => {
         setBalance(balanceRes.data);
       }
     } catch (error) {
-      console.error('Failed to load data:', error);
+      Logger.error('Failed to load data:', error);
       Alert.alert('Грешка', 'Неуспешно зареждане на данните');
     } finally {
       setLoading(false);
@@ -107,7 +108,7 @@ const BuyPointsScreen: React.FC = () => {
                 Alert.alert('Грешка', response.error?.message || 'Неуспешна покупка');
               }
             } catch (error: any) {
-              console.error('Failed to purchase:', error);
+              Logger.error('Failed to purchase:', error);
               Alert.alert('Грешка', error.message || 'Неуспешна покупка');
             } finally {
               setPurchasing(null);

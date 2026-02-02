@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -74,7 +75,7 @@ const SearchScreen = () => {
           setCities(response.data.cities.slice(0, 30));
         }
       } catch (error) {
-        console.error('Error loading data:', error);
+        Logger.error('Error loading data:', error);
       }
     };
     loadData();
@@ -92,7 +93,7 @@ const SearchScreen = () => {
             setNeighborhoods([]);
           }
         } catch (error) {
-          console.error('Error loading neighborhoods:', error);
+          Logger.error('Error loading neighborhoods:', error);
           setNeighborhoods([]);
         }
       };
@@ -132,7 +133,7 @@ const SearchScreen = () => {
         setVipProviders([]);
       }
     } catch (error) {
-      console.error('Error fetching providers:', error);
+      Logger.error('Error fetching providers:', error);
       setProviders([]);
     } finally {
       setLoading(false);
@@ -171,7 +172,7 @@ const SearchScreen = () => {
         setProviderReviews([]);
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      Logger.error('Error fetching reviews:', error);
       setProviderReviews([]);
     } finally {
       setReviewsLoading(false);

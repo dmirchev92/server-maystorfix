@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -101,7 +102,7 @@ export default function CaseBidsScreen() {
       const userData = (response.data as any)?.user || response.data;
       setUser(userData);
     } catch (error) {
-      console.error('Error loading user:', error);
+      Logger.error('Error loading user:', error);
     }
   };
 
@@ -124,14 +125,14 @@ export default function CaseBidsScreen() {
 
       // Fetch bids with provider info
       const bidsResponse = await ApiService.getInstance().getCaseBids(caseId, true);
-      console.log('Bids response:', bidsResponse);
+      Logger.debug('Bids response:', bidsResponse);
 
       if (bidsResponse.success && bidsResponse.data) {
         const bidsData = (bidsResponse.data as any)?.bids || bidsResponse.data;
         setBids(Array.isArray(bidsData) ? bidsData : []);
       }
     } catch (error) {
-      console.error('Error fetching bids:', error);
+      Logger.error('Error fetching bids:', error);
       Alert.alert('Грешка', 'Неуспешно зареждане на офертите');
     } finally {
       setLoading(false);
@@ -170,7 +171,7 @@ export default function CaseBidsScreen() {
                 Alert.alert('Грешка', errorMsg);
               }
             } catch (error: any) {
-              console.error('Error selecting winner:', error);
+              Logger.error('Error selecting winner:', error);
               Alert.alert('Грешка', 'Неуспешен избор на изпълнител');
             } finally {
               setSelecting(null);
@@ -250,7 +251,7 @@ export default function CaseBidsScreen() {
         }
       }
     } catch (error) {
-      console.error('Error fetching provider details:', error);
+      Logger.error('Error fetching provider details:', error);
     }
     
     // Fetch reviews for this provider
@@ -267,7 +268,7 @@ export default function CaseBidsScreen() {
         setProviderReviews([]);
       }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      Logger.error('Error fetching reviews:', error);
       setProviderReviews([]);
     } finally {
       setReviewsLoading(false);

@@ -1,6 +1,7 @@
 // Clean Dashboard Screen - No Complex Detection Systems
 // Simple, working dashboard without any call detection complexity
 
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -70,10 +71,10 @@ const CleanDashboardScreen: React.FC = () => {
           isGdprCompliant: true,
         };
         setUser(mockUser);
-        console.log('📱 Using mock user for testing');
+        Logger.debug('📱 Using mock user for testing');
       }
     } catch (error) {
-      console.error('Failed to load user data:', error);
+      Logger.error('Failed to load user data:', error);
       // Fallback to mock user
       const mockUser: User = {
         id: '1',
@@ -91,7 +92,7 @@ const CleanDashboardScreen: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      console.log('📊 Loading clean dashboard data...');
+      Logger.debug('📊 Loading clean dashboard data...');
       
       // Simple, consistent stats
       const cleanStats: DashboardStats = {
@@ -104,21 +105,21 @@ const CleanDashboardScreen: React.FC = () => {
       
       setStats(cleanStats);
       setLastUpdated(new Date());
-      console.log('✅ Clean dashboard data loaded');
+      Logger.debug('✅ Clean dashboard data loaded');
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      Logger.error('Failed to load dashboard data:', error);
     }
   };
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    console.log('🔄 Refreshing clean dashboard...');
+    Logger.debug('🔄 Refreshing clean dashboard...');
     
     try {
       await loadDashboardData();
-      console.log('✅ Dashboard refreshed successfully');
+      Logger.debug('✅ Dashboard refreshed successfully');
     } catch (error) {
-      console.error('❌ Error refreshing dashboard:', error);
+      Logger.error('❌ Error refreshing dashboard:', error);
     }
     
     setIsRefreshing(false);

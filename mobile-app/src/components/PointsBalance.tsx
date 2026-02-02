@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import ApiService from '../services/ApiService';
@@ -32,7 +33,7 @@ export const PointsBalance: React.FC = () => {
         setError('Не може да се заредят точките');
       }
     } catch (err) {
-      console.error('Error loading points:', err);
+      Logger.error('Error loading points:', err);
       setError('Грешка при зареждане на точките');
     } finally {
       setLoading(false);

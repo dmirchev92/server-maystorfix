@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -129,7 +130,7 @@ const EditProfileScreen: React.FC = () => {
         setCities(response.data.cities.map((c: any) => c.label || c.value));
       }
     } catch (error) {
-      console.error('Failed to load cities:', error);
+      Logger.error('Failed to load cities:', error);
       // Fallback to default cities
       setCities(['София', 'Пловдив', 'Варна', 'Бургас']);
     }
@@ -144,7 +145,7 @@ const EditProfileScreen: React.FC = () => {
         setNeighborhoods([]);
       }
     } catch (error) {
-      console.error('Failed to load neighborhoods:', error);
+      Logger.error('Failed to load neighborhoods:', error);
       setNeighborhoods([]);
     }
   };
@@ -233,14 +234,14 @@ const EditProfileScreen: React.FC = () => {
             Alert.alert('Внимание', 'Не успяхме да определим града/квартала, но координатите са запазени. Моля изберете град ръчно.');
           }
         } catch (error) {
-          console.error('Auto-detect location error:', error);
+          Logger.error('Auto-detect location error:', error);
           Alert.alert('Грешка', 'Възникна проблем при определяне на местоположението');
         } finally {
           setDetectingLocation(false);
         }
       },
       (error) => {
-        console.error('Geolocation error:', error.message);
+        Logger.error('Geolocation error:', error.message);
         setDetectingLocation(false);
         Alert.alert('Грешка', 'Не можахме да определим местоположението ви. Проверете GPS настройките.');
       },
@@ -317,7 +318,7 @@ const EditProfileScreen: React.FC = () => {
             });
           }
         } catch (providerError) {
-          console.error('Error loading provider profile:', providerError);
+          Logger.error('Error loading provider profile:', providerError);
           // Use basic user data
           setProfileData({
             firstName: userData.firstName || userData.first_name || '',
@@ -337,7 +338,7 @@ const EditProfileScreen: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error loading profile:', error);
+      Logger.error('Error loading profile:', error);
       setError('Грешка при зареждане на профила');
     } finally {
       setLoading(false);
@@ -431,7 +432,7 @@ const EditProfileScreen: React.FC = () => {
         throw new Error(uploadResult.error?.message || 'Failed to upload image');
       }
     } catch (error: any) {
-      console.error('Error uploading image:', error);
+      Logger.error('Error uploading image:', error);
       Alert.alert('Грешка', 'Неуспешно качване на снимката');
     } finally {
       setSaving(false);
@@ -507,7 +508,7 @@ const EditProfileScreen: React.FC = () => {
         throw new Error(uploadResult.error?.message || 'Failed to upload image');
       }
     } catch (error: any) {
-      console.error('Error uploading gallery image:', error);
+      Logger.error('Error uploading gallery image:', error);
       Alert.alert('Грешка', 'Неуспешно качване на снимката');
     } finally {
       setSaving(false);
@@ -597,7 +598,7 @@ const EditProfileScreen: React.FC = () => {
         throw new Error(result.error?.message || 'Неуспешна актуализация');
       }
     } catch (error: any) {
-      console.error('Error saving profile:', error);
+      Logger.error('Error saving profile:', error);
       setError(error.message || 'Грешка при актуализация на профила');
     } finally {
       setSaving(false);

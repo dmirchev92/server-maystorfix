@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { io, Socket } from 'socket.io-client';
 import NotificationService from './NotificationService';
 import { AppState } from 'react-native';
@@ -77,11 +78,11 @@ class SocketIOService {
       if (response.success && response.data) {
         this.notificationPreferences = response.data;
         this.preferencesLastFetched = now;
-        console.log('📋 Notification preferences fetched:', this.notificationPreferences);
+        Logger.debug('📋 Notification preferences fetched:', this.notificationPreferences);
         return this.notificationPreferences;
       }
     } catch (error) {
-      console.error('Failed to fetch notification preferences:', error);
+      Logger.error('Failed to fetch notification preferences:', error);
     }
     return null;
   }
@@ -103,16 +104,16 @@ class SocketIOService {
     return new Promise(async (resolve, reject) => {
       // Idempotency check: If already connected, don't create a new connection
       if (this.socket?.connected) {
-        console.log('✅ Socket already connected, skipping new connection');
+        Logger.debug('✅ Socket already connected, skipping new connection');
         resolve();
         return;
       }
 
-      console.log('🔌 Connecting to Socket.IO /chat namespace...');
+      Logger.debug('🔌 Connecting to Socket.IO /chat namespace...');
       
       // Clean up existing instance if it exists but isn't connected
       if (this.socket) {
-        console.log('⚠️ Cleaning up existing disconnected socket instance');
+        Logger.debug('⚠️ Cleaning up existing disconnected socket instance');
         this.socket.removeAllListeners();
         this.socket.disconnect();
         this.socket = null;
@@ -121,15 +122,15 @@ class SocketIOService {
       // Initialize notification service
       try {
         await this.notificationService.initialize();
-        console.log('✅ NotificationService initialized in SocketIOService');
+        Logger.debug('✅ NotificationService initialized in SocketIOService');
       } catch (error) {
-        console.error('⚠️ Failed to initialize NotificationService:', error);
+        Logger.error('⚠️ Failed to initialize NotificationService:', error);
       }
       
       // Store userId for reference
       if (userId) {
         this.userId = userId;
-        console.log('👤 Stored userId for Socket.IO:', userId);
+        Logger.debug('👤 Stored userId for Socket.IO:', userId);
       }
       
       // Connect to /chat namespace to match backend
@@ -148,30 +149,30 @@ class SocketIOService {
       });
 
       this.socket.on('connect', () => {
-        console.log('✅ Socket.IO connected:', this.socket?.id);
+        Logger.debug('✅ Socket.IO connected:', this.socket?.id);
         this.setupEventListeners();
         resolve();
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('❌ Socket.IO connection error:', error);
+        Logger.error('❌ Socket.IO connection error:', error);
         reject(error);
       });
 
       this.socket.on('disconnect', (reason) => {
-        console.log('🔌 Socket.IO disconnected:', reason);
+        Logger.debug('🔌 Socket.IO disconnected:', reason);
       });
 
       this.socket.on('reconnect', (attemptNumber) => {
-        console.log('🔄 Socket.IO reconnected after', attemptNumber, 'attempts');
+        Logger.debug('🔄 Socket.IO reconnected after', attemptNumber, 'attempts');
       });
 
       this.socket.on('reconnect_error', (error) => {
-        console.error('❌ Socket.IO reconnection error:', error);
+        Logger.error('❌ Socket.IO reconnection error:', error);
       });
 
       this.socket.on('reconnect_failed', () => {
-        console.error('❌ Socket.IO reconnection failed');
+        Logger.error('❌ Socket.IO reconnection failed');
       });
     });
   }
@@ -193,7 +194,7 @@ class SocketIOService {
 
     // New message received - backend emits 'message:new'
     this.socket.on('message:new', (data: { conversationId: string; message: Message }) => {
-      console.log('📨 New message received via message:new:', data);
+      Logger.debug('📨 New message received via message:new:', data);
       // Extract message from data envelope
       const message = data.message;
       this.messageCallbacks.forEach(callback => callback(message));
@@ -204,20 +205,20 @@ class SocketIOService {
 
     // Message updated - backend emits 'message:updated'
     this.socket.on('message:updated', (data: { message: Message }) => {
-      console.log('✏️ Message updated via message:updated:', data);
+      Logger.debug('✏️ Message updated via message:updated:', data);
       // Update message in callbacks
       this.messageCallbacks.forEach(callback => callback(data.message));
     });
 
     // Message deleted - backend emits 'message:deleted'
     this.socket.on('message:deleted', (data: { messageId: string; conversationId: string }) => {
-      console.log('🗑️ Message deleted via message:deleted:', data);
+      Logger.debug('🗑️ Message deleted via message:deleted:', data);
       // Notify callbacks about deletion (components should handle removal)
     });
 
     // Conversation updated - backend emits 'conversation:updated'
     this.socket.on('conversation:updated', (data: { conversationId: string; lastMessageAt: string }) => {
-      console.log('🔄 Conversation updated:', data);
+      Logger.debug('🔄 Conversation updated:', data);
       // Note: Backend only sends conversationId and lastMessageAt
       // You may need to fetch full conversation data if needed
       this.conversationCallbacks.forEach(callback => callback(data as any));
@@ -225,7 +226,7 @@ class SocketIOService {
 
     // New message notification (for messages in other conversations)
     this.socket.on('new_message_notification', (data: any) => {
-      console.log('📨 New message notification received (raw):', data);
+      Logger.debug('📨 New message notification received (raw):', data);
       
       // Transform notification payload to Message shape
       const message: Message = {
@@ -250,7 +251,7 @@ class SocketIOService {
 
     // New case assignment
     this.socket.on('case_assigned', async (caseData: any) => {
-      console.log('📋 New case assigned:', caseData);
+      Logger.debug('📋 New case assigned:', caseData);
       
       // Check notification preferences
       const prefs = await this.getNotificationPreferences();
@@ -268,37 +269,37 @@ class SocketIOService {
         });
         this.notificationService.incrementBadgeCount();
       } else {
-        console.log('📱 Skipping case_assigned notification. Reason: New cases notifications disabled');
+        Logger.debug('📱 Skipping case_assigned notification. Reason: New cases notifications disabled');
       }
     });
 
     // SMS config updated (real-time sync with marketplace)
     this.socket.on('sms-config-updated', (data: any) => {
-      console.log('📱 SMS config updated via Socket.IO:', data);
+      Logger.debug('📱 SMS config updated via Socket.IO:', data);
       this.smsConfigCallbacks.forEach(callback => callback(data));
     });
 
     // Typing indicator - matches web app event name
     this.socket.on('typing', (data: { conversationId: string; userId: string; userName: string; isTyping: boolean }) => {
-      console.log('⌨️ Typing indicator:', data);
+      Logger.debug('⌨️ Typing indicator:', data);
       this.typingCallbacks.forEach(callback => callback(data));
     });
 
     // Presence updates - online/offline status
     this.socket.on('presence', (data: { userId: string; status: 'online' | 'offline' | 'away' }) => {
-      console.log('👤 Presence update:', data);
+      Logger.debug('👤 Presence update:', data);
       // Can be used to show online/offline status in UI
     });
 
     // Message read
     this.socket.on('message_read', (data: { messageId: string }) => {
-      console.log('✅ Message read:', data);
+      Logger.debug('✅ Message read:', data);
       this.readCallbacks.forEach(callback => callback(data));
     });
 
     // Instant Job Alert (Uber-like modal)
     this.socket.on('job:incoming', (data: any) => {
-      console.log('🔔 Instant Job Alert received:', data);
+      Logger.debug('🔔 Instant Job Alert received:', data);
       this.jobIncomingCallbacks.forEach(callback => callback(data));
     });
   }
@@ -323,10 +324,10 @@ class SocketIOService {
     const shouldShowNotification = pushEnabled && chatNotificationsEnabled && (isAppInBackground || isDifferentConversation);
 
     if (isOwnMessage && shouldShowNotification) {
-      console.log('⚠️ Notification triggered for own message (allowed for testing)');
+      Logger.debug('⚠️ Notification triggered for own message (allowed for testing)');
     }
 
-    console.log(`📱 Notification check [${source}]:`, {
+    Logger.debug(`📱 Notification check [${source}]:`, {
       isAppInBackground,
       isDifferentConversation,
       isOwnMessage,
@@ -346,7 +347,7 @@ class SocketIOService {
       // If it's our own message, append (Me) to clearer debugging
       const displayName = isOwnMessage ? `${message.senderName} (Me)` : (message.senderName || 'New Message');
       
-      console.log('📱 Showing notification for message:', message.id);
+      Logger.debug('📱 Showing notification for message:', message.id);
       this.notificationService.showChatNotification({
         conversationId: message.conversationId,
         senderName: displayName,
@@ -358,22 +359,22 @@ class SocketIOService {
       const reason = !pushEnabled ? 'Push disabled' : 
                      !chatNotificationsEnabled ? 'Chat notifications disabled' : 
                      'App is active and in same conversation';
-      console.log(`📱 Skipping notification for ${source}. Reason: ${reason}`);
+      Logger.debug(`📱 Skipping notification for ${source}. Reason: ${reason}`);
     }
   }
 
   joinConversation(conversationId: string) {
     if (!this.socket) {
-      console.error('❌ Socket not connected - cannot join conversation');
+      Logger.error('❌ Socket not connected - cannot join conversation');
       return;
     }
     if (!this.socket.connected) {
-      console.error('❌ Socket exists but not connected - cannot join conversation');
+      Logger.error('❌ Socket exists but not connected - cannot join conversation');
       return;
     }
-    console.log('🚪 Joining conversation:', conversationId);
-    console.log('🔌 Socket ID:', this.socket.id);
-    console.log('🔌 Socket connected:', this.socket.connected);
+    Logger.debug('🚪 Joining conversation:', conversationId);
+    Logger.debug('🔌 Socket ID:', this.socket.id);
+    Logger.debug('🔌 Socket connected:', this.socket.connected);
     
     // Track current conversation to prevent notifications for active chat
     this.currentConversationId = conversationId;
@@ -384,7 +385,7 @@ class SocketIOService {
 
   leaveConversation(conversationId: string) {
     if (!this.socket) return;
-    console.log('🚺 Leaving conversation:', conversationId);
+    Logger.debug('🚺 Leaving conversation:', conversationId);
     
     // Clear current conversation tracking
     if (this.currentConversationId === conversationId) {
@@ -394,7 +395,7 @@ class SocketIOService {
     // Emit leave-conversation to match web app
     if (this.socket.connected) {
       this.socket.emit('leave-conversation', conversationId);
-      console.log('✅ Emitted leave-conversation for:', conversationId);
+      Logger.debug('✅ Emitted leave-conversation for:', conversationId);
     }
   }
 
@@ -411,7 +412,7 @@ class SocketIOService {
         return;
       }
 
-      console.log('📤 Sending message via message:send:', { conversationId, message, senderType });
+      Logger.debug('📤 Sending message via message:send:', { conversationId, message, senderType });
 
       // Backend expects 'message:send' event with { conversationId, type, body }
       this.socket.emit(
@@ -424,14 +425,14 @@ class SocketIOService {
       );
       
       // Socket-only messaging: no callback, message will arrive via message:new event
-      console.log('✅ Message sent via socket, waiting for confirmation via message:new');
+      Logger.debug('✅ Message sent via socket, waiting for confirmation via message:new');
       resolve();
     });
   }
 
   markAsRead(conversationId: string, messageId: string) {
     if (!this.socket) return;
-    console.log('✅ Marking message as read:', messageId);
+    Logger.debug('✅ Marking message as read:', messageId);
     this.socket.emit('mark_read', { conversationId, messageId });
   }
 
@@ -485,13 +486,13 @@ class SocketIOService {
 
   // Allow triggering the alert locally (e.g. from a push notification tap)
   triggerLocalJobAlert(data: any) {
-    console.log('🔔 Triggering local job alert:', data);
+    Logger.debug('🔔 Triggering local job alert:', data);
     this.jobIncomingCallbacks.forEach(callback => callback(data));
   }
 
   disconnect() {
     if (this.socket) {
-      console.log('🔌 Disconnecting Socket.IO...');
+      Logger.debug('🔌 Disconnecting Socket.IO...');
       this.socket.disconnect();
       this.socket = null;
     }

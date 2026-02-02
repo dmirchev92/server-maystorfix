@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -63,7 +64,7 @@ export default function PlaceBidScreen() {
         navigation.goBack();
       }
     } catch (error) {
-      console.error('Error loading case:', error);
+      Logger.error('Error loading case:', error);
       Alert.alert('Грешка', 'Възникна грешка при зареждането');
       navigation.goBack();
     } finally {

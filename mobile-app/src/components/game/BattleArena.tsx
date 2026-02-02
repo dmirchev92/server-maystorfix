@@ -3,6 +3,7 @@
  * Handles combat flow, animations, and visual effects
  */
 
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, Vibration, Platform, ImageBackground } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -57,7 +58,7 @@ const BattleArena: React.FC<BattleArenaProps> = ({
           setCharPosition(response.data.character_position);
         }
       } catch (e) {
-        console.log('Using default character position');
+        Logger.debug('Using default character position');
       }
     };
     loadSettings();

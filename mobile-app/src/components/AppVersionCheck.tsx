@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useEffect, useState } from 'react';
 import {
   Modal,
@@ -55,7 +56,7 @@ const AppVersionCheck: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Error checking app version:', error);
+      Logger.error('Error checking app version:', error);
     }
   };
 
@@ -89,7 +90,7 @@ const AppVersionCheck: React.FC = () => {
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.warn(err);
+        Logger.warn(err);
         return false;
       }
     }
@@ -113,7 +114,7 @@ const AppVersionCheck: React.FC = () => {
               // Close the modal after opening browser
               setShowUpdateModal(false);
             } catch (error) {
-              console.error('Error opening download link:', error);
+              Logger.error('Error opening download link:', error);
               Alert.alert(
                 'Грешка',
                 'Не може да се отвори линка. Моля, копирайте го ръчно:\n\n' + versionInfo.downloadUrl

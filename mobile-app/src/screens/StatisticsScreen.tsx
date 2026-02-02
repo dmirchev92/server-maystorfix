@@ -2,6 +2,7 @@
 // Combines SMS Statistics and Cases Statistics (Статистика за заявки)
 // With customizable, reorderable stat boxes
 
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -159,7 +160,7 @@ function StatisticsScreen() {
         setBoxOrder([...validOrder, ...missingBoxes]);
       }
     } catch (error) {
-      console.error('Error loading box order:', error);
+      Logger.error('Error loading box order:', error);
     }
   };
 
@@ -168,7 +169,7 @@ function StatisticsScreen() {
     try {
       await AsyncStorage.setItem(BOX_ORDER_STORAGE_KEY, JSON.stringify(order));
     } catch (error) {
-      console.error('Error saving box order:', error);
+      Logger.error('Error saving box order:', error);
     }
   };
 
@@ -213,7 +214,7 @@ function StatisticsScreen() {
         })));
       }
     } catch (error) {
-      console.error('Error loading reviews:', error);
+      Logger.error('Error loading reviews:', error);
     }
     setIsLoadingReviews(false);
   };
@@ -272,13 +273,13 @@ function StatisticsScreen() {
         loadProviderStats(parsedUser.id);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      Logger.error('Error loading user data:', error);
     }
   };
 
   const loadProviderStats = async (userId: string) => {
     try {
-      console.log('📊 Loading provider stats for user:', userId);
+      Logger.debug('📊 Loading provider stats for user:', userId);
       const [statsResponse, providerResponse] = await Promise.all([
         ApiService.getInstance().makeRequest(`/cases/stats?providerId=${userId}`),
         ApiService.getInstance().makeRequest(`/marketplace/providers/${userId}`)
@@ -295,10 +296,10 @@ function StatisticsScreen() {
         totalReviews: Number(providerData.totalReviews || providerData.total_reviews) || 0
       };
 
-      console.log('✅ Provider stats loaded:', loadedStats);
+      Logger.debug('✅ Provider stats loaded:', loadedStats);
       setProviderStats(loadedStats);
     } catch (error) {
-      console.error('❌ Error loading provider stats:', error);
+      Logger.error('❌ Error loading provider stats:', error);
     }
   };
 
@@ -321,7 +322,7 @@ function StatisticsScreen() {
           };
         }
       } catch (error) {
-        console.error('Error loading chat source stats:', error);
+        Logger.error('Error loading chat source stats:', error);
       }
       
       if (response.success && response.data) {
@@ -331,7 +332,7 @@ function StatisticsScreen() {
         });
       }
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      Logger.error('Error loading dashboard data:', error);
     }
   };
 
@@ -363,7 +364,7 @@ function StatisticsScreen() {
         });
       }
     } catch (error) {
-      console.error('Error loading filtered SMS stats:', error);
+      Logger.error('Error loading filtered SMS stats:', error);
       setFilteredSmsStats({
         missedCalls: 0,
         smsSent: 0,
@@ -403,7 +404,7 @@ function StatisticsScreen() {
         });
       }
     } catch (error) {
-      console.error('Error loading filtered cases stats:', error);
+      Logger.error('Error loading filtered cases stats:', error);
       setFilteredCasesStats({
         missedCalls: 0,
         smsSent: 0,
@@ -480,7 +481,7 @@ function StatisticsScreen() {
         await loadProviderStats(user.id);
       }
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      Logger.error('Error refreshing data:', error);
     }
     setIsRefreshing(false);
   };

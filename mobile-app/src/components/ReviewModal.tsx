@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -172,7 +173,7 @@ export default function ReviewModal({
         }
       }
     } catch (err: any) {
-      console.error('Error submitting review:', err);
+      Logger.error('Error submitting review:', err);
       setError(err.message || 'Възникна грешка при изпращането на оценката');
     } finally {
       setIsSubmitting(false);

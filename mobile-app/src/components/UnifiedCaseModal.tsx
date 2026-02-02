@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
 import {
   View,
@@ -109,7 +110,7 @@ export default function UnifiedCaseModal({
         squareMeters: formData.squareMeters || null,
       };
 
-      console.log('📤 Creating case:', payload);
+      Logger.debug('📤 Creating case:', payload);
 
       const response = await fetch('https://snapfix.bg/api/v1/marketplace/cases', {
         method: 'POST',
@@ -150,7 +151,7 @@ export default function UnifiedCaseModal({
         throw new Error(result.error?.message || 'Failed to create case');
       }
     } catch (error: any) {
-      console.error('❌ Error creating case:', error);
+      Logger.error('❌ Error creating case:', error);
       Alert.alert('Грешка', error.message || 'Неуспешно създаване на заявка');
     } finally {
       setLoading(false);

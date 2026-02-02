@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -91,7 +92,7 @@ export default function DashboardScreen() {
         setUser(userData);
       }
     } catch (error) {
-      console.error('Error loading user:', error);
+      Logger.error('Error loading user:', error);
     } finally {
       setLoading(false);
     }
@@ -99,32 +100,32 @@ export default function DashboardScreen() {
 
   const fetchAvailableYears = async () => {
     try {
-      console.log('📅 Dashboard - Fetching available years for user:', user.id);
+      Logger.debug('📅 Dashboard - Fetching available years for user:', user.id);
       const response = await ApiService.getInstance().getIncomeYears(user.id);
-      console.log('📅 Dashboard - Available years response:', JSON.stringify(response, null, 2));
+      Logger.debug('📅 Dashboard - Available years response:', JSON.stringify(response, null, 2));
       
       if (response.success && response.data) {
         const years = response.data || [];
-        console.log('📅 Dashboard - Available years:', years);
+        Logger.debug('📅 Dashboard - Available years:', years);
         setAvailableYears(years);
 
         // Set selected year to current year if available
         const currentYear = new Date().getFullYear();
         if (years.includes(currentYear)) {
-          console.log('📅 Dashboard - Setting selected year to current:', currentYear);
+          Logger.debug('📅 Dashboard - Setting selected year to current:', currentYear);
           setSelectedYear(currentYear);
         } else if (years.length > 0) {
-          console.log('📅 Dashboard - Setting selected year to latest:', years[years.length - 1]);
+          Logger.debug('📅 Dashboard - Setting selected year to latest:', years[years.length - 1]);
           setSelectedYear(years[years.length - 1]);
         } else {
-          console.log('📅 Dashboard - No years available, using current year:', currentYear);
+          Logger.debug('📅 Dashboard - No years available, using current year:', currentYear);
           setSelectedYear(currentYear);
         }
       } else {
-        console.error('📅 Dashboard - Failed to fetch years:', response.error);
+        Logger.error('📅 Dashboard - Failed to fetch years:', response.error);
       }
     } catch (error) {
-      console.error('📅 Dashboard - Error fetching available years:', error);
+      Logger.error('📅 Dashboard - Error fetching available years:', error);
     }
   };
 
@@ -133,24 +134,24 @@ export default function DashboardScreen() {
       const startDate = `${selectedYear}-01-01`;
       const endDate = `${selectedYear}-12-31`;
 
-      console.log('📊 Dashboard - Fetching income stats:', {
+      Logger.debug('📊 Dashboard - Fetching income stats:', {
         userId: user.id,
         startDate,
         endDate,
       });
 
       const response = await ApiService.getInstance().getIncomeStats(user.id, startDate, endDate);
-      console.log('📊 Dashboard - Income stats response:', JSON.stringify(response, null, 2));
+      Logger.debug('📊 Dashboard - Income stats response:', JSON.stringify(response, null, 2));
 
       if (response.success && response.data) {
-        console.log('📊 Dashboard - Setting income stats:', response.data);
+        Logger.debug('📊 Dashboard - Setting income stats:', response.data);
         setIncomeStats(response.data);
       } else {
-        console.error('📊 Dashboard - No data or error:', response.error);
+        Logger.error('📊 Dashboard - No data or error:', response.error);
         Alert.alert('Грешка', response.error?.message || 'Не успяхме да заредим статистиката');
       }
     } catch (error) {
-      console.error('📊 Dashboard - Error fetching income stats:', error);
+      Logger.error('📊 Dashboard - Error fetching income stats:', error);
       Alert.alert('Грешка', 'Не успяхме да заредим статистиката');
     }
   };
@@ -190,7 +191,7 @@ export default function DashboardScreen() {
         Alert.alert('Грешка', 'Не могат да се заредят транзакциите');
       }
     } catch (error) {
-      console.error('Error fetching month transactions:', error);
+      Logger.error('Error fetching month transactions:', error);
       Alert.alert('Грешка', 'Възникна грешка при зареждането на транзакциите');
     }
   };

@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import Geolocation from 'react-native-geolocation-service';
 import { Platform, PermissionsAndroid, Alert, AppState, AppStateStatus } from 'react-native';
 import ApiService from './ApiService';
@@ -52,20 +53,20 @@ class LocationTrackingService {
    * Set tracking preference
    */
   public async setTrackingPreference(enabled: boolean): Promise<void> {
-    console.log('📍 ========== setTrackingPreference called ==========');
-    console.log('📍 Setting tracking preference to:', enabled);
+    Logger.debug('📍 ========== setTrackingPreference called ==========');
+    Logger.debug('📍 Setting tracking preference to:', enabled);
     try {
       await AsyncStorage.setItem('tracking_enabled', enabled.toString());
-      console.log('📍 Saved to AsyncStorage');
+      Logger.debug('📍 Saved to AsyncStorage');
       if (enabled) {
-        console.log('📍 Preference is enabled, calling startTracking...');
+        Logger.debug('📍 Preference is enabled, calling startTracking...');
         this.startTracking();
       } else {
-        console.log('📍 Preference is disabled, calling stopTracking...');
+        Logger.debug('📍 Preference is disabled, calling stopTracking...');
         this.stopTracking();
       }
     } catch (error) {
-      console.error('Error saving tracking preference:', error);
+      Logger.error('Error saving tracking preference:', error);
     }
   }
 
@@ -104,7 +105,7 @@ class LocationTrackingService {
 
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.warn(err);
+        Logger.warn(err);
         return false;
       }
     }
@@ -116,17 +117,17 @@ class LocationTrackingService {
    * Start location tracking (respects schedule)
    */
   async startTracking(): Promise<void> {
-    console.log('📍 ========== startTracking called ==========');
+    Logger.debug('📍 ========== startTracking called ==========');
     // Check preference first
     const enabled = await this.getTrackingPreference();
-    console.log('📍 Tracking preference enabled:', enabled);
+    Logger.debug('📍 Tracking preference enabled:', enabled);
     if (!enabled) {
-      console.log('📍 Tracking disabled by user preference, not starting');
+      Logger.debug('📍 Tracking disabled by user preference, not starting');
       return;
     }
 
     // Start the schedule checker which will handle starting/stopping based on schedule
-    console.log('📍 Starting schedule checker...');
+    Logger.debug('📍 Starting schedule checker...');
     this.startScheduleChecker();
   }
 
@@ -143,7 +144,7 @@ class LocationTrackingService {
     }
     this.isTracking = false;
     this.lastUpdate = 0; // Reset throttle
-    console.log('📍 Location tracking stopped');
+    Logger.debug('📍 Location tracking stopped');
     
     // Clear location on backend
     await this.clearLocationOnBackend();
@@ -154,13 +155,13 @@ class LocationTrackingService {
    */
   private async clearLocationOnBackend(): Promise<void> {
     try {
-      console.log('📍 Clearing location on backend...');
+      Logger.debug('📍 Clearing location on backend...');
       await ApiService.getInstance().makeRequest('/tracking/location', {
         method: 'DELETE'
       });
-      console.log('✅ Location cleared on backend');
+      Logger.debug('✅ Location cleared on backend');
     } catch (error) {
-      console.error('❌ Error clearing location on backend:', error);
+      Logger.error('❌ Error clearing location on backend:', error);
     }
   }
 
@@ -173,7 +174,7 @@ class LocationTrackingService {
         this.handleLocationUpdate(position, force);
       },
       (error) => {
-        console.error('❌ Error getting current location:', error);
+        Logger.error('❌ Error getting current location:', error);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
@@ -187,13 +188,13 @@ class LocationTrackingService {
     
     // Throttle updates to backend (unless it's the first one or forced)
     if (!force && this.lastUpdate > 0 && now - this.lastUpdate < this.UPDATE_INTERVAL) {
-      console.log('📍 Skipping backend update (throttled)');
+      Logger.debug('📍 Skipping backend update (throttled)');
       return;
     }
 
     try {
       const { latitude, longitude, heading, speed } = position.coords;
-      console.log(`📍 Sending location to backend: ${latitude}, ${longitude} (Force: ${force})`);
+      Logger.debug(`📍 Sending location to backend: ${latitude}, ${longitude} (Force: ${force})`);
       
       // Send to backend
       const response = await ApiService.getInstance().makeRequest('/tracking/update', {
@@ -207,14 +208,14 @@ class LocationTrackingService {
       });
 
       if (response.success) {
-        console.log('✅ Location updated on backend');
+        Logger.debug('✅ Location updated on backend');
         this.lastUpdate = now;
       } else {
-        console.warn('⚠️ Failed to update location on backend:', response.error);
+        Logger.warn('⚠️ Failed to update location on backend:', response.error);
       }
 
     } catch (error) {
-      console.error('❌ Error sending location to backend:', error);
+      Logger.error('❌ Error sending location to backend:', error);
     }
   }
 
@@ -225,7 +226,7 @@ class LocationTrackingService {
    */
   private handleAppStateChange = async (nextAppState: AppStateStatus): Promise<void> => {
     if (nextAppState === 'active') {
-      console.log('📱 App came to foreground, checking schedule...');
+      Logger.debug('📱 App came to foreground, checking schedule...');
       await this.checkAndApplySchedule();
     }
   };
@@ -246,7 +247,7 @@ class LocationTrackingService {
       this.checkAndApplySchedule();
     }, SCHEDULE_CHECK_INTERVAL);
     
-    console.log('📅 Schedule checker started');
+    Logger.debug('📅 Schedule checker started');
   }
 
   /**
@@ -257,74 +258,74 @@ class LocationTrackingService {
       clearInterval(this.scheduleCheckInterval);
       this.scheduleCheckInterval = null;
     }
-    console.log('📅 Schedule checker stopped');
+    Logger.debug('📅 Schedule checker stopped');
   }
 
   /**
    * Check the schedule and start/stop tracking accordingly
    */
   public async checkAndApplySchedule(): Promise<void> {
-    console.log('📅 ========== checkAndApplySchedule START ==========');
+    Logger.debug('📅 ========== checkAndApplySchedule START ==========');
     try {
       // First check if user has tracking enabled at all
       const trackingEnabled = await this.getTrackingPreference();
-      console.log('📅 User tracking preference:', trackingEnabled);
-      console.log('📅 Current isTracking state:', this.isTracking);
+      Logger.debug('📅 User tracking preference:', trackingEnabled);
+      Logger.debug('📅 Current isTracking state:', this.isTracking);
       
       if (!trackingEnabled) {
-        console.log('📅 Tracking disabled by user preference, skipping schedule check');
+        Logger.debug('📅 Tracking disabled by user preference, skipping schedule check');
         if (this.isTracking) {
-          console.log('📅 Was tracking, now stopping...');
+          Logger.debug('📅 Was tracking, now stopping...');
           await this.stopTracking();
         }
-        console.log('📅 ========== checkAndApplySchedule END (disabled) ==========');
+        Logger.debug('📅 ========== checkAndApplySchedule END (disabled) ==========');
         return;
       }
 
       // Check schedule from backend
-      console.log('📅 Calling backend checkLocationSchedule...');
+      Logger.debug('📅 Calling backend checkLocationSchedule...');
       const response = await ApiService.getInstance().checkLocationSchedule();
-      console.log('📅 Backend response:', JSON.stringify(response, null, 2));
+      Logger.debug('📅 Backend response:', JSON.stringify(response, null, 2));
       
       if (response.success && response.data) {
         const { should_track, reason, current_time, schedule_start, schedule_end } = response.data;
-        console.log('📅 Schedule check result:');
-        console.log('  - should_track:', should_track);
-        console.log('  - reason:', reason);
-        console.log('  - current_time:', current_time);
-        console.log('  - schedule_start:', schedule_start);
-        console.log('  - schedule_end:', schedule_end);
-        console.log('  - isTracking before:', this.isTracking);
+        Logger.debug('📅 Schedule check result:');
+        Logger.debug('  - should_track:', should_track);
+        Logger.debug('  - reason:', reason);
+        Logger.debug('  - current_time:', current_time);
+        Logger.debug('  - schedule_start:', schedule_start);
+        Logger.debug('  - schedule_end:', schedule_end);
+        Logger.debug('  - isTracking before:', this.isTracking);
         
         this.isScheduleActive = should_track;
         
         if (should_track && !this.isTracking) {
-          console.log('📅 ✅ Schedule allows tracking AND not currently tracking -> STARTING');
+          Logger.debug('📅 ✅ Schedule allows tracking AND not currently tracking -> STARTING');
           await this.startTrackingInternal();
         } else if (!should_track && this.isTracking) {
-          console.log('📅 ❌ Schedule does NOT allow tracking AND currently tracking -> STOPPING');
+          Logger.debug('📅 ❌ Schedule does NOT allow tracking AND currently tracking -> STOPPING');
           await this.stopTrackingInternal();
         } else if (should_track && this.isTracking) {
-          console.log('📅 ✅ Schedule allows tracking AND already tracking -> NO CHANGE');
+          Logger.debug('📅 ✅ Schedule allows tracking AND already tracking -> NO CHANGE');
         } else {
-          console.log('📅 ❌ Schedule does NOT allow tracking AND not tracking -> NO CHANGE');
+          Logger.debug('📅 ❌ Schedule does NOT allow tracking AND not tracking -> NO CHANGE');
         }
       } else {
-        console.log('📅 ⚠️ Backend response failed or no data:', response.error);
+        Logger.debug('📅 ⚠️ Backend response failed or no data:', response.error);
       }
     } catch (error) {
-      console.error('❌ Error checking schedule:', error);
+      Logger.error('❌ Error checking schedule:', error);
       // On error, default to allowing tracking if preference is enabled
       if (!this.isTracking) {
         const trackingEnabled = await this.getTrackingPreference();
-        console.log('📅 Error recovery - trackingEnabled:', trackingEnabled);
+        Logger.debug('📅 Error recovery - trackingEnabled:', trackingEnabled);
         if (trackingEnabled) {
-          console.log('📅 Error recovery - starting tracking...');
+          Logger.debug('📅 Error recovery - starting tracking...');
           await this.startTrackingInternal();
         }
       }
     }
-    console.log('📅 ========== checkAndApplySchedule END ==========');
+    Logger.debug('📅 ========== checkAndApplySchedule END ==========');
   }
 
   /**
@@ -335,11 +336,11 @@ class LocationTrackingService {
 
     const hasPermission = await this.requestPermissions();
     if (!hasPermission) {
-      console.log('❌ Location permission denied');
+      Logger.debug('❌ Location permission denied');
       return;
     }
 
-    console.log('📍 Starting location tracking...');
+    Logger.debug('📍 Starting location tracking...');
     this.isTracking = true;
 
     // Get immediate position first
@@ -348,11 +349,11 @@ class LocationTrackingService {
     // Start watching
     this.watchId = Geolocation.watchPosition(
       (position) => {
-        console.log('📍 Location update received:', position.coords.latitude, position.coords.longitude);
+        Logger.debug('📍 Location update received:', position.coords.latitude, position.coords.longitude);
         this.handleLocationUpdate(position);
       },
       (error) => {
-        console.error('❌ Location error:', error);
+        Logger.error('❌ Location error:', error);
       },
       {
         enableHighAccuracy: true,
@@ -375,7 +376,7 @@ class LocationTrackingService {
     }
     this.isTracking = false;
     this.lastUpdate = 0;
-    console.log('📍 Location tracking stopped (schedule)');
+    Logger.debug('📍 Location tracking stopped (schedule)');
     
     // Clear location on backend
     await this.clearLocationOnBackend();
@@ -412,7 +413,7 @@ class LocationTrackingService {
         };
       }
     } catch (error) {
-      console.error('Error getting schedule status:', error);
+      Logger.error('Error getting schedule status:', error);
     }
     return {
       scheduleEnabled: false,

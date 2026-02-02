@@ -1,3 +1,4 @@
+import { Logger } from '../utils/Logger';
 import { NativeEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SMSService } from './SMSService';
@@ -46,7 +47,7 @@ export class ModernCallDetectionService {
 
   private initialize(): void {
     if (Platform.OS !== 'android') {
-      console.log('📱 Call detection only available on Android');
+      Logger.debug('📱 Call detection only available on Android');
       return;
     }
 
@@ -55,18 +56,18 @@ export class ModernCallDetectionService {
       this.eventEmitter = new NativeEventEmitter(ModernCallDetectionModule);
       this.setupEventListeners();
       this.isInitialized = true;
-      console.log('📱 Modern call detection service initialized');
+      Logger.debug('📱 Modern call detection service initialized');
       
       // Start the native call detection
       ModernCallDetectionModule.startCallDetection()
         .then(() => {
-          console.log('✅ Native call detection started');
+          Logger.debug('✅ Native call detection started');
         })
         .catch((error: any) => {
-          console.error('❌ Failed to start native call detection:', error);
+          Logger.error('❌ Failed to start native call detection:', error);
         });
     } else {
-      console.error('❌ ModernCallDetectionModule not found');
+      Logger.error('❌ ModernCallDetectionModule not found');
     }
   }
 
@@ -74,14 +75,14 @@ export class ModernCallDetectionService {
     if (!this.eventEmitter) return;
 
     this.eventEmitter.addListener('MissedCallDetected', (event: MissedCallEvent) => {
-      console.log('📞 Missed call detected:', event);
+      Logger.debug('📞 Missed call detected:', event);
       this.handleMissedCall(event);
     });
   }
 
   private async handleMissedCall(event: MissedCallEvent): Promise<void> {
     try {
-      console.log('🚨 MISSED CALL HANDLER TRIGGERED:', event);
+      Logger.debug('🚨 MISSED CALL HANDLER TRIGGERED:', event);
       
       // Store the call event locally
       await this.storeMissedCall(event);
@@ -91,13 +92,13 @@ export class ModernCallDetectionService {
         try {
           listener(event);
         } catch (error) {
-          console.error('Error in missed call listener:', error);
+          Logger.error('Error in missed call listener:', error);
         }
       });
 
-      console.log('✅ Missed call processed successfully');
+      Logger.debug('✅ Missed call processed successfully');
     } catch (error) {
-      console.error('❌ Error handling missed call:', error);
+      Logger.error('❌ Error handling missed call:', error);
     }
   }
 
@@ -106,7 +107,7 @@ export class ModernCallDetectionService {
       // Get current user ID to make storage user-specific
       const currentUser = await this.getCurrentUser();
       if (!currentUser?.id) {
-        console.log('⚠️ No current user found, skipping call storage');
+        Logger.debug('⚠️ No current user found, skipping call storage');
         return;
       }
       
@@ -129,7 +130,7 @@ export class ModernCallDetectionService {
       }
 
       await AsyncStorage.setItem(key, JSON.stringify(calls));
-      console.log('💾 Missed call stored locally');
+      Logger.debug('💾 Missed call stored locally');
 
       // Sync to backend immediately (don't wait for SMS)
       const callId = `call_${event.timestamp}_${event.phoneNumber}`;
@@ -139,40 +140,40 @@ export class ModernCallDetectionService {
       await this.sendAutomaticSMS(event);
 
     } catch (error) {
-      console.error('❌ Error storing missed call:', error);
+      Logger.error('❌ Error storing missed call:', error);
     }
   }
 
   private async sendAutomaticSMS(event: MissedCallEvent): Promise<void> {
     try {
-      console.log('🔔 sendAutomaticSMS called for:', event.phoneNumber, 'Contact:', event.contactName);
+      Logger.debug('🔔 sendAutomaticSMS called for:', event.phoneNumber, 'Contact:', event.contactName);
       
       // Skip SMS for test events
       if (event.source === 'test') {
-        console.log('🧪 Test event detected, skipping SMS');
+        Logger.debug('🧪 Test event detected, skipping SMS');
         return;
       }
       
       const smsService = SMSService.getInstance();
       const smsConfig = smsService.getConfig();
       
-      console.log('📱 SMS Config check:', {
+      Logger.debug('📱 SMS Config check:', {
         isEnabled: smsConfig.isEnabled,
         filterKnownContacts: smsConfig.filterKnownContacts
       });
       
       if (!smsConfig.isEnabled) {
-        console.log('📱 SMS sending is disabled, skipping automatic SMS');
+        Logger.debug('📱 SMS sending is disabled, skipping automatic SMS');
         return;
       }
 
       // Generate a unique call ID for this missed call
       const callId = `call_${event.timestamp}_${event.phoneNumber}`;
-      console.log('📱 Generated call ID:', callId);
+      Logger.debug('📱 Generated call ID:', callId);
       
       // Check if SMS has already been sent for this call
       if (smsService.hasSMSSentForCall(callId)) {
-        console.log('📱 SMS already sent for this call, skipping');
+        Logger.debug('📱 SMS already sent for this call, skipping');
         return;
       }
 
@@ -181,11 +182,11 @@ export class ModernCallDetectionService {
       const userId = currentUser?.id;
       
       if (!userId) {
-        console.error('❌ Cannot send SMS: User not authenticated');
+        Logger.error('❌ Cannot send SMS: User not authenticated');
         return; // Don't send SMS if user is not authenticated
       }
 
-      console.log('📱 Sending automatic SMS via backend Mobica service for missed call:', event.phoneNumber, 'Call ID:', callId, 'User ID:', userId);
+      Logger.debug('📱 Sending automatic SMS via backend Mobica service for missed call:', event.phoneNumber, 'Call ID:', callId, 'User ID:', userId);
       
       // Send SMS via backend Mobica API
       await smsService.sendMissedCallViaTwilio(event.phoneNumber, callId, userId);
@@ -193,7 +194,7 @@ export class ModernCallDetectionService {
       // Sync to backend
       await this.syncMissedCallToBackend(event, callId);
     } catch (error) {
-      console.error('❌ Error sending automatic SMS:', error);
+      Logger.error('❌ Error sending automatic SMS:', error);
     }
   }
 
@@ -205,7 +206,7 @@ export class ModernCallDetectionService {
       // Get current user ID
       const currentUser = await this.getCurrentUser();
       if (!currentUser?.id) {
-        console.log('⚠️ Cannot sync - no user ID available');
+        Logger.debug('⚠️ Cannot sync - no user ID available');
         return;
       }
 
@@ -221,16 +222,16 @@ export class ModernCallDetectionService {
         smsSentAt: new Date().toISOString()
       };
       
-      console.log('📤 Syncing missed call to backend:', missedCallData);
+      Logger.debug('📤 Syncing missed call to backend:', missedCallData);
       const response = await apiService.syncMissedCalls([missedCallData]);
       
       if (response.success) {
-        console.log('✅ Missed call synced to backend:', callId);
+        Logger.debug('✅ Missed call synced to backend:', callId);
       } else {
-        console.log('❌ Failed to sync missed call to backend:', response.error);
+        Logger.debug('❌ Failed to sync missed call to backend:', response.error);
       }
     } catch (error) {
-      console.error('❌ Error syncing missed call to backend:', error);
+      Logger.error('❌ Error syncing missed call to backend:', error);
     }
   }
 
@@ -238,10 +239,10 @@ export class ModernCallDetectionService {
     if (Platform.OS !== 'android') return false;
 
     try {
-      console.log('📋 Requesting call detection permissions...');
+      Logger.debug('📋 Requesting call detection permissions...');
       
       // Request READ_PHONE_STATE permission first
-      console.log('🔐 Requesting READ_PHONE_STATE permission...');
+      Logger.debug('🔐 Requesting READ_PHONE_STATE permission...');
       const phoneStateResult = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
         {
@@ -253,10 +254,10 @@ export class ModernCallDetectionService {
         }
       );
 
-      console.log('📱 READ_PHONE_STATE result:', phoneStateResult);
+      Logger.debug('📱 READ_PHONE_STATE result:', phoneStateResult);
 
       // Request READ_CALL_LOG permission second
-      console.log('🔐 Requesting READ_CALL_LOG permission...');
+      Logger.debug('🔐 Requesting READ_CALL_LOG permission...');
       const callLogResult = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
         {
@@ -268,20 +269,20 @@ export class ModernCallDetectionService {
         }
       );
 
-      console.log('📞 READ_CALL_LOG result:', callLogResult);
+      Logger.debug('📞 READ_CALL_LOG result:', callLogResult);
 
       const phoneStateGranted = phoneStateResult === PermissionsAndroid.RESULTS.GRANTED;
       const callLogGranted = callLogResult === PermissionsAndroid.RESULTS.GRANTED;
       const allGranted = phoneStateGranted && callLogGranted;
 
-      console.log('📋 Permission results:');
-      console.log('- READ_PHONE_STATE:', phoneStateGranted ? '✅ Granted' : '❌ Denied');
-      console.log('- READ_CALL_LOG:', callLogGranted ? '✅ Granted' : '❌ Denied');
-      console.log('- All permissions:', allGranted ? '✅ Granted' : '❌ Some denied');
+      Logger.debug('📋 Permission results:');
+      Logger.debug('- READ_PHONE_STATE:', phoneStateGranted ? '✅ Granted' : '❌ Denied');
+      Logger.debug('- READ_CALL_LOG:', callLogGranted ? '✅ Granted' : '❌ Denied');
+      Logger.debug('- All permissions:', allGranted ? '✅ Granted' : '❌ Some denied');
 
       return allGranted;
     } catch (error) {
-      console.error('❌ Error requesting permissions:', error);
+      Logger.error('❌ Error requesting permissions:', error);
       return false;
     }
   }
@@ -294,14 +295,14 @@ export class ModernCallDetectionService {
       const phoneStateStatus = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE);
       const callLogStatus = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG);
       
-      console.log('📋 React Native permission check:');
-      console.log('- READ_PHONE_STATE:', phoneStateStatus ? '✅ Granted' : '❌ Denied');
-      console.log('- READ_CALL_LOG:', callLogStatus ? '✅ Granted' : '❌ Denied');
+      Logger.debug('📋 React Native permission check:');
+      Logger.debug('- READ_PHONE_STATE:', phoneStateStatus ? '✅ Granted' : '❌ Denied');
+      Logger.debug('- READ_CALL_LOG:', callLogStatus ? '✅ Granted' : '❌ Denied');
 
       // Also check via native module
       const { ModernCallDetectionModule } = NativeModules;
       const nativePermissions = await ModernCallDetectionModule.hasPermissions();
-      console.log('📋 Native module permission check:', nativePermissions);
+      Logger.debug('📋 Native module permission check:', nativePermissions);
       
       // Return combined result
       const result: CallDetectionPermissions = {
@@ -311,22 +312,22 @@ export class ModernCallDetectionService {
         androidVersion: nativePermissions.androidVersion,
       };
       
-      console.log('📋 Final permission status:', result);
+      Logger.debug('📋 Final permission status:', result);
       return result;
     } catch (error) {
-      console.error('❌ Error checking permissions:', error);
+      Logger.error('❌ Error checking permissions:', error);
       return null;
     }
   }
 
   public async startDetection(): Promise<boolean> {
     if (!this.isInitialized) {
-      console.error('❌ Service not initialized');
+      Logger.error('❌ Service not initialized');
       return false;
     }
 
     try {
-      console.log('🚀 Starting modern call detection...');
+      Logger.debug('🚀 Starting modern call detection...');
       
       // Sync settings to native before starting (for background SMS when phone is locked)
       await this.syncSettingsToNative();
@@ -335,10 +336,10 @@ export class ModernCallDetectionService {
       const result = await ModernCallDetectionModule.startCallDetection();
       
       this.isListening = true;
-      console.log('✅ Call detection started:', result);
+      Logger.debug('✅ Call detection started:', result);
       return true;
     } catch (error) {
-      console.error('❌ Error starting call detection:', error);
+      Logger.error('❌ Error starting call detection:', error);
       this.isListening = false;
       return false;
     }
@@ -352,7 +353,7 @@ export class ModernCallDetectionService {
     try {
       const { ModernCallDetectionModule } = NativeModules;
       if (!ModernCallDetectionModule?.syncNativeSettingsWithFilter && !ModernCallDetectionModule?.syncNativeSettings) {
-        console.log('⚠️ syncNativeSettings not available in native module');
+        Logger.debug('⚠️ syncNativeSettings not available in native module');
         return;
       }
       
@@ -369,31 +370,31 @@ export class ModernCallDetectionService {
       const smsEnabled = smsConfig.isEnabled;
       const filterKnownContacts = smsConfig.filterKnownContacts || false;
       
-      console.log('🔄 syncSettingsToNative() called:');
-      console.log('   - authToken:', authToken ? 'SET (' + authToken.length + ' chars)' : 'NULL');
-      console.log('   - userId:', userId);
-      console.log('   - smsEnabled:', smsEnabled);
-      console.log('   - filterKnownContacts:', filterKnownContacts);
+      Logger.debug('🔄 syncSettingsToNative() called:');
+      Logger.debug('   - authToken:', authToken ? 'SET (' + authToken.length + ' chars)' : 'NULL');
+      Logger.debug('   - userId:', userId);
+      Logger.debug('   - smsEnabled:', smsEnabled);
+      Logger.debug('   - filterKnownContacts:', filterKnownContacts);
       
       if (authToken && userId) {
         // Use the new method with filter if available, otherwise fallback
         if (ModernCallDetectionModule.syncNativeSettingsWithFilter) {
           await ModernCallDetectionModule.syncNativeSettingsWithFilter(authToken, userId, smsEnabled, filterKnownContacts);
-          console.log('✅ Settings synced to native: smsEnabled=' + smsEnabled + ', filterKnownContacts=' + filterKnownContacts);
+          Logger.debug('✅ Settings synced to native: smsEnabled=' + smsEnabled + ', filterKnownContacts=' + filterKnownContacts);
         } else {
           await ModernCallDetectionModule.syncNativeSettings(authToken, userId, smsEnabled);
-          console.log('✅ Settings synced to native (legacy): smsEnabled=' + smsEnabled);
+          Logger.debug('✅ Settings synced to native (legacy): smsEnabled=' + smsEnabled);
         }
         
         // Verify sync worked
         await this.debugNativeSettings();
       } else {
-        console.log('⚠️ Cannot sync to native: missing auth token or user ID');
-        console.log('   authToken:', authToken ? 'present' : 'MISSING');
-        console.log('   userId:', userId ? 'present' : 'MISSING');
+        Logger.debug('⚠️ Cannot sync to native: missing auth token or user ID');
+        Logger.debug('   authToken:', authToken ? 'present' : 'MISSING');
+        Logger.debug('   userId:', userId ? 'present' : 'MISSING');
       }
     } catch (error) {
-      console.error('❌ Error syncing settings to native:', error);
+      Logger.error('❌ Error syncing settings to native:', error);
     }
   }
   
@@ -404,21 +405,21 @@ export class ModernCallDetectionService {
     try {
       const { ModernCallDetectionModule } = NativeModules;
       if (!ModernCallDetectionModule?.debugNativeSettings) {
-        console.log('⚠️ debugNativeSettings not available in native module');
+        Logger.debug('⚠️ debugNativeSettings not available in native module');
         return null;
       }
       
       const result = await ModernCallDetectionModule.debugNativeSettings();
       const parsed = JSON.parse(result);
       
-      console.log('🔍 DEBUG Native Settings:');
-      console.log('   - hasAuthToken:', parsed.hasAuthToken);
-      console.log('   - userId:', parsed.userId);
-      console.log('   - smsEnabled:', parsed.smsEnabled);
+      Logger.debug('🔍 DEBUG Native Settings:');
+      Logger.debug('   - hasAuthToken:', parsed.hasAuthToken);
+      Logger.debug('   - userId:', parsed.userId);
+      Logger.debug('   - smsEnabled:', parsed.smsEnabled);
       
       return parsed;
     } catch (error) {
-      console.error('❌ Error debugging native settings:', error);
+      Logger.error('❌ Error debugging native settings:', error);
       return null;
     }
   }
@@ -442,7 +443,7 @@ export class ModernCallDetectionService {
       const permissionStatus = await this.checkPermissions();
       
       if (!permissionStatus?.hasAllPermissions) {
-        console.log('⚠️ verifyPermissions: Permissions revoked while SMS was ON');
+        Logger.debug('⚠️ verifyPermissions: Permissions revoked while SMS was ON');
         
         // Auto-disable SMS
         await smsService.updateConfig({ isEnabled: false });
@@ -456,7 +457,7 @@ export class ModernCallDetectionService {
       return { permissionsOk: true, wasDisabled: false };
       
     } catch (error) {
-      console.error('❌ Error verifying permissions:', error);
+      Logger.error('❌ Error verifying permissions:', error);
       return { permissionsOk: false, wasDisabled: false };
     }
   }
@@ -465,16 +466,16 @@ export class ModernCallDetectionService {
     if (!this.isInitialized) return false;
 
     try {
-      console.log('⏹️ Stopping call detection...');
+      Logger.debug('⏹️ Stopping call detection...');
       
       const { ModernCallDetectionModule } = NativeModules;
       const result = await ModernCallDetectionModule.stopCallDetection();
       
       this.isListening = false;
-      console.log('✅ Call detection stopped:', result);
+      Logger.debug('✅ Call detection stopped:', result);
       return true;
     } catch (error) {
-      console.error('❌ Error stopping call detection:', error);
+      Logger.error('❌ Error stopping call detection:', error);
       return false;
     }
   }
@@ -485,10 +486,10 @@ export class ModernCallDetectionService {
     try {
       const { ModernCallDetectionModule } = NativeModules;
       const stats = await ModernCallDetectionModule.getRecentMissedCalls();
-      console.log('📊 Recent missed calls stats:', stats);
+      Logger.debug('📊 Recent missed calls stats:', stats);
       return stats;
     } catch (error) {
-      console.error('❌ Error getting recent missed calls:', error);
+      Logger.error('❌ Error getting recent missed calls:', error);
       return null;
     }
   }
@@ -498,7 +499,7 @@ export class ModernCallDetectionService {
       // Get current user ID to make storage user-specific
       const currentUser = await this.getCurrentUser();
       if (!currentUser?.id) {
-        console.log('⚠️ No current user found, returning empty calls list');
+        Logger.debug('⚠️ No current user found, returning empty calls list');
         return [];
       }
       
@@ -510,9 +511,9 @@ export class ModernCallDetectionService {
       try {
         const localData = await AsyncStorage.getItem(key);
         localCalls = localData ? JSON.parse(localData) : [];
-        console.log(`📱 Loaded ${localCalls.length} calls from local storage`);
+        Logger.debug(`📱 Loaded ${localCalls.length} calls from local storage`);
       } catch (error) {
-        console.log('⚠️ Error loading from local storage:', error);
+        Logger.debug('⚠️ Error loading from local storage:', error);
       }
       
       // Try to get from backend database
@@ -521,7 +522,7 @@ export class ModernCallDetectionService {
         const response = await apiService.getMissedCalls(currentUser.id);
         
         if (response.success && response.data && Array.isArray(response.data)) {
-          console.log(`☁️ Loaded ${response.data.length} calls from backend database`);
+          Logger.debug(`☁️ Loaded ${response.data.length} calls from backend database`);
           
           // Format the data to match the app's expected structure
           backendCalls = response.data.map((call: any) => ({
@@ -533,7 +534,7 @@ export class ModernCallDetectionService {
           }));
         }
       } catch (error) {
-        console.log('⚠️ Could not load from backend:', error);
+        Logger.debug('⚠️ Could not load from backend:', error);
       }
       
       // Merge local and backend calls (remove duplicates by id)
@@ -552,14 +553,14 @@ export class ModernCallDetectionService {
       const mergedCalls = Array.from(callsMap.values())
         .sort((a, b) => b.timestamp - a.timestamp); // Sort by newest first
       
-      console.log(`✅ Total merged calls: ${mergedCalls.length} (${backendCalls.length} from backend, ${localCalls.length} from local)`);
+      Logger.debug(`✅ Total merged calls: ${mergedCalls.length} (${backendCalls.length} from backend, ${localCalls.length} from local)`);
       
       // Update local storage with merged data
       await AsyncStorage.setItem(key, JSON.stringify(mergedCalls));
       
       return mergedCalls;
     } catch (error) {
-      console.error('❌ Error getting stored missed calls:', error);
+      Logger.error('❌ Error getting stored missed calls:', error);
       return [];
     }
   }
@@ -570,38 +571,38 @@ export class ModernCallDetectionService {
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         const user = JSON.parse(userStr);
-        console.log('✅ Got user from AsyncStorage:', user.id);
+        Logger.debug('✅ Got user from AsyncStorage:', user.id);
         
         // Validate that user has required fields
         if (user && user.id) {
           return user;
         } else {
-          console.log('⚠️ User in AsyncStorage is invalid (no ID), fetching from API');
+          Logger.debug('⚠️ User in AsyncStorage is invalid (no ID), fetching from API');
         }
       }
       
       // Fallback to API
-      console.log('📡 Fetching user from API...');
+      Logger.debug('📡 Fetching user from API...');
       const apiService = ApiService.getInstance();
       const response = await apiService.getCurrentUser();
       
-      console.log('📡 API response:', JSON.stringify(response, null, 2));
+      Logger.debug('📡 API response:', JSON.stringify(response, null, 2));
       
       const userData = response.data?.user || response.data;
-      console.log('👤 Parsed user data:', JSON.stringify(userData, null, 2));
+      Logger.debug('👤 Parsed user data:', JSON.stringify(userData, null, 2));
       
       // Validate user data before saving
       if (userData && userData.id) {
         // Store user in AsyncStorage for faster access next time
         await AsyncStorage.setItem('user', JSON.stringify(userData));
-        console.log('💾 User saved to AsyncStorage with ID:', userData.id);
+        Logger.debug('💾 User saved to AsyncStorage with ID:', userData.id);
         return userData;
       } else {
-        console.error('❌ Invalid user data from API (no ID):', userData);
+        Logger.error('❌ Invalid user data from API (no ID):', userData);
         return null;
       }
     } catch (error) {
-      console.error('❌ Error getting current user:', error);
+      Logger.error('❌ Error getting current user:', error);
       return null;
     }
   }
@@ -613,16 +614,16 @@ export class ModernCallDetectionService {
       
       if (missedCallKeys.length > 0) {
         await AsyncStorage.multiRemove(missedCallKeys);
-        console.log('🧹 Cleared user-specific missed calls data');
+        Logger.debug('🧹 Cleared user-specific missed calls data');
       }
     } catch (error) {
-      console.error('❌ Error clearing user data:', error);
+      Logger.error('❌ Error clearing user data:', error);
     }
   }
 
   public async testContactFiltering(): Promise<boolean> {
     try {
-      console.log('🧪 Testing contact filtering (no SMS will be sent)...');
+      Logger.debug('🧪 Testing contact filtering (no SMS will be sent)...');
       
       const testNumber = '+359888123456';
       
@@ -630,31 +631,31 @@ export class ModernCallDetectionService {
       const smsService = SMSService.getInstance();
       const config = smsService.getConfig();
       
-      console.log('📱 SMS Config:', {
+      Logger.debug('📱 SMS Config:', {
         isEnabled: config.isEnabled,
         filterKnownContacts: config.filterKnownContacts
       });
       
       if (config.filterKnownContacts) {
-        console.log('📱 Contact filtering is ENABLED, checking contacts...');
+        Logger.debug('📱 Contact filtering is ENABLED, checking contacts...');
         const { ContactService } = await import('./ContactService');
         const contactService = ContactService.getInstance();
         const contactInfo = await contactService.isPhoneNumberInContacts(testNumber);
         
-        console.log('📱 Contact check result:', contactInfo);
+        Logger.debug('📱 Contact check result:', contactInfo);
         
         if (contactInfo.isInContacts) {
-          console.log(`🚫 TEST RESULT: SMS would be BLOCKED - ${testNumber} is in contacts (${contactInfo.contactName})`);
+          Logger.debug(`🚫 TEST RESULT: SMS would be BLOCKED - ${testNumber} is in contacts (${contactInfo.contactName})`);
         } else {
-          console.log(`✅ TEST RESULT: SMS would be SENT - ${testNumber} is NOT in contacts`);
+          Logger.debug(`✅ TEST RESULT: SMS would be SENT - ${testNumber} is NOT in contacts`);
         }
       } else {
-        console.log('📱 Contact filtering is DISABLED - SMS would be sent to any number');
+        Logger.debug('📱 Contact filtering is DISABLED - SMS would be sent to any number');
       }
       
       return true;
     } catch (error) {
-      console.error('❌ Error testing contact filtering:', error);
+      Logger.error('❌ Error testing contact filtering:', error);
       return false;
     }
   }
@@ -663,15 +664,15 @@ export class ModernCallDetectionService {
     if (!this.isInitialized) return false;
 
     try {
-      console.log('🧪 Testing missed call detection (WILL SEND REAL SMS)...');
+      Logger.debug('🧪 Testing missed call detection (WILL SEND REAL SMS)...');
       
       const { ModernCallDetectionModule } = NativeModules;
       const result = await ModernCallDetectionModule.testMissedCall();
       
-      console.log('✅ Test missed call sent:', result);
+      Logger.debug('✅ Test missed call sent:', result);
       return true;
     } catch (error) {
-      console.error('❌ Error testing missed call:', error);
+      Logger.error('❌ Error testing missed call:', error);
       return false;
     }
   }
@@ -680,21 +681,21 @@ export class ModernCallDetectionService {
     if (!this.isInitialized) return null;
 
     try {
-      console.log('🔍 Debugging call log...');
+      Logger.debug('🔍 Debugging call log...');
       
       const { ModernCallDetectionModule } = NativeModules;
       const result = await ModernCallDetectionModule.debugCallLog();
       
-      console.log('📋 Call Log Debug Info:');
-      console.log('- Last Call Time:', new Date(result.lastCallTime));
-      console.log('- Current Time:', new Date(result.currentTime));
-      console.log('- Total Calls:', result.totalCalls);
-      console.log('- Missed Calls Found:', result.missedCallsFound);
-      console.log('- Calls Info:\n', result.callsInfo);
+      Logger.debug('📋 Call Log Debug Info:');
+      Logger.debug('- Last Call Time:', new Date(result.lastCallTime));
+      Logger.debug('- Current Time:', new Date(result.currentTime));
+      Logger.debug('- Total Calls:', result.totalCalls);
+      Logger.debug('- Missed Calls Found:', result.missedCallsFound);
+      Logger.debug('- Calls Info:\n', result.callsInfo);
       
       return result;
     } catch (error) {
-      console.error('❌ Error debugging call log:', error);
+      Logger.error('❌ Error debugging call log:', error);
       return null;
     }
   }
@@ -702,27 +703,27 @@ export class ModernCallDetectionService {
   public async forceCheckMissedCalls(): Promise<boolean> {
     if (!this.isInitialized) return false;
     try {
-      console.log('🔍 Forcing manual missed call check...');
+      Logger.debug('🔍 Forcing manual missed call check...');
       const { ModernCallDetectionModule } = NativeModules;
       await ModernCallDetectionModule.forceCheckMissedCalls();
-      console.log('✅ Manual check completed');
+      Logger.debug('✅ Manual check completed');
       return true;
     } catch (error) {
-      console.error('❌ Error in manual check:', error);
+      Logger.error('❌ Error in manual check:', error);
       return false;
     }
   }
 
   public addMissedCallListener(listener: (event: MissedCallEvent) => void): void {
     this.listeners.push(listener);
-    console.log(`📢 Added missed call listener (total: ${this.listeners.length})`);
+    Logger.debug(`📢 Added missed call listener (total: ${this.listeners.length})`);
   }
 
   public removeMissedCallListener(listener: (event: MissedCallEvent) => void): void {
     const index = this.listeners.indexOf(listener);
     if (index > -1) {
       this.listeners.splice(index, 1);
-      console.log(`📢 Removed missed call listener (total: ${this.listeners.length})`);
+      Logger.debug(`📢 Removed missed call listener (total: ${this.listeners.length})`);
     }
   }
 
@@ -737,9 +738,9 @@ export class ModernCallDetectionService {
   public async clearStoredCalls(): Promise<void> {
     try {
       await AsyncStorage.removeItem('missed_calls');
-      console.log('🗑️ Stored calls cleared');
+      Logger.debug('🗑️ Stored calls cleared');
     } catch (error) {
-      console.error('❌ Error clearing stored calls:', error);
+      Logger.error('❌ Error clearing stored calls:', error);
     }
   }
 }
