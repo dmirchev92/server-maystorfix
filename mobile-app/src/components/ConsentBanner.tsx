@@ -40,31 +40,17 @@ const ConsentBanner: React.FC<ConsentBannerProps> = ({
       consentTimestamp: new Date().toISOString(),
       consentDetails: [
         {
-          consentType: 'data_processing',
+          consentType: 'essential_service',
           status: 'granted',
-          legalBasis: 'Съгласие',
-          description: 'Обработка на данни за услугата',
+          legalBasis: 'Договор',
+          description: 'Основни услуги и аналитика',
           timestamp: new Date().toISOString(),
         },
         {
-          consentType: 'ai_communication',
+          consentType: 'data_sharing',
           status: 'granted',
           legalBasis: 'Съгласие',
-          description: 'AI автоматични отговори',
-          timestamp: new Date().toISOString(),
-        },
-        {
-          consentType: 'data_storage',
-          status: 'granted',
-          legalBasis: 'Съгласие',
-          description: 'Съхранение на разговори',
-          timestamp: new Date().toISOString(),
-        },
-        {
-          consentType: 'analytics',
-          status: 'granted',
-          legalBasis: 'Съгласие',
-          description: 'Аналитични данни',
+          description: 'Съхранение на съобщения',
           timestamp: new Date().toISOString(),
         },
       ]
@@ -155,26 +141,18 @@ const ConsentBanner: React.FC<ConsentBannerProps> = ({
             
             <ScrollView style={styles.modalScroll}>
               <View style={styles.detailSection}>
-                <Text style={styles.detailTitle}>🍪 Необходими бисквитки</Text>
+                <Text style={styles.detailTitle}>⚙️ Основни услуги</Text>
                 <Text style={styles.detailText}>
-                  Тези бисквитки са необходими за основната функционалност на приложението. 
-                  Без тях не можем да предоставим услугата.
+                  Необходими за работата на приложението - профил, настройки, 
+                  известия и аналитика за подобряване на услугата.
                 </Text>
               </View>
 
               <View style={styles.detailSection}>
-                <Text style={styles.detailTitle}>🤖 AI комуникация</Text>
+                <Text style={styles.detailTitle}>💬 Съхранение на съобщения</Text>
                 <Text style={styles.detailText}>
-                  Съхраняваме информация за пропуснати обаждания и AI разговори, 
-                  за да можете да ги преглеждате и поемате.
-                </Text>
-              </View>
-
-              <View style={styles.detailSection}>
-                <Text style={styles.detailTitle}>📊 Аналитични бисквитки</Text>
-                <Text style={styles.detailText}>
-                  Помогат ни да разберем как използвате приложението и 
-                  да го подобрим за вас.
+                  Съхраняваме чат съобщенията с клиенти, за да можете 
+                  да ги преглеждате и да имате история на разговорите.
                 </Text>
               </View>
 
@@ -190,7 +168,7 @@ const ConsentBanner: React.FC<ConsentBannerProps> = ({
                 <Text style={styles.detailTitle}>📱 Как да управлявате</Text>
                 <Text style={styles.detailText}>
                   В настройките можете да промените предпочитанията си 
-                  за бисквитките по всяко време.
+                  по всяко време.
                 </Text>
               </View>
             </ScrollView>

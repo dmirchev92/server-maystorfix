@@ -328,6 +328,9 @@ export class ModernCallDetectionService {
     try {
       console.log('🚀 Starting modern call detection...');
       
+      // Sync settings to native before starting (for background SMS when phone is locked)
+      await this.syncSettingsToNative();
+      
       const { ModernCallDetectionModule } = NativeModules;
       const result = await ModernCallDetectionModule.startCallDetection();
       
@@ -338,6 +341,123 @@ export class ModernCallDetectionService {
       console.error('❌ Error starting call detection:', error);
       this.isListening = false;
       return false;
+    }
+  }
+  
+  /**
+   * Sync auth token and SMS settings to native SharedPreferences.
+   * This allows the native service to send SMS even when React Native JS is paused.
+   */
+  public async syncSettingsToNative(): Promise<void> {
+    try {
+      const { ModernCallDetectionModule } = NativeModules;
+      if (!ModernCallDetectionModule?.syncNativeSettingsWithFilter && !ModernCallDetectionModule?.syncNativeSettings) {
+        console.log('⚠️ syncNativeSettings not available in native module');
+        return;
+      }
+      
+      // Get auth token
+      const authToken = await AsyncStorage.getItem('auth_token');
+      
+      // Get user ID
+      const currentUser = await this.getCurrentUser();
+      const userId = currentUser?.id;
+      
+      // Get SMS enabled status and filter setting
+      const smsService = SMSService.getInstance();
+      const smsConfig = smsService.getConfig();
+      const smsEnabled = smsConfig.isEnabled;
+      const filterKnownContacts = smsConfig.filterKnownContacts || false;
+      
+      console.log('🔄 syncSettingsToNative() called:');
+      console.log('   - authToken:', authToken ? 'SET (' + authToken.length + ' chars)' : 'NULL');
+      console.log('   - userId:', userId);
+      console.log('   - smsEnabled:', smsEnabled);
+      console.log('   - filterKnownContacts:', filterKnownContacts);
+      
+      if (authToken && userId) {
+        // Use the new method with filter if available, otherwise fallback
+        if (ModernCallDetectionModule.syncNativeSettingsWithFilter) {
+          await ModernCallDetectionModule.syncNativeSettingsWithFilter(authToken, userId, smsEnabled, filterKnownContacts);
+          console.log('✅ Settings synced to native: smsEnabled=' + smsEnabled + ', filterKnownContacts=' + filterKnownContacts);
+        } else {
+          await ModernCallDetectionModule.syncNativeSettings(authToken, userId, smsEnabled);
+          console.log('✅ Settings synced to native (legacy): smsEnabled=' + smsEnabled);
+        }
+        
+        // Verify sync worked
+        await this.debugNativeSettings();
+      } else {
+        console.log('⚠️ Cannot sync to native: missing auth token or user ID');
+        console.log('   authToken:', authToken ? 'present' : 'MISSING');
+        console.log('   userId:', userId ? 'present' : 'MISSING');
+      }
+    } catch (error) {
+      console.error('❌ Error syncing settings to native:', error);
+    }
+  }
+  
+  /**
+   * Debug method to check the current state of native SharedPreferences
+   */
+  public async debugNativeSettings(): Promise<any> {
+    try {
+      const { ModernCallDetectionModule } = NativeModules;
+      if (!ModernCallDetectionModule?.debugNativeSettings) {
+        console.log('⚠️ debugNativeSettings not available in native module');
+        return null;
+      }
+      
+      const result = await ModernCallDetectionModule.debugNativeSettings();
+      const parsed = JSON.parse(result);
+      
+      console.log('🔍 DEBUG Native Settings:');
+      console.log('   - hasAuthToken:', parsed.hasAuthToken);
+      console.log('   - userId:', parsed.userId);
+      console.log('   - smsEnabled:', parsed.smsEnabled);
+      
+      return parsed;
+    } catch (error) {
+      console.error('❌ Error debugging native settings:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Verify that permissions are still valid for SMS functionality.
+   * Returns true if permissions are OK, false if they were revoked.
+   * If SMS was enabled but permissions are gone, auto-disables SMS.
+   */
+  public async verifyPermissionsAndAutoDisable(): Promise<{ permissionsOk: boolean; wasDisabled: boolean }> {
+    try {
+      const smsService = SMSService.getInstance();
+      const smsConfig = smsService.getConfig();
+      
+      // If SMS is not enabled, no need to check
+      if (!smsConfig.isEnabled) {
+        return { permissionsOk: true, wasDisabled: false };
+      }
+      
+      // Check permissions
+      const permissionStatus = await this.checkPermissions();
+      
+      if (!permissionStatus?.hasAllPermissions) {
+        console.log('⚠️ verifyPermissions: Permissions revoked while SMS was ON');
+        
+        // Auto-disable SMS
+        await smsService.updateConfig({ isEnabled: false });
+        await this.stopDetection();
+        
+        return { permissionsOk: false, wasDisabled: true };
+      }
+      
+      // Permissions OK - sync to native
+      await this.syncSettingsToNative();
+      return { permissionsOk: true, wasDisabled: false };
+      
+    } catch (error) {
+      console.error('❌ Error verifying permissions:', error);
+      return { permissionsOk: false, wasDisabled: false };
     }
   }
 

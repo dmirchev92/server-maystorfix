@@ -81,7 +81,7 @@ const BuyPointsScreen: React.FC = () => {
   const handlePurchase = async (pkg: PointsPackage) => {
     Alert.alert(
       'Потвърдете покупката',
-      `Искате ли да закупите ${pkg.points} точки за ${pkg.finalPrice.toFixed(2)} лв?${pkg.discountPercent > 0 ? `\n\nСпестявате ${pkg.savings.toFixed(2)} лв (${pkg.discountPercent}% отстъпка)` : ''}`,
+      `Искате ли да закупите ${pkg.points} точки за ${pkg.finalPrice.toFixed(2)} €?${pkg.discountPercent > 0 ? `\n\nСпестявате ${pkg.savings.toFixed(2)} € (${pkg.discountPercent}% отстъпка)` : ''}`,
       [
         { text: 'Отказ', style: 'cancel' },
         {
@@ -171,7 +171,7 @@ const BuyPointsScreen: React.FC = () => {
       {packages?.canPurchase ? (
         <>
           <Text style={styles.tierInfo}>
-            Базова цена ({packages.tier.toUpperCase()}): {packages.pricePerPoint} лв/точка
+            Базова цена ({packages.tier.toUpperCase()}): {packages.pricePerPoint} €/точка
           </Text>
 
           <View style={styles.packagesGrid}>
@@ -203,17 +203,17 @@ const BuyPointsScreen: React.FC = () => {
                 {/* Pricing */}
                 {pkg.discountPercent > 0 ? (
                   <>
-                    <Text style={styles.packageOldPrice}>{pkg.basePrice.toFixed(2)} лв</Text>
-                    <Text style={styles.packagePrice}>{pkg.finalPrice.toFixed(2)} лв</Text>
-                    <Text style={styles.packageSavings}>Спестявате {pkg.savings.toFixed(2)} лв</Text>
+                    <Text style={styles.packageOldPrice}>{pkg.basePrice.toFixed(2)} €</Text>
+                    <Text style={styles.packagePrice}>{pkg.finalPrice.toFixed(2)} €</Text>
+                    <Text style={styles.packageSavings}>Спестявате {pkg.savings.toFixed(2)} €</Text>
                   </>
                 ) : (
-                  <Text style={styles.packagePrice}>{pkg.finalPrice.toFixed(2)} лв</Text>
+                  <Text style={styles.packagePrice}>{pkg.finalPrice.toFixed(2)} €</Text>
                 )}
 
                 {/* Price per point */}
                 <Text style={styles.packagePricePerPoint}>
-                  {pkg.pricePerPoint.toFixed(2)} лв/точка
+                  {pkg.pricePerPoint.toFixed(2)} €/точка
                 </Text>
 
                 {/* Buy Button */}

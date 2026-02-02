@@ -21,6 +21,7 @@ import LocationTrackingService from '../services/LocationTrackingService';
 import { SMSService } from '../services/SMSService';
 import { AuthBus } from '../utils/AuthBus';
 import theme from '../styles/theme';
+import DataRetentionModal from '../components/DataRetentionModal';
 
 // Location mode type for Option C selector
 type LocationMode = 'off' | 'always' | 'schedule';
@@ -156,6 +157,10 @@ function ModernDashboardScreen() {
   
   // Automation Hub expansion state
   const [isAutomationExpanded, setIsAutomationExpanded] = useState(true);
+  
+  // Data Retention state
+  const [showDataRetentionModal, setShowDataRetentionModal] = useState(false);
+  const [dataRetentionDaysRemaining, setDataRetentionDaysRemaining] = useState(0);
 
   const callDetectionService = ModernCallDetectionService.getInstance();
 
@@ -212,12 +217,51 @@ function ModernDashboardScreen() {
       await testBackendConnection();
       console.log('🚀 Step 5: Backend connection tested');
       
+      console.log('🚀 Step 6: Checking data retention status...');
+      await checkDataRetentionStatus();
+      console.log('🚀 Step 6: Data retention checked');
+      
       console.log('🚀 ========== DASHBOARD INITIALIZATION COMPLETE ==========');
     } catch (error) {
       console.error('❌ ========== DASHBOARD INITIALIZATION ERROR ==========');
       console.error('❌ Error initializing screen:', error);
       Alert.alert('Грешка', 'Проблем при зареждане на данните');
     }
+  };
+  
+  // Check data retention status and show modal if expiring soon (within 30 days)
+  const checkDataRetentionStatus = async () => {
+    try {
+      const response = await ApiService.getInstance().getDataRetentionStatus();
+      if (response.success && response.data) {
+        const daysRemaining = response.data.dataRetention?.daysRemaining;
+        // Show modal if less than 30 days remaining
+        if (daysRemaining !== undefined && daysRemaining <= 30) {
+          // Check if user already dismissed this session
+          const dismissedKey = 'dataRetentionDismissed';
+          const dismissed = await AsyncStorage.getItem(dismissedKey);
+          const today = new Date().toDateString();
+          
+          if (dismissed !== today) {
+            setDataRetentionDaysRemaining(daysRemaining);
+            setShowDataRetentionModal(true);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking data retention status:', error);
+    }
+  };
+  
+  const handleDataRetentionExtended = () => {
+    setShowDataRetentionModal(false);
+    Alert.alert('✅ Успех', 'Периодът за съхранение на данни е удължен с 7 години.');
+  };
+  
+  const handleDataRetentionDismissed = async () => {
+    // Mark as dismissed for today so we don't show again this session
+    await AsyncStorage.setItem('dataRetentionDismissed', new Date().toDateString());
+    setShowDataRetentionModal(false);
   };
 
 
@@ -792,6 +836,9 @@ function ModernDashboardScreen() {
         
         // Disable SMS
         await SMSService.getInstance().toggleEnabled();
+        
+        // Sync to native to stop the foreground service
+        await callDetectionService.syncSettingsToNative();
       }
     } catch (error) {
       console.error('Error toggling SMS with call detection:', error);
@@ -830,6 +877,9 @@ function ModernDashboardScreen() {
       // Update the SMS service config
       await SMSService.getInstance().updateConfig({ filterKnownContacts: newFiltering });
       setFilterKnownContacts(newFiltering);
+      
+      // Sync to native so background service uses new filter setting
+      await callDetectionService.syncSettingsToNative();
       
       Alert.alert(
         newFiltering ? '✅ Филтър включен' : '❌ Филтър изключен',
@@ -1259,6 +1309,12 @@ function ModernDashboardScreen() {
               <Text style={styles.navIcon}>📊</Text>
               <Text style={styles.navLabel}>Статистики</Text>
             </TouchableOpacity>
+            {user?.email === 'admin@snapfix.bg' && (
+              <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Game')}>
+                <Text style={styles.navIcon}>🎮</Text>
+                <Text style={styles.navLabel}>Игра</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -1298,6 +1354,14 @@ function ModernDashboardScreen() {
             Последна актуализация: {lastUpdated.toLocaleTimeString('bg-BG')}
           </Text>
         </View>
+        
+        {/* Data Retention Modal */}
+        <DataRetentionModal
+          visible={showDataRetentionModal}
+          daysRemaining={dataRetentionDaysRemaining}
+          onClose={handleDataRetentionDismissed}
+          onExtended={handleDataRetentionExtended}
+        />
       </ScrollView>
     );
   }

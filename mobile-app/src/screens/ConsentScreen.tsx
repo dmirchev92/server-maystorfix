@@ -8,6 +8,7 @@ import {
   Alert,
   Switch,
   Linking,
+  Modal,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store';
@@ -23,52 +24,34 @@ interface ConsentItem {
   legalBasis: string;
 }
 
-const ConsentScreen: React.FC = () => {
+interface ConsentScreenProps {
+  onConsentComplete?: () => void;
+}
+
+const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
   const dispatch = useDispatch();
   const { currentMode, businessHours } = useSelector((state: RootState) => state.app);
   
   const [consents, setConsents] = useState<ConsentItem[]>([
     {
-      id: 'data_processing',
-      title: 'Обработка на данни',
-      description: 'Съгласявам се данните ми да бъдат обработвани за целите на услугата',
-      required: true,
+      id: 'essential_service',
+      title: 'Основни услуги',
+      description: 'Обработка на данни, профил, настройки, известия и аналитика за подобряване на услугата.',
+      required: false,
       enabled: true,
       legalBasis: 'Договор',
     },
     {
-      id: 'ai_communication',
-      title: 'AI комуникация',
-      description: 'Съгласявам се да получавам автоматични отговори от AI система',
-      required: false,
-      enabled: false,
-      legalBasis: 'Съгласие',
-    },
-    {
-      id: 'data_storage',
-      title: 'Съхранение на данни',
-      description: 'Съгласявам се разговорите ми да бъдат съхранявани за подобряване на услугата',
-      required: false,
-      enabled: false,
-      legalBasis: 'Съгласие',
-    },
-    {
-      id: 'analytics',
-      title: 'Аналитика',
-      description: 'Съгласявам се данните ми да бъдат използвани за аналитични цели',
-      required: false,
-      enabled: false,
-      legalBasis: 'Съгласие',
-    },
-    {
-      id: 'third_party',
-      title: 'Трети страни',
-      description: 'Съгласявам се данните ми да бъдат споделяни с партньори за предоставяне на услугата',
+      id: 'data_sharing',
+      title: 'Съхранение на съобщения',
+      description: 'Съхранение на чат съобщенията и разговорите с клиенти за преглед и история.',
       required: false,
       enabled: false,
       legalBasis: 'Съгласие',
     },
   ]);
+
+  const [showEssentialWarning, setShowEssentialWarning] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -79,9 +62,28 @@ const ConsentScreen: React.FC = () => {
   const loadCurrentConsents = async () => {
     try {
       setIsLoading(true);
-      // TODO: Load current consents from backend
-      // const currentConsents = await ApiService.getConsents();
-      // setConsents(currentConsents);
+      const response = await ApiService.getInstance().getConsents();
+      
+      if (response.success && response.data?.consents) {
+        const backendConsents = response.data.consents as Array<{
+          consentType: string;
+          granted: boolean;
+          legalBasis?: string;
+        }>;
+        
+        // Update local state with backend values
+        setConsents(prev => prev.map(consent => {
+          const backendConsent = backendConsents.find(
+            bc => bc.consentType === consent.id
+          );
+          if (backendConsent) {
+            return { ...consent, enabled: backendConsent.granted };
+          }
+          return consent;
+        }));
+        
+        console.log('🔒 Loaded consents from backend:', backendConsents);
+      }
     } catch (error) {
       console.error('Error loading consents:', error);
     } finally {
@@ -90,6 +92,12 @@ const ConsentScreen: React.FC = () => {
   };
 
   const handleConsentChange = (consentId: string, enabled: boolean) => {
+    // Show warning when turning off essential_service
+    if (consentId === 'essential_service' && !enabled) {
+      setShowEssentialWarning(true);
+      return; // Don't change yet, wait for confirmation
+    }
+
     setConsents(prev => 
       prev.map(consent => 
         consent.id === consentId 
@@ -97,6 +105,21 @@ const ConsentScreen: React.FC = () => {
           : consent
       )
     );
+  };
+
+  const confirmDisableEssential = () => {
+    setConsents(prev => 
+      prev.map(consent => 
+        consent.id === 'essential_service' 
+          ? { ...consent, enabled: false }
+          : consent
+      )
+    );
+    setShowEssentialWarning(false);
+  };
+
+  const cancelDisableEssential = () => {
+    setShowEssentialWarning(false);
   };
 
   const handleSaveConsents = async () => {
@@ -119,26 +142,38 @@ const ConsentScreen: React.FC = () => {
       // Save consents to backend
       const consentData = consents.map(consent => ({
         consentType: consent.id,
+        granted: consent.enabled,
+        legalBasis: consent.legalBasis,
+      }));
+
+      // Save to backend
+      const response = await ApiService.getInstance().updateConsents(consentData);
+      
+      if (!response.success) {
+        throw new Error(response.error?.message || 'Failed to save consents');
+      }
+      
+      console.log('🔒 Consents saved to backend:', response.data);
+
+      // Update local Redux state (for UI consistency)
+      const consentDetails = consents.map(consent => ({
+        consentType: consent.id,
         status: (consent.enabled ? 'granted' : 'withdrawn') as 'granted' | 'withdrawn',
         legalBasis: consent.legalBasis,
         description: consent.description,
         timestamp: new Date().toISOString(),
       }));
-
-      // TODO: Save to backend
-      // await ApiService.updateConsents(consentData);
-
-      // Update local state
+      
       dispatch(updateConsent({ 
         hasGDPRConsent: true,
         consentTimestamp: new Date().toISOString(),
-        consentDetails: consentData
+        consentDetails
       }));
 
       Alert.alert(
         'Успешно',
         'Вашите предпочитания за поверителност са запазени.',
-        [{ text: 'OK' }]
+        [{ text: 'OK', onPress: () => onConsentComplete?.() }]
       );
 
     } catch (error) {
@@ -257,6 +292,56 @@ const ConsentScreen: React.FC = () => {
           За въпроси относно поверителността: dpo@snapfix.bg
         </Text>
       </View>
+
+      {/* Warning Modal for Essential Service */}
+      <Modal
+        visible={showEssentialWarning}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={cancelDisableEssential}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Text style={styles.modalIcon}>⚠️</Text>
+            </View>
+            
+            <Text style={styles.modalTitle}>Внимание!</Text>
+            
+            <Text style={styles.modalMessage}>
+              Ако изключите основните услуги, следните функции няма да работят правилно:
+            </Text>
+            
+            <View style={styles.featureList}>
+              <Text style={styles.featureItem}>❌ Профил и настройки</Text>
+              <Text style={styles.featureItem}>❌ Push известия</Text>
+              <Text style={styles.featureItem}>❌ Аналитика и статистики</Text>
+              <Text style={styles.featureItem}>❌ Автоматични отговори</Text>
+              <Text style={styles.featureItem}>❌ SMS услуги</Text>
+            </View>
+            
+            <Text style={styles.modalWarning}>
+              Приложението може да не функционира правилно без тези услуги.
+            </Text>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={cancelDisableEssential}
+              >
+                <Text style={styles.modalCancelButtonText}>Отказ</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.modalConfirmButton}
+                onPress={confirmDisableEssential}
+              >
+                <Text style={styles.modalConfirmButtonText}>Изключи</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -386,6 +471,95 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#fef3c7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalIcon: {
+    fontSize: 36,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#dc2626',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#555',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  featureList: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    marginBottom: 16,
+  },
+  featureItem: {
+    fontSize: 14,
+    color: '#991b1b',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  modalWarning: {
+    fontSize: 13,
+    color: '#b91c1c',
+    textAlign: 'center',
+    fontWeight: '600',
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: '#e5e7eb',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#dc2626',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalConfirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

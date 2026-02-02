@@ -21,6 +21,7 @@ interface Transaction {
   balance_after: number;
   reason: string;
   case_id?: string;
+  case_number?: number;
   created_at: string;
 }
 
@@ -183,10 +184,6 @@ const PointsScreen: React.FC = () => {
     
     // Handle Winning bid patterns: "Winning bid - full tier-based cost (14 points)"
     if (lowerReason.includes('winning bid')) {
-      if (caseId) {
-        const shortCaseId = caseId.substring(0, 8);
-        return `Оферта #${shortCaseId}`;
-      }
       return 'Оферта';
     }
     
@@ -226,6 +223,8 @@ const PointsScreen: React.FC = () => {
       // Referral related
       'Referral bonus': 'Бонус от препоръка',
       'Referral signup bonus': 'Бонус за регистрация от препоръка',
+      'Referral bonus: signed up via referral': 'Бонус за регистрация с препоръка',
+      'Referral bonus: referred user': 'Бонус за препоръчан потребител',
       
       // Admin actions
       'Admin adjustment': 'Корекция от администратор',
@@ -286,7 +285,7 @@ const PointsScreen: React.FC = () => {
       // Extract budget if present
       const budgetMatch = reason.match(/budget\s*(\d+[-–]\d+|\d+\+?)/i);
       if (budgetMatch) {
-        return `Приета директна заявка - бюджет ${budgetMatch[1]} лв`;
+        return `Приета директна заявка - бюджет ${budgetMatch[1]} €`;
       }
       return 'Приета директна заявка';
     }
@@ -331,13 +330,16 @@ const PointsScreen: React.FC = () => {
       return 'Разпределение на точки';
     }
     if (lowerReason.includes('bid')) {
-      if (caseId) {
-        const shortCaseId = caseId.substring(0, 8);
-        return `Оферта #${shortCaseId}`;
-      }
       return 'Оферта';
     }
     if (lowerReason.includes('bonus')) {
+      // Check for referral-specific bonuses
+      if (lowerReason.includes('referral') && lowerReason.includes('signed up')) {
+        return 'Бонус за регистрация с препоръка';
+      }
+      if (lowerReason.includes('referral') && lowerReason.includes('referred user')) {
+        return 'Бонус за препоръчан потребител';
+      }
       return 'Бонус точки';
     }
     
@@ -345,13 +347,20 @@ const PointsScreen: React.FC = () => {
     return reason;
   };
 
-  const renderTransaction = ({ item }: { item: Transaction }) => (
+  const renderTransaction = ({ item }: { item: Transaction }) => {
+    const translatedReason = translateReason(item.reason, item.case_id);
+    const caseDisplay = item.case_number ? `#${item.case_number}` : '';
+    const displayReason = item.case_number && !translatedReason.includes('#') 
+      ? `${translatedReason} ${caseDisplay}` 
+      : translatedReason;
+    
+    return (
     <View style={styles.transactionCard}>
       <View style={styles.transactionLeft}>
         <Text style={styles.transactionIcon}>{getTransactionIcon(item.transaction_type)}</Text>
         <View style={styles.transactionInfo}>
           <Text style={styles.transactionReason} numberOfLines={2}>
-            {translateReason(item.reason, item.case_id)}
+            {displayReason}
           </Text>
           <Text style={styles.transactionDate}>
             {new Date(item.created_at).toLocaleString('bg-BG')}
@@ -372,6 +381,7 @@ const PointsScreen: React.FC = () => {
       </View>
     </View>
   );
+  };
 
   if (loading) {
     return (

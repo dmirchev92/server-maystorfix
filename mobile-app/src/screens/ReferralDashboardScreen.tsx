@@ -184,12 +184,12 @@ const ReferralDashboardScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.navigate('ProviderDashboard' as never)} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.backHeaderTitle}>Реферали</Text>
+        <Text style={styles.backHeaderTitle}>Препоръки</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.header}>
-        <Text style={styles.title}>🎯 Препоръчителна система</Text>
+        <Text style={styles.title}>🎯 Препоръчай приятел</Text>
         <Text style={styles.subtitle}>
           Споделете вашия код и спечелете награди!
         </Text>

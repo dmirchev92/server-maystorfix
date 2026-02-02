@@ -59,6 +59,9 @@ interface ProfileData {
   neighborhood?: string;
   address?: string;
   profileImageUrl?: string;
+  offeredServices?: string[];
+  latitude?: number;
+  longitude?: number;
 }
 
 const EditProfileScreen: React.FC = () => {
@@ -67,7 +70,7 @@ const EditProfileScreen: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [userRole, setUserRole] = useState<string>('provider');
+  const [userRole, setUserRole] = useState<string>('customer');
   
   const [profileData, setProfileData] = useState<ProfileData>({
     firstName: '',
@@ -82,10 +85,14 @@ const EditProfileScreen: React.FC = () => {
     city: '',
     neighborhood: '',
     address: '',
-    profileImageUrl: ''
+    profileImageUrl: '',
+    latitude: undefined,
+    longitude: undefined
   });
 
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [offeredServices, setOfferedServices] = useState<string[]>([]);
+  const [newService, setNewService] = useState('');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
@@ -100,23 +107,11 @@ const EditProfileScreen: React.FC = () => {
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
 
   useEffect(() => {
-    loadUserRole();
     loadProfileData();
     loadCities();
   }, []);
 
-  const loadUserRole = async () => {
-    try {
-      const role = await AsyncStorage.getItem('user_role');
-      if (role) {
-        setUserRole(role);
-      }
-    } catch (error) {
-      console.error('Error loading user role:', error);
-    }
-  };
-
-  const isProvider = userRole === 'provider';
+  const isProvider = userRole === 'provider' || userRole === 'tradesperson' || userRole === 'service_provider';
 
   // Load neighborhoods when city changes
   useEffect(() => {
@@ -213,12 +208,14 @@ const EditProfileScreen: React.FC = () => {
           const finalCity = detectedCity || '';
           const finalNeighborhood = detectedNeighborhood || detectedSublocality || '';
           
-          // Update profile with detected location
+          // Update profile with detected location AND coordinates
           if (finalCity || finalNeighborhood) {
             setProfileData(prev => ({
               ...prev,
               city: finalCity || prev.city,
               neighborhood: finalNeighborhood || prev.neighborhood,
+              latitude: latitude,
+              longitude: longitude,
             }));
             
             Alert.alert(
@@ -227,7 +224,13 @@ const EditProfileScreen: React.FC = () => {
               [{ text: 'OK' }]
             );
           } else {
-            Alert.alert('Внимание', 'Не успяхме да определим местоположението. Моля изберете ръчно.');
+            // Still save coordinates even if city/neighborhood couldn't be determined
+            setProfileData(prev => ({
+              ...prev,
+              latitude: latitude,
+              longitude: longitude,
+            }));
+            Alert.alert('Внимание', 'Не успяхме да определим града/квартала, но координатите са запазени. Моля изберете град ръчно.');
           }
         } catch (error) {
           console.error('Auto-detect location error:', error);
@@ -254,6 +257,10 @@ const EditProfileScreen: React.FC = () => {
         const rawData: any = response.data;
         const userData: any = rawData.user || rawData;
         
+        // Set user role from API response
+        const role = userData.role || userData.user_role || 'customer';
+        setUserRole(role);
+        
         // Try to load provider profile for additional fields
         try {
           const providerResponse = await fetch(`https://snapfix.bg/api/v1/marketplace/providers/${userData.id}`, {
@@ -279,11 +286,17 @@ const EditProfileScreen: React.FC = () => {
               city: providerData.city || '',
               neighborhood: providerData.neighborhood || '',
               address: providerData.address || '',
-              profileImageUrl: providerData.profileImageUrl || ''
+              profileImageUrl: providerData.profileImageUrl || '',
+              latitude: providerData.latitude ? parseFloat(providerData.latitude) : undefined,
+              longitude: providerData.longitude ? parseFloat(providerData.longitude) : undefined
             });
             
             if (providerData.gallery && Array.isArray(providerData.gallery)) {
               setGalleryImages(providerData.gallery);
+            }
+            
+            if (providerData.offeredServices && Array.isArray(providerData.offeredServices)) {
+              setOfferedServices(providerData.offeredServices);
             }
           } else {
             // Fallback to basic user data
@@ -525,6 +538,13 @@ const EditProfileScreen: React.FC = () => {
       return;
     }
 
+    // Location validation for providers - coordinates are mandatory
+    const isProvider = userRole === 'tradesperson' || userRole === 'service_provider';
+    if (isProvider && (!profileData.latitude || !profileData.longitude)) {
+      setError('Локацията е задължителна. Моля използвайте бутона "Открий локацията ми" за да бъдете намерени от клиенти.');
+      return;
+    }
+
     try {
       setSaving(true);
       setError('');
@@ -549,7 +569,10 @@ const EditProfileScreen: React.FC = () => {
           neighborhood: profileData.neighborhood,
           address: profileData.address,
           email: profileData.email,
-          profileImageUrl: profileData.profileImageUrl
+          profileImageUrl: profileData.profileImageUrl,
+          offeredServices: offeredServices,
+          latitude: profileData.latitude,
+          longitude: profileData.longitude
         },
         gallery: galleryImages
       };
@@ -690,6 +713,61 @@ const EditProfileScreen: React.FC = () => {
             </View>
           )}
 
+          {/* Offered Services Section - Provider only */}
+          {isProvider && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Предлагани услуги ({offeredServices.length}/10)</Text>
+              <Text style={styles.sectionDescription}>Добавете услугите, които предлагате на клиентите</Text>
+              
+              {/* Add new service input */}
+              <View style={styles.addServiceRow}>
+                <TextInput
+                  style={styles.addServiceInput}
+                  value={newService}
+                  onChangeText={setNewService}
+                  placeholder="Напр. Монтаж на ключалки, Спешни ремонти..."
+                  placeholderTextColor="rgba(255,255,255,0.4)"
+                  maxLength={50}
+                />
+                <TouchableOpacity
+                  style={[styles.addServiceButton, (!newService.trim() || offeredServices.length >= 10) && styles.addServiceButtonDisabled]}
+                  onPress={() => {
+                    if (newService.trim() && offeredServices.length < 10) {
+                      setOfferedServices([...offeredServices, newService.trim()]);
+                      setNewService('');
+                    }
+                  }}
+                  disabled={!newService.trim() || offeredServices.length >= 10}
+                >
+                  <Text style={styles.addServiceButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* List of services */}
+              <View style={styles.servicesList}>
+                {offeredServices.map((service, index) => (
+                  <View key={index} style={styles.serviceItem}>
+                    <Text style={styles.serviceItemText}>🔧 {service}</Text>
+                    <TouchableOpacity
+                      style={styles.removeServiceButton}
+                      onPress={() => {
+                        setOfferedServices(offeredServices.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <Text style={styles.removeServiceButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+
+              {offeredServices.length === 0 && (
+                <Text style={styles.noServicesText}>Все още няма добавени услуги. Добавете услугите, които предлагате.</Text>
+              )}
+
+              <Text style={styles.hint}>Примери: Смяна на брави, Аварийно отключване, Монтаж на врати, Консултации</Text>
+            </View>
+          )}
+
           {/* Personal Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Лична информация</Text>
@@ -793,7 +871,7 @@ const EditProfileScreen: React.FC = () => {
                   />
                 </View>
                 <View style={styles.formHalf}>
-                  <Text style={styles.label}>Цена на час (лв)</Text>
+                  <Text style={styles.label}>Цена на час (€)</Text>
                   <TextInput
                     style={styles.input}
                     value={profileData.hourlyRate?.toString() || ''}
@@ -1299,6 +1377,75 @@ const styles = StyleSheet.create({
   addGalleryText: {
     fontSize: 10,
     color: '#CBD5E1',
+  },
+  addServiceRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  addServiceInput: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  addServiceButton: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#4F46E5',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addServiceButtonDisabled: {
+    backgroundColor: 'rgba(79, 70, 229, 0.3)',
+  },
+  addServiceButtonText: {
+    color: '#FFFFFF',
+    fontSize: 24,
+    fontWeight: '700',
+  },
+  servicesList: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  serviceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  serviceItemText: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  removeServiceButton: {
+    width: 28,
+    height: 28,
+    backgroundColor: '#EF4444',
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeServiceButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  noServicesText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: 12,
   },
   formGroup: {
     marginBottom: 16,

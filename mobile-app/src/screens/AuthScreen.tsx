@@ -77,6 +77,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   const [serviceCategories, setServiceCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTier, setSelectedTier] = useState<'free' | 'normal' | 'pro'>('free');
   const [showTierModal, setShowTierModal] = useState(false);
+  const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     // Load saved credentials if any
@@ -200,6 +201,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       if (detailsData.result?.geometry?.location) {
         const { lat, lng } = detailsData.result.geometry.location;
         
+        // Save coordinates for registration
+        setLocationCoords({ latitude: lat, longitude: lng });
+        
         // Use REVERSE geocoding to get accurate neighborhood (same as GPS auto-detect)
         const reverseGeocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=AIzaSyAXQf53JEFPgoxHoCXz3lMKQ5itjHcTd4A&language=bg`;
         const reverseResponse = await fetch(reverseGeocodeUrl);
@@ -301,6 +305,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               neighborhood: finalNeighborhood || prev.neighborhood,
               address: detectedAddress || prev.address,
             }));
+            // Save coordinates for registration
+            setLocationCoords({ latitude, longitude });
 
             Alert.alert(
               '📍 Местоположение открито',
@@ -434,6 +440,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       return;
     }
 
+    // Location is mandatory for providers
+    if (userType === 'provider' && (!formData.city || !locationCoords)) {
+      Alert.alert(
+        'Локацията е задължителна',
+        'Моля използвайте бутона "Открий локацията ми" или въведете адрес ръчно, за да можете да бъдете намерени от клиенти.'
+      );
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       Alert.alert('Грешка', 'Паролите не съвпадат');
       return;
@@ -481,6 +496,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         registrationData.city = formData.city;
         registrationData.neighborhood = formData.neighborhood;
         registrationData.address = formData.address;
+        // Include coordinates for search visibility
+        if (locationCoords) {
+          registrationData.latitude = locationCoords.latitude;
+          registrationData.longitude = locationCoords.longitude;
+        }
       }
 
       const response = await ApiService.getInstance().register(registrationData);
@@ -772,28 +792,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                       </View>
                     </View>
 
-                    {/* Tier Selection */}
+                    {/* Tier Selection - LAUNCH MODE: Show only Free tier with special benefits */}
                     <View style={styles.tierSelectionContainer}>
                       <Text style={styles.fieldLabel}>Избран план</Text>
-                      <TouchableOpacity
-                        style={styles.tierDisplayBox}
-                        onPress={() => setShowTierModal(true)}
-                      >
+                      <View style={styles.tierDisplayBox}>
                         <View style={styles.tierInfo}>
-                          <Text style={styles.tierName}>
-                            {selectedTier === 'free' && '🆓 Безплатен'}
-                            {selectedTier === 'normal' && '⭐ Нормален'}
-                            {selectedTier === 'pro' && '👑 Професионален'}
-                          </Text>
-                          <Text style={styles.tierPrice}>
-                            {selectedTier === 'free' && '0 лв'}
-                            {selectedTier === 'normal' && '349 лв/година (с ДДС)'}
-                            {selectedTier === 'pro' && '489 лв/година (с ДДС)'}
-                          </Text>
+                          <Text style={styles.tierName}>🎁 Безплатен (Промо)</Text>
+                          <Text style={styles.tierPrice}>0 € - Пълен достъп</Text>
                         </View>
-                        <Text style={styles.tierChangeText}>Промени ▸</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.tierHint}>💡 Можете да промените плана си по всяко време</Text>
+                        <View style={styles.launchBadge}>
+                          <Text style={styles.launchBadgeText}>LAUNCH</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.tierHint}>🚀 Специална оферта: 50 безплатни SMS + пълен достъп до всички функции!</Text>
                     </View>
 
                     {/* Location Section */}
@@ -1037,10 +1048,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               </View>
               <View style={styles.tierOptionContent}>
                 <Text style={styles.tierOptionName}>🆓 Безплатен</Text>
-                <Text style={styles.tierOptionPrice}>0 лв</Text>
+                <Text style={styles.tierOptionPrice}>0 €</Text>
                 <Text style={styles.tierFeature}>• 14 дни пробен период</Text>
                 <Text style={styles.tierFeature}>• 5 заявки безплатно</Text>
-                <Text style={styles.tierFeature}>• Бюджети до 500 лв</Text>
+                <Text style={styles.tierFeature}>• Бюджети до 250 €</Text>
               </View>
             </TouchableOpacity>
 
@@ -1059,9 +1070,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     <Text style={styles.recommendedText}>Препоръчан</Text>
                   </View>
                 </View>
-                <Text style={styles.tierOptionPrice}>349 лв/година (с ДДС)</Text>
-                <Text style={styles.tierFeature}>• 100 точки/година</Text>
-                <Text style={styles.tierFeature}>• Бюджети до 2000 лв</Text>
+                <Text style={styles.tierOptionPrice}>179 €/година (с ДДС)</Text>
+                <Text style={styles.tierFeature}>• 350 точки/година</Text>
+                <Text style={styles.tierFeature}>• Бюджети до 1000 €</Text>
                 <Text style={styles.tierFeature}>• Пълен достъп до заявки</Text>
               </View>
             </TouchableOpacity>
@@ -1076,8 +1087,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               </View>
               <View style={styles.tierOptionContent}>
                 <Text style={styles.tierOptionName}>👑 Професионален</Text>
-                <Text style={styles.tierOptionPrice}>489 лв/година (с ДДС)</Text>
-                <Text style={styles.tierFeature}>• 200 точки/година</Text>
+                <Text style={styles.tierOptionPrice}>249 €/година (с ДДС)</Text>
+                <Text style={styles.tierFeature}>• 500 точки/година</Text>
                 <Text style={styles.tierFeature}>• Неограничени бюджети</Text>
                 <Text style={styles.tierFeature}>• 20% отстъпка на точки</Text>
                 <Text style={styles.tierFeature}>• Приоритетна поддръжка</Text>
@@ -1512,6 +1523,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
     marginTop: 8,
+  },
+  // Launch Mode Badge
+  launchBadge: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  launchBadgeText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
   // Tier Modal Styles
   modalOverlay: {

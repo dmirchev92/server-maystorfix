@@ -325,7 +325,7 @@ export default function CustomerCasesScreen() {
                     📅 {new Date(item.created_at).toLocaleDateString('bg-BG')}
                   </Text>
                   {item.budget && (
-                    <Text style={styles.budgetText}>💰 {item.budget} лв.</Text>
+                    <Text style={styles.budgetText}>💰 {item.budget} €</Text>
                   )}
                 </View>
 
@@ -343,7 +343,7 @@ export default function CustomerCasesScreen() {
                           <Text style={styles.counterOfferBadgeText}>💰 Нова оферта!</Text>
                         </View>
                         <Text style={styles.counterOfferAmount}>
-                          Предложена цена: {item.sp_counter_budget} лв
+                          Предложена цена: {item.sp_counter_budget} €
                         </Text>
                         {item.counter_message && (
                           <Text style={styles.counterOfferMessage}>"{item.counter_message}"</Text>
@@ -488,8 +488,8 @@ export default function CustomerCasesScreen() {
               <View style={styles.infoContent}>
                 <Text style={styles.infoTitle}>Как работи системата?</Text>
                 <Text style={styles.infoText}>
-                  • Когато създадете заявка, специалистите могат да наддават{'\n'}
-                  • Максимум 3 специалисти могат да наддадат{'\n'}
+                  • Когато създадете заявка, специалистите могат да предложат оферти{'\n'}
+                  • Максимум 3 специалисти могат да предложат оферти{'\n'}
                   • Вие избирате кой да изпълни заявката
                 </Text>
               </View>

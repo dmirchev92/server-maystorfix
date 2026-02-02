@@ -19,6 +19,7 @@ import SocketIOService from '../services/SocketIOService';
 import ApiService from '../services/ApiService';
 import { Conversation } from '../types/chat';
 import theme from '../styles/theme';
+import ConsentRequiredOverlay from '../components/ConsentRequiredOverlay';
 
 type ChatScreenNavigationProp = StackNavigationProp<MainTabParamList, 'Chat'>;
 
@@ -30,14 +31,35 @@ function ChatScreen() {
   const [userId, setUserId] = useState<string>('');
   const [userRole, setUserRole] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [hasDataSharingConsent, setHasDataSharingConsent] = useState<boolean | null>(null);
 
   // Socket.IO is now initialized globally in App.tsx
   // No need to initialize here anymore
+
+  // Check consent status when screen is focused
+  const checkConsentStatus = async () => {
+    try {
+      const response = await ApiService.getInstance().getConsents();
+      if (response.success && response.data?.consents) {
+        const consents = response.data.consents as Array<{ consentType: string; granted: boolean }>;
+        const dataSharingConsent = consents.find(c => c.consentType === 'data_sharing');
+        setHasDataSharingConsent(dataSharingConsent?.granted ?? false);
+      } else {
+        setHasDataSharingConsent(false);
+      }
+    } catch (error) {
+      console.error('Error checking consent status:', error);
+      setHasDataSharingConsent(false);
+    }
+  };
 
   // Load conversations when screen is focused
   useFocusEffect(
     React.useCallback(() => {
       console.log('📱 ChatScreen - Screen focused, loading conversations');
+      
+      // Check consent status
+      checkConsentStatus();
       
       // Pre-load userId from storage to avoid "userId missing" errors
       AsyncStorage.getItem('user').then(userJson => {
@@ -429,6 +451,11 @@ function ChatScreen() {
           }
           contentContainerStyle={styles.listContent}
         />
+      )}
+
+      {/* Show consent overlay if data_sharing consent is not granted */}
+      {hasDataSharingConsent === false && (
+        <ConsentRequiredOverlay consentType="data_sharing" />
       )}
     </SafeAreaView>
   );

@@ -89,7 +89,7 @@ export default function SubscriptionScreen() {
 
     Alert.alert(
       'Потвърдете надстройването',
-      `Искате ли да надстроите до ${tierName} за ${price} лв/година (с ДДС)?\n\nЗа да завършите процеса, моля свържете се с нас за плащане.`,
+      `Искате ли да надстроите до ${tierName} за ${price} €/година (с ДДС)?\n\nЗа да завършите процеса, моля свържете се с нас за плащане.`,
       [
         { text: 'Отказ', style: 'cancel' },
         {
@@ -169,15 +169,15 @@ export default function SubscriptionScreen() {
     
     if (tier.id === 'free') {
       features.push('🆓 Пробен период');
-      features.push(`💵 Заявки до ${limits?.max_case_budget || 500} лв`);
+      features.push(`💵 Заявки до ${limits?.max_case_budget || 250} €`);
       features.push('5 заявки или 14 дни');
       features.push('Базова видимост');
       features.push('Чат съобщения');
     } else if (tier.id === 'normal') {
       features.push(`💰 ${limits?.points_yearly_included || 350} точки/година`);
-      features.push(`💵 Заявки до ${limits?.max_case_budget || 1500} лв`);
+      features.push(`💵 Заявки до ${limits?.max_case_budget || 1000} €`);
       features.push('📱 SMS: 2 точки/SMS');
-      features.push('💳 Допълнителни точки: 0.30 лв/точка');
+      features.push('💳 Допълнителни точки: 0.15 €/точка');
       features.push('До 5 категории услуги');
       features.push('До 20 снимки в галерията');
       features.push('Подобрена видимост в търсенето');
@@ -186,7 +186,7 @@ export default function SubscriptionScreen() {
       features.push(`💰 ${limits?.points_yearly_included || 500} точки/година`);
       features.push('💵 Всички бюджети на заявки');
       features.push('📱 SMS: 1 точка/SMS');
-      features.push('💳 Допълнителни точки: 0.25 лв/точка');
+      features.push('💳 Допълнителни точки: 0.13 €/точка');
       features.push('Неограничени категории');
       features.push('Неограничени снимки');
       features.push('Система за наддаване');
@@ -267,7 +267,7 @@ export default function SubscriptionScreen() {
 
               <View style={styles.priceContainer}>
                 <Text style={styles.price}>
-                  {tier.id === 'normal' ? '349 лв' : tier.id === 'pro' ? '489 лв' : 'Безплатно'}
+                  {tier.id === 'normal' ? '179 €' : tier.id === 'pro' ? '249 €' : 'Безплатно'}
                 </Text>
                 {tier.id !== 'free' && (
                   <Text style={styles.priceUnit}>на година (с ДДС)</Text>
@@ -287,7 +287,7 @@ export default function SubscriptionScreen() {
               {!isCurrentTier && tier.id !== 'free' && (
                 <TouchableOpacity
                   style={[styles.upgradeButton, { backgroundColor: tierColor }]}
-                  onPress={() => handleUpgrade(tier.id, tier.name_bg, tier.id === 'normal' ? 349 : 489)}
+                  onPress={() => handleUpgrade(tier.id, tier.name_bg, tier.id === 'normal' ? 179 : 249)}
                   disabled={upgrading}
                 >
                   {upgrading ? (
@@ -308,6 +308,29 @@ export default function SubscriptionScreen() {
             </View>
           );
         })}
+      </View>
+
+      {/* Payment Info Section */}
+      <View style={styles.paymentInfoSection}>
+        <Text style={styles.paymentInfoTitle}>💳 Информация за плащане</Text>
+        <View style={styles.paymentInfoCard}>
+          <Text style={styles.paymentInfoText}>
+            • Плащанията се обработват сигурно чрез Stripe
+          </Text>
+          <Text style={styles.paymentInfoText}>
+            • Приемаме Visa, Mastercard, Apple Pay, Google Pay
+          </Text>
+          <Text style={styles.paymentInfoText}>
+            • Абонаментът се подновява автоматично всяка година
+          </Text>
+          <Text style={styles.paymentInfoText}>
+            • Можете да откажете по всяко време от настройките
+          </Text>
+        </View>
+        <View style={styles.securityBadge}>
+          <Text style={styles.securityIcon}>🔒</Text>
+          <Text style={styles.securityText}>Защитено плащане с 256-bit SSL криптиране</Text>
+        </View>
       </View>
 
       <View style={styles.footer}>
@@ -515,5 +538,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.primary.solid,
     fontWeight: '600',
+  },
+  paymentInfoSection: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  paymentInfoTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: theme.colors.text.primary,
+    marginBottom: 12,
+  },
+  paymentInfoCard: {
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  paymentInfoText: {
+    color: theme.colors.text.secondary,
+    fontSize: 14,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  securityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#166534',
+    borderRadius: 8,
+    padding: 12,
+  },
+  securityIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  securityText: {
+    color: '#bbf7d0',
+    fontSize: 13,
+    flex: 1,
   },
 });

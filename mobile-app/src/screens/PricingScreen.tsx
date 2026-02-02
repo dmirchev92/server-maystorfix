@@ -25,14 +25,14 @@ const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
   {
     id: 'normal',
     name: 'Normal',
-    price: 349,
+    price: 179,
     yearlyPoints: 350,
-    maxBudget: 2000,
+    maxBudget: 1000,
     features: [
       '350 точки годишно',
-      'Достъп до заявки до 2000 лв',
+      'Достъп до заявки до 1000 €',
       '2 точки за SMS',
-      '0.30 лв/точка за допълнителни',
+      '0.15 €/точка за допълнителни',
       'Профил в директорията',
       'Чат с клиенти',
     ],
@@ -40,14 +40,14 @@ const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
   {
     id: 'pro',
     name: 'PRO',
-    price: 489,
+    price: 249,
     yearlyPoints: 500,
-    maxBudget: 10000,
+    maxBudget: 5000,
     features: [
       '500 точки годишно',
       'Достъп до ВСИЧКИ заявки',
       '1 точка за SMS (50% отстъпка)',
-      '0.25 лв/точка за допълнителни',
+      '0.13 €/точка за допълнителни',
       'VIP видимост',
       'Приоритетна поддръжка',
       'Разширена статистика',
@@ -57,26 +57,26 @@ const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
 
 const POINTS_COSTS = {
   normal: [
-    { range: '1-250 лв', points: 15, bgn: '4.50 лв' },
-    { range: '251-500 лв', points: 25, bgn: '7.50 лв' },
-    { range: '501-750 лв', points: 35, bgn: '10.50 лв' },
-    { range: '751-1000 лв', points: 45, bgn: '13.50 лв' },
-    { range: '1001-2000 лв', points: 70, bgn: '21.00 лв' },
+    { range: '1-125 €', points: 15, price: '2.25 €' },
+    { range: '126-250 €', points: 25, price: '3.75 €' },
+    { range: '251-400 €', points: 35, price: '5.25 €' },
+    { range: '401-500 €', points: 45, price: '6.75 €' },
+    { range: '501-1000 €', points: 70, price: '10.50 €' },
   ],
   pro: [
-    { range: '1-250 лв', points: 12, bgn: '3.00 лв' },
-    { range: '251-500 лв', points: 20, bgn: '5.00 лв' },
-    { range: '501-750 лв', points: 28, bgn: '7.00 лв' },
-    { range: '751-1000 лв', points: 36, bgn: '9.00 лв' },
-    { range: '1001-2000 лв', points: 56, bgn: '14.00 лв' },
-    { range: '2001-3000 лв', points: 100, bgn: '25.00 лв' },
-    { range: '3001-4000 лв', points: 140, bgn: '35.00 лв' },
-    { range: '4001-5000 лв', points: 180, bgn: '45.00 лв' },
-    { range: '5001-6000 лв', points: 220, bgn: '55.00 лв' },
-    { range: '6001-7000 лв', points: 260, bgn: '65.00 лв' },
-    { range: '7001-8000 лв', points: 300, bgn: '75.00 лв' },
-    { range: '8001-9000 лв', points: 340, bgn: '85.00 лв' },
-    { range: '9001-10000 лв', points: 380, bgn: '95.00 лв' },
+    { range: '1-125 €', points: 12, price: '1.50 €' },
+    { range: '126-250 €', points: 20, price: '2.50 €' },
+    { range: '251-400 €', points: 28, price: '3.50 €' },
+    { range: '401-500 €', points: 36, price: '4.50 €' },
+    { range: '501-1000 €', points: 56, price: '7.00 €' },
+    { range: '1001-1500 €', points: 100, price: '12.50 €' },
+    { range: '1501-2000 €', points: 140, price: '17.50 €' },
+    { range: '2001-2500 €', points: 180, price: '22.50 €' },
+    { range: '2501-3000 €', points: 220, price: '27.50 €' },
+    { range: '3001-3500 €', points: 260, price: '32.50 €' },
+    { range: '3501-4000 €', points: 300, price: '37.50 €' },
+    { range: '4001-4500 €', points: 340, price: '42.50 €' },
+    { range: '4501-5000 €', points: 380, price: '47.50 €' },
   ],
 };
 
@@ -167,7 +167,7 @@ const PricingScreen: React.FC = () => {
               <Text style={styles.planName}>{tier.name}</Text>
               <View style={styles.priceContainer}>
                 <Text style={styles.price}>{tier.price}</Text>
-                <Text style={styles.priceSuffix}>лв/година</Text>
+                <Text style={styles.priceSuffix}>€/година</Text>
               </View>
               
               <View style={styles.featuresContainer}>
@@ -230,7 +230,7 @@ const PricingScreen: React.FC = () => {
                 <View key={index} style={styles.tableRow}>
                   <Text style={[styles.tableCell, { flex: 2 }]}>{row.range}</Text>
                   <Text style={[styles.tableCell, { flex: 1 }]}>{row.points}</Text>
-                  <Text style={[styles.tableCell, { flex: 1 }]}>{row.bgn}</Text>
+                  <Text style={[styles.tableCell, { flex: 1 }]}>{row.price}</Text>
                 </View>
               ))}
             </View>
@@ -247,7 +247,7 @@ const PricingScreen: React.FC = () => {
                 <View key={index} style={styles.tableRow}>
                   <Text style={[styles.tableCell, { flex: 2 }]}>{row.range}</Text>
                   <Text style={[styles.tableCell, { flex: 1, color: '#a855f7' }]}>{row.points}</Text>
-                  <Text style={[styles.tableCell, { flex: 1 }]}>{row.bgn}</Text>
+                  <Text style={[styles.tableCell, { flex: 1 }]}>{row.price}</Text>
                 </View>
               ))}
             </View>
@@ -259,18 +259,41 @@ const PricingScreen: React.FC = () => {
                 <View style={styles.smsCard}>
                   <Text style={styles.smsCardTitle}>Normal</Text>
                   <Text style={styles.smsCardPoints}>2 точки</Text>
-                  <Text style={styles.smsCardPrice}>0.60 лв/SMS</Text>
+                  <Text style={styles.smsCardPrice}>0.30 €/SMS</Text>
                 </View>
                 <View style={[styles.smsCard, styles.smsCardPro]}>
                   <Text style={styles.smsCardTitle}>PRO</Text>
                   <Text style={[styles.smsCardPoints, { color: '#a855f7' }]}>1 точка</Text>
-                  <Text style={styles.smsCardPrice}>0.25 лв/SMS</Text>
+                  <Text style={styles.smsCardPrice}>0.13 €/SMS</Text>
                 </View>
               </View>
             </View>
           </View>
         </>
       )}
+
+      {/* Payment Info Section */}
+      <View style={styles.paymentInfoSection}>
+        <Text style={styles.paymentInfoTitle}>💳 Информация за плащане</Text>
+        <View style={styles.paymentInfoCard}>
+          <Text style={styles.paymentInfoText}>
+            • Плащанията се обработват сигурно чрез Stripe
+          </Text>
+          <Text style={styles.paymentInfoText}>
+            • Приемаме Visa, Mastercard, Apple Pay, Google Pay
+          </Text>
+          <Text style={styles.paymentInfoText}>
+            • Абонаментът се подновява автоматично всяка година
+          </Text>
+          <Text style={styles.paymentInfoText}>
+            • Можете да откажете по всяко време от настройките
+          </Text>
+        </View>
+        <View style={styles.securityBadge}>
+          <Text style={styles.securityIcon}>🔒</Text>
+          <Text style={styles.securityText}>Защитено плащане с 256-bit SSL криптиране</Text>
+        </View>
+      </View>
 
       {/* Website Link */}
       <TouchableOpacity style={styles.websiteLink} onPress={openWebsite}>
@@ -545,6 +568,44 @@ const styles = StyleSheet.create({
   websiteLinkText: {
     color: '#3b82f6',
     fontSize: 14,
+  },
+  paymentInfoSection: {
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  paymentInfoTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  paymentInfoCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  paymentInfoText: {
+    color: '#94a3b8',
+    fontSize: 14,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  securityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#166534',
+    borderRadius: 8,
+    padding: 12,
+  },
+  securityIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  securityText: {
+    color: '#bbf7d0',
+    fontSize: 13,
+    flex: 1,
   },
 });
 

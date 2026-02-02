@@ -508,18 +508,29 @@ const SearchScreen = () => {
                   {/* Services */}
                   <View style={styles.servicesSection}>
                     <Text style={styles.sectionTitle}>Предлагани услуги</Text>
-                    <View style={styles.serviceItem}>
-                      <Text style={styles.serviceIcon}>🔧</Text>
-                      <Text style={styles.serviceText}>Основни {getCategoryLabel(selectedProvider.serviceCategory || selectedProvider.service_category).toLowerCase()} услуги</Text>
-                    </View>
-                    <View style={styles.serviceItem}>
-                      <Text style={styles.serviceIcon}>🚨</Text>
-                      <Text style={styles.serviceText}>Спешни повиквания</Text>
-                    </View>
-                    <View style={styles.serviceItem}>
-                      <Text style={styles.serviceIcon}>📋</Text>
-                      <Text style={styles.serviceText}>Консултации и оценки</Text>
-                    </View>
+                    {selectedProvider.offeredServices && selectedProvider.offeredServices.length > 0 ? (
+                      selectedProvider.offeredServices.map((service: string, idx: number) => (
+                        <View key={idx} style={styles.serviceItem}>
+                          <Text style={styles.serviceIcon}>🔧</Text>
+                          <Text style={styles.serviceText}>{service}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <>
+                        <View style={styles.serviceItem}>
+                          <Text style={styles.serviceIcon}>🔧</Text>
+                          <Text style={styles.serviceText}>Основни {getCategoryLabel(selectedProvider.serviceCategory || selectedProvider.service_category).toLowerCase()} услуги</Text>
+                        </View>
+                        <View style={styles.serviceItem}>
+                          <Text style={styles.serviceIcon}>🚨</Text>
+                          <Text style={styles.serviceText}>Спешни повиквания</Text>
+                        </View>
+                        <View style={styles.serviceItem}>
+                          <Text style={styles.serviceIcon}>📋</Text>
+                          <Text style={styles.serviceText}>Консултации и оценки</Text>
+                        </View>
+                      </>
+                    )}
                   </View>
 
                   {/* Gallery */}

@@ -59,8 +59,8 @@ export const TierSelectionCard: React.FC<TierSelectionCardProps> = ({
             <Text style={styles.freeText}>Безплатен</Text>
           ) : (
             <>
-              <Text style={styles.price}>{tier.id === 'normal' ? '349' : '489'}</Text>
-              <Text style={styles.currency}>лв/година (с ДДС)</Text>
+              <Text style={styles.price}>{tier.id === 'normal' ? '179' : '249'}</Text>
+              <Text style={styles.currency}>€/година (с ДДС)</Text>
             </>
           )}
         </View>

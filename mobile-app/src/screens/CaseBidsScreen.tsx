@@ -325,7 +325,7 @@ export default function CaseBidsScreen() {
           {caseDescription || caseDetails?.description || 'Заявка'}
         </Text>
         {caseDetails?.budget && (
-          <Text style={styles.caseBudget}>Бюджет: {caseDetails.budget} лв.</Text>
+          <Text style={styles.caseBudget}>Бюджет: {caseDetails.budget} €</Text>
         )}
         <Text style={styles.bidsCount}>
           {bids.length} {bids.length === 1 ? 'оферта' : 'оферти'}
@@ -368,11 +368,18 @@ export default function CaseBidsScreen() {
                 onPress={() => handleViewProviderProfile(bid)}
                 activeOpacity={0.7}
               >
-                <View style={styles.providerAvatar}>
-                  <Text style={styles.providerAvatarText}>
-                    {(getProviderDisplayName(bid) || 'N').charAt(0).toUpperCase()}
-                  </Text>
-                </View>
+                {bid.provider_profile_image_url ? (
+                  <Image 
+                    source={{ uri: bid.provider_profile_image_url }} 
+                    style={styles.providerAvatarImage} 
+                  />
+                ) : (
+                  <View style={styles.providerAvatar}>
+                    <Text style={styles.providerAvatarText}>
+                      {(getProviderDisplayName(bid) || 'N').charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                )}
                 <View style={styles.providerDetails}>
                   <Text style={styles.providerName}>{getProviderDisplayName(bid)}</Text>
                   {bid.provider_rating != null && Number(bid.provider_rating) > 0 ? (

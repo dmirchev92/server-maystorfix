@@ -135,6 +135,28 @@ function SMSScreen() {
         console.log('📊 Auto-sync - Old state:', smsStats.isEnabled);
         console.log('📊 Auto-sync - New state:', stats.isEnabled);
         
+        // Background permission check - verify permissions are still valid
+        if (stats.isEnabled) {
+          const callDetectionService = ModernCallDetectionService.getInstance();
+          const permissionStatus = await callDetectionService.checkPermissions();
+          
+          if (!permissionStatus?.hasAllPermissions) {
+            console.log('⚠️ Background check: Permissions revoked while SMS was ON');
+            await smsService.updateConfig({ isEnabled: false });
+            await callDetectionService.stopDetection();
+            stats.isEnabled = false;
+            
+            Alert.alert(
+              '⚠️ Разрешенията са отнети',
+              'Автоматичните SMS бяха изключени, защото разрешенията за обаждания са премахнати.\n\nМоля, включете отново SMS функцията.',
+              [{ text: 'Разбрах' }]
+            );
+          } else {
+            // Re-sync settings to native in case they were lost
+            await callDetectionService.syncSettingsToNative();
+          }
+        }
+        
         setSmsStats(stats);
         
         // Also refresh the message with current link
@@ -181,6 +203,34 @@ function SMSScreen() {
       const config = smsService.getConfig();
       const stats = smsService.getStats();
       const perms = await smsService.checkPermissions();
+      
+      // IMPORTANT: Verify permissions if SMS is enabled
+      // This catches cases where permissions were revoked after app update
+      if (stats.isEnabled) {
+        console.log('🔍 SMS is enabled - verifying permissions...');
+        const callDetectionService = ModernCallDetectionService.getInstance();
+        const permissionStatus = await callDetectionService.checkPermissions();
+        
+        if (!permissionStatus?.hasAllPermissions) {
+          console.log('⚠️ Permissions revoked! SMS was ON but permissions are missing');
+          
+          // Auto-disable SMS since permissions are gone
+          await smsService.updateConfig({ isEnabled: false });
+          await callDetectionService.stopDetection();
+          stats.isEnabled = false;
+          
+          // Alert user about the issue
+          Alert.alert(
+            '⚠️ Разрешенията са отнети',
+            'Автоматичните SMS бяха изключени, защото разрешенията за обаждания са премахнати.\n\nТова може да се случи след актуализация на приложението.\n\nМоля, включете отново SMS функцията, за да дадете разрешенията.',
+            [{ text: 'Разбрах' }]
+          );
+        } else {
+          console.log('✅ Permissions verified - SMS can work properly');
+          // Sync settings to native for background operation
+          await callDetectionService.syncSettingsToNative();
+        }
+      }
       
       console.log('📊 SMS config loaded (synced with backend):', config);
       
@@ -354,6 +404,8 @@ function SMSScreen() {
         // DISABLING: Stop call detection and disable SMS
         await callDetectionService.stopDetection();
         await smsService.toggleEnabled();
+        // Sync to native to stop the foreground service
+        await callDetectionService.syncSettingsToNative();
         Alert.alert('SMS Изключени', 'Автоматичното изпращане на SMS е изключено.');
       }
       
@@ -410,6 +462,10 @@ function SMSScreen() {
       
       // Update local state
       setSmsStats(prev => ({ ...prev, filterKnownContacts: newFiltering }));
+      
+      // Sync to native so background service uses new filter setting
+      const callDetectionService = ModernCallDetectionService.getInstance();
+      await callDetectionService.syncSettingsToNative();
       
     } catch (error) {
       console.error('Error toggling contact filtering:', error);

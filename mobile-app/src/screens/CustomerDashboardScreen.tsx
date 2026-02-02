@@ -438,7 +438,7 @@ export default function CustomerDashboardScreen() {
                       <Text style={styles.quickInfoIcon}>💰</Text>
                       <Text style={styles.quickInfoLabel}>Цена/час</Text>
                       <Text style={styles.quickInfoValue} numberOfLines={1}>
-                        {selectedVip.hourlyRate ? `${selectedVip.hourlyRate} лв` : 'По договаряне'}
+                        {selectedVip.hourlyRate ? `${selectedVip.hourlyRate} €` : 'По договаряне'}
                       </Text>
                     </View>
                   </View>

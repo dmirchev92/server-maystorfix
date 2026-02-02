@@ -37,6 +37,7 @@ import CaseBidsScreen from '../screens/CaseBidsScreen';
 import LocationScheduleScreen from '../screens/LocationScheduleScreen';
 import StatisticsScreen from '../screens/StatisticsScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import GameScreen from '../screens/GameScreen';
 
 
 // Import components
@@ -104,6 +105,13 @@ function ProviderTabNavigator() {
           tabBarIcon: ({ color, size }: { color: string; size: number }) => (
             <Text style={{ color, fontSize: size }}>💰</Text>
           ),
+        }}
+      />
+      <Tab.Screen
+        name="Game"
+        component={GameScreen}
+        options={{
+          tabBarButton: () => null, // Hidden - accessed only from Dashboard for admin@snapfix.bg
         }}
       />
       <Tab.Screen

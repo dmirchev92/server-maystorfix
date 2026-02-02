@@ -177,6 +177,17 @@ export class ApiService {
     return this.makeRequest('/auth/me');
   }
 
+  // Data Retention Methods
+  public async getDataRetentionStatus(): Promise<APIResponse<any>> {
+    return this.makeRequest('/gdpr/compliance-status');
+  }
+
+  public async extendDataRetention(): Promise<APIResponse<any>> {
+    return this.makeRequest('/gdpr/extend-data-retention', {
+      method: 'POST',
+    });
+  }
+
   public async logout(): Promise<APIResponse<any>> {
     // IMPORTANT: Deactivate FCM token BEFORE clearing auth token
     // This ensures the device won't receive notifications for the old user
@@ -1105,6 +1116,53 @@ export class ApiService {
     return this.makeRequest(`/reviews/provider/${providerId}`, { method: 'GET' });
   }
 
+  // ============ GDPR Consent API ============
+
+  /**
+   * Get current user's GDPR consent preferences
+   */
+  public async getConsents(): Promise<APIResponse> {
+    console.log('🔒 ApiService - Getting GDPR consents');
+    return this.makeRequest('/gdpr/my-consents', { method: 'GET' });
+  }
+
+  /**
+   * Update GDPR consent preferences
+   */
+  public async updateConsents(consents: Array<{
+    consentType: string;
+    granted: boolean;
+    legalBasis?: string;
+  }>): Promise<APIResponse> {
+    console.log('🔒 ApiService - Updating GDPR consents:', consents);
+    return this.makeRequest('/gdpr/update-consents', {
+      method: 'POST',
+      body: JSON.stringify({ consents }),
+    });
+  }
+
 }
+
+// ============ React Query Hooks ============
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+
+/**
+ * Hook to fetch current user data with caching
+ */
+export const useUser = () => {
+  return useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const response = await ApiService.getInstance().getCurrentUser();
+      if (response.success && response.data) {
+        return (response.data as any).user || response.data;
+      }
+      throw new Error('Failed to fetch user');
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
 
 export default ApiService;

@@ -34,20 +34,20 @@ interface JobAlertData {
 }
 
 const BUDGET_RANGES = [
-  { value: '1-250', label: '1-250 лв' },
-  { value: '251-500', label: '251-500 лв' },
-  { value: '501-750', label: '501-750 лв' },
-  { value: '751-1000', label: '751-1000 лв' },
-  { value: '1001-2000', label: '1001-2000 лв' },
-  { value: '2001-3000', label: '2001-3000 лв' },
-  { value: '3001-4000', label: '3001-4000 лв' },
-  { value: '4001-5000', label: '4001-5000 лв' },
-  { value: '5001-6000', label: '5001-6000 лв' },
-  { value: '6001-7000', label: '6001-7000 лв' },
-  { value: '7001-8000', label: '7001-8000 лв' },
-  { value: '8001-9000', label: '8001-9000 лв' },
-  { value: '9001-10000', label: '9001-10000 лв' },
-  { value: '10000+', label: '10000+ лв' },
+  { value: '1-125', label: '1-125 €' },
+  { value: '126-250', label: '126-250 €' },
+  { value: '251-400', label: '251-400 €' },
+  { value: '401-500', label: '401-500 €' },
+  { value: '501-1000', label: '501-1000 €' },
+  { value: '1001-1500', label: '1001-1500 €' },
+  { value: '1501-2000', label: '1501-2000 €' },
+  { value: '2001-2500', label: '2001-2500 €' },
+  { value: '2501-3000', label: '2501-3000 €' },
+  { value: '3001-3500', label: '3001-3500 €' },
+  { value: '3501-4000', label: '3501-4000 €' },
+  { value: '4001-4500', label: '4001-4500 €' },
+  { value: '4501-5000', label: '4501-5000 €' },
+  { value: '5000+', label: '5000+ €' },
 ];
 
 const JobAlertModal = () => {
@@ -266,7 +266,7 @@ const JobAlertModal = () => {
               
               <View style={styles.budgetContainer}>
                 <Text style={styles.budgetLabel}>Бюджет на клиента</Text>
-                <Text style={styles.budget}>{jobData.budget} лв.</Text>
+                <Text style={styles.budget}>{jobData.budget} €</Text>
               </View>
 
               <Text style={styles.description} numberOfLines={3}>

@@ -24,20 +24,20 @@ interface BidModalProps {
 }
 
 const BUDGET_RANGES = [
-  { value: '1-250', label: '1-250 лв' },
-  { value: '251-500', label: '251-500 лв' },
-  { value: '501-750', label: '501-750 лв' },
-  { value: '751-1000', label: '751-1000 лв' },
-  { value: '1001-2000', label: '1001-2000 лв' },
-  { value: '2001-3000', label: '2001-3000 лв' },
-  { value: '3001-4000', label: '3001-4000 лв' },
-  { value: '4001-5000', label: '4001-5000 лв' },
-  { value: '5001-6000', label: '5001-6000 лв' },
-  { value: '6001-7000', label: '6001-7000 лв' },
-  { value: '7001-8000', label: '7001-8000 лв' },
-  { value: '8001-9000', label: '8001-9000 лв' },
-  { value: '9001-10000', label: '9001-10000 лв' },
-  { value: '10000+', label: '10000+ лв' },
+  { value: '251-400', label: '251-400 €' },
+  { value: '500-750', label: '500-750 €' },
+  { value: '751-1000', label: '751-1000 €' },
+  { value: '1001-1500', label: '1001-1500 €' },
+  { value: '1501-2000', label: '1501-2000 €' },
+  { value: '2001-3000', label: '2001-3000 €' },
+  { value: '3001-4000', label: '3001-4000 €' },
+  { value: '4001-5000', label: '4001-5000 €' },
+  { value: '5001-6000', label: '5001-6000 €' },
+  { value: '6001-7000', label: '6001-7000 €' },
+  { value: '7001-8000', label: '7001-8000 €' },
+  { value: '8001-9000', label: '8001-9000 €' },
+  { value: '9001-10000', label: '9001-10000 €' },
+  { value: '10000+', label: '10000+ €' },
 ];
 
 const BidModal: React.FC<BidModalProps> = ({
@@ -74,34 +74,45 @@ const BidModal: React.FC<BidModalProps> = ({
   };
 
   // Calculate point cost based on proposed budget and user tier
-  // Uses new budget ranges matching backend PointsService
-  // Note: Normal tier max budget is 2000, PRO tier has no limit
+  // Uses new budget ranges matching backend database
+  // Note: Free tier max budget is 400, Normal tier max budget is 750, PRO tier has no limit
   const calculatePointCost = (budgetRange: string): { cost: number; tierRestricted: boolean } => {
-    const userTier = user?.subscription_tier_id || 'normal';
+    const userTier = user?.subscription_tier_id || 'free';
     
-    // Points costs by tier (Normal / PRO) - matches database subscription_tiers.limits
-    const pointsCosts: { [key: string]: { normal: number; pro: number } } = {
-      '1-250': { normal: 15, pro: 12 },
-      '251-500': { normal: 25, pro: 20 },
-      '501-750': { normal: 35, pro: 28 },
-      '751-1000': { normal: 45, pro: 36 },
-      '1001-2000': { normal: 70, pro: 56 },
-      '2001-3000': { normal: 0, pro: 100 },
-      '3001-4000': { normal: 0, pro: 140 },
-      '4001-5000': { normal: 0, pro: 180 },
-      '5001-6000': { normal: 0, pro: 220 },
-      '6001-7000': { normal: 0, pro: 260 },
-      '7001-8000': { normal: 0, pro: 300 },
-      '8001-9000': { normal: 0, pro: 340 },
-      '9001-10000': { normal: 0, pro: 380 },
-      '10000+': { normal: 0, pro: 380 },
+    // Points costs by tier (Free / Normal / PRO) - matches database budget ranges
+    const pointsCosts: { [key: string]: { free: number; normal: number; pro: number } } = {
+      '251-400': { free: 15, normal: 12, pro: 10 },
+      '500-750': { free: 0, normal: 25, pro: 20 },
+      '751-1000': { free: 0, normal: 35, pro: 28 },
+      '1001-1500': { free: 0, normal: 45, pro: 36 },
+      '1501-2000': { free: 0, normal: 70, pro: 56 },
+      '2001-3000': { free: 0, normal: 0, pro: 100 },
+      '3001-4000': { free: 0, normal: 0, pro: 140 },
+      '4001-5000': { free: 0, normal: 0, pro: 180 },
+      '5001-6000': { free: 0, normal: 0, pro: 220 },
+      '6001-7000': { free: 0, normal: 0, pro: 260 },
+      '7001-8000': { free: 0, normal: 0, pro: 300 },
+      '8001-9000': { free: 0, normal: 0, pro: 340 },
+      '9001-10000': { free: 0, normal: 0, pro: 380 },
+      '10000+': { free: 0, normal: 0, pro: 380 },
     };
     
     const costs = pointsCosts[budgetRange];
     if (!costs) return { cost: 0, tierRestricted: false };
     
-    const cost = userTier === 'pro' ? costs.pro : costs.normal;
-    const tierRestricted = cost === 0 && costs.pro > 0;
+    let cost = 0;
+    let tierRestricted = false;
+    
+    if (userTier === 'free') {
+      cost = costs.free;
+      tierRestricted = cost === 0;
+    } else if (userTier === 'normal') {
+      cost = costs.normal;
+      tierRestricted = cost === 0;
+    } else if (userTier === 'pro') {
+      cost = costs.pro;
+      tierRestricted = false; // Pro tier has no restrictions
+    }
     
     return { cost, tierRestricted };
   };
@@ -126,15 +137,26 @@ const BidModal: React.FC<BidModalProps> = ({
 
     if (tierRestricted) {
       Alert.alert(
-        'Ограничение на плана',
-        'Този бюджетен диапазон изисква ПРО план. Моля, надградете плана си за достъп до по-големи бюджети.'
+        'Надградете плана си',
+        'За да наддавате за този бюджет, ви е необходим Нормален или ПРО план.\n\n💰 Безплатен план: до 400 €\n⭐ Нормален план: до 750 €\n👑 ПРО план: неограничено',
+        [
+          { text: 'Отказ', style: 'cancel' },
+          {
+            text: 'Надгради',
+            onPress: () => {
+              // Navigate to subscription screen
+              const navigation = require('@react-navigation/native').useNavigation();
+              navigation.navigate('Subscription' as never);
+            },
+          },
+        ]
       );
       return;
     }
 
     Alert.alert(
       'Потвърждение',
-      `Сигурни ли сте, че искате да участвате?\n\n💰 Предлагана цена: ${proposedBudget} лв\n⭐ Цена при спечелване: ${pointCost} точки\n\n⚠️ Точките ще бъдат удържани само ако спечелите офертата.`,
+      `Сигурни ли сте, че искате да участвате?\n\n💰 Предлагана цена: ${proposedBudget} €\n⭐ Цена при спечелване: ${pointCost} точки\n\n⚠️ Точките ще бъдат удържани само ако спечелите офертата.`,
       [
         { text: 'Отказ', style: 'cancel' },
         {
@@ -223,7 +245,7 @@ const BidModal: React.FC<BidModalProps> = ({
                     </Text>
                   ) : (
                     <Text style={styles.costText}>
-                      ⭐ Цена при спечелване ({proposedBudget} лв):{' '}
+                      ⭐ Цена при спечелване ({proposedBudget} €):{' '}
                       <Text style={styles.costHighlight}>
                         {getPointCost(proposedBudget)} точки
                       </Text>

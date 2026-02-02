@@ -15,6 +15,7 @@ import theme from '../styles/theme';
 interface Bid {
   id: string;
   case_id: string;
+  case_number?: number;
   points_bid: number;
   bid_status: 'pending' | 'won' | 'lost' | 'refunded';
   bid_order: number;
@@ -22,7 +23,10 @@ interface Bid {
   created_at: string;
   case_description?: string;
   case_budget?: number;
+  budget?: string;
+  proposed_budget_range?: string;
   case_city?: string;
+  city?: string;
   customer_name?: string;
 }
 
@@ -86,17 +90,18 @@ const MyBidsScreen: React.FC = () => {
   });
 
   const handleBidPress = (bid: Bid) => {
+    const caseDisplay = bid.case_number ? bid.case_number.toString() : (bid.case_id ? bid.case_id.substring(0, 8) : '');
     navigation.navigate('CaseBids', {
       caseId: bid.case_id,
-      caseDescription: bid.case_description || `Заявка #${bid.case_id.substring(0, 8)}`,
+      caseDescription: bid.case_description || `Заявка #${caseDisplay}`,
     });
   };
 
   const renderBid = ({ item }: { item: Bid }) => {
-    const shortCaseId = item.case_id ? item.case_id.substring(0, 8) : '';
+    const caseDisplay = item.case_number ? item.case_number.toString() : (item.case_id ? item.case_id.substring(0, 8) : '');
     const displayTitle = item.case_description 
-      ? `${item.case_description} #${shortCaseId}`
-      : `Заявка #${shortCaseId}`;
+      ? `${item.case_description} #${caseDisplay}`
+      : `Заявка #${caseDisplay}`;
     
     return (
       <TouchableOpacity 
@@ -115,17 +120,24 @@ const MyBidsScreen: React.FC = () => {
         </View>
 
       <View style={styles.bidDetails}>
-        {item.case_budget && (
+        {(item.case_budget || item.budget) && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>💰 Бюджет:</Text>
-            <Text style={styles.detailValue}>{item.case_budget} BGN</Text>
+            <Text style={styles.detailLabel}>💰 Бюджет клиент:</Text>
+            <Text style={styles.detailValue}>{item.case_budget || item.budget} €</Text>
           </View>
         )}
         
-        {item.case_city && (
+        {item.proposed_budget_range && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>💵 Ваша оферта:</Text>
+            <Text style={styles.detailValue}>{item.proposed_budget_range} €</Text>
+          </View>
+        )}
+        
+        {(item.case_city || item.city) && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>📍 Град:</Text>
-            <Text style={styles.detailValue}>{item.case_city}</Text>
+            <Text style={styles.detailValue}>{item.case_city || item.city}</Text>
           </View>
         )}
 

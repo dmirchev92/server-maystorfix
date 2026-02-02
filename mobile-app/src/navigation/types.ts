@@ -37,6 +37,7 @@ export type MainTabParamList = {
   Cases: undefined;
   MyBids: undefined;
   Points: undefined;
+  Game: undefined;
   VipVisibility: undefined;
   IncomeDashboard: undefined;
   Notifications: undefined;

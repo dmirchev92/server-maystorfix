@@ -259,10 +259,10 @@ export default function DashboardScreen() {
                       return (
                         <>
                           <Text style={styles.monthValue}>
-                            {currentMonth.total.toFixed(2)} BGN
+                            {currentMonth.total.toFixed(2)} €
                           </Text>
                           <Text style={styles.cardDetails}>
-                            {currentMonth.count} заявки • Средно: {currentMonth.average.toFixed(2)} BGN
+                            {currentMonth.count} заявки • Средно: {currentMonth.average.toFixed(2)} €
                           </Text>
                         </>
                       );
@@ -287,10 +287,10 @@ export default function DashboardScreen() {
                     </TouchableOpacity>
                   )}
                   <Text style={styles.totalValue}>
-                    {incomeStats.summary.totalIncome.toFixed(2)} BGN
+                    {incomeStats.summary.totalIncome.toFixed(2)} €
                   </Text>
                   <Text style={styles.cardDetails}>
-                    {incomeStats.summary.incomeCount} заявки • Средно: {incomeStats.summary.averageIncome.toFixed(2)} BGN
+                    {incomeStats.summary.incomeCount} заявки • Средно: {incomeStats.summary.averageIncome.toFixed(2)} €
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -325,7 +325,7 @@ export default function DashboardScreen() {
                         <Text style={styles.monthListCount}>{month.count} заявки</Text>
                       </View>
                       <View style={styles.monthListRight}>
-                        <Text style={styles.monthListTotal}>{month.total.toFixed(2)} BGN</Text>
+                        <Text style={styles.monthListTotal}>{month.total.toFixed(2)} €</Text>
                         <Text style={styles.monthListArrow}>👆</Text>
                       </View>
                     </View>
@@ -348,7 +348,7 @@ export default function DashboardScreen() {
                     return (
                       <View key={index} style={styles.paymentGridCard}>
                         <Text style={styles.paymentGridLabel}>{getPaymentMethodLabel(pm.method)}</Text>
-                        <Text style={styles.paymentGridValue}>{pm.total.toFixed(2)} BGN</Text>
+                        <Text style={styles.paymentGridValue}>{pm.total.toFixed(2)} €</Text>
                         <Text style={styles.paymentGridDetails}>{pm.count} заявки</Text>
                       </View>
                     );
@@ -505,7 +505,7 @@ export default function DashboardScreen() {
                         {transaction.case_description || `Заявка #${transaction.case_id?.substring(0, 8)}`}
                       </Text>
                       <Text style={styles.transactionAmount}>
-                        {parseFloat(transaction.amount || 0).toFixed(2)} BGN
+                        {parseFloat(transaction.amount || 0).toFixed(2)} €
                       </Text>
                     </View>
                     <View style={styles.transactionDetails}>
@@ -534,7 +534,7 @@ export default function DashboardScreen() {
             <View style={styles.transactionsSummary}>
               <Text style={styles.transactionsSummaryLabel}>Обща сума:</Text>
               <Text style={styles.transactionsSummaryValue}>
-                {monthTransactions.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0).toFixed(2)} BGN
+                {monthTransactions.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0).toFixed(2)} €
               </Text>
             </View>
           </View>

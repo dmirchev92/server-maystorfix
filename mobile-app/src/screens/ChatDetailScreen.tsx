@@ -264,7 +264,7 @@ function ChatDetailScreen() {
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
+  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     // Check if message is from current user
     // Simplified logic: If sender role matches my role, it's me.
     // This assumes a strict 1:1 Customer-Provider relationship in chat.
@@ -283,6 +283,9 @@ function ChatDetailScreen() {
       isOwnMessage = true;
     }
                         
+    const previousMessage = messages[index - 1];
+    const showSenderName = !isOwnMessage && (!previousMessage || previousMessage.senderUserId !== item.senderUserId);
+
     const isSystemMessage = item.senderType === 'system';
 
     if (isSystemMessage) {
@@ -316,23 +319,22 @@ function ChatDetailScreen() {
     }
 
     return (
-      <View style={[
-        styles.messageContainer,
-        isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer
-      ]}>
-        {!isOwnMessage && (
-          <Text style={styles.senderName}>{item.senderName}</Text>
-        )}
-        <View style={[
-          styles.messageBubble,
-          isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
-        ]}>
+      <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessageContainer : styles.otherMessageContainer]}>
+        <View>
+          {showSenderName && (
+            <Text style={styles.senderName}>{item.senderName}</Text>
+          )}
+          <View style={[
+            styles.messageBubble,
+            isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
+          ]}>
           <Text style={[
             styles.messageText,
             isOwnMessage && styles.ownMessageText
           ]}>
             {item.body || item.message}
-          </Text>
+            </Text>
+          </View>
         </View>
         <Text style={[
           styles.messageTime,
@@ -389,7 +391,7 @@ function ChatDetailScreen() {
         <FlatList
           ref={flatListRef}
           data={messages}
-          renderItem={renderMessage}
+          renderItem={({ item, index }) => renderMessage({ item, index })}
           keyExtractor={(item) => item.id}
           contentContainerStyle={[styles.messagesList, { paddingBottom: 80 }]}
           onContentSizeChange={() => scrollToBottom()}
@@ -506,14 +508,15 @@ const styles = StyleSheet.create({
   messageContainer: {
     marginBottom: 16,
     maxWidth: '75%',
-  },
-  ownMessageContainer: {
-    alignSelf: 'flex-end',
+    flexDirection: 'row',
     alignItems: 'flex-end',
   },
-  otherMessageContainer: {
+  ownMessageContainer: {
     alignSelf: 'flex-start',
-    alignItems: 'flex-start',
+  },
+  otherMessageContainer: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row-reverse',
   },
   senderName: {
     fontSize: 12,
@@ -527,11 +530,11 @@ const styles = StyleSheet.create({
   },
   ownMessageBubble: {
     backgroundColor: '#6366F1',
-    borderBottomRightRadius: 4,
+    borderBottomLeftRadius: 4,
   },
   otherMessageBubble: {
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
   },
   messageText: {
     fontSize: 15,
@@ -551,7 +554,7 @@ const styles = StyleSheet.create({
   },
   ownMessageTime: {
     color: 'rgba(255, 255, 255, 0.7)',
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
   },
   systemMessageContainer: {
     alignItems: 'center',

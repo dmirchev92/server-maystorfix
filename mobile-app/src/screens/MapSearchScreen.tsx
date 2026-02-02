@@ -373,7 +373,7 @@ const MapSearchScreen: React.FC = () => {
   const handleBid = (caseItem: any) => {
     Alert.alert(
       '💰 Направи оферта',
-      `Искате ли да направите оферта за тази заявка?\n\n${getCategoryLabel(caseItem.serviceType || caseItem.category)}\n📍 ${caseItem.neighborhood || caseItem.city}\n💵 Бюджет: ${caseItem.budget} лв`,
+      `Искате ли да направите оферта за тази заявка?\n\n${getCategoryLabel(caseItem.serviceType || caseItem.category)}\n📍 ${caseItem.neighborhood || caseItem.city}\n💵 Бюджет: ${caseItem.budget} €`,
       [
         { text: 'Отказ', style: 'cancel' },
         {
@@ -498,8 +498,8 @@ const MapSearchScreen: React.FC = () => {
   const handleChatProvider = (provider: any) => {
     navigation.navigate('ChatDetail', {
       conversationId: `new_${provider.id}`,
-      recipientName: provider.businessName || provider.name,
-      recipientId: provider.id
+      providerName: provider.businessName || provider.name,
+      providerId: provider.id
     });
   };
 
@@ -614,7 +614,7 @@ const MapSearchScreen: React.FC = () => {
       {/* Location & Budget */}
       <View style={styles.caseDetails}>
         <Text style={styles.caseLocation}>📍 {item.neighborhood || item.city}</Text>
-        <Text style={styles.caseBudget}>💰 {item.budget} лв</Text>
+        <Text style={styles.caseBudget}>💰 {item.budget} €</Text>
       </View>
 
       {/* Screenshots */}
@@ -816,7 +816,17 @@ const MapSearchScreen: React.FC = () => {
                   )}
                 </View>
                 <View style={styles.providerInfo}>
-                  <Text style={styles.providerName}>{selectedProvider.businessName || selectedProvider.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={styles.providerName}>{selectedProvider.businessName || selectedProvider.name}</Text>
+                    {selectedProvider.subscriptionTier === 'pro' && (
+                      <View style={styles.proBadge}>
+                        <Text style={styles.proBadgeText}>Pro</Text>
+                      </View>
+                    )}
+                  </View>
+                  {selectedProvider.freeInspectionActive && (
+                    <Text style={styles.freeInspectionIndicator}>€ безплатен оглед €</Text>
+                  )}
                   <Text style={styles.providerCategory}>{getServiceCategoryLabel(selectedProvider.serviceCategory)}</Text>
                   <View style={styles.ratingContainer}>
                     <Text style={styles.starIcon}>⭐</Text>
@@ -884,7 +894,7 @@ const MapSearchScreen: React.FC = () => {
               {/* Location & Budget */}
               <View style={styles.caseDetails}>
                 <Text style={styles.caseLocation}>📍 {selectedCase.neighborhood || selectedCase.city}</Text>
-                <Text style={styles.caseBudget}>💰 {selectedCase.budget} лв</Text>
+                <Text style={styles.caseBudget}>💰 {selectedCase.budget} €</Text>
               </View>
 
               {/* Screenshots */}
@@ -1254,10 +1264,20 @@ const MapSearchScreen: React.FC = () => {
                     </View>
                   )}
                   <View style={modalStyles.profileInfo}>
-                    <Text style={modalStyles.profileName}>
-                      {profileProvider.businessName || profileProvider.business_name || 
-                       `${profileProvider.firstName || ''} ${profileProvider.lastName || ''}`.trim() || 'Специалист'}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={modalStyles.profileName}>
+                        {profileProvider.businessName || profileProvider.business_name || 
+                         `${profileProvider.firstName || ''} ${profileProvider.lastName || ''}`.trim() || 'Специалист'}
+                      </Text>
+                      {profileProvider.subscriptionTier === 'pro' && (
+                        <View style={styles.proBadge}>
+                          <Text style={styles.proBadgeText}>Pro</Text>
+                        </View>
+                      )}
+                    </View>
+                    {profileProvider.freeInspectionActive && (
+                      <Text style={styles.freeInspectionIndicator}>€ безплатен оглед €</Text>
+                    )}
                     <Text style={modalStyles.profileCategory}>
                       {getCategoryLabel(profileProvider.serviceCategory || profileProvider.service_category)}
                     </Text>
@@ -1494,7 +1514,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1a1a1a',
-    marginBottom: 4,
+  },
+  proBadge: {
+    backgroundColor: '#FBBF24', // Amber color
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  proBadgeText: {
+    color: '#000000',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  freeInspectionIndicator: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#10B981',
+    textAlign: 'center',
+    marginVertical: 8,
   },
   providerCategory: {
     fontSize: 14,

@@ -8,17 +8,19 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { StatusBar, StyleSheet, useColorScheme, View, Alert, AppState, AppStateStatus } from 'react-native';
-import { Provider } from 'react-redux';
+import { Provider, useSelector, useDispatch } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
-import { store } from './src/store';
+import { store, RootState } from './src/store';
 import { AuthBus } from './src/utils/AuthBus';
 import AppNavigator from './src/navigation/AppNavigator';
 import { AuthScreen } from './src/screens/AuthScreen';
+import ConsentScreen from './src/screens/ConsentScreen';
+import { updateConsent } from './src/store/slices/appSlice';
 import ApiService from './src/services/ApiService';
 import SocketIOService from './src/services/SocketIOService';
 import NotificationService from './src/services/NotificationService';
@@ -28,6 +30,8 @@ import UpdateService from './src/services/UpdateService';
 import PermissionService from './src/services/PermissionService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NotificationProvider } from './src/contexts/NotificationContext';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { QueryProvider } from './src/query/QueryProvider';
 import notifee from '@notifee/react-native';
 
 interface User {
@@ -44,8 +48,12 @@ function App() {
   return (
     <Provider store={store}>
       <SafeAreaProvider>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <AppContent />
+        <QueryProvider>
+          <ErrorBoundary>
+            <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+            <AppContent />
+          </ErrorBoundary>
+        </QueryProvider>
       </SafeAreaProvider>
     </Provider>
   );
@@ -53,12 +61,65 @@ function App() {
 
 function AppContent() {
   const safeAreaInsets = useSafeAreaInsets();
+  const dispatch = useDispatch();
+  const { hasGDPRConsent } = useSelector((state: RootState) => state.app);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showConsentScreen, setShowConsentScreen] = useState(false);
   const appState = useRef(AppState.currentState);
   const [appStateVisible, setAppStateVisible] = useState(appState.current);
   const initialNotificationRef = useRef<any>(null);
   const SERVICE_INIT_DELAY = 1500; // Time to wait for services to initialize before processing notifications
+
+  // Check consent status when user logs in
+  useEffect(() => {
+    if (currentUser && !hasGDPRConsent) {
+      // Check if user has consents in backend
+      checkBackendConsents();
+    }
+  }, [currentUser, hasGDPRConsent]);
+
+  const checkBackendConsents = async () => {
+    try {
+      const response = await ApiService.getInstance().getConsents();
+      if (response.success && response.data?.consents) {
+        const consents = response.data.consents as Array<{ consentType: string; granted: boolean }>;
+        const hasEssential = consents.some(c => c.consentType === 'essential_service' && c.granted);
+        
+        if (hasEssential) {
+          // User has already given consent, update Redux state
+          const consentDetails = consents.map(c => ({
+            consentType: c.consentType,
+            status: (c.granted ? 'granted' : 'withdrawn') as 'granted' | 'withdrawn',
+            legalBasis: c.consentType === 'essential_service' ? 'Договор' : 'Съгласие',
+            description: '',
+            timestamp: new Date().toISOString(),
+          }));
+          
+          dispatch(updateConsent({
+            hasGDPRConsent: true,
+            consentTimestamp: new Date().toISOString(),
+            consentDetails,
+          }));
+          setShowConsentScreen(false);
+        } else {
+          // No essential consent, show consent screen
+          setShowConsentScreen(true);
+        }
+      } else {
+        // No consents found, show consent screen
+        setShowConsentScreen(true);
+      }
+    } catch (error) {
+      console.error('Error checking backend consents:', error);
+      // On error, show consent screen to be safe
+      setShowConsentScreen(true);
+    }
+  };
+
+  const handleConsentComplete = () => {
+    setShowConsentScreen(false);
+  };
 
   // Check for initial notification IMMEDIATELY when app starts
   useEffect(() => {
@@ -377,6 +438,15 @@ function AppContent() {
     return (
       <View style={[styles.container, { paddingTop: safeAreaInsets.top }]}>
         <AuthScreen onAuthSuccess={handleAuthSuccess} />
+      </View>
+    );
+  }
+
+  // Show consent screen if user hasn't given essential consent yet
+  if (showConsentScreen) {
+    return (
+      <View style={[styles.container, { paddingTop: safeAreaInsets.top }]}>
+        <ConsentScreen onConsentComplete={handleConsentComplete} />
       </View>
     );
   }

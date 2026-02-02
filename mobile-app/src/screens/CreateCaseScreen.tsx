@@ -22,20 +22,20 @@ import ApiService from '../services/ApiService';
 import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
 import debounce from 'lodash/debounce';
 
-// Budget ranges matching web (up to 10k)
+// Budget ranges matching web (up to 5k Euro)
 const BUDGET_RANGES = [
-  { value: '1-250', label: '1-250 лв' },
-  { value: '250-500', label: '250-500 лв' },
-  { value: '500-750', label: '500-750 лв' },
-  { value: '750-1000', label: '750-1000 лв' },
-  { value: '1000-1500', label: '1000-1500 лв' },
-  { value: '1500-2000', label: '1500-2000 лв' },
-  { value: '2000-3000', label: '2000-3000 лв' },
-  { value: '3000-4000', label: '3000-4000 лв' },
-  { value: '4000-5000', label: '4000-5000 лв' },
-  { value: '5000-7500', label: '5000-7500 лв' },
-  { value: '7500-10000', label: '7500-10000 лв' },
-  { value: '10000+', label: '10000+ лв' },
+  { value: '1-125', label: '1-125 €' },
+  { value: '126-250', label: '126-250 €' },
+  { value: '251-400', label: '251-400 €' },
+  { value: '401-500', label: '401-500 €' },
+  { value: '501-1000', label: '501-1000 €' },
+  { value: '1001-1500', label: '1001-1500 €' },
+  { value: '1501-2000', label: '1501-2000 €' },
+  { value: '2001-2500', label: '2001-2500 €' },
+  { value: '2501-3000', label: '2501-3000 €' },
+  { value: '3001-4000', label: '3001-4000 €' },
+  { value: '4001-5000', label: '4001-5000 €' },
+  { value: '5000+', label: '5000+ €' },
 ];
 
 // City name mapping (English to Bulgarian)

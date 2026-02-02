@@ -100,7 +100,7 @@ export default function PlaceBidScreen() {
   }
 
   const budgetRange = caseDetails.budget 
-    ? `${caseDetails.budget} лв` 
+    ? `${caseDetails.budget} €` 
     : 'Не е посочен';
 
   return (

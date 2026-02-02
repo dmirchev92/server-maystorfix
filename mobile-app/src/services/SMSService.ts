@@ -11,7 +11,11 @@ interface SMSConfig {
   sentCallIds: string[]; // Track which call IDs have had SMS sent
   filterKnownContacts: boolean; // Only send SMS to unknown numbers
   userChatLinks?: { [userId: string]: { link: string; token: string } }; // Per-user chat links
+  sentToNumbers?: { [phoneNumber: string]: number }; // Track last SMS time per phone number for spam prevention
 }
+
+// Spam prevention: cooldown period in milliseconds (30 minutes)
+const SMS_COOLDOWN_MS = 30 * 60 * 1000;
 
 interface SMSPermissions {
   SEND_SMS: boolean;
@@ -27,6 +31,7 @@ export class SMSService {
     sentCallIds: [],
     filterKnownContacts: false, // Default to false - will be enabled only if permission is granted
     userChatLinks: {}, // Per-user chat links
+    sentToNumbers: {}, // Track last SMS time per phone number for spam prevention
   };
 
   private constructor() {
@@ -743,6 +748,12 @@ export class SMSService {
         console.log(`📱 SMS already sent for call ${callId}, skipping`);
         return false;
       }
+      
+      // 🚫 SPAM PREVENTION: Check if this number is in cooldown period
+      if (this.isNumberInCooldown(phoneNumber)) {
+        console.log(`🚫 SMS blocked for ${phoneNumber} - spam prevention cooldown active`);
+        return false;
+      }
 
       // Check if we should filter known contacts
       if (this.config.filterKnownContacts) {
@@ -808,6 +819,10 @@ export class SMSService {
         
         this.config.sentCount++;
         this.config.lastSentTime = Date.now();
+        
+        // 📝 Record SMS sent to this number for spam prevention
+        await this.recordSMSSentToNumber(phoneNumber);
+        
         await this.saveConfig();
 
         // Show trial warning if applicable
@@ -931,6 +946,60 @@ ${chatUrl}`;
 
   public hasSMSSentForCall(callId: string): boolean {
     return this.config.sentCallIds.includes(callId);
+  }
+
+  /**
+   * Check if SMS was recently sent to this phone number (spam prevention)
+   * Returns true if SMS should be blocked (within cooldown period)
+   */
+  public isNumberInCooldown(phoneNumber: string): boolean {
+    if (!this.config.sentToNumbers) {
+      this.config.sentToNumbers = {};
+    }
+    
+    // Normalize phone number (remove spaces, dashes, etc.)
+    const normalizedNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    
+    const lastSentTime = this.config.sentToNumbers[normalizedNumber];
+    if (!lastSentTime) {
+      return false; // Never sent to this number
+    }
+    
+    const timeSinceLastSMS = Date.now() - lastSentTime;
+    const isInCooldown = timeSinceLastSMS < SMS_COOLDOWN_MS;
+    
+    if (isInCooldown) {
+      const remainingMinutes = Math.ceil((SMS_COOLDOWN_MS - timeSinceLastSMS) / 60000);
+      console.log(`🚫 SMS blocked for ${normalizedNumber} - cooldown active (${remainingMinutes} min remaining)`);
+    }
+    
+    return isInCooldown;
+  }
+
+  /**
+   * Record that SMS was sent to a phone number (for spam prevention)
+   */
+  public async recordSMSSentToNumber(phoneNumber: string): Promise<void> {
+    if (!this.config.sentToNumbers) {
+      this.config.sentToNumbers = {};
+    }
+    
+    // Normalize phone number
+    const normalizedNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    
+    this.config.sentToNumbers[normalizedNumber] = Date.now();
+    console.log(`📝 Recorded SMS sent to ${normalizedNumber} at ${new Date().toISOString()}`);
+    
+    // Clean up old entries (older than 24 hours) to prevent memory bloat
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    for (const num in this.config.sentToNumbers) {
+      if (this.config.sentToNumbers[num] < oneDayAgo) {
+        delete this.config.sentToNumbers[num];
+      }
+    }
+    
+    // Save config
+    await this.saveConfig();
   }
 
   /**

@@ -20,13 +20,17 @@ type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'S
 
 const SettingsScreen: React.FC = () => {
   const navigation = useNavigation<SettingsScreenNavigationProp>();
-  const [userRole, setUserRole] = useState<string>('provider');
+  const [userRole, setUserRole] = useState<string>('customer');
 
   useEffect(() => {
     const loadUserRole = async () => {
       try {
-        const role = await AsyncStorage.getItem('user_role');
-        if (role) {
+        // Fetch user role from API
+        const response = await ApiService.getInstance().getCurrentUser();
+        if (response.success && response.data) {
+          const rawData: any = response.data;
+          const userData: any = rawData.user || rawData;
+          const role = userData.role || userData.user_role || 'customer';
           setUserRole(role);
         }
       } catch (error) {

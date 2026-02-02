@@ -147,7 +147,7 @@ export default function IncomeCompletionModal({
                       placeholderTextColor={theme.colors.text.tertiary}
                       keyboardType="decimal-pad"
                     />
-                    <Text style={styles.currency}>BGN</Text>
+                    <Text style={styles.currency}>€</Text>
                   </View>
                 </View>
 

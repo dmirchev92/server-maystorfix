@@ -123,6 +123,9 @@ public class ModernCallDetectionModule extends ReactContextBaseJavaModule {
                 return;
             }
 
+            // Start the foreground service for background call detection
+            startForegroundCallService();
+
             // Use TelephonyCallback for Android 12+ (API 31+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 startModernCallDetection();
@@ -141,6 +144,178 @@ public class ModernCallDetectionModule extends ReactContextBaseJavaModule {
         } catch (Exception e) {
             Log.e(TAG, "Error starting call detection", e);
             promise.reject("START_ERROR", e.getMessage());
+        }
+    }
+    
+    private void startForegroundCallService() {
+        try {
+            android.content.Intent serviceIntent = new android.content.Intent(reactContext, CallDetectionService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                reactContext.startForegroundService(serviceIntent);
+            } else {
+                reactContext.startService(serviceIntent);
+            }
+            Log.d(TAG, "✅ Foreground CallDetectionService started");
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to start foreground service", e);
+        }
+    }
+    
+    private void stopForegroundCallService() {
+        try {
+            android.content.Intent serviceIntent = new android.content.Intent(reactContext, CallDetectionService.class);
+            reactContext.stopService(serviceIntent);
+            Log.d(TAG, "🛑 Foreground CallDetectionService stopped");
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to stop foreground service", e);
+        }
+    }
+    
+    private void resetLastProcessedCallTime() {
+        try {
+            // Set lastProcessedCallTime to NOW so we don't process old missed calls
+            long now = System.currentTimeMillis();
+            android.content.SharedPreferences prefs = reactContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
+            prefs.edit().putLong(PREF_LAST_CALL_TIME, now).commit();
+            Log.d(TAG, "🔄 Reset lastProcessedCallTime to NOW: " + now + " - old missed calls will be ignored");
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Failed to reset lastProcessedCallTime", e);
+        }
+    }
+    
+    @ReactMethod
+    public void requestBatteryOptimizationExemption(Promise promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.os.PowerManager pm = (android.os.PowerManager) reactContext.getSystemService(Context.POWER_SERVICE);
+                String packageName = reactContext.getPackageName();
+                
+                if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                    android.content.Intent intent = new android.content.Intent();
+                    intent.setAction(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                    intent.setData(android.net.Uri.parse("package:" + packageName));
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    reactContext.startActivity(intent);
+                    promise.resolve("Battery optimization exemption requested");
+                } else {
+                    promise.resolve("Already exempt from battery optimization");
+                }
+            } else {
+                promise.resolve("Battery optimization not applicable for this Android version");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error requesting battery optimization exemption", e);
+            promise.reject("BATTERY_OPT_ERROR", e.getMessage());
+        }
+    }
+    
+    @ReactMethod
+    public void isBatteryOptimizationExempt(Promise promise) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.os.PowerManager pm = (android.os.PowerManager) reactContext.getSystemService(Context.POWER_SERVICE);
+                boolean isExempt = pm.isIgnoringBatteryOptimizations(reactContext.getPackageName());
+                promise.resolve(isExempt);
+            } else {
+                promise.resolve(true); // Not applicable for older versions
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error checking battery optimization", e);
+            promise.reject("BATTERY_CHECK_ERROR", e.getMessage());
+        }
+    }
+    
+    /**
+     * Sync auth credentials and SMS settings to native SharedPreferences.
+     * This allows the native CallDetectionService to send SMS even when
+     * React Native JS thread is paused (phone locked).
+     */
+    @ReactMethod
+    public void syncNativeSettings(String authToken, String userId, boolean smsEnabled, Promise promise) {
+        // Call the new method with default filterKnownContacts = false for backwards compatibility
+        syncNativeSettingsWithFilter(authToken, userId, smsEnabled, false, promise);
+    }
+    
+    @ReactMethod
+    public void syncNativeSettingsWithFilter(String authToken, String userId, boolean smsEnabled, boolean filterKnownContacts, Promise promise) {
+        try {
+            Log.d(TAG, "🔄🔄🔄 syncNativeSettingsWithFilter() CALLED");
+            Log.d(TAG, "   - authToken: " + (authToken != null ? authToken.substring(0, Math.min(20, authToken.length())) + "..." : "NULL"));
+            Log.d(TAG, "   - userId: " + userId);
+            Log.d(TAG, "   - smsEnabled: " + smsEnabled);
+            Log.d(TAG, "   - filterKnownContacts: " + filterKnownContacts);
+            
+            // Save auth credentials
+            android.content.SharedPreferences authPrefs = reactContext.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+            authPrefs.edit()
+                .putString("auth_token", authToken)
+                .putString("user_id", userId)
+                .commit(); // Use commit() for immediate write
+            
+            // Save SMS settings including filter
+            android.content.SharedPreferences smsPrefs = reactContext.getSharedPreferences("sms_settings", Context.MODE_PRIVATE);
+            smsPrefs.edit()
+                .putBoolean("is_enabled", smsEnabled)
+                .putBoolean("filter_known_contacts", filterKnownContacts)
+                .commit(); // Use commit() for immediate write
+            
+            // Verify the save worked
+            String savedToken = authPrefs.getString("auth_token", null);
+            String savedUserId = authPrefs.getString("user_id", null);
+            boolean savedSmsEnabled = smsPrefs.getBoolean("is_enabled", false);
+            boolean savedFilter = smsPrefs.getBoolean("filter_known_contacts", false);
+            
+            Log.d(TAG, "✅ Native settings synced and VERIFIED:");
+            Log.d(TAG, "   - Saved auth_token: " + (savedToken != null ? "YES (" + savedToken.length() + " chars)" : "NULL"));
+            Log.d(TAG, "   - Saved user_id: " + savedUserId);
+            Log.d(TAG, "   - Saved is_enabled: " + savedSmsEnabled);
+            Log.d(TAG, "   - Saved filter_known_contacts: " + savedFilter);
+            
+            // Start or stop the CallDetectionService based on smsEnabled
+            if (smsEnabled) {
+                Log.d(TAG, "📱 SMS enabled - starting CallDetectionService");
+                // Reset lastProcessedCallTime to NOW so we don't process old missed calls
+                resetLastProcessedCallTime();
+                startForegroundCallService();
+            } else {
+                Log.d(TAG, "📱 SMS disabled - stopping CallDetectionService");
+                stopForegroundCallService();
+            }
+            
+            promise.resolve("Settings synced to native");
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error syncing native settings", e);
+            promise.reject("SYNC_ERROR", e.getMessage());
+        }
+    }
+    
+    /**
+     * Debug method to check current state of native SharedPreferences
+     */
+    @ReactMethod
+    public void debugNativeSettings(Promise promise) {
+        try {
+            android.content.SharedPreferences authPrefs = reactContext.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE);
+            android.content.SharedPreferences smsPrefs = reactContext.getSharedPreferences("sms_settings", Context.MODE_PRIVATE);
+            
+            String authToken = authPrefs.getString("auth_token", null);
+            String userId = authPrefs.getString("user_id", null);
+            boolean smsEnabled = smsPrefs.getBoolean("is_enabled", false);
+            
+            Log.d(TAG, "🔍 DEBUG Native Settings:");
+            Log.d(TAG, "   - auth_token: " + (authToken != null ? "SET (" + authToken.length() + " chars)" : "NOT SET"));
+            Log.d(TAG, "   - user_id: " + (userId != null ? userId : "NOT SET"));
+            Log.d(TAG, "   - is_enabled: " + smsEnabled);
+            
+            org.json.JSONObject result = new org.json.JSONObject();
+            result.put("hasAuthToken", authToken != null);
+            result.put("userId", userId);
+            result.put("smsEnabled", smsEnabled);
+            
+            promise.resolve(result.toString());
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error in debugNativeSettings", e);
+            promise.reject("DEBUG_ERROR", e.getMessage());
         }
     }
 

@@ -108,6 +108,26 @@ const cleanFormattedAddress = (address: string | undefined, city?: string): stri
   return cleaned;
 };
 
+// Helper function to mask address - show only neighborhood, hide street/number
+// Used to prevent SPs from going directly to addresses before winning the case
+const getMaskedAddress = (address: string | undefined, city?: string, neighborhood?: string): string => {
+  // Only show city and neighborhood, not the full street address
+  if (neighborhood) {
+    return neighborhood;
+  }
+  
+  // If no neighborhood but we have an address, try to extract just the neighborhood/district part
+  if (address) {
+    // Common patterns for Bulgarian neighborhoods: "Ж.К", "кв.", "ж.к.", "квартал"
+    const neighborhoodMatch = address.match(/(ж\.?\s*к\.?\s*[^,]+|кв\.?\s*[^,]+|квартал\s*[^,]+)/i);
+    if (neighborhoodMatch) {
+      return neighborhoodMatch[0].trim();
+    }
+  }
+  
+  return 'Районът е скрит';
+};
+
 export default function CasesScreen() {
   const navigation = useNavigation<any>();
   const [cases, setCases] = useState<Case[]>([]);
@@ -162,13 +182,13 @@ export default function CasesScreen() {
   // Budget ranges from database
   const BUDGET_RANGES = [
     { value: '', label: 'Всички' },
-    { value: '1-250', label: 'До 250 лв' },
-    { value: '250-500', label: '250 - 500 лв' },
-    { value: '500-750', label: '500 - 750 лв' },
-    { value: '750-1000', label: '750 - 1000 лв' },
-    { value: '1000-1500', label: '1000 - 1500 лв' },
-    { value: '1500-2000', label: '1500 - 2000 лв' },
-    { value: '4000-5000', label: '4000 - 5000 лв' },
+    { value: '1-125', label: 'До 125 €' },
+    { value: '126-250', label: '126 - 250 €' },
+    { value: '251-400', label: '251 - 400 €' },
+    { value: '401-500', label: '401 - 500 €' },
+    { value: '501-1000', label: '501 - 1000 €' },
+    { value: '1001-2000', label: '1001 - 2000 €' },
+    { value: '2001-5000', label: '2001 - 5000 €' },
   ];
 
   useEffect(() => {
@@ -1020,7 +1040,7 @@ export default function CasesScreen() {
                     <Text style={styles.reviewInfoText}>📍 {review.city}</Text>
                   )}
                   {(review.customer_budget || review.budget) && (
-                    <Text style={styles.reviewInfoBudget}>💰 {review.customer_budget || review.budget} лв</Text>
+                    <Text style={styles.reviewInfoBudget}>💰 {review.customer_budget || review.budget} €</Text>
                   )}
                 </View>
                 
@@ -1097,12 +1117,12 @@ export default function CasesScreen() {
                   </View>
                 </View>
                 <View style={styles.caseDetails}>
-                  <Text style={styles.detailText}>💰 Предложена цена: {bid.proposed_budget_range} лв</Text>
+                  <Text style={styles.detailText}>💰 Предложена цена: {bid.proposed_budget_range} €</Text>
                   {bid.city && (
                     <Text style={styles.detailText}>📍 Град: {bid.city}</Text>
                   )}
                   {bid.budget && (
-                    <Text style={styles.detailText}>💵 Бюджет на клиента: {bid.budget} лв</Text>
+                    <Text style={styles.detailText}>💵 Бюджет на клиента: {bid.budget} €</Text>
                   )}
                   {bid.bid_comment && (
                     <Text style={styles.detailText}>💬 Коментар: {bid.bid_comment}</Text>
@@ -1194,7 +1214,7 @@ export default function CasesScreen() {
                     {(caseItem.winning_bid_price || caseItem.sp_counter_budget || caseItem.budget) && (
                       <Text style={styles.infoText}>
                         <Text style={styles.infoHighlight}>
-                          💰 {caseItem.winning_bid_price || caseItem.sp_counter_budget || caseItem.budget} лв
+                          💰 {caseItem.winning_bid_price || caseItem.sp_counter_budget || caseItem.budget} €
                           {(viewMode === 'assigned' && (caseItem.winning_bid_price || caseItem.sp_counter_budget)) ? ' (договорена)' : ''}
                         </Text>
                       </Text>
@@ -1213,20 +1233,35 @@ export default function CasesScreen() {
                     )}
                   </View>
                   
-                  {/* 3. Location - Full address visible */}
+                  {/* 3. Location - Address visibility based on case ownership */}
                   {(caseItem.city || caseItem.formatted_address || caseItem.address) && (
                     <View style={styles.locationSection}>
-                      <Text style={styles.locationFullText} numberOfLines={2}>
-                        📍 {caseItem.city}{caseItem.city && (caseItem.formatted_address || caseItem.address) ? ', ' : ''}
-                        {cleanFormattedAddress(caseItem.formatted_address || caseItem.address, caseItem.city)}
-                      </Text>
-                      {caseItem.latitude && caseItem.longitude && (
-                        <TouchableOpacity 
-                          onPress={() => openMap(caseItem.latitude!, caseItem.longitude!, 'Адрес на клиента')}
-                          style={styles.navButton}
-                        >
-                          <Text style={styles.navButtonText}>🗺️ Отвори в карти</Text>
-                        </TouchableOpacity>
+                      {/* For available/declined cases: show only city + neighborhood (masked) */}
+                      {/* For assigned cases (SP won): show full address + map button */}
+                      {viewMode === 'assigned' ? (
+                        <>
+                          <Text style={styles.locationFullText} numberOfLines={2}>
+                            📍 {caseItem.city}{caseItem.city && (caseItem.formatted_address || caseItem.address) ? ', ' : ''}
+                            {cleanFormattedAddress(caseItem.formatted_address || caseItem.address, caseItem.city)}
+                          </Text>
+                          {caseItem.latitude && caseItem.longitude && (
+                            <TouchableOpacity 
+                              onPress={() => openMap(caseItem.latitude!, caseItem.longitude!, 'Адрес на клиента')}
+                              style={styles.navButton}
+                            >
+                              <Text style={styles.navButtonText}>🗺️ Отвори в карти</Text>
+                            </TouchableOpacity>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Text style={styles.locationFullText} numberOfLines={2}>
+                            📍 {caseItem.city}{caseItem.city ? ', ' : ''}{getMaskedAddress(caseItem.formatted_address || caseItem.address, caseItem.city, caseItem.neighborhood)}
+                          </Text>
+                          <View style={styles.addressMaskedNote}>
+                            <Text style={styles.addressMaskedText}>🔒 Пълен адрес след спечелване</Text>
+                          </View>
+                        </>
                       )}
                     </View>
                   )}
@@ -2086,6 +2121,18 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     lineHeight: 18,
     marginBottom: 8,
+  },
+  addressMaskedNote: {
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  addressMaskedText: {
+    fontSize: 11,
+    color: '#fbbf24',
+    fontStyle: 'italic',
   },
   // Keep old styles for backward compatibility
   metricsRow: {

@@ -103,3 +103,52 @@
 - Session expired
 - Empty lists
 - App backgrounded/killed
+
+---
+
+## Launch Mode Changes (Jan 2026)
+
+### Points System Fix - FREE Access for Free Tier
+
+**Date:** Jan 27, 2026
+
+**Problem:** Free tier users getting "low on points" / "tier does not support this budget range" errors even though Launch Mode set all `points_cost_*` to 0.
+
+**Root Cause:** In `backend/src/services/PointsService.ts`, the `checkCaseAccess` method treated `pointsRequired === 0` as "tier doesn't support this budget range" instead of "free access".
+
+**Fix Applied:**
+```typescript
+// File: backend/src/services/PointsService.ts
+// Lines ~224-233
+
+// BEFORE (blocking when cost is 0):
+if (pointsRequired === 0) {
+  return {
+    allowed: false,
+    points_required: 0,
+    points_balance: points_balance || 0,
+    message: `Your tier does not support cases in this budget range. Please upgrade.`,
+    case_budget_range: this.getBudgetRange(case_budget)
+  };
+}
+
+// AFTER (free access when cost is 0):
+if (pointsRequired === 0) {
+  return {
+    allowed: true,
+    points_required: 0,
+    points_balance: points_balance || 0,
+    message: 'Free access',
+    case_budget_range: this.getBudgetRange(case_budget)
+  };
+}
+```
+
+**How to Revert:**
+Change `allowed: true` back to `allowed: false` and restore the original message when you want to enforce points costs again.
+
+**Database State (subscription_tiers WHERE id='free'):**
+- All `points_cost_*` fields = 0 (meaning free)
+- `monthly_sms_limit` = 50
+- `max_case_budget` = 999999
+- `max_gallery_photos` = 20

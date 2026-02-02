@@ -22,8 +22,10 @@
     
     <!-- Background execution permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     
     <!-- Location permissions for Live Tracking -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -64,10 +66,37 @@
         </intent-filter>
       </activity>
       
-      <!-- Background service for call detection -->
+      <!-- Foreground service for call detection (works when phone is locked) -->
       <service
         android:name=".CallDetectionService"
         android:enabled="true"
-        android:exported="false" />
+        android:exported="false"
+        android:foregroundServiceType="specialUse">
+        <property
+          android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+          android:value="Call detection and SMS auto-reply service" />
+      </service>
+      
+      <!-- Boot receiver to restart service after device reboot -->
+      <receiver
+        android:name=".BootReceiver"
+        android:enabled="true"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="android.intent.action.BOOT_COMPLETED" />
+          <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+        </intent-filter>
+      </receiver>
+      
+      <!-- Call receiver - Android wakes this up when phone state changes -->
+      <!-- This works even when app is not running and phone is locked -->
+      <receiver
+        android:name=".CallReceiver"
+        android:enabled="true"
+        android:exported="true">
+        <intent-filter android:priority="999">
+          <action android:name="android.intent.action.PHONE_STATE" />
+        </intent-filter>
+      </receiver>
     </application>
 </manifest>
