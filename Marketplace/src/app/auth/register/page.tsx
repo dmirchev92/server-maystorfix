@@ -220,7 +220,7 @@ function RegisterForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-x-hidden">
       {/* Industrial background elements */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-lg blur-3xl"></div>
@@ -520,9 +520,9 @@ function RegisterForm() {
                     <div>
                       <h3 className="text-sm font-semibold text-white">Избран план</h3>
                       <p className="text-sm text-indigo-400 mt-1">
-                        {formData.subscription_tier_id === 'free' && 'Безплатен - 0 лв'}
-                        {formData.subscription_tier_id === 'normal' && 'Нормален - 349 лв/година (с ДДС)'}
-                        {formData.subscription_tier_id === 'pro' && 'Професионален - 489 лв/година (с ДДС)'}
+                        {formData.subscription_tier_id === 'free' && 'Безплатен - 0 €'}
+                        {formData.subscription_tier_id === 'normal' && 'Нормален - 179 €/година (с ДДС)'}
+                        {formData.subscription_tier_id === 'pro' && 'Професионален - 249 €/година (с ДДС)'}
                       </p>
                     </div>
                     <button

@@ -5,9 +5,10 @@ import { GoogleMap, Marker, InfoWindow, useLoadScript, StandaloneSearchBox } fro
 import { MarkerClusterer, SuperClusterAlgorithm } from '@googlemaps/markerclusterer'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
+import UnifiedCaseModal from '@/components/UnifiedCaseModal'
 import { apiClient } from '@/lib/api'
 import { useAuth } from '@/contexts/AuthContext'
-import { Search, MapPin, Navigation, Filter, List as ListIcon, Map as MapIcon, Briefcase, Clock, DollarSign, Tag } from 'lucide-react'
+import { Search, MapPin, Navigation, Filter, List as ListIcon, Map as MapIcon, Briefcase, Clock, DollarSign, Tag, Star } from 'lucide-react'
 import { SERVICE_CATEGORIES } from '@/constants/serviceCategories'
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY || ''
@@ -28,6 +29,38 @@ const RADIUS_OPTIONS = [
   { value: 9, label: '9 км' },
   { value: 10, label: '10 км' },
 ]
+
+// Generate a pin-shaped SVG marker with initial letter
+function createProviderPinSvg(initial: string, color: string): string {
+  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="52" viewBox="0 0 40 52">
+      <defs>
+        <filter id="shadow" x="-20%" y="-10%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
+        </filter>
+      </defs>
+      <path d="M20 50 C20 50 2 32 2 18 C2 8.06 10.06 0 20 0 C29.94 0 38 8.06 38 18 C38 32 20 50 20 50Z" fill="${color}" stroke="white" stroke-width="2" filter="url(#shadow)"/>
+      <circle cx="20" cy="18" r="12" fill="white" opacity="0.95"/>
+      <text x="20" y="23" text-anchor="middle" fill="${color}" font-size="15" font-weight="bold" font-family="Arial, sans-serif">${initial}</text>
+    </svg>
+  `)
+}
+
+// Generate a prominent "my location" marker - classic red Google pin, larger
+function createMyLocationSvg(): string {
+  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="50" height="68" viewBox="0 0 50 68">
+      <defs>
+        <filter id="shadow" x="-20%" y="-10%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.35"/>
+        </filter>
+      </defs>
+      <path d="M25 65 C25 65 3 40 3 22 C3 10.06 12.95 0 25 0 C37.05 0 47 10.06 47 22 C47 40 25 65 25 65Z" fill="#DC2626" stroke="white" stroke-width="3" filter="url(#shadow)"/>
+      <circle cx="25" cy="22" r="10" fill="white"/>
+      <circle cx="25" cy="22" r="5" fill="#DC2626"/>
+    </svg>
+  `)
+}
 
 export default function MapPage() {
   const { isLoaded, loadError } = useLoadScript({
@@ -53,6 +86,8 @@ export default function MapPage() {
   const clustererRef = useRef<MarkerClusterer | null>(null)
   const markersRef = useRef<google.maps.Marker[]>([])
   const [bidding, setBidding] = useState(false)
+  const [caseModalOpen, setCaseModalOpen] = useState(false)
+  const [caseProvider, setCaseProvider] = useState<any>(null)
   
   // Filters
   const [radius, setRadius] = useState(10)
@@ -210,17 +245,15 @@ export default function MapPage() {
 
       // For providers: use purple for free inspection, red for regular
       const markerColor = !isProvider && item.freeInspectionActive ? '#7C3AED' : '#E53E3E'
+      const initial = (item.businessName || item.name || 'M').charAt(0).toUpperCase()
       
       const marker = new google.maps.Marker({
         position: { lat, lng },
         title: isProvider ? item.description?.substring(0, 50) : item.businessName,
         icon: !isProvider ? {
-          path: google.maps.SymbolPath.CIRCLE,
-          fillColor: markerColor,
-          fillOpacity: 1,
-          strokeColor: 'white',
-          strokeWeight: 2,
-          scale: 10,
+          url: createProviderPinSvg(initial, markerColor),
+          scaledSize: new google.maps.Size(40, 52),
+          anchor: new google.maps.Point(20, 52),
         } : undefined,
       })
 
@@ -375,6 +408,44 @@ export default function MapPage() {
       alert('Възникна грешка. Моля, опитайте отново.')
     } finally {
       setBidding(false)
+    }
+  }
+
+  // Handle case creation for a provider (inquiry flow)
+  const handleCreateCase = (provider: any) => {
+    setCaseProvider(provider)
+    setCaseModalOpen(true)
+  }
+
+  const handleCaseSubmit = async (formData: any) => {
+    try {
+      const providerName = caseProvider?.businessName || caseProvider?.name || 'Специалист'
+      const caseData = {
+        ...formData,
+        customerId: user?.id,
+        providerId: formData.assignmentType === 'specific' ? caseProvider?.id : null,
+        providerName: formData.assignmentType === 'specific' ? providerName : null,
+        isOpenCase: formData.assignmentType === 'open',
+        chatSource: 'mapchat'
+      }
+
+      const response = await apiClient.createCase(caseData)
+      
+      if (response.data?.success) {
+        setCaseModalOpen(false)
+        setCaseProvider(null)
+        
+        const successMessage = formData.assignmentType === 'specific'
+          ? `Заявката е изпратена за преглед към ${providerName}! Той може да приеме, откаже или предложи друг бюджет.`
+          : 'Заявката е създадена и е достъпна за всички специалисти!'
+        
+        alert(successMessage)
+      } else {
+        throw new Error(response.data?.message || 'Failed to create case')
+      }
+    } catch (error) {
+      console.error('Error creating case:', error)
+      alert('Възникна грешка при създаването на заявката. Моля, опитайте отново.')
     }
   }
 
@@ -581,7 +652,7 @@ export default function MapPage() {
                           📍 {caseItem.neighborhood || caseItem.city}
                         </span>
                         <span className="font-medium text-emerald-600">
-                          💰 {caseItem.budget} лв
+                          💰 {caseItem.budget} €
                         </span>
                       </div>
                       {caseItem.biddingEnabled && !caseItem.biddingClosed && (
@@ -626,29 +697,59 @@ export default function MapPage() {
                       }}
                       className={`p-3 bg-white rounded-lg border cursor-pointer hover:border-indigo-500 transition-all ${selectedProvider?.id === provider.id ? 'border-indigo-500 ring-1 ring-indigo-500' : 'border-slate-200'}`}
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-slate-900 text-sm">{provider.businessName || provider.name}</h3>
+                      <div className="flex gap-3 items-start">
+                        {/* Avatar */}
+                        <div className="flex-shrink-0">
+                          {provider.profileImageUrl ? (
+                            <img 
+                              src={provider.profileImageUrl} 
+                              alt={provider.businessName}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-slate-100"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg border-2 border-slate-100">
+                              {(provider.businessName || provider.name || 'M').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <h3 className="font-bold text-slate-900 text-sm truncate">{provider.businessName || provider.name}</h3>
+                            {provider.subscriptionTier === 'pro' && (
+                              <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-bold flex-shrink-0">
+                                PRO
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-500 truncate">{getCategoryName(provider.serviceCategory)}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded">
+                              <span className="text-yellow-500 text-xs mr-1">⭐</span>
+                              <span className="text-xs font-bold text-slate-700">{provider.rating || '0'}</span>
+                            </div>
+                            <span className="text-xs text-slate-400">{provider.distanceKm ? `${Number(provider.distanceKm).toFixed(1)} км` : ''}</span>
                             {provider.freeInspectionActive && (
                               <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-medium">
                                 🔧 Безплатен оглед
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500">{getCategoryName(provider.serviceCategory)}</p>
-                        </div>
-                        <div className="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded">
-                          <span className="text-yellow-500 text-xs mr-1">⭐</span>
-                          <span className="text-xs font-bold text-slate-700">{provider.rating || '0'}</span>
                         </div>
                       </div>
-                      <div className="mt-2 flex justify-between items-center text-xs text-slate-500">
-                        <span>{provider.distanceKm ? `${Number(provider.distanceKm).toFixed(1)} км` : '---'}</span>
-                        <span className={provider.freeInspectionActive ? 'text-purple-600' : 'text-slate-400'}>
-                          {provider.freeInspectionActive ? '● Безплатен оглед' : ''}
-                        </span>
-                      </div>
+                      {isAuthenticated && !isProvider && user?.id !== provider.id && (
+                        <div className="mt-2 pt-2 border-t border-slate-100">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCreateCase(provider)
+                            }}
+                            className="w-full text-xs py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 font-medium transition-colors"
+                          >
+                            📋 Заявка
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))
                 )
@@ -683,14 +784,16 @@ export default function MapPage() {
               fullscreenControl: false,
             }}
           >
-            {/* User Location Marker */}
+            {/* User Location Marker - classic large red pin */}
             {userLocation && (
               <Marker 
                 position={userLocation}
                 icon={{
-                  url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                  url: createMyLocationSvg(),
+                  scaledSize: new google.maps.Size(50, 68),
+                  anchor: new google.maps.Point(25, 68),
                 }}
-                zIndex={1000}
+                zIndex={2000}
                 title="Вашата локация"
               />
             )}
@@ -714,17 +817,32 @@ export default function MapPage() {
                         />
                       ) : (
                         <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-xl border-2 border-slate-100 shadow-sm">
-                          {selectedProvider.businessName.charAt(0).toUpperCase()}
+                          {(selectedProvider.businessName || 'M').charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg text-slate-900 leading-tight mb-1 truncate">{selectedProvider.businessName}</h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-lg text-slate-900 leading-tight truncate">{selectedProvider.businessName}</h3>
+                        {selectedProvider.subscriptionTier === 'pro' && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded font-bold flex-shrink-0">
+                            PRO
+                          </span>
+                        )}
+                      </div>
+                      {selectedProvider.freeInspectionActive && (
+                        <p className="text-xs text-purple-600 font-medium mb-1">🔧 Безплатен оглед</p>
+                      )}
                       <p className="text-slate-600 text-sm mb-1 truncate">{getCategoryName(selectedProvider.serviceCategory)}</p>
-                      <div className="flex items-center">
-                        <span className="text-yellow-500 mr-1 text-sm">⭐</span>
-                        <span className="font-medium text-slate-700 text-sm">{selectedProvider.rating || 0}</span>
-                        <span className="text-slate-400 text-xs ml-1">({selectedProvider.totalReviews || 0})</span>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center">
+                          <span className="text-yellow-500 mr-1 text-sm">⭐</span>
+                          <span className="font-medium text-slate-700 text-sm">{selectedProvider.rating || 0}</span>
+                          <span className="text-slate-400 text-xs ml-1">({selectedProvider.totalReviews || 0})</span>
+                        </div>
+                        {selectedProvider.distanceKm && (
+                          <span className="text-xs text-slate-400">• {Number(selectedProvider.distanceKm).toFixed(1)} км</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -735,12 +853,14 @@ export default function MapPage() {
                     >
                       Виж профил
                     </a>
-                    <a 
-                      href={`/chat?providerId=${selectedProvider.id}`}
-                      className="flex-1 bg-emerald-500 text-white text-center py-2 px-3 rounded-lg text-sm hover:bg-emerald-600 transition-colors no-underline font-medium shadow-sm flex items-center justify-center"
-                    >
-                      Чат
-                    </a>
+                    {isAuthenticated && !isProvider && (
+                      <button 
+                        onClick={() => handleCreateCase(selectedProvider)}
+                        className="flex-1 bg-purple-600 text-white text-center py-2 px-3 rounded-lg text-sm hover:bg-purple-700 transition-colors font-medium shadow-sm"
+                      >
+                        📋 Заявка
+                      </button>
+                    )}
                   </div>
                 </div>
               </InfoWindow>
@@ -794,7 +914,7 @@ export default function MapPage() {
                     </div>
                     <div className="flex items-center text-emerald-600 font-medium">
                       <DollarSign className="w-4 h-4 mr-2" />
-                      Бюджет: {selectedCase.budget} лв
+                      Бюджет: {selectedCase.budget} €
                     </div>
                     {selectedCase.squareMeters && (
                       <div className="flex items-center text-slate-600">
@@ -848,6 +968,23 @@ export default function MapPage() {
         </div>
 
       </div>
+
+      {/* Case Creation Modal */}
+      {caseProvider && (
+        <UnifiedCaseModal
+          isOpen={caseModalOpen}
+          onClose={() => {
+            setCaseModalOpen(false)
+            setCaseProvider(null)
+          }}
+          onSubmit={handleCaseSubmit}
+          providerName={caseProvider.businessName || caseProvider.name || 'Специалист'}
+          providerId={caseProvider.id}
+          providerCategory={caseProvider.serviceCategory}
+          customerPhone={user?.phoneNumber || ''}
+          mode="direct"
+        />
+      )}
     </div>
   )
 }

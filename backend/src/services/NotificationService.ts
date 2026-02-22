@@ -686,15 +686,15 @@ export class NotificationService {
         const messageId = require('uuid').v4();
         if (this.isPostgreSQL) {
           await this.db.query(
-            `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_user_id, message, message_type, data, sent_at)
+            `INSERT INTO marketplace_chat_messages (id, conversation_id, sender_user_id, sender_type, message, message_type, sent_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             [
               messageId,
               conversation.id,
-              'system', // System message
+              'system',
+              'system',
               surveyMessage,
               'survey_request',
-              JSON.stringify({ caseId }), // Include caseId in data
               new Date().toISOString()
             ]
           );

@@ -51,6 +51,7 @@ interface AggregateProgress {
 interface ReferralDashboard {
   referralCode: string
   referralLink: string
+  betaReferralLink?: string
   referredUsers: ReferredUser[]
   totalRewards: ReferralReward[]
   aggregateProgress?: AggregateProgress
@@ -64,6 +65,7 @@ export default function ReferralDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedLink, setCopiedLink] = useState(false)
+  const [copiedBetaLink, setCopiedBetaLink] = useState(false)
   const [claimingReward, setClaimingReward] = useState<string | null>(null)
 
   useEffect(() => {
@@ -122,10 +124,12 @@ export default function ReferralDashboard() {
         const refCodeMatch = originalLink.match(/[?&]ref=([^&]+)/)
         const refCode = refCodeMatch ? refCodeMatch[1] : response.data.data.referralCode
         const correctedLink = `${appUrl}/signup?ref=${refCode}`
+        const betaLink = response.data.data.betaReferralLink || `https://snapfix.bg/beta/?ref=${refCode}`
         
         const dashboardData = {
           ...response.data.data,
-          referralLink: correctedLink
+          referralLink: correctedLink,
+          betaReferralLink: betaLink
         }
         
         console.log('🤝 Corrected referral link:', correctedLink)
@@ -148,6 +152,24 @@ export default function ReferralDashboard() {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const copyBetaLink = async () => {
+    if (!dashboard?.betaReferralLink) return
+    try {
+      await navigator.clipboard.writeText(dashboard.betaReferralLink)
+      setCopiedBetaLink(true)
+      setTimeout(() => setCopiedBetaLink(false), 2000)
+    } catch (err) {
+      const textArea = document.createElement('textarea')
+      textArea.value = dashboard.betaReferralLink
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopiedBetaLink(true)
+      setTimeout(() => setCopiedBetaLink(false), 2000)
     }
   }
 
@@ -316,7 +338,22 @@ export default function ReferralDashboard() {
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
+
+          {/* Beta Referral Link */}
+          {dashboard.betaReferralLink && (
+            <div className="bg-indigo-500/10 border border-indigo-400/30 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 mr-4">
+                  <p className="text-sm text-indigo-300 mb-1">🧪 Бета връзка (за регистрация):</p>
+                  <p className="text-sm text-slate-200 break-all">
+                    {dashboard.betaReferralLink}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 flex-wrap">
             <button
               onClick={copyReferralLink}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -327,8 +364,20 @@ export default function ReferralDashboard() {
             >
               {copiedLink ? '✓ Копирано!' : '📋 Копирай връзката'}
             </button>
+            {dashboard.betaReferralLink && (
+              <button
+                onClick={copyBetaLink}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  copiedBetaLink 
+                    ? 'bg-green-600 text-white' 
+                    : 'bg-purple-600/80 text-white hover:bg-purple-600'
+                }`}
+              >
+                {copiedBetaLink ? '✓ Копирано!' : '🧪 Копирай бета връзката'}
+              </button>
+            )}
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(`Присъедини се към SnapFix и получи достъп до най-добрите майстори в България! ${dashboard.referralLink}`)}`}
+              href={`https://wa.me/?text=${encodeURIComponent(`Присъедини се към SnapFix и получи достъп до най-добрите майстори в България! ${dashboard.betaReferralLink || dashboard.referralLink}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"

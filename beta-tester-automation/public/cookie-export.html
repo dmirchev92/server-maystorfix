@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Export - SnapFix Beta</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .container { max-width: 700px; width: 90%; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #60a5fa; }
+    .status { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    .status.ok { background: #064e3b; border: 1px solid #10b981; }
+    .status.expired { background: #7f1d1d; border: 1px solid #ef4444; }
+    .status.unknown { background: #1e293b; border: 1px solid #475569; }
+    .status .time { color: #94a3b8; font-size: 0.8rem; }
+    .card { background: #1e293b; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; border: 1px solid #334155; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 0.75rem; color: #f1f5f9; }
+    .steps { list-style: none; counter-reset: step; }
+    .steps li { counter-increment: step; margin-bottom: 0.75rem; padding-left: 2rem; position: relative; line-height: 1.5; }
+    .steps li::before { content: counter(step); position: absolute; left: 0; width: 1.5rem; height: 1.5rem; background: #3b82f6; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; }
+    code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; color: #fbbf24; }
+    a.ext { color: #60a5fa; }
+    textarea { width: 100%; min-height: 150px; background: #0f172a; border: 1px solid #475569; border-radius: 8px; padding: 0.75rem; color: #a5f3fc; font-family: monospace; font-size: 0.8rem; resize: vertical; }
+    textarea:focus { outline: none; border-color: #3b82f6; }
+    .upload-btn { display: block; width: 100%; margin-top: 1rem; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; }
+    .upload-btn:hover { background: #2563eb; }
+    .upload-btn:disabled { background: #475569; cursor: not-allowed; }
+    .upload-btn.success { background: #10b981; }
+    .upload-btn.error { background: #ef4444; }
+    .result { margin-top: 1rem; padding: 0.75rem; border-radius: 8px; display: none; }
+    .result.ok { display: block; background: #064e3b; border: 1px solid #10b981; }
+    .result.err { display: block; background: #7f1d1d; border: 1px solid #ef4444; }
+    .btn-back { display: inline-block; background: #334155; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem; text-decoration: none; margin-top: 1rem; }
+    .btn-back:hover { background: #475569; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍪 Google Play Console - Cookie Manager</h1>
+
+    <div id="sessionStatus" class="status unknown">Зареждане на статус...</div>
+
+    <div class="card">
+      <h2>Стъпка 1: Инсталирайте Cookie-Editor</h2>
+      <ol class="steps">
+        <li>Инсталирайте <a class="ext" href="https://chromewebstore.google.com/detail/cookie-editor/hlkenndednhfkekhgcdicdfddnkalmdm" target="_blank">Cookie-Editor</a> разширението за Chrome</li>
+        <li>Отворете <a class="ext" href="https://play.google.com/console" target="_blank">Google Play Console</a> и се уверете, че сте логнати</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Стъпка 2: Експортирайте бисквитките</h2>
+      <ol class="steps">
+        <li>Кликнете иконата на Cookie-Editor в toolbar-a (иконката с бисквитка)</li>
+        <li>Натиснете бутона <code>Export</code> (долу вляво в popup-а)</li>
+        <li>Изберете формат <code>JSON</code></li>
+        <li>Бисквитките ще се копират в clipboard-а автоматично</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Стъпка 3: Качете бисквитките</h2>
+      <textarea id="cookieJson" placeholder='Поставете (Ctrl+V) JSON-а от Cookie-Editor тук...'></textarea>
+      <button class="upload-btn" id="uploadBtn" onclick="uploadCookies()">Качи бисквитките</button>
+      <div class="result" id="result"></div>
+    </div>
+
+    <a href="/admin" class="btn-back">← Обратно към Admin</a>
+  </div>
+
+  <script>
+    const UPLOAD_URL = 'https://snapfix.bg/beta/api/upload-cookies';
+    const UPLOAD_SECRET = 'stp-cookie-upload-2026';
+
+    async function uploadCookies() {
+      const btn = document.getElementById('uploadBtn');
+      const resultEl = document.getElementById('result');
+      const raw = document.getElementById('cookieJson').value.trim();
+
+      if (!raw) {
+        resultEl.className = 'result err';
+        resultEl.textContent = '❌ Моля, поставете JSON от Cookie-Editor.';
+        return;
+      }
+
+      let cookies;
+      try {
+        cookies = JSON.parse(raw);
+        if (!Array.isArray(cookies)) throw new Error('Not an array');
+      } catch (e) {
+        resultEl.className = 'result err';
+        resultEl.textContent = '❌ Невалиден JSON формат. Уверете се, че копирахте от Cookie-Editor.';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Качване...';
+      resultEl.className = 'result';
+      resultEl.style.display = 'none';
+
+      try {
+        const res = await fetch(UPLOAD_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: UPLOAD_SECRET, cookies: cookies }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          btn.className = 'upload-btn success';
+          btn.textContent = '✅ Качено успешно!';
+          resultEl.className = 'result ok';
+          resultEl.textContent = '✅ ' + data.message + '. Сесията ще се поддържа автоматично на всеки 2 часа.';
+        } else {
+          btn.className = 'upload-btn error';
+          btn.textContent = '❌ Грешка';
+          resultEl.className = 'result err';
+          resultEl.textContent = '❌ ' + data.message;
+        }
+      } catch (err) {
+        btn.className = 'upload-btn error';
+        btn.textContent = '❌ Грешка';
+        resultEl.className = 'result err';
+        resultEl.textContent = '❌ Не може да се свърже със сървъра: ' + err.message;
+      }
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.className = 'upload-btn';
+        btn.textContent = 'Качи бисквитките';
+      }, 5000);
+    }
+
+    // Load session status
+    fetch('/api/session-status')
+      .then(r => r.json())
+      .then(data => {
+        const el = document.getElementById('sessionStatus');
+        if (data.valid === true) {
+          el.className = 'status ok';
+          el.innerHTML = '✅ Сесията е <strong>активна</strong><div class="time">Последна проверка: ' + (data.checkedAt || 'N/A') + '</div>';
+        } else if (data.valid === false) {
+          el.className = 'status expired';
+          el.innerHTML = '❌ Сесията е <strong>изтекла</strong> — ' + (data.reason || 'Unknown') + '<div class="time">Последна проверка: ' + (data.checkedAt || 'N/A') + '</div>';
+        } else {
+          el.className = 'status unknown';
+          el.innerHTML = '⚠️ Няма данни за сесията. Стартирайте проверка.';
+        }
+      })
+      .catch(() => {
+        document.getElementById('sessionStatus').innerHTML = '⚠️ Не може да се зареди статус';
+      });
+  </script>
+</body>
+</html>

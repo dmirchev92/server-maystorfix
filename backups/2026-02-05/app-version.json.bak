@@ -1,0 +1,15 @@
+{
+  "latestVersion": "1.12",
+  "minimumVersion": "1.0.0",
+  "downloadUrl": "https://snapfix.bg/downloads/ServiceTextPro-latest.apk",
+  "updateRequired": false,
+  "releaseNotes": {
+    "bg": "Версия 1.12:\n• Автоматично опресняване на токен при изтекла сесия\n• Поправка на екран за поверителност при стартиране\n• Поправка на изтегляне на обновления за Android 14+",
+    "en": "Version 1.12:\n• Automatic token refresh on expired session\n• Fix privacy consent screen showing on startup\n• Fix update download crash on Android 14+"
+  },
+  "features": [
+    "Token auto-refresh",
+    "Consent screen fix",
+    "APK download fix"
+  ]
+}

@@ -121,14 +121,14 @@ export default function TrackingMap({
           <div>
             <p className="text-xs text-slate-400 uppercase">Вашият бюджет</p>
             <p className="text-lg font-bold text-white">
-              {customerBudget ? `${customerBudget} лв.` : 'Не е зададен'}
+              {customerBudget ? `${customerBudget} €` : 'Не е зададен'}
             </p>
           </div>
           
           <div>
             <p className="text-xs text-slate-400 uppercase">Договорена цена</p>
             <p className="text-xl font-bold text-green-400">
-              {agreedPrice ? `${agreedPrice} лв.` : 'По договаряне'}
+              {agreedPrice ? `${agreedPrice} €` : 'По договаряне'}
             </p>
           </div>
         </div>

@@ -227,12 +227,12 @@ export default function CaseDetailsPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center pb-2 border-b border-slate-700">
                   <span className="text-slate-300">Вашият бюджет</span>
-                  <span className="text-white font-bold">{caseData.budget ? `${caseData.budget} лв.` : '-'}</span>
+                  <span className="text-white font-bold">{caseData.budget ? `${caseData.budget} €` : '-'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-300">Договорена цена</span>
                   <span className="text-green-400 font-bold text-xl">
-                    {agreedPrice ? `${agreedPrice} лв.` : 'Очаква се'}
+                    {agreedPrice ? `${agreedPrice} €` : 'Очаква се'}
                   </span>
                 </div>
                 {winningBid && (

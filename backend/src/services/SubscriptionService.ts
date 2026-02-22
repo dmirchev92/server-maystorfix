@@ -423,7 +423,7 @@ export class SubscriptionService {
       data.action,
       data.previous_tier_id || null,
       data.amount || null,
-      data.currency || 'BGN',
+      data.currency || 'EUR',
       data.notes || null,
       data.performed_by || 'system'
     ]);

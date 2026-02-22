@@ -49,14 +49,16 @@ export default function PrivacyPolicyPage() {
             </ul>
 
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              4. Споделяне на данни
+              4. Споделяне на данни с трети страни
             </h2>
             <p className="text-gray-700 mb-4">
-              Не продаваме вашите лични данни. Споделяме данни в следните случаи:
+              Не продаваме вашите лични данни. Споделяме данни със следните доставчици:
             </p>
             <ul className="list-disc pl-6 text-gray-700 mb-6">
               <li><strong>Между потребители:</strong> Профилът на доставчиците (име, снимка, местоположение, телефон) се показва на клиентите в платформата</li>
-              <li><strong>SMS услуга:</strong> Телефонните номера се споделят с нашия SMS доставчик (Mobica) за изпращане на съобщения</li>
+              <li><strong>Mobica SMS API:</strong> Телефонните номера се споделят за изпращане на SMS съобщения (с договор за обработка)</li>
+              <li><strong>Firebase Cloud Messaging (Google):</strong> За изпращане на push известия (с договор за обработка)</li>
+              <li><strong>Облачен хостинг доставчик:</strong> За съхранение на данни в ЕС (с договор за обработка)</li>
               <li><strong>Правни изисквания:</strong> Когато сме задължени по закон</li>
             </ul>
 
@@ -65,16 +67,31 @@ export default function PrivacyPolicyPage() {
             </h2>
             <p className="text-gray-700 mb-4">Съгласно GDPR имате право на:</p>
             <ul className="list-disc pl-6 text-gray-700 mb-6">
-              <li>Достъп до вашите лични данни</li>
-              <li>Поправка на неточни данни</li>
-              <li>Изтриване на данните ("правото да бъдете забравени") - <a href="/delete-account" className="text-blue-600 hover:underline">Заявка за изтриване на акаунт</a></li>
-              <li>Ограничаване на обработката</li>
-              <li>Преносимост на данните</li>
-              <li>Възражение срещу обработката</li>
+              <li><strong>Достъп</strong> (чл. 15) — Заявка за копие на вашите лични данни</li>
+              <li><strong>Коригиране</strong> (чл. 16) — Поправка на неточни данни</li>
+              <li><strong>Изтриване</strong> (чл. 17) — Право на забвене — <a href="/delete-account" className="text-blue-600 hover:underline">Заявка за изтриване на акаунт</a></li>
+              <li><strong>Ограничаване</strong> (чл. 18) — Ограничаване на обработката</li>
+              <li><strong>Преносимост</strong> (чл. 20) — Получаване на данните в машиночетим формат</li>
+              <li><strong>Възражение</strong> (чл. 21) — Възражение срещу обработката</li>
+              <li><strong>Оттегляне на съгласие</strong> — По всяко време</li>
             </ul>
 
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              6. Бисквитки
+              6. Период на съхранение на данни
+            </h2>
+            <ul className="list-disc pl-6 text-gray-700 mb-6">
+              <li>Бизнес данни и профил: 60 месеца (5 години)</li>
+              <li>Чат разговори: 24 месеца (2 години)</li>
+              <li>Аналитика и статистики: 12 месеца (1 година)</li>
+              <li>Одитни записи: 84 месеца (7 години)</li>
+              <li>Данни за фактуриране: 84 месеца (7 години — законово изискване)</li>
+            </ul>
+            <p className="text-gray-700 mb-6">
+              След изтичането на периода, данните се изтриват или анонимизират автоматично.
+            </p>
+
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              7. Бисквитки
             </h2>
             <p className="text-gray-700 mb-6">
               Използваме бисквитки за подобряване на функционалността на сайта и анализ на трафика. 
@@ -82,7 +99,7 @@ export default function PrivacyPolicyPage() {
             </p>
 
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              7. Сигурност
+              8. Сигурност
             </h2>
             <p className="text-gray-700 mb-6">
               Прилагаме подходящи технически и организационни мерки за защита на вашите лични данни 
@@ -91,15 +108,26 @@ export default function PrivacyPolicyPage() {
             </p>
 
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              8. Контакти
+              9. Контакти
             </h2>
             <p className="text-gray-700 mb-6">
               За въпроси относно тази политика за поверителност или за упражняване на вашите права, 
-              моля свържете се с нас на: admin@snapfix.bg
+              моля свържете се с нас:<br />
+              Имейл: <a href="mailto:admin@snapfix.bg" className="text-blue-600 hover:underline">admin@snapfix.bg</a><br />
+              Телефон: +359 88 462 9498
             </p>
 
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              9. Промени в политиката
+              10. Надзорен орган
+            </h2>
+            <p className="text-gray-700 mb-6">
+              Ако считате, че правата ви са нарушени, можете да подадете жалба до:<br />
+              <strong>Комисия за защита на личните данни (КЗЛД)</strong><br />
+              Уебсайт: <a href="https://cpdp.bg/" className="text-blue-600 hover:underline" target="_blank" rel="noopener">https://cpdp.bg/</a>
+            </p>
+
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+              11. Промени в политиката
             </h2>
             <p className="text-gray-700 mb-6">
               Запазваме си правото да актуализираме тази политика за поверителност. 

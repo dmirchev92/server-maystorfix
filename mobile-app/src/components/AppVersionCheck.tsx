@@ -11,8 +11,7 @@ import {
   Platform,
   PermissionsAndroid,
 } from 'react-native';
-// Import version from package.json
-const packageJson = require('../../package.json');
+import DeviceInfo from 'react-native-device-info';
 
 interface VersionInfo {
   latestVersion: string;
@@ -37,7 +36,7 @@ const AppVersionCheck: React.FC = () => {
 
   const checkAppVersion = async () => {
     try {
-      const currentVersion = packageJson.version;
+      const currentVersion = DeviceInfo.getVersion();
       
       const response = await fetch('https://snapfix.bg/api/v1/app/version');
       const data = await response.json();
@@ -100,31 +99,16 @@ const AppVersionCheck: React.FC = () => {
   const handleUpdate = async () => {
     if (!versionInfo?.downloadUrl) return;
 
-    // Simple approach: Just open the download URL in browser
-    // User will download from browser and install manually
-    Alert.alert(
-      'Изтегляне на обновление',
-      'Ще бъдете пренасочени към браузъра за изтегляне на обновлението.\n\nСлед изтегляне, отворете файла за инсталиране.',
-      [
-        {
-          text: 'Изтегли',
-          onPress: async () => {
-            try {
-              await Linking.openURL(versionInfo.downloadUrl);
-              // Close the modal after opening browser
-              setShowUpdateModal(false);
-            } catch (error) {
-              Logger.error('Error opening download link:', error);
-              Alert.alert(
-                'Грешка',
-                'Не може да се отвори линка. Моля, копирайте го ръчно:\n\n' + versionInfo.downloadUrl
-              );
-            }
-          },
-        },
-        { text: 'Отказ', style: 'cancel' },
-      ]
-    );
+    try {
+      await Linking.openURL(versionInfo.downloadUrl);
+      setShowUpdateModal(false);
+    } catch (error) {
+      Logger.error('Error opening download link:', error);
+      Alert.alert(
+        'Грешка',
+        'Не може да се отвори линка. Моля, копирайте го ръчно:\n\n' + versionInfo.downloadUrl
+      );
+    }
   };
 
   const openInBrowser = async () => {

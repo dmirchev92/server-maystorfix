@@ -103,13 +103,13 @@ export default function TierComparisonTable({
               
               <div className="mb-4">
                 {tier === 'free' && (
-                  <p className="text-3xl font-bold text-green-600">0 лв<span className="text-sm text-gray-500"> пробен</span></p>
+                  <p className="text-3xl font-bold text-green-600">0 €<span className="text-sm text-gray-500"> пробен</span></p>
                 )}
                 {tier === 'normal' && (
-                  <p className="text-3xl font-bold text-blue-600">349 лв<span className="text-sm text-gray-500">/година</span></p>
+                  <p className="text-3xl font-bold text-blue-600">179 €<span className="text-sm text-gray-500">/година</span></p>
                 )}
                 {tier === 'pro' && (
-                  <p className="text-3xl font-bold text-purple-600">489 лв<span className="text-sm text-gray-500">/година</span></p>
+                  <p className="text-3xl font-bold text-purple-600">249 €<span className="text-sm text-gray-500">/година</span></p>
                 )}
               </div>
 
@@ -193,7 +193,7 @@ export default function TierComparisonTable({
                 <div className="space-y-2 mt-2">
                   <h3 className="text-xl font-bold text-gray-800">Нормален</h3>
                   <p className="text-2xl font-bold text-blue-600">
-                    349 лв<span className="text-sm text-gray-500">/година (с ДДС)</span>
+                    179 €<span className="text-sm text-gray-500">/година (с ДДС)</span>
                   </p>
                   {showActions && onSelectTier && (
                     <button
@@ -219,7 +219,7 @@ export default function TierComparisonTable({
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-gray-800">Професионален</h3>
                   <p className="text-2xl font-bold text-purple-600">
-                    489 лв<span className="text-sm text-gray-500">/година (с ДДС)</span>
+                    249 €<span className="text-sm text-gray-500">/година (с ДДС)</span>
                   </p>
                   {showActions && onSelectTier && (
                     <button

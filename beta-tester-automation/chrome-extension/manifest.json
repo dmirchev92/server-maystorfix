@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "SnapFix Cookie Sync",
+  "version": "1.0",
+  "description": "Automatically syncs Google Play Console cookies to SnapFix server",
+  "permissions": [
+    "cookies",
+    "alarms",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.google.com/*",
+    "https://play.google.com/*",
+    "https://snapfix.bg/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

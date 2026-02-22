@@ -3,6 +3,7 @@ import { DatabaseFactory } from '../models/DatabaseFactory';
 import { PostgreSQLDatabase } from '../models/PostgreSQLDatabase';
 import logger from '../utils/logger';
 import { NotificationService } from '../services/NotificationService';
+// isUserOnline removed - providers are now filtered by updated_at recency instead of Socket.IO presence
 
 const db = DatabaseFactory.getDatabase() as PostgreSQLDatabase;
 const notificationService = new NotificationService();
@@ -271,12 +272,13 @@ export const updateCustomerPreferences = async (req: Request, res: Response): Pr
  */
 export const getProvidersForMap = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { latitude, longitude, radiusKm, category, freeInspectionOnly } = req.query;
+    const { latitude, longitude, radiusKm, category, freeInspectionOnly, liveOnly } = req.query;
 
     const lat = parseFloat(latitude as string);
     const lng = parseFloat(longitude as string);
     const radius = parseInt(radiusKm as string) || 10;
     const onlyFreeInspection = freeInspectionOnly === 'true';
+    const liveOnlyFilter = liveOnly === 'true';
 
     if (isNaN(lat) || isNaN(lng)) {
       res.status(400).json({ success: false, error: { code: 'BAD_REQUEST', message: 'Invalid latitude or longitude' } });
@@ -295,15 +297,18 @@ export const getProvidersForMap = async (req: Request, res: Response): Promise<v
         spp.free_inspection_active,
         spp.rating,
         spp.total_reviews,
-        spp.phone_number,
+        spp.profile_image_url,
         u.first_name,
         u.last_name,
+        u.subscription_tier_id,
         (6371 * acos(cos(radians($1)) * cos(radians(spp.latitude)) * cos(radians(spp.longitude) - radians($2)) + sin(radians($1)) * sin(radians(spp.latitude)))) AS distance_km
       FROM service_provider_profiles spp
       JOIN users u ON spp.user_id = u.id
       WHERE spp.latitude IS NOT NULL 
         AND spp.longitude IS NOT NULL
         AND spp.is_active = true
+        AND u.subscription_tier_id = 'pro'
+        ${liveOnlyFilter ? "AND spp.updated_at >= NOW() - INTERVAL '1 minute'" : ''}
         AND (6371 * acos(cos(radians($1)) * cos(radians(spp.latitude)) * cos(radians(spp.longitude) - radians($2)) + sin(radians($1)) * sin(radians(spp.latitude)))) <= $3
     `;
 
@@ -334,8 +339,9 @@ export const getProvidersForMap = async (req: Request, res: Response): Promise<v
       freeInspectionActive: row.free_inspection_active || false,
       rating: row.rating ? parseFloat(row.rating) : null,
       totalReviews: row.total_reviews || 0,
-      phoneNumber: row.phone_number,
-      distanceKm: parseFloat(row.distance_km.toFixed(2))
+      distanceKm: parseFloat(row.distance_km.toFixed(2)),
+      subscriptionTier: row.subscription_tier_id,
+      profileImageUrl: row.profile_image_url || null
     }));
 
     logger.info(`✅ Found ${providers.length} providers for map`);

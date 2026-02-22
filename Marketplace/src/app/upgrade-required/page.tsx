@@ -124,10 +124,10 @@ export default function UpgradeRequiredPage() {
                   <h3 className="text-lg font-bold text-white">
                     {upgrading && upgradingTier === 'normal' ? '⏳ Надстройване...' : 'Нормален План'}
                   </h3>
-                  <p className="text-sm text-green-100">350 точки/година • До 1500 лв бюджет • 20 снимки</p>
+                  <p className="text-sm text-green-100">350 точки/година • До 1000 € бюджет • 20 снимки</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-white">349 лв</p>
+                  <p className="text-2xl font-bold text-white">179 €</p>
                   <p className="text-xs text-green-100">на година (с ДДС)</p>
                 </div>
               </div>
@@ -148,7 +148,7 @@ export default function UpgradeRequiredPage() {
                   <p className="text-sm text-purple-100">500 точки/година • Всички бюджети • Наддаване</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-white">489 лв</p>
+                  <p className="text-2xl font-bold text-white">249 €</p>
                   <p className="text-xs text-purple-100">на година (с ДДС)</p>
                 </div>
               </div>

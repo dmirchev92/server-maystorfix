@@ -120,14 +120,14 @@ export default function DashboardPage() {
       ['ОБОБЩЕНИЕ'],
       [''],
       ['Показател', 'Стойност'],
-      ['Общо приходи', `${incomeStats.summary?.totalIncome?.toFixed(2)} лв.`],
+      ['Общо приходи', `${incomeStats.summary?.totalIncome?.toFixed(2)} €`],
       ['Брой заявки', `${incomeStats.summary?.incomeCount || 0}`],
-      ['Средно на заявка', `${incomeStats.summary?.averageIncome?.toFixed(2)} лв.`],
+      ['Средно на заявка', `${incomeStats.summary?.averageIncome?.toFixed(2)} €`],
       [''],
       [''],
       ['МЕСЕЧНА РАЗБИВКА'],
       [''],
-      ['Месец', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)']
+      ['Месец', 'Приходи (€)', 'Брой заявки', 'Средно (€)']
     ]
 
     // Add monthly data
@@ -155,7 +155,7 @@ export default function DashboardPage() {
     summaryData.push([''])
     summaryData.push(['ПО МЕТОД НА ПЛАЩАНЕ'])
     summaryData.push([''])
-    summaryData.push(['Метод', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)'])
+    summaryData.push(['Метод', 'Приходи (€)', 'Брой заявки', 'Средно (€)'])
 
     incomeStats.paymentMethods?.forEach((pm: any) => {
       const avgPerMethod = pm.count > 0 ? (pm.total / pm.count).toFixed(2) : '0.00'
@@ -193,7 +193,7 @@ export default function DashboardPage() {
       ['📅 ДЕТАЙЛНА МЕСЕЧНА РАЗБИВКА'],
       [`Година: ${selectedYear}`],
       [''],
-      ['Месец', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)', '% от общо']
+      ['Месец', 'Приходи (€)', 'Брой заявки', 'Средно (€)', '% от общо']
     ]
 
     const totalIncome = incomeStats.summary?.totalIncome || 1
@@ -239,7 +239,7 @@ export default function DashboardPage() {
       ['💳 РАЗБИВКА ПО МЕТОД НА ПЛАЩАНЕ'],
       [`Година: ${selectedYear}`],
       [''],
-      ['Метод на плащане', 'Приходи (лв.)', 'Брой заявки', 'Средно (лв.)', '% от общо']
+      ['Метод на плащане', 'Приходи (€)', 'Брой заявки', 'Средно (€)', '% от общо']
     ]
 
     // Sort by total (highest first)

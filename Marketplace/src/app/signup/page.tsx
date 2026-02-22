@@ -562,7 +562,7 @@ export default function SignupPage() {
                   >
                     <div className="text-center">
                       <h3 className="text-lg font-bold text-white mb-1">FREE</h3>
-                      <p className="text-2xl font-bold text-white mb-2">0 лв</p>
+                      <p className="text-2xl font-bold text-white mb-2">0 €</p>
                       <p className="text-xs text-slate-300 mb-3">пробен период</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
                         <li>✓ 2 категории</li>
@@ -586,12 +586,12 @@ export default function SignupPage() {
                         ⭐ Препоръчан
                       </div>
                       <h3 className="text-lg font-bold text-white mb-1">NORMAL</h3>
-                      <p className="text-2xl font-bold text-white mb-2">349 лв</p>
+                      <p className="text-2xl font-bold text-white mb-2">179 €</p>
                       <p className="text-xs text-slate-300 mb-3">на година (с ДДС)</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
                         <li>✓ 350 точки/година</li>
                         <li>✓ До 20 снимки</li>
-                        <li>✓ До 1500 лв бюджет</li>
+                        <li>✓ До 1000 € бюджет</li>
                         <li>✓ Премиум значка</li>
                       </ul>
                     </div>
@@ -611,7 +611,7 @@ export default function SignupPage() {
                         👑 Професионален
                       </div>
                       <h3 className="text-lg font-bold text-white mb-1">PRO</h3>
-                      <p className="text-2xl font-bold text-white mb-2">489 лв</p>
+                      <p className="text-2xl font-bold text-white mb-2">249 €</p>
                       <p className="text-xs text-slate-300 mb-3">на година (с ДДС)</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
                         <li>✓ 500 точки/година</li>

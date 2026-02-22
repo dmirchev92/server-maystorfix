@@ -90,10 +90,11 @@ export class ReferralService {
   }
 
   /**
-   * Add points to a user's balance
+   * Add points to a user's balance and record transaction
    */
   private async addPointsToUser(userId: string, points: number, reason: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
+      // First update the user's balance
       this.db.db.run(
         `UPDATE users 
          SET points_balance = COALESCE(points_balance, 0) + ?,
@@ -104,10 +105,40 @@ export class ReferralService {
           if (err) {
             console.error(`❌ Error adding ${points} points to user ${userId}:`, err);
             resolve(false);
-          } else {
-            console.log(`✅ Added ${points} points to user ${userId} (${reason})`);
-            resolve(true);
+            return;
           }
+          
+          // Get the new balance and record the transaction
+          this.db.db.get(
+            `SELECT points_balance FROM users WHERE id = ?`,
+            [userId],
+            (balErr: any, row: any) => {
+              if (balErr) {
+                console.error(`❌ Error getting balance for user ${userId}:`, balErr);
+                resolve(true); // Points were added, just couldn't record transaction
+                return;
+              }
+              
+              const newBalance = row?.points_balance || points;
+              const transactionId = `ref_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+              
+              // Record the transaction in sp_points_transactions
+              this.db.db.run(
+                `INSERT INTO sp_points_transactions (id, user_id, transaction_type, points_amount, balance_after, reason, created_at)
+                 VALUES (?, ?, 'earned', ?, ?, ?, CURRENT_TIMESTAMP)`,
+                [transactionId, userId, points, newBalance, `Referral bonus: ${reason}`],
+                (txErr: any) => {
+                  if (txErr) {
+                    console.error(`❌ Error recording referral transaction for user ${userId}:`, txErr);
+                  } else {
+                    console.log(`✅ Recorded referral transaction for user ${userId}: +${points} points`);
+                  }
+                  console.log(`✅ Added ${points} points to user ${userId} (${reason})`);
+                  resolve(true);
+                }
+              );
+            }
+          );
         }
       );
     });
@@ -500,6 +531,8 @@ export class ReferralService {
   async getReferralDashboard(userId: string): Promise<{
     referralCode: string;
     referralLink: string;
+    betaReferralLink: string;
+    betaReferrals: number;
     referredUsers: ReferralStats[];
     totalRewards: ReferralReward[];
   }> {
@@ -508,6 +541,18 @@ export class ReferralService {
         // Get referral code
         const referralCode = await this.getOrCreateReferralCode(userId);
         const referralLink = `${process.env.MARKETPLACE_URL || 'https://marketplace.servicetextpro.com'}/signup?ref=${referralCode}`;
+        const betaReferralLink = `https://snapfix.bg/beta/?ref=${referralCode}`;
+
+        // Get beta tester referral count
+        const betaReferrals = await new Promise<number>((resolveBeta) => {
+          this.db.db.get(
+            'SELECT COUNT(*) as count FROM beta_testers WHERE referral_code = $1',
+            [referralCode],
+            (err: any, row: any) => {
+              resolveBeta(err ? 0 : (parseInt(row?.count) || 0));
+            }
+          );
+        });
 
         // Get referred users with stats
         this.db.db.all(
@@ -596,6 +641,8 @@ export class ReferralService {
                   resolve({
                     referralCode,
                     referralLink,
+                    betaReferralLink,
+                    betaReferrals,
                     referredUsers,
                     totalRewards: transformedRewards
                   });

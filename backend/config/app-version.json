@@ -1,15 +1,16 @@
 {
-  "latestVersion": "1.6",
+  "latestVersion": "1.18",
   "minimumVersion": "1.0.0",
   "downloadUrl": "https://snapfix.bg/downloads/ServiceTextPro-latest.apk",
   "updateRequired": false,
   "releaseNotes": {
-    "bg": "Версия 1.6:\n• Подобрена навигация с бутон назад\n• Поправки в регистрацията (цени на планове)\n• VIP търг подобрения\n• Показване на договорена цена в заявки\n• Auto-refresh на екран Приходи",
-    "en": "Version 1.6:\n• Improved navigation with back button\n• Registration fixes (plan prices)\n• VIP auction improvements\n• Show agreed price in cases\n• Auto-refresh on Income screen"
+    "bg": "Версия 1.18:\n• Поправена карта - показва казуси и майстори за мобилни\n• Свободни потребители могат да предлагат по-висок бюджет\n• Поправен чат - съобщенията се изпращат коректно\n• GDPR съгласия се записват правилно при регистрация",
+    "en": "Version 1.18:\n• Fixed map - shows cases and providers on mobile\n• Free users can propose higher budgets in launch mode\n• Fixed chat - messages send correctly\n• GDPR consents properly saved during registration"
   },
   "features": [
-    "Подобрена навигация",
-    "VIP търг подобрения",
-    "Auto-refresh"
+    "Mobile map cases and providers fix",
+    "Free tier budget proposal in launch mode",
+    "Chat consent fix",
+    "GDPR consent persistence fix"
   ]
 }

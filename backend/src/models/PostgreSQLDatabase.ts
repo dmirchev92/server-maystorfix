@@ -616,6 +616,26 @@ export class PostgreSQLDatabase {
         
         logger.info(`Allocated ${yearlyPoints} initial yearly points to new user ${user.email}`);
       }
+
+      // Save GDPR consent records
+      if (user.gdprConsents && user.gdprConsents.length > 0) {
+        for (const consent of user.gdprConsents) {
+          await client.query(
+            `INSERT INTO gdpr_consents (id, user_id, consent_type, granted, timestamp, ip_address, legal_basis)
+             VALUES ($1, $2, $3, $4, NOW(), $5, $6)
+             ON CONFLICT DO NOTHING`,
+            [
+              consent.id || this.generateId(),
+              userId,
+              consent.consentType,
+              consent.granted !== false,
+              consent.ipAddress || null,
+              consent.legalBasis || 'consent'
+            ]
+          );
+        }
+        logger.info(`Saved ${user.gdprConsents.length} GDPR consent records for user ${user.email}`);
+      }
       
       await client.query('COMMIT');
       
@@ -881,13 +901,18 @@ export class PostgreSQLDatabase {
             ? (profileData.isActive ? 1 : 0) 
             : (existingProfile?.is_active !== undefined ? existingProfile.is_active : 1);
 
+          // Convert offeredServices array to PostgreSQL array format
+          const offeredServicesArray = Array.isArray(profileData.offeredServices) 
+            ? profileData.offeredServices 
+            : [];
+
           this.db.run(
             `INSERT INTO service_provider_profiles (
               id, user_id, business_name, service_category, description,
               experience_years, hourly_rate, city, neighborhood, address,
               latitude, longitude, phone_number, email, website_url,
-              profile_image_url, is_verified, is_active, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+              profile_image_url, is_verified, is_active, offered_services, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT (user_id) DO UPDATE SET
               business_name = EXCLUDED.business_name,
               service_category = EXCLUDED.service_category,
@@ -905,6 +930,7 @@ export class PostgreSQLDatabase {
               profile_image_url = EXCLUDED.profile_image_url,
               is_verified = EXCLUDED.is_verified,
               is_active = EXCLUDED.is_active,
+              offered_services = EXCLUDED.offered_services,
               updated_at = CURRENT_TIMESTAMP`,
             [
               id, userId, profileData.businessName, profileData.serviceCategory,
@@ -912,7 +938,7 @@ export class PostgreSQLDatabase {
               profileData.city, profileData.neighborhood, profileData.address,
               profileData.latitude, profileData.longitude, profileData.phoneNumber,
               profileData.email, profileData.websiteUrl, profileData.profileImageUrl,
-              profileData.isVerified ? 1 : 0, isActive
+              profileData.isVerified ? 1 : 0, isActive, offeredServicesArray
             ],
             (err: any) => {
               if (err) reject(err);
@@ -989,17 +1015,19 @@ export class PostgreSQLDatabase {
           });
         } else {
           // Create default settings for this user
+          // LAUNCH MODE: Enable SMS by default for new users
+          const LAUNCH_MODE = process.env.LAUNCH_MODE === 'true';
           const id = this.generateId();
           await this.pool.query(
-            'INSERT INTO sms_settings (id, user_id) VALUES ($1, $2)',
-            [id, userId]
+            'INSERT INTO sms_settings (id, user_id, is_enabled) VALUES ($1, $2, $3)',
+            [id, userId, LAUNCH_MODE]
           );
 
-          // Return default settings (SMS OFF by default)
+          // Return default settings (SMS ON in Launch Mode, OFF otherwise)
           resolve({
             id,
             userId,
-            isEnabled: false,
+            isEnabled: LAUNCH_MODE,
             message: 'Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]\n\n',
             lastSentTime: null,
             sentCount: 0,

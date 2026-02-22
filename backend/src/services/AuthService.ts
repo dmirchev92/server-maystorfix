@@ -138,7 +138,7 @@ export class AuthService {
       }
       */
 
-      // Check IP and Phone-based abuse prevention for FREE tier
+      // Check IP-based abuse prevention for FREE tier
       // TEMPORARILY DISABLED FOR TESTING
       /*
       if (isFreeTrialUser) {
@@ -165,8 +165,11 @@ export class AuthService {
             );
           }
         }
+      }
+      */
 
-        // Check by phone number
+      // Check phone-based abuse prevention for FREE tier
+      if (isFreeTrialUser) {
         if (userData.phoneNumber) {
           const existingByPhone = await this.database.query(
             `SELECT id, email, registration_ip FROM users 
@@ -190,7 +193,6 @@ export class AuthService {
           }
         }
       }
-      */
 
       // Create user object
       const user: User & { city?: string; neighborhood?: string; address?: string; latitude?: number; longitude?: number } = {
@@ -917,6 +919,16 @@ export class AuthService {
       user.status = UserStatus.ACTIVE;
       user.updatedAt = new Date();
       await this.updateUser(user);
+
+      // Activate referral if this user was referred
+      try {
+        const { ReferralService } = require('./ReferralService');
+        const referralService = new ReferralService(this.database);
+        await referralService.activateReferral(user.id);
+        logger.info('Referral activated for user', { userId: user.id });
+      } catch (error) {
+        logger.error('Failed to activate referral', { userId: user.id, error });
+      }
     }
 
     logger.info('Email verified successfully', { userId: tokenData.userId });

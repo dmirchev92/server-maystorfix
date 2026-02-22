@@ -22,7 +22,6 @@ interface ServiceProvider {
   hourly_rate: number
   city: string
   neighborhood: string
-  phone_number: string
   email: string
   rating: number
   total_reviews: number
@@ -162,7 +161,6 @@ export default function SearchPage() {
             hourly_rate: data.provider.hourly_rate,
             city: data.provider.city,
             neighborhood: data.provider.neighborhood,
-            phone_number: data.provider.phone_number,
             email: data.provider.email,
             first_name: data.provider.first_name,
             last_name: data.provider.last_name,
@@ -192,7 +190,6 @@ export default function SearchPage() {
               hourly_rate: data.provider.hourly_rate,
               city: data.provider.city,
               neighborhood: data.provider.neighborhood,
-              phone_number: data.provider.phone_number,
               email: data.provider.email,
               first_name: data.provider.first_name,
               last_name: data.provider.last_name,
@@ -255,51 +252,6 @@ export default function SearchPage() {
       stars.push('☆')
     }
     return stars.join('')
-  }
-
-  const handleStartChat = async (provider: ServiceProvider) => {
-    try {
-      // Get provider name
-      const businessName = provider.business_name || (provider as any).businessName
-      const firstName = provider.first_name || (provider as any).firstName
-      const lastName = provider.last_name || (provider as any).lastName
-      const providerName = businessName || `${firstName || ''} ${lastName || ''}`.trim() || 'Специалист'
-      
-      console.log('🔗 Creating/getting conversation for provider:', provider.id)
-      
-      // Create or get conversation with this provider (tagged as 'searchchat')
-      const response = await apiClient.createOrGetConversation({
-        providerId: provider.id,
-        customerId: user?.id,
-        customerName: user?.firstName + ' ' + user?.lastName || 'Customer',
-        customerEmail: user?.email || '',
-        customerPhone: user?.phoneNumber || '',
-        chatSource: 'searchchat'
-      })
-      
-      console.log('🔗 Conversation response:', response.data)
-      
-      if (response.data?.success) {
-        // Conversation created/retrieved, now open chat widget
-        console.log('🔗 Opening chat widget for provider:', provider.id)
-        
-        // Dispatch event to open chat widget with this provider
-        const event = new CustomEvent('openChatWidget', {
-          detail: { 
-            providerId: provider.id,
-            source: 'search'
-          }
-        })
-        window.dispatchEvent(event)
-      } else {
-        console.error('Failed to create conversation:', response.data)
-        alert('Не можа да се отвори чат. Моля, опитайте отново.')
-      }
-      
-    } catch (error) {
-      console.error('Error opening chat:', error)
-      alert('Възникна грешка. Моля, опитайте отново.')
-    }
   }
 
   const handleCreateCase = (provider: ServiceProvider) => {
@@ -384,7 +336,7 @@ export default function SearchPage() {
   // Cities are now fetched dynamically from the API
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-x-hidden">
       {/* Industrial background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-slate-500/10 rounded-lg blur-3xl"></div>
@@ -706,10 +658,6 @@ export default function SearchPage() {
                             <span>{(provider as any).completedProjects} завършени проекта</span>
                           </div>
                         )}
-                        <div className="flex items-center text-sm text-slate-300">
-                          <span className="mr-2">📞</span>
-                          <span>{(provider as any).phoneNumber}</span>
-                        </div>
                       </div>
 
                       {/* Action Buttons */}
@@ -727,13 +675,7 @@ export default function SearchPage() {
                               onClick={() => handleCreateCase(provider)}
                               className="bg-purple-600/80 text-white py-2 px-4 rounded-md hover:bg-purple-600 transition-colors text-sm font-medium"
                             >
-                              Заявка
-                            </button>
-                            <button
-                              onClick={() => handleStartChat(provider)}
-                              className="bg-indigo-600/80 text-white py-2 px-4 rounded-md hover:bg-indigo-600 transition-colors text-sm font-medium"
-                            >
-                              Чат
+                              📋 Заявка
                             </button>
                           </>
                         )}

@@ -18,7 +18,7 @@ export class DatabaseFactory {
       return this.instance;
     }
 
-    const dbType = (process.env.DB_TYPE || 'sqlite').toLowerCase() as DatabaseType;
+    const dbType = (process.env.DB_TYPE || 'postgresql').toLowerCase() as DatabaseType;
 
     logger.info(`🔧 Initializing ${dbType.toUpperCase()} database...`);
 
@@ -27,9 +27,9 @@ export class DatabaseFactory {
         this.instance = new PostgreSQLDatabase();
         break;
       case 'sqlite':
+        throw new Error('SQLite database is disabled. Set DB_TYPE=postgresql and configure POSTGRES_* environment variables.');
       default:
-        this.instance = new SQLiteDatabase();
-        break;
+        throw new Error(`Unsupported DB_TYPE: ${dbType}. Use DB_TYPE=postgresql.`);
     }
 
     return this.instance;
@@ -39,7 +39,7 @@ export class DatabaseFactory {
    * Get current database type
    */
   public static getDatabaseType(): DatabaseType {
-    return (process.env.DB_TYPE || 'sqlite').toLowerCase() as DatabaseType;
+    return (process.env.DB_TYPE || 'postgresql').toLowerCase() as DatabaseType;
   }
 
   /**

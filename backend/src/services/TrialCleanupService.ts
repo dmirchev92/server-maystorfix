@@ -2,11 +2,17 @@
  * Trial Cleanup Service
  * Runs periodically to check and disable SMS for expired FREE tier trials
  * Prevents exploitation by users staying logged in
+ * 
+ * LAUNCH MODE: When LAUNCH_MODE=true, this service is disabled to allow
+ * free users to use SMS without restrictions during onboarding phase.
  */
 
 import { DatabaseFactory } from '../models/DatabaseFactory';
 import { PostgreSQLDatabase } from '../models/PostgreSQLDatabase';
 import logger from '../utils/logger';
+
+// Launch Mode: Skip trial cleanup when enabled
+const LAUNCH_MODE = process.env.LAUNCH_MODE === 'true';
 
 export class TrialCleanupService {
   private database = DatabaseFactory.getDatabase() as PostgreSQLDatabase;
@@ -42,6 +48,12 @@ export class TrialCleanupService {
    * Run the cleanup process
    */
   private async runCleanup() {
+    // LAUNCH MODE: Skip cleanup entirely
+    if (LAUNCH_MODE) {
+      logger.info('🚀 Launch mode active - skipping trial cleanup');
+      return;
+    }
+
     try {
       logger.info('🧹 Running trial cleanup...');
 

@@ -2,6 +2,9 @@
  * Trial Service
  * Manages FREE tier trial limits: 5 case ACCEPTANCES OR 14 days
  * Note: Service Providers ACCEPT cases from customers (not create them)
+ * 
+ * LAUNCH MODE: When LAUNCH_MODE=true, trial restrictions are disabled
+ * to allow SPs to use the platform freely during initial onboarding phase.
  */
 
 import { DatabaseFactory } from '../models/DatabaseFactory';
@@ -11,6 +14,9 @@ import NotificationService from './NotificationService';
 
 const TRIAL_MAX_CASES = 5;
 const TRIAL_MAX_DAYS = 14;
+
+// Launch Mode: Skip trial restrictions when enabled
+const LAUNCH_MODE = process.env.LAUNCH_MODE === 'true';
 
 export interface TrialStatus {
   isActive: boolean;
@@ -35,6 +41,20 @@ export class TrialService {
    */
   async checkTrialStatus(userId: string): Promise<TrialStatus> {
     try {
+      // LAUNCH MODE: Skip all trial restrictions
+      if (LAUNCH_MODE) {
+        logger.info('Launch mode active - skipping trial restrictions', { userId });
+        return {
+          isActive: true,
+          isExpired: false,
+          casesUsed: 0,
+          casesRemaining: Infinity,
+          daysRemaining: Infinity,
+          expiresAt: null,
+          reason: 'not_free_tier' // Treat as if not on trial
+        };
+      }
+
       const query = `
         SELECT 
           subscription_tier_id,

@@ -275,7 +275,7 @@ export default function ProviderDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-x-hidden">
       {/* Industrial background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-slate-500/10 rounded-lg blur-3xl"></div>
@@ -345,7 +345,7 @@ export default function ProviderDetailPage() {
                         </div>
                       </div>
                       <span className="text-slate-300 text-sm">
-                        {Number(provider.rating || 0).toFixed(1)} ({provider.total_reviews || 0} отзива)
+                        {Number(provider.rating || (provider as any).rating || 0).toFixed(1)} ({reviews.length || (provider as any).totalReviews || provider.total_reviews || 0} отзива)
                       </span>
                     </div>
                   </div>
@@ -476,15 +476,18 @@ export default function ProviderDetailPage() {
             <h3 className="text-lg font-semibold text-white mb-4">Свържете се</h3>
             
             <div className="space-y-3 mb-6">
-              <div className="flex items-center">
-                <span className="mr-3">📞</span>
-                <a 
-                  href={`tel:${(provider as any).profilePhone || provider.phone_number}`}
-                  className="text-indigo-400 hover:text-indigo-300 transition-colors"
-                >
-                  {(provider as any).profilePhone || provider.phone_number}
-                </a>
-              </div>
+              {/* Phone only visible on own profile */}
+              {user?.id === provider.id && ((provider as any).profilePhone || provider.phone_number) && (
+                <div className="flex items-center">
+                  <span className="mr-3">📞</span>
+                  <a 
+                    href={`tel:${(provider as any).profilePhone || provider.phone_number}`}
+                    className="text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    {(provider as any).profilePhone || provider.phone_number}
+                  </a>
+                </div>
+              )}
               <div className="flex items-center">
                 <span className="mr-3">📧</span>
                 <a 
@@ -518,12 +521,12 @@ export default function ProviderDetailPage() {
             {/* Only show contact button if user is not viewing their own profile */}
             {user?.id !== provider.id && (
               <div className="space-y-3">
-                <button
-                  onClick={() => setShowContactForm(true)}
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-medium"
+                <a
+                  href={`/create-case?providerId=${provider.id}&providerName=${encodeURIComponent((provider as any).businessName || provider.business_name || `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'Специалист')}&providerCategory=${encodeURIComponent((provider as any).serviceCategory || provider.service_category || '')}`}
+                  className="w-full block text-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 px-4 rounded-lg hover:shadow-lg transform hover:scale-105 transition-all duration-300 font-medium no-underline"
                 >
-                  ✉️ Изпрати съобщение
-                </button>
+                  📋 Пусни запитване
+                </a>
               </div>
             )}
             
@@ -553,10 +556,12 @@ export default function ProviderDetailPage() {
                 <span className="text-slate-400">Опит:</span>
                 <span className="text-slate-200">{(provider as any).experienceYears || provider.experience_years || 0} години</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Телефон:</span>
-                <span className="text-slate-200">{(provider as any).profilePhone || provider.phone_number || 'Няма телефон'}</span>
-              </div>
+              {user?.id === provider.id && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Телефон:</span>
+                  <span className="text-slate-200">{(provider as any).profilePhone || provider.phone_number || 'Няма телефон'}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-slate-400">Рейтинг:</span>
                 <span className="text-slate-200">{Number(provider.rating || 0).toFixed(1)}/5</span>
@@ -735,100 +740,157 @@ export default function ProviderDetailPage() {
           <div className="absolute top-8 right-24 w-12 h-12 bg-white/10 rounded-full blur-md"></div>
         </div>
 
-        {/* Scrolling Reviews Section */}
-        <style jsx>{`
-          @keyframes scrollLeft {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-          }
-        `}</style>
-        <div className="bg-gradient-to-r from-purple-200 to-blue-200 border-t border-purple-300 py-4 overflow-hidden">
-          {reviewsLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              <span className="ml-3 text-purple-700">Зареждане на отзиви...</span>
-            </div>
-          ) : reviews.length > 0 ? (
-            <div 
-              className="relative overflow-hidden py-4"
-              onMouseEnter={(e) => {
-                // Pause animation when mouse enters the carousel area
-                const scrollElement = e.currentTarget.querySelector('.scroll-element') as HTMLElement
-                if (scrollElement) {
-                  scrollElement.style.animationPlayState = 'paused'
-                }
-              }}
-              onMouseMove={(e) => {
-                const container = e.currentTarget
-                const rect = container.getBoundingClientRect()
-                const mouseX = e.clientX - rect.left
-                const containerWidth = rect.width
-                const scrollPercentage = mouseX / containerWidth
-                
-                // Find the scrolling element and control position manually while paused
-                const scrollElement = container.querySelector('.scroll-element') as HTMLElement
-                if (scrollElement) {
-                  // Keep animation paused and control position manually based on mouse
-                  scrollElement.style.animationPlayState = 'paused'
-                  scrollElement.style.animation = 'none' // Completely disable animation
-                  // Manual position control - move based on mouse position
-                  const maxTranslate = -100 // Full range of movement
-                  const translateX = scrollPercentage * maxTranslate
-                  scrollElement.style.transform = `translateX(${translateX}%)`
-                  scrollElement.style.transition = 'transform 0.1s ease-out'
-                }
-              }}
-              onMouseLeave={(e) => {
-                // Resume animation when mouse leaves the entire area
-                const scrollElement = e.currentTarget.querySelector('.scroll-element') as HTMLElement
-                if (scrollElement) {
-                  // Clear manual transform and resume animation
-                  scrollElement.style.transform = ''
-                  scrollElement.style.transition = ''
-                  scrollElement.style.animation = 'scrollLeft 20s linear infinite' // Restore animation
-                  scrollElement.style.animationPlayState = 'running'
-                }
-              }}
-            >
-              <div 
-                className="flex scroll-element"
-                style={{
-                  animation: 'scrollLeft 20s linear infinite',
-                  width: 'max-content',
-                  animationName: 'scrollLeft',
-                  animationDuration: '20s',
-                  animationTimingFunction: 'linear',
-                  animationIterationCount: 'infinite',
-                  gap: '24px' // Professional spacing between reviews
-                }}
-              >
-                {/* Triple the reviews for true seamless infinite scroll */}
-                {[...Array(10).fill(reviews).flat(), ...Array(10).fill(reviews).flat()].map((review, index) => (
-                  <div key={`${review.id}-${index}`} className="flex-shrink-0 bg-white rounded-lg p-4 shadow-sm min-w-[300px] max-w-[300px]">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900">{review.customer_name || 'Анонимен клиент'}</span>
-                      <div className="flex space-x-1">
-                        {renderStarsDisplay(review.rating || 0)}
+        {/* Reviews Carousel Section */}
+        {(() => {
+          // Each review card is ~324px (300px + 24px gap)
+          const CARD_WIDTH = 324
+          const fitsOnScreen = reviews.length <= 3
+          const shouldScroll = !fitsOnScreen && reviews.length > 0
+          // For scrolling: duplicate just enough for seamless loop (2x)
+          const scrollItems = shouldScroll ? [...reviews, ...reviews] : reviews
+          const scrollDuration = `${reviews.length * 6}s`
+
+          return (
+            <>
+              {shouldScroll && (
+                <style jsx>{`
+                  @keyframes scrollLeft {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
+                  }
+                `}</style>
+              )}
+              <div className="bg-gradient-to-r from-purple-200 to-blue-200 border-t border-purple-300 py-4 overflow-hidden">
+                {reviewsLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                    <span className="ml-3 text-purple-700">Зареждане на отзиви...</span>
+                  </div>
+                ) : reviews.length > 0 ? (
+                  fitsOnScreen ? (
+                    /* Static centered layout when reviews fit on screen */
+                    <div className="flex justify-center gap-6 py-4 px-4">
+                      {reviews.map((review: any) => (
+                        <div key={review.id} className="flex-shrink-0 bg-white rounded-lg p-4 shadow-sm min-w-[300px] max-w-[300px]">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium text-gray-900">{review.customer_name || 'Анонимен клиент'}</span>
+                            <div className="flex space-x-1">
+                              {renderStarsDisplay(review.rating || 0)}
+                            </div>
+                          </div>
+                          {(review.service_quality || review.communication || review.timeliness || review.value_for_money) && (
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {review.service_quality ? <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">🔧 Качество: {review.service_quality}/5</span> : null}
+                              {review.communication ? <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">💬 Комуникация: {review.communication}/5</span> : null}
+                              {review.timeliness ? <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">⏱ В срок: {review.timeliness}/5</span> : null}
+                              {review.value_for_money ? <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">💰 Цена: {review.value_for_money}/5</span> : null}
+                            </div>
+                          )}
+                          {review.would_recommend !== undefined && review.would_recommend !== null && (
+                            <p className="text-xs text-indigo-600 mb-1">{review.would_recommend ? '👍 Препоръчва' : '👎 Не препоръчва'}</p>
+                          )}
+                          <p className="text-gray-700 text-sm leading-relaxed">{review.comment || 'Няма коментар'}</p>
+                          <p className="text-gray-500 text-xs mt-2">
+                            {review.created_at ? new Date(review.created_at).toLocaleDateString('bg-BG') : ''}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    /* Scrolling layout with hover pause + manual drag */
+                    <div
+                      className="relative overflow-hidden py-4 cursor-grab active:cursor-grabbing"
+                      onMouseEnter={(e) => {
+                        const el = e.currentTarget.querySelector('.scroll-element') as HTMLElement
+                        if (el) el.style.animationPlayState = 'paused'
+                      }}
+                      onMouseLeave={(e) => {
+                        const el = e.currentTarget.querySelector('.scroll-element') as HTMLElement
+                        if (el) {
+                          el.style.animationPlayState = 'running'
+                        }
+                        // Reset drag state
+                        ;(e.currentTarget as any)._dragging = false
+                      }}
+                      onMouseDown={(e) => {
+                        const container = e.currentTarget
+                        ;(container as any)._dragging = true
+                        ;(container as any)._startX = e.clientX
+                        ;(container as any)._scrollLeft = container.scrollLeft
+                        const el = container.querySelector('.scroll-element') as HTMLElement
+                        if (el) {
+                          el.style.animationPlayState = 'paused'
+                        }
+                      }}
+                      onMouseUp={(e) => {
+                        ;(e.currentTarget as any)._dragging = false
+                      }}
+                      onMouseMove={(e) => {
+                        const container = e.currentTarget
+                        if (!(container as any)._dragging) return
+                        e.preventDefault()
+                        const x = e.clientX
+                        const walk = ((container as any)._startX - x) * 1.5
+                        const el = container.querySelector('.scroll-element') as HTMLElement
+                        if (el) {
+                          const currentTransform = el.style.transform
+                          const match = currentTransform.match(/translateX\(([^)]+)px\)/)
+                          const current = match ? parseFloat(match[1]) : 0
+                          el.style.animation = 'none'
+                          el.style.transform = `translateX(${current - walk}px)`
+                          ;(container as any)._startX = x
+                        }
+                      }}
+                    >
+                      <div
+                        className="flex scroll-element"
+                        style={{
+                          animation: `scrollLeft ${scrollDuration} linear infinite`,
+                          width: 'max-content',
+                          gap: '24px',
+                        }}
+                      >
+                        {scrollItems.map((review: any, index: number) => (
+                          <div key={`${review.id}-${index}`} className="flex-shrink-0 bg-white rounded-lg p-4 shadow-sm min-w-[300px] max-w-[300px]">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium text-gray-900">{review.customer_name || 'Анонимен клиент'}</span>
+                              <div className="flex space-x-1">
+                                {renderStarsDisplay(review.rating || 0)}
+                              </div>
+                            </div>
+                            {(review.service_quality || review.communication || review.timeliness || review.value_for_money) && (
+                              <div className="flex flex-wrap gap-1.5 mb-2">
+                                {review.service_quality ? <span className="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">🔧 Качество: {review.service_quality}/5</span> : null}
+                                {review.communication ? <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">💬 Комуникация: {review.communication}/5</span> : null}
+                                {review.timeliness ? <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">⏱ В срок: {review.timeliness}/5</span> : null}
+                                {review.value_for_money ? <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">💰 Цена: {review.value_for_money}/5</span> : null}
+                              </div>
+                            )}
+                            {review.would_recommend !== undefined && review.would_recommend !== null && (
+                              <p className="text-xs text-indigo-600 mb-1">{review.would_recommend ? '👍 Препоръчва' : '👎 Не препоръчва'}</p>
+                            )}
+                            <p className="text-gray-700 text-sm leading-relaxed">{review.comment || 'Няма коментар'}</p>
+                            <p className="text-gray-500 text-xs mt-2">
+                              {review.created_at ? new Date(review.created_at).toLocaleDateString('bg-BG') : ''}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <p className="text-gray-700 text-sm leading-relaxed">{review.comment || 'Няма коментар'}</p>
-                    <p className="text-gray-500 text-xs mt-2">
-                      {review.created_at ? new Date(review.created_at).toLocaleDateString('bg-BG') : 'Неизвестна дата'}
-                    </p>
+                  )
+                ) : (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="text-center">
+                      <span className="text-4xl mb-2 block">⭐</span>
+                      <p className="text-purple-700 font-medium">Все още няма отзиви</p>
+                      <p className="text-purple-600 text-sm">Бъдете първият, който ще остави отзив!</p>
+                    </div>
                   </div>
-                ))}
+                )}
               </div>
-            </div>
-          ) : (
-            <div className="flex justify-center items-center py-8">
-              <div className="text-center">
-                <span className="text-4xl mb-2 block">⭐</span>
-                <p className="text-purple-700 font-medium">Все още няма отзиви</p>
-                <p className="text-purple-600 text-sm">Бъдете първият, който ще остави отзив!</p>
-              </div>
-            </div>
-          )}
-        </div>
+            </>
+          )
+        })()}
       </main>
       
       <Footer />

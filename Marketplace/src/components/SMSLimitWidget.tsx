@@ -280,7 +280,7 @@ export default function SMSLimitWidget({ compact = false, showPurchaseButton = t
               {topupOptions.canPurchase ? (
                 <>
                   <p className="text-xs text-slate-400 text-center">
-                    Цена: {topupOptions.pricePerPoint} лв/точка
+                    Цена: {topupOptions.pricePerPoint} €/точка
                   </p>
                   <div className="grid grid-cols-2 gap-2">
                     {topupOptions.suggestedPacks.map((pack) => (
@@ -291,7 +291,7 @@ export default function SMSLimitWidget({ compact = false, showPurchaseButton = t
                         className="bg-white/5 hover:bg-white/10 border border-white/20 rounded-lg p-3 text-center transition-colors"
                       >
                         <p className="text-lg font-bold text-white">{pack.label}</p>
-                        <p className="text-sm text-green-400">{pack.price} лв</p>
+                        <p className="text-sm text-green-400">{pack.price} €</p>
                       </button>
                     ))}
                   </div>
@@ -316,7 +316,7 @@ export default function SMSLimitWidget({ compact = false, showPurchaseButton = t
           <p>• <strong>Точки:</strong> Използват се за SMS и достъп до казуси</p>
           <p>• <strong>SMS цена:</strong> {smsStatus.tier === 'pro' ? '1 точка' : '2 точки'} на SMS ({smsStatus.tier === 'pro' ? 'PRO' : 'Normal'} план)</p>
           <p>• <strong>Годишен абонамент:</strong> Включва {smsStatus.tier === 'pro' ? '500' : '350'} точки</p>
-          <p>• <strong>Допълнителни точки:</strong> {smsStatus.tier === 'pro' ? '0.25' : '0.30'} лв/точка</p>
+          <p>• <strong>Допълнителни точки:</strong> {smsStatus.tier === 'pro' ? '0.13' : '0.15'} €/точка</p>
           
           {/* SMS Encoding Explanation */}
           <div className="mt-4 pt-4 border-t border-white/10">

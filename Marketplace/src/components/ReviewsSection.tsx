@@ -245,7 +245,7 @@ export default function ReviewsSection({ providerId }: ReviewsSectionProps) {
                   )}
                   {review.valueForMoney && (
                     <div>
-                      <span className="text-gray-600">Цена/качество:</span>
+                      <span className="text-gray-600">Цена:</span>
                       <div>{renderStars(review.valueForMoney)}</div>
                     </div>
                   )}

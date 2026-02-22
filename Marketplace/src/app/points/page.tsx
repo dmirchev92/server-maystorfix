@@ -168,7 +168,7 @@ export default function PointsPage() {
           <>
             <div className="mb-6 text-center">
               <p className="text-slate-400">
-                Базова цена за вашия план ({packages.tier.toUpperCase()}): <span className="text-white font-semibold">{packages.pricePerPoint} лв/точка</span>
+                Базова цена за вашия план ({packages.tier.toUpperCase()}): <span className="text-white font-semibold">{packages.pricePerPoint} €/точка</span>
               </p>
             </div>
 
@@ -205,18 +205,18 @@ export default function PointsPage() {
                   <div className="text-center mb-4">
                     {pkg.discountPercent > 0 ? (
                       <>
-                        <p className="text-slate-500 line-through text-sm">{pkg.basePrice.toFixed(2)} лв</p>
-                        <p className="text-2xl font-bold text-green-400">{pkg.finalPrice.toFixed(2)} лв</p>
-                        <p className="text-green-400 text-sm">Спестявате {pkg.savings.toFixed(2)} лв</p>
+                        <p className="text-slate-500 line-through text-sm">{pkg.basePrice.toFixed(2)} €</p>
+                        <p className="text-2xl font-bold text-green-400">{pkg.finalPrice.toFixed(2)} €</p>
+                        <p className="text-green-400 text-sm">Спестявате {pkg.savings.toFixed(2)} €</p>
                       </>
                     ) : (
-                      <p className="text-2xl font-bold text-white">{pkg.finalPrice.toFixed(2)} лв</p>
+                      <p className="text-2xl font-bold text-white">{pkg.finalPrice.toFixed(2)} €</p>
                     )}
                   </div>
 
                   {/* Price per point */}
                   <p className="text-center text-slate-400 text-sm mb-4">
-                    {pkg.pricePerPoint.toFixed(2)} лв/точка
+                    {pkg.pricePerPoint.toFixed(2)} €/точка
                   </p>
 
                   {/* Buy Button */}

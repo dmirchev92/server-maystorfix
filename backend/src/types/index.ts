@@ -13,10 +13,36 @@ export enum DataProcessingBasis {
 
 export enum ConsentType {
   ESSENTIAL_SERVICE = 'essential_service',
-  ANALYTICS = 'analytics', 
-  MARKETING = 'marketing',
-  THIRD_PARTY_INTEGRATIONS = 'third_party_integrations',
   DATA_SHARING = 'data_sharing'
+}
+
+/**
+ * Mapping from mobile app consent types to backend canonical types
+ * Legacy types are mapped to the simplified consent model
+ */
+export const CONSENT_TYPE_MAPPING: Record<string, ConsentType> = {
+  // Legacy mobile app types → Backend types (for backward compatibility)
+  'data_processing': ConsentType.ESSENTIAL_SERVICE,
+  'ai_communication': ConsentType.ESSENTIAL_SERVICE,  // Merged into essential
+  'data_storage': ConsentType.DATA_SHARING,
+  'analytics': ConsentType.ESSENTIAL_SERVICE,  // Merged into essential
+  'third_party': ConsentType.ESSENTIAL_SERVICE,  // Merged into essential
+  'marketing': ConsentType.ESSENTIAL_SERVICE,  // No longer used, map to essential
+  'third_party_integrations': ConsentType.ESSENTIAL_SERVICE,  // Merged into essential
+  // Current types (pass-through)
+  'essential_service': ConsentType.ESSENTIAL_SERVICE,
+  'data_sharing': ConsentType.DATA_SHARING
+};
+
+/**
+ * Result of a consent check operation
+ */
+export interface ConsentCheckResult {
+  allowed: boolean;
+  reason?: string;
+  consentType: ConsentType;
+  grantedAt?: Date;
+  requiresConsent: boolean;
 }
 
 export interface GDPRConsent {
@@ -249,7 +275,7 @@ export interface AIAnalysisResult {
   estimatedCost?: {
     min: number;
     max: number;
-    currency: 'BGN';
+    currency: 'EUR';
   };
   requiredTools?: string[];
   safetyWarnings?: string[];
@@ -284,7 +310,7 @@ export interface BusinessMetrics {
   revenueImpact?: {
     estimatedJobsBooked: number;
     estimatedRevenue: number;
-    currency: 'BGN';
+    currency: 'EUR';
   };
 }
 
@@ -442,6 +468,16 @@ export class DataRetentionError extends ServiceTextProError {
   constructor(message: string, details?: any) {
     super(message, 'DATA_RETENTION_ERROR', 410, true);
     this.name = 'DataRetentionError';
+  }
+}
+
+export class ConsentRequiredError extends ServiceTextProError {
+  public readonly requiredConsent: ConsentType;
+
+  constructor(message: string, consentType: ConsentType) {
+    super(message, 'CONSENT_REQUIRED', 403, true);
+    this.name = 'ConsentRequiredError';
+    this.requiredConsent = consentType;
   }
 }
 

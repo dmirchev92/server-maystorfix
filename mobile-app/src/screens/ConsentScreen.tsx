@@ -37,15 +37,15 @@ const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
     {
       id: 'essential_service',
       title: 'Основни услуги',
-      description: 'Обработка на данни, профил, настройки, известия и аналитика за подобряване на услугата.',
+      description: 'Обработка на данни за профил, настройки, SMS известия, push нотификации, заявки и аналитика. Необходимо за работата на приложението.',
       required: false,
       enabled: true,
-      legalBasis: 'Договор',
+      legalBasis: 'Договор / Легитимен интерес',
     },
     {
       id: 'data_sharing',
       title: 'Съхранение на съобщения',
-      description: 'Съхранение на чат съобщенията и разговорите с клиенти за преглед и история.',
+      description: 'Съхранение на чат съобщенията и разговорите с клиенти за преглед и история. Без това съгласие няма да можете да изпращате или получавате съобщения.',
       required: false,
       enabled: false,
       legalBasis: 'Съгласие',
@@ -200,9 +200,9 @@ const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
   const openDataRights = () => {
     Alert.alert(
       'Вашите права по GDPR',
-      '✓ Достъп до данните си\n✓ Коригиране на неточни данни\n✓ Изтриване ("право да бъдеш забравен")\n✓ Преносимост на данните\n✓ Оттегляне на съгласие\n\nЗа упражняване на правата си:\ndpo@snapfix.bg',
+      '✓ Достъп до данните си (чл. 15)\n✓ Коригиране на неточни данни (чл. 16)\n✓ Изтриване — право на забвене (чл. 17)\n✓ Преносимост на данните (чл. 20)\n✓ Оттегляне на съгласие по всяко време\n\nЗа упражняване на правата си:\nadmin@snapfix.bg',
       [
-        { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:dpo@snapfix.bg') },
+        { text: 'Изпрати имейл', onPress: () => Linking.openURL('mailto:admin@snapfix.bg') },
         { text: 'OK' }
       ]
     );
@@ -290,7 +290,7 @@ const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          За въпроси относно поверителността: dpo@snapfix.bg
+          За въпроси относно поверителността: admin@snapfix.bg
         </Text>
       </View>
 

@@ -109,12 +109,12 @@ export const BidsList: React.FC<BidsListProps> = ({ bids, filter, onFilterChange
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-sm">
                             <span className="text-slate-400">💰 Предложена цена:</span>
-                            <span className="font-semibold text-green-400">{bid.proposed_budget_range} лв</span>
+                            <span className="font-semibold text-green-400">{bid.proposed_budget_range} €</span>
                           </div>
                           {bid.budget && (
                             <div className="flex items-center gap-2 text-sm">
                               <span className="text-slate-400">💵 Бюджет на клиента:</span>
-                              <span className="font-medium text-slate-300">{bid.budget} лв</span>
+                              <span className="font-medium text-slate-300">{bid.budget} €</span>
                             </div>
                           )}
                           {bid.city && (

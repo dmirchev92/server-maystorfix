@@ -10,6 +10,7 @@ import SMSLimitService from '../services/SMSLimitService';
 import logger from '../utils/logger';
 import { APIResponse, ServiceTextProError } from '../types';
 import config from '../utils/config';
+import { maskPhone } from '../utils/phonePrivacy';
 import { getIO } from '../server';
 
 const router = Router();
@@ -408,7 +409,7 @@ router.post('/send-missed-call',
 
       logger.info('📱 [MOBICA] Sending missed call SMS', {
         userId,
-        phoneNumber: formattedPhone,
+        phoneNumber: maskPhone(formattedPhone),
         businessName,
         callId
       });
@@ -451,7 +452,7 @@ router.post('/send-missed-call',
 
         logger.info('✅ [MOBICA] Missed call SMS sent successfully', {
           userId,
-          phoneNumber: formattedPhone,
+          phoneNumber: maskPhone(formattedPhone),
           messageId: result.messageId
         });
 
@@ -473,7 +474,7 @@ router.post('/send-missed-call',
       } else {
         logger.error('❌ [MOBICA] Failed to send SMS', {
           userId,
-          phoneNumber: formattedPhone,
+          phoneNumber: maskPhone(formattedPhone),
           error: result.error
         });
 

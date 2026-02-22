@@ -318,14 +318,10 @@ class SocketIOService {
     const pushEnabled = prefs?.push_enabled !== false; // Default to true if not set
     const chatNotificationsEnabled = prefs?.push_chat_messages !== false; // Default to true if not set
     
-    // NOTE: Normally we filter out own messages (!isOwnMessage).
-    // However, for testing purposes (or if user messages themselves from another device),
-    // we allow the notification to trigger if the app is in background.
-    const shouldShowNotification = pushEnabled && chatNotificationsEnabled && (isAppInBackground || isDifferentConversation);
-
-    if (isOwnMessage && shouldShowNotification) {
-      Logger.debug('⚠️ Notification triggered for own message (allowed for testing)');
-    }
+    // When app is in background, FCM data-only push handles notifications.
+    // Socket handler only shows local notifications when app is ACTIVE (foreground)
+    // and user is viewing a different conversation. This prevents duplicate notifications.
+    const shouldShowNotification = pushEnabled && chatNotificationsEnabled && !isOwnMessage && !isAppInBackground && isDifferentConversation;
 
     Logger.debug(`📱 Notification check [${source}]:`, {
       isAppInBackground,
@@ -357,7 +353,9 @@ class SocketIOService {
       this.notificationService.incrementBadgeCount();
     } else {
       const reason = !pushEnabled ? 'Push disabled' : 
-                     !chatNotificationsEnabled ? 'Chat notifications disabled' : 
+                     !chatNotificationsEnabled ? 'Chat notifications disabled' :
+                     isOwnMessage ? 'Own message' :
+                     isAppInBackground ? 'App in background (FCM handles it)' :
                      'App is active and in same conversation';
       Logger.debug(`📱 Skipping notification for ${source}. Reason: ${reason}`);
     }

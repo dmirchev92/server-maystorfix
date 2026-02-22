@@ -33,6 +33,8 @@ interface User {
 export class ApiService {
   private static instance: ApiService;
   private authToken: string | null = null;
+  private refreshTokenValue: string | null = null;
+  private isRefreshing: boolean = false;
 
   private tokenLoaded: Promise<void>;
 
@@ -50,6 +52,7 @@ export class ApiService {
   private async loadAuthToken(): Promise<void> {
     try {
       this.authToken = await AsyncStorage.getItem('auth_token');
+      this.refreshTokenValue = await AsyncStorage.getItem('refresh_token');
     } catch (error) {
       Logger.error('Error loading auth token:', error);
     }
@@ -64,8 +67,57 @@ export class ApiService {
     }
   }
 
+  private async saveRefreshToken(token: string): Promise<void> {
+    try {
+      this.refreshTokenValue = token;
+      await AsyncStorage.setItem('refresh_token', token);
+    } catch (error) {
+      Logger.error('Error saving refresh token:', error);
+    }
+  }
+
   public async setAuthToken(token: string): Promise<void> {
     await this.saveAuthToken(token);
+  }
+
+  public async setRefreshToken(token: string): Promise<void> {
+    await this.saveRefreshToken(token);
+  }
+
+  /**
+   * Attempt to refresh the access token using the stored refresh token.
+   * Returns true if refresh succeeded.
+   */
+  private async refreshAuth(): Promise<boolean> {
+    if (this.isRefreshing || !this.refreshTokenValue) {
+      return false;
+    }
+    this.isRefreshing = true;
+    try {
+      Logger.debug('🔄 Attempting token refresh...');
+      const url = `${API_BASE_URL}/auth/refresh`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: this.refreshTokenValue }),
+      });
+      const data = await response.json();
+      if (data.success && data.data?.tokens?.accessToken) {
+        await this.saveAuthToken(data.data.tokens.accessToken);
+        if (data.data.tokens.refreshToken) {
+          await this.saveRefreshToken(data.data.tokens.refreshToken);
+        }
+        Logger.debug('✅ Token refresh successful');
+        return true;
+      }
+      Logger.warn('⚠️ Token refresh failed - response not successful');
+      return false;
+    } catch (error) {
+      Logger.error('❌ Token refresh error:', error);
+      return false;
+    } finally {
+      this.isRefreshing = false;
+    }
   }
 
   public async getAuthToken(): Promise<string | null> {
@@ -107,6 +159,15 @@ export class ApiService {
       Logger.debug('makeRequest - Response data:', data);
 
       if (!response.ok) {
+        // Auto-refresh token on 401 and retry once
+        if (response.status === 401 && this.refreshTokenValue && !(options as any)._isRetry) {
+          Logger.debug('makeRequest - Got 401, attempting token refresh...');
+          const refreshed = await this.refreshAuth();
+          if (refreshed) {
+            Logger.debug('makeRequest - Token refreshed, retrying request');
+            return this.makeRequest<T>(endpoint, { ...options, _isRetry: true } as any);
+          }
+        }
         Logger.debug('makeRequest - Response not ok, returning error');
         return {
           success: false,
@@ -169,6 +230,9 @@ export class ApiService {
 
     if (response.success && response.data?.tokens?.accessToken) {
       await this.saveAuthToken(response.data.tokens.accessToken);
+      if (response.data.tokens.refreshToken) {
+        await this.saveRefreshToken(response.data.tokens.refreshToken);
+      }
     }
 
     return response as APIResponse<{ user: User; tokens: any }>;
@@ -206,9 +270,11 @@ export class ApiService {
       method: 'POST',
     });
     
-    // Clear the auth token and cached user data
+    // Clear the auth token, refresh token, and cached user data
     this.authToken = null;
+    this.refreshTokenValue = null;
     await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('refresh_token');
     await AsyncStorage.removeItem('user'); // Clear cached user data
     
     return response;
@@ -258,6 +324,9 @@ export class ApiService {
     if (response.success && response.data?.tokens?.accessToken) {
       Logger.debug('ApiService register - saving auth token');
       await this.saveAuthToken(response.data.tokens.accessToken);
+      if (response.data.tokens.refreshToken) {
+        await this.saveRefreshToken(response.data.tokens.refreshToken);
+      }
     }
 
     return response as APIResponse<{ user: User; tokens: any }>;
@@ -1140,6 +1209,41 @@ export class ApiService {
       method: 'POST',
       body: JSON.stringify({ consents }),
     });
+  }
+
+  /**
+   * Get user's personal data (GDPR Article 15 - Right of Access)
+   */
+  public async getMyData(): Promise<APIResponse> {
+    Logger.debug('🔒 ApiService - Getting my data (GDPR Art. 15)');
+    return this.makeRequest('/gdpr/my-data', { method: 'GET' });
+  }
+
+  /**
+   * Get data processing information (GDPR Article 30)
+   */
+  public async getDataProcessingInfo(): Promise<APIResponse> {
+    Logger.debug('🔒 ApiService - Getting data processing info');
+    return this.makeRequest('/gdpr/data-processing-info', { method: 'GET' });
+  }
+
+  /**
+   * Request account deletion (GDPR Article 17 - public endpoint)
+   */
+  public async requestAccountDeletion(email: string, reason?: string): Promise<APIResponse> {
+    Logger.debug('🔒 ApiService - Requesting account deletion');
+    return this.makeRequest('/gdpr/request-account-deletion', {
+      method: 'POST',
+      body: JSON.stringify({ email, reason }),
+    });
+  }
+
+  /**
+   * Check deletion request status
+   */
+  public async getDeletionRequestStatus(email: string): Promise<APIResponse> {
+    Logger.debug('🔒 ApiService - Checking deletion request status');
+    return this.makeRequest(`/gdpr/deletion-request-status?email=${encodeURIComponent(email)}`, { method: 'GET' });
   }
 
 }

@@ -12,16 +12,20 @@ import {
   GetMessagesQuery,
   GetConversationsQuery
 } from '../types/chat.types'
+import { ConsentType, ConsentRequiredError } from '../types'
 import { randomUUID } from 'crypto'
 import { FCMService } from './FCMService';
+import { GDPRService } from './GDPRService';
 
 export class ChatService {
   private chatRepo: ChatRepository
   private fcmService: FCMService
+  private gdprService: GDPRService
 
   constructor(chatRepo: ChatRepository) {
     this.chatRepo = chatRepo
     this.fcmService = FCMService.getInstance()
+    this.gdprService = GDPRService.getInstance()
   }
 
   // ==================== CONVERSATIONS ====================
@@ -170,6 +174,27 @@ export class ChatService {
     if (!isAuthorized) {
       throw new Error('Unauthorized: User is not a participant in this conversation')
     }
+
+    // ✅ GDPR Consent Check - Essential Service (chat is a core feature)
+    const consentCheck = await this.gdprService.checkUserConsent(
+      senderUserId,
+      ConsentType.ESSENTIAL_SERVICE
+    );
+
+    if (!consentCheck.allowed) {
+      console.log('❌ Message blocked - no essential service consent', {
+        userId: senderUserId,
+        conversationId: data.conversationId,
+        reason: consentCheck.reason
+      });
+
+      throw new ConsentRequiredError(
+        'Essential service consent required to send and save messages',
+        ConsentType.ESSENTIAL_SERVICE
+      );
+    }
+
+    console.log('✅ Consent check passed for message storage', { userId: senderUserId });
 
     // Validate message
     if (!data.body || data.body.trim().length === 0) {

@@ -221,7 +221,7 @@ export default function CaseBidsPage() {
                                   <span className="text-2xl">💰</span>
                                   <div>
                                     <p className="text-xs text-indigo-300 font-medium">Предложена цена</p>
-                                    <p className="text-lg font-bold text-white">{bid.proposed_budget_range} лв</p>
+                                    <p className="text-lg font-bold text-white">{bid.proposed_budget_range} €</p>
                                   </div>
                                 </div>
                               </div>

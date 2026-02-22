@@ -221,13 +221,13 @@ export class PointsService {
       // Calculate points required
       const pointsRequired = this.calculatePointsCost(case_budget, tierLimits);
 
-      // Check if points cost is 0 (tier doesn't support this budget range)
+      // If points cost is 0, access is FREE (Launch Mode or tier perk)
       if (pointsRequired === 0) {
         return {
-          allowed: false,
+          allowed: true,
           points_required: 0,
           points_balance: points_balance || 0,
-          message: `Your tier does not support cases in this budget range. Please upgrade.`,
+          message: 'Free access',
           case_budget_range: this.getBudgetRange(case_budget)
         };
       }
@@ -433,9 +433,11 @@ export class PointsService {
   ): Promise<SPPointsTransaction[]> {
     try {
       const query = `
-        SELECT * FROM sp_points_transactions
-        WHERE user_id = $1
-        ORDER BY created_at DESC
+        SELECT t.*, c.case_number 
+        FROM sp_points_transactions t
+        LEFT JOIN marketplace_service_cases c ON c.id = t.case_id
+        WHERE t.user_id = $1
+        ORDER BY t.created_at DESC
         LIMIT $2 OFFSET $3
       `;
       
@@ -527,7 +529,7 @@ export class PointsService {
         return {
           canPurchase: false,
           pricePerPoint: null,
-          currency: 'BGN',
+          currency: 'EUR',
           tier,
           packages: [],
           message: 'Your tier does not allow purchasing extra points. Please upgrade to NORMAL or PRO.'
@@ -556,7 +558,7 @@ export class PointsService {
       return {
         canPurchase: true,
         pricePerPoint,
-        currency: 'BGN',
+        currency: 'EUR',
         tier,
         packages
       };
@@ -700,6 +702,7 @@ export class PointsService {
       balance_after: row.balance_after,
       reason: row.reason,
       case_id: row.case_id,
+      case_number: row.case_number,
       metadata: row.metadata,
       created_at: row.created_at
     };

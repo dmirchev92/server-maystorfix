@@ -42,30 +42,30 @@ const DataRightsScreen: React.FC = () => {
   const loadDataRequests = async () => {
     try {
       setIsLoading(true);
-      // TODO: Load from backend
-      // const dataRequests = await ApiService.getDataRequests();
-      // setRequests(dataRequests);
-      
-      // Mock data for now
-      setRequests([
-        {
-          id: '1',
-          type: 'access',
-          status: 'completed',
-          createdAt: '2024-01-15T10:30:00Z',
-          completedAt: '2024-01-20T14:15:00Z',
-          description: 'Заявка за достъп до всички данни',
-        },
-        {
-          id: '2',
-          type: 'deletion',
-          status: 'processing',
-          createdAt: '2024-01-18T16:45:00Z',
-          description: 'Заявка за изтриване на данни за маркетинг',
-        },
-      ]);
+      // Load data processing info from backend
+      const response = await ApiService.getInstance().getDataProcessingInfo();
+      if (response.success && response.data?.processingActivities) {
+        // Convert processing activities to display as informational items
+        const activities = response.data.processingActivities as Array<{
+          dataType: string;
+          purpose: string;
+          legalBasis: string;
+          retentionPeriod: string;
+        }>;
+        const displayRequests: DataRequest[] = activities.map((activity, index) => ({
+          id: `activity_${index}`,
+          type: 'access' as const,
+          status: 'completed' as const,
+          createdAt: new Date().toISOString(),
+          description: `${activity.purpose} (${activity.retentionPeriod})`,
+        }));
+        setRequests(displayRequests);
+      } else {
+        setRequests([]);
+      }
     } catch (error) {
       Logger.error('Error loading data requests:', error);
+      setRequests([]);
     } finally {
       setIsLoading(false);
     }
@@ -117,11 +117,28 @@ const DataRightsScreen: React.FC = () => {
     try {
       setIsSubmitting(true);
       
-      // TODO: Submit to backend
-      // await ApiService.submitDataRequest({
-      //   type: selectedRequestType,
-      //   description: requestDescription,
-      // });
+      if (selectedRequestType === 'access') {
+        // Use real GDPR my-data endpoint
+        const response = await ApiService.getInstance().getMyData();
+        if (response.success) {
+          Alert.alert(
+            'Данните са получени',
+            'Вашите лични данни са заредени успешно. Може да ги прегледате от раздел "Вашите заявки".',
+            [{ text: 'OK' }]
+          );
+        } else {
+          throw new Error(response.error?.message || 'Неуспешна заявка');
+        }
+      } else if (selectedRequestType === 'deletion') {
+        // Use account deletion endpoint
+        const response = await ApiService.getInstance().requestAccountDeletion(
+          '', // Email will be auto-detected
+          requestDescription
+        );
+        if (!response.success) {
+          throw new Error(response.error?.message || 'Неуспешна заявка');
+        }
+      }
 
       // Add to local state
       const newRequest: DataRequest = {
@@ -142,11 +159,11 @@ const DataRightsScreen: React.FC = () => {
         [{ text: 'OK' }]
       );
 
-    } catch (error) {
+    } catch (error: any) {
       Logger.error('Error submitting data request:', error);
       Alert.alert(
         'Грешка',
-        'Възникна проблем при изпращането на заявката. Моля, опитайте отново.',
+        error?.message || 'Възникна проблем при изпращането на заявката. Моля, опитайте отново.',
         [{ text: 'OK' }]
       );
     } finally {

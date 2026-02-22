@@ -232,7 +232,9 @@ export class BiddingService {
       }
       
       // Check if tier supports this budget range (point cost should not be 0)
-      if (fullPointsCost === 0) {
+      // SKIP during LAUNCH_MODE - all budget ranges are free (points_cost_* = 0)
+      const LAUNCH_MODE = process.env.LAUNCH_MODE === 'true';
+      if (fullPointsCost === 0 && !LAUNCH_MODE) {
         await client.query('ROLLBACK');
         return {
           success: false,

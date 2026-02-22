@@ -207,6 +207,14 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
                     💰 Цени
                   </Button>
                 </Link>
+                <Link href="/faq" className="hidden sm:block">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                  >
+                    ❓ FAQ
+                  </Button>
+                </Link>
                 <Link href="/auth/login">
                   <Button
                     variant="ghost"
@@ -271,6 +279,32 @@ const Navigation: React.FC<NavigationProps> = ({ user, unreadCount = 0, onLogout
                   <span className="font-medium">{item.label}</span>
                 </Link>
               ))}
+              {!user && (
+                <>
+                  <Link
+                    href="/pricing"
+                    className="flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-200 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTimeout(() => setIsMenuOpen(false), 100);
+                    }}
+                  >
+                    <span>💰</span>
+                    <span className="font-medium">Цени</span>
+                  </Link>
+                  <Link
+                    href="/faq"
+                    className="flex items-center space-x-3 px-3 py-2 rounded-lg text-slate-200 hover:text-white hover:bg-white/10 transition-colors duration-200"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTimeout(() => setIsMenuOpen(false), 100);
+                    }}
+                  >
+                    <span>❓</span>
+                    <span className="font-medium">FAQ</span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -137,8 +137,8 @@ export const config = {
   gdpr: {
     enabled: process.env.GDPR_ENABLED === 'true',
     dpo: {
-      email: process.env.DPO_EMAIL || 'dpo@servicetextpro.bg',
-      phone: process.env.DPO_PHONE || '+359-2-xxx-xxxx',
+      email: process.env.DPO_EMAIL || 'admin@snapfix.bg',
+      phone: process.env.DPO_PHONE || '+359 88 462 9498',
       address: process.env.DPO_ADDRESS || 'Sofia, Bulgaria'
     },
     dataRetention: {
@@ -153,10 +153,10 @@ export const config = {
       anonymizeExpiredData: process.env.ANONYMIZE_EXPIRED_DATA === 'true'
     },
     urls: {
-      privacyPolicy: process.env.PRIVACY_POLICY_URL || 'https://servicetextpro.bg/privacy',
-      termsOfService: process.env.TERMS_OF_SERVICE_URL || 'https://servicetextpro.bg/terms',
-      cookiePolicy: process.env.COOKIE_POLICY_URL || 'https://servicetextpro.bg/cookies',
-      gdprContact: process.env.GDPR_CONTACT_URL || 'https://servicetextpro.bg/gdpr-contact'
+      privacyPolicy: process.env.PRIVACY_POLICY_URL || 'https://snapfix.bg/privacy',
+      termsOfService: process.env.TERMS_OF_SERVICE_URL || 'https://snapfix.bg/terms',
+      cookiePolicy: process.env.COOKIE_POLICY_URL || 'https://snapfix.bg/cookies',
+      gdprContact: process.env.GDPR_CONTACT_URL || 'https://snapfix.bg/gdpr-contact'
     }
   },
 
@@ -175,7 +175,7 @@ export const config = {
       apiKey: process.env.BG_HOLIDAYS_API_KEY
     },
     localization: {
-      currency: process.env.DEFAULT_CURRENCY || 'BGN',
+      currency: process.env.DEFAULT_CURRENCY || 'EUR',
       locale: process.env.DEFAULT_LOCALE || 'bg-BG',
       timezone: process.env.DEFAULT_TIMEZONE || 'Europe/Sofia'
     }
@@ -191,7 +191,7 @@ export const config = {
         user: process.env.SMTP_USER || '',
         password: process.env.SMTP_PASSWORD || '',
         fromEmail: process.env.SMTP_FROM_EMAIL || 'admin@snapfix.bg',
-        fromName: process.env.SMTP_FROM_NAME || 'MaystorFix'
+        fromName: process.env.SMTP_FROM_NAME || 'SnapFix'
       },
       dkim: {
         domainName: process.env.DKIM_DOMAIN || 'snapfix.bg',
@@ -219,7 +219,7 @@ export const config = {
       mobica: {
         username: process.env.MOBICA_USERNAME,
         password: process.env.MOBICA_PASSWORD,
-        senderId: process.env.MOBICA_SENDER_ID || 'MaystorFix'
+        senderId: process.env.MOBICA_SENDER_ID || 'SnapFix'
       }
     },
     push: {

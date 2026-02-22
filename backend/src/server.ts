@@ -50,12 +50,14 @@ import { checkTrialStatus, addTrialInfo } from './middleware/trialCheck';
 import trialCleanupService from './services/TrialCleanupService';
 import smsVerificationRoutes from './controllers/smsVerificationController';
 import { DatabaseFactory } from './models/DatabaseFactory';
+import { maskPhone, encryptPhone, decryptPhone } from './utils/phonePrivacy';
 import { BidSelectionReminderJob } from './jobs/BidSelectionReminderJob';
 import { LocationSearchJob } from './jobs/LocationSearchJob';
 import { ScreenshotCleanupJob } from './jobs/ScreenshotCleanupJob';
 import SubscriptionReminderService from './services/SubscriptionReminderService';
 import * as freeInspectionController from './controllers/freeInspectionController';
 import vipController from './controllers/vipController';
+import gameController from './controllers/gameController';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
 
@@ -660,6 +662,9 @@ class ServiceTextProServer {
     // VIP routes
     this.app.use('/api/v1/vip', vipController);
     
+    // Game routes (Gamification - Fighting Game)
+    this.app.use('/api/v1/game', gameController);
+    
     // Marketplace routes
     this.app.get('/api/v1/marketplace/providers/vip-homepage', marketplaceController.getVipHomepageProviders);
     this.app.get('/api/v1/marketplace/providers/search', marketplaceController.searchProviders);
@@ -893,7 +898,7 @@ class ServiceTextProServer {
             logger.info('Processing call:', {
               callId: call.id,
               callUserId: callUserId,
-              phoneNumber: call.phoneNumber,
+              phoneNumber: maskPhone(call.phoneNumber),
               timestamp: call.timestamp
             });
             
@@ -913,7 +918,7 @@ class ServiceTextProServer {
             const result = await db.query(query, [
               call.id,
               callUserId,
-              call.phoneNumber,
+              encryptPhone(call.phoneNumber),
               call.timestamp
             ]);
             
@@ -984,14 +989,17 @@ class ServiceTextProServer {
         logger.info('🔍 Querying database for user:', userId);
         const calls = await db.query(query, [userId]);
         
-        logger.info(`✅ Retrieved ${calls.length} missed calls for user ${userId}`);
-        if (calls.length > 0) {
-          logger.info('First call:', calls[0]);
-        }
+        // Decrypt phone numbers before sending to client
+        const decryptedCalls = calls.map((call: any) => ({
+          ...call,
+          phone_number: decryptPhone(call.phone_number)
+        }));
+        
+        logger.info(`✅ Retrieved ${decryptedCalls.length} missed calls for user ${userId}`);
 
         res.json({
           success: true,
-          data: calls,
+          data: decryptedCalls,
           metadata: {
             count: calls.length,
             timestamp: new Date().toISOString()

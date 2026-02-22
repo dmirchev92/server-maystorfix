@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beta Tester Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 24px;
+    }
+    h1 { font-size: 24px; margin-bottom: 24px; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-value { font-size: 32px; font-weight: 700; color: #3b82f6; }
+    .stat-label { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+    .stat.success .stat-value { color: #4ade80; }
+    .stat.warning .stat-value { color: #fbbf24; }
+    .stat.error .stat-value { color: #f87171; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    th, td { padding: 12px 16px; text-align: left; font-size: 14px; }
+    th { background: rgba(15, 23, 42, 0.6); color: #94a3b8; font-weight: 500; }
+    td { border-top: 1px solid rgba(148, 163, 184, 0.1); }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .badge-added { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+    .badge-pending { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+    .badge-failed { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+    .badge-processing { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      margin-bottom: 16px;
+    }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-warning { background: #f59e0b; color: white; margin-left: 8px; }
+    .btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <h1>Beta Tester Admin Panel</h1>
+  
+  <div class="stats" id="stats">
+    <div class="stat"><div class="stat-value" id="totalCount">-</div><div class="stat-label">Total</div></div>
+    <div class="stat success"><div class="stat-value" id="addedCount">-</div><div class="stat-label">Added</div></div>
+    <div class="stat warning"><div class="stat-value" id="pendingCount">-</div><div class="stat-label">Pending</div></div>
+    <div class="stat error"><div class="stat-value" id="failedCount">-</div><div class="stat-label">Failed</div></div>
+  </div>
+
+  <button class="btn btn-primary" onclick="loadStats()">Refresh</button>
+  <button class="btn btn-warning" onclick="retryFailed()">Retry Failed</button>
+
+  <table>
+    <thead>
+      <tr><th>Email</th><th>Name</th><th>Status</th><th>Date</th></tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <script>
+    async function loadStats() {
+      const res = await fetch('api/stats');
+      const data = await res.json();
+      document.getElementById('totalCount').textContent = data.total;
+      document.getElementById('addedCount').textContent = data.added;
+      document.getElementById('pendingCount').textContent = data.pending;
+      document.getElementById('failedCount').textContent = data.failed;
+      
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = data.recent.map(r => `
+        <tr>
+          <td>${r.email}</td>
+          <td>${r.name || '-'}</td>
+          <td><span class="badge badge-${r.status}">${r.status}</span></td>
+          <td>${new Date(r.created_at).toLocaleString('bg-BG')}</td>
+        </tr>
+      `).join('');
+    }
+    
+    async function retryFailed() {
+      const res = await fetch('api/retry-failed', { method: 'POST' });
+      const data = await res.json();
+      alert(data.message);
+      loadStats();
+    }
+    
+    loadStats();
+    setInterval(loadStats, 10000);
+  </script>
+</body>
+</html>

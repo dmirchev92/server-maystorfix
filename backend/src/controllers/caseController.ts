@@ -460,7 +460,7 @@ export const getProviderCases = async (req: Request, res: Response): Promise<voi
 
     const cases = await db.query(
       `SELECT * FROM marketplace_service_cases 
-       WHERE provider_id = $1 OR is_open_case = 1 
+       WHERE provider_id = $1 OR is_open_case = true 
        ORDER BY created_at DESC`,
       [providerId]
     );
@@ -874,7 +874,7 @@ export const getAvailableCases = async (req: Request, res: Response): Promise<vo
     const cases = await db.query(
       `SELECT c.* FROM marketplace_service_cases c
        WHERE (
-         (c.is_open_case = 1 AND c.status = 'pending') 
+         (c.is_open_case = true AND c.status = 'pending') 
          OR (c.provider_id = $1 AND c.status != 'closed')
        )
        AND c.id NOT IN (
@@ -916,15 +916,20 @@ export const getCasesForMap = async (req: Request, res: Response): Promise<void>
     const centerLat = parseFloat(latitude as string) || 42.6977; // Sofia default
     const centerLng = parseFloat(longitude as string) || 23.3219;
     
-    // Check if provider is PRO for exclusive case visibility
+    // Check provider tier for budget restrictions and exclusive cases
     let isPro = false;
+    let userTier = 'free';
+    console.log('🔍 Map - Provider ID:', providerId);
     if (providerId) {
       try {
-        const tier = await subscriptionService.getUserTier(providerId);
-        isPro = tier === 'pro';
+        userTier = await subscriptionService.getUserTier(providerId);
+        isPro = userTier === 'pro';
+        console.log('🔍 Map - User Tier:', userTier, 'Is Pro:', isPro);
       } catch (err) {
         logger.warn('Failed to check provider tier for map view', { providerId });
       }
+    } else {
+      console.log('🔍 Map - No provider ID found (not authenticated)');
     }
     
     // Build query for open cases with coordinates using subquery for distance filtering
@@ -957,6 +962,20 @@ export const getCasesForMap = async (req: Request, res: Response): Promise<void>
     if (!isPro) {
       whereConditions += ` AND (c.exclusive_until IS NULL OR c.exclusive_until <= NOW())`;
     }
+    
+    // Apply budget restrictions based on subscription tier
+    // SKIP during LAUNCH_MODE (same as getCasesWithFilters)
+    const LAUNCH_MODE = process.env.LAUNCH_MODE === 'true';
+    if (LAUNCH_MODE) {
+      console.log('🚀 Map - LAUNCH_MODE active: skipping budget restrictions for all users');
+    } else if (userTier === 'free') {
+      whereConditions += ` AND c.budget IN ('251-400')`;
+      console.log('💰 Map - Applying Free tier budget restriction: up to 400 BGN');
+    } else if (userTier === 'normal') {
+      whereConditions += ` AND c.budget IN ('251-400', '401-500', '500-750', '750-1000', '1001-2000')`;
+      console.log('💰 Map - Applying Normal tier budget restriction: up to 2000 BGN');
+    }
+    // Pro tier users can see all cases (no restriction)
     
     // Use subquery to filter by distance - include screenshots aggregated as JSON
     const query = `
@@ -1539,7 +1558,11 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
     }
 
     // Apply budget range restrictions based on subscription tier
-    if (requestingUserId) {
+    // SKIP for: customers viewing own cases, and during LAUNCH_MODE
+    const LAUNCH_MODE = process.env.LAUNCH_MODE === 'true';
+    const isCustomerViewingOwnCases = !!customerId;
+
+    if (requestingUserId && !isCustomerViewingOwnCases && !LAUNCH_MODE) {
       const userTierQuery = await db.query(
         `SELECT subscription_tier_id FROM users WHERE id = $1`,
         [requestingUserId]
@@ -1548,19 +1571,22 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       if (userTierQuery.length > 0) {
         const userTier = userTierQuery[0].subscription_tier_id;
         
-        // Free tier users can only see cases up to 500 BGN
+        // Free tier users can only see cases up to 400 BGN
         if (userTier === 'free') {
-          conditions.push(`c.budget IN ('1-250', '250-500')`);
-          console.log('💰 Backend - Applying Free tier budget restriction: 1-250, 250-500');
+          conditions.push(`c.budget IN ('251-400')`);
+          console.log('💰 Backend - Applying Free tier budget restriction: up to 400 BGN');
         }
-        // Normal tier users can only see cases up to 1500 BGN
+        // Normal tier users can see cases up to 2000 BGN
         else if (userTier === 'normal') {
-          conditions.push(`c.budget IN ('1-250', '250-500', '500-750', '750-1000', '1000-1250', '1250-1500')`);
-          console.log('💰 Backend - Applying Normal tier budget restriction: up to 1500 BGN');
+          conditions.push(`c.budget IN ('251-400', '401-500', '500-750', '750-1000', '1001-2000')`);
+          console.log('💰 Backend - Applying Normal tier budget restriction: up to 2000 BGN');
         }
         // Pro tier users can see all cases (no restriction)
-        // No additional conditions needed for 'pro' tier
       }
+    } else if (LAUNCH_MODE) {
+      console.log('🚀 Backend - LAUNCH_MODE active: skipping budget restrictions for all users');
+    } else if (isCustomerViewingOwnCases) {
+      console.log('👤 Backend - Customer viewing own cases: skipping budget restrictions');
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';

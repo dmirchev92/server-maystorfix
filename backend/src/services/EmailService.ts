@@ -256,7 +256,7 @@ class EmailService {
     return this.sendEmail(
       {
         to: email,
-        subject: '🔐 Потвърдете вашия имейл адрес - MaystorFix',
+        subject: '🔐 Потвърдете вашия имейл адрес - SnapFix',
         html
       },
       userId,
@@ -280,7 +280,7 @@ class EmailService {
     return this.sendEmail(
       {
         to: email,
-        subject: '🔑 Възстановяване на парола - MaystorFix',
+        subject: '🔑 Възстановяване на парола - SnapFix',
         html
       },
       userId,
@@ -302,7 +302,7 @@ class EmailService {
     return this.sendEmail(
       {
         to: email,
-        subject: '🎉 Добре дошли в MaystorFix!',
+        subject: '🎉 Добре дошли в SnapFix!',
         html
       },
       userId,
@@ -326,7 +326,7 @@ class EmailService {
     return this.sendEmail(
       {
         to: email,
-        subject: `⏰ Вашият ${subscriptionTier} абонамент изтича след ${daysRemaining} ${daysRemaining === 1 ? 'ден' : 'дни'} - MaystorFix`,
+        subject: `⏰ Вашият ${subscriptionTier} абонамент изтича след ${daysRemaining} ${daysRemaining === 1 ? 'ден' : 'дни'} - SnapFix`,
         html
       },
       userId,
@@ -348,7 +348,7 @@ class EmailService {
     return this.sendEmail(
       {
         to: email,
-        subject: `❌ Вашият ${subscriptionTier} абонамент изтече - MaystorFix`,
+        subject: `❌ Вашият ${subscriptionTier} абонамент изтече - SnapFix`,
         html
       },
       userId,
@@ -367,7 +367,7 @@ class EmailService {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MaystorFix</title>
+  <title>SnapFix</title>
   <style>
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -463,14 +463,14 @@ class EmailService {
   <div class="container">
     <div class="email-wrapper">
       <div class="header">
-        <h1>🔧 MaystorFix</h1>
+        <h1>🔧 SnapFix</h1>
         <p>Платформа за майстори и клиенти</p>
       </div>
       <div class="content">
         ${content}
       </div>
       <div class="footer">
-        <p>© ${new Date().getFullYear()} MaystorFix. Всички права запазени.</p>
+        <p>© ${new Date().getFullYear()} SnapFix. Всички права запазени.</p>
         <p>
           <a href="https://snapfix.bg/privacy">Политика за поверителност</a> | 
           <a href="https://snapfix.bg/terms">Условия за ползване</a>
@@ -488,7 +488,7 @@ class EmailService {
   private getVerificationEmailTemplate(firstName: string, verificationUrl: string): string {
     const content = `
       <h2>Здравейте, ${firstName}! 👋</h2>
-      <p>Благодарим ви, че се регистрирахте в MaystorFix!</p>
+      <p>Благодарим ви, че се регистрирахте в SnapFix!</p>
       <p>За да завършите регистрацията си, моля потвърдете вашия имейл адрес като кликнете на бутона по-долу:</p>
       
       <div style="text-align: center;">
@@ -504,7 +504,7 @@ class EmailService {
         ${verificationUrl}
       </p>
       
-      <p>Ако не сте се регистрирали в MaystorFix, моля игнорирайте този имейл.</p>
+      <p>Ако не сте се регистрирали в SnapFix, моля игнорирайте този имейл.</p>
     `;
     return this.getBaseEmailTemplate(content);
   }
@@ -532,7 +532,7 @@ class EmailService {
       <div class="info-box">
         <strong>💡 Съвети за сигурност:</strong>
         <ul>
-          <li>Използвайте уникална парола само за MaystorFix</li>
+          <li>Използвайте уникална парола само за SnapFix</li>
           <li>Паролата трябва да съдържа поне 8 символа</li>
           <li>Включете главни букви, цифри и специални символи</li>
         </ul>
@@ -545,7 +545,7 @@ class EmailService {
     const isProvider = role === 'tradesperson';
     const roleSpecificContent = isProvider ? `
       <div class="info-box">
-        <strong>🛠️ Като майстор в MaystorFix можете:</strong>
+        <strong>🛠️ Като майстор в SnapFix можете:</strong>
         <ul>
           <li>Да получавате заявки от клиенти</li>
           <li>Да наддавате за проекти</li>
@@ -556,7 +556,7 @@ class EmailService {
       <p><strong>Следваща стъпка:</strong> Попълнете профила си, за да се появите в търсенията на клиенти!</p>
     ` : `
       <div class="info-box">
-        <strong>🏠 Като клиент в MaystorFix можете:</strong>
+        <strong>🏠 Като клиент в SnapFix можете:</strong>
         <ul>
           <li>Да намерите проверени майстори</li>
           <li>Да получите оферти за вашия проект</li>
@@ -568,7 +568,7 @@ class EmailService {
     `;
 
     const content = `
-      <h2>Добре дошли в MaystorFix, ${firstName}! 🎉</h2>
+      <h2>Добре дошли в SnapFix, ${firstName}! 🎉</h2>
       <p>Благодарим ви, че се присъединихте към нашата платформа!</p>
       
       ${roleSpecificContent}
@@ -606,7 +606,7 @@ class EmailService {
         <p style="margin: 10px 0 0;">Дата на изтичане: <strong>${formattedDate}</strong></p>
       </div>
       
-      <p>За да продължите да използвате всички функции на MaystorFix, моля подновете абонамента си навреме.</p>
+      <p>За да продължите да използвате всички функции на SnapFix, моля подновете абонамента си навреме.</p>
       
       <div class="info-box">
         <strong>📋 Какво ще загубите при изтичане:</strong>
@@ -638,7 +638,7 @@ class EmailService {
         <p style="margin: 10px 0 0;">Някои функции на вашия акаунт са временно ограничени.</p>
       </div>
       
-      <p>За да възстановите пълния достъп до MaystorFix, моля подновете абонамента си.</p>
+      <p>За да възстановите пълния достъп до SnapFix, моля подновете абонамента си.</p>
       
       <div class="info-box">
         <strong>🔒 Ограничени функции:</strong>
@@ -740,14 +740,14 @@ class EmailService {
   public async sendTestEmail(to: string): Promise<boolean> {
     const content = `
       <h2>🧪 Test Email</h2>
-      <p>This is a test email from MaystorFix email service.</p>
+      <p>This is a test email from SnapFix email service.</p>
       <p>If you received this email, the email configuration is working correctly!</p>
       <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
     `;
 
     return this.sendEmail({
       to,
-      subject: '🧪 Test Email - MaystorFix',
+      subject: '🧪 Test Email - SnapFix',
       html: this.getBaseEmailTemplate(content)
     });
   }

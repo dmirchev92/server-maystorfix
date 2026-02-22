@@ -29,7 +29,9 @@ const chatTokenService = new ChatTokenService();
 
 /**
  * GET /api/v1/chat/public/:spIdentifier/validate/:token
- * Validate and use a chat token (public endpoint, no auth required)
+ * Validate and USE a chat token (public endpoint, no auth required)
+ * Token is marked as used when page opens, new token is generated
+ * If token is already used/expired, returns error with newTokenUrl for redirect
  */
 router.get('/public/:spIdentifier/validate/:token',
   async (req: Request, res: Response, next: NextFunction) => {
@@ -46,14 +48,31 @@ router.get('/public/:spIdentifier/validate/:token',
         ip: req.ip
       });
 
+      // Validate AND use the token (marks as used, generates new token)
       const result = await chatTokenService.validateAndUseToken(spIdentifier, token);
 
       if (!result.isValid) {
+        // Token is invalid/expired - get the current valid token URL for redirect
+        let newTokenUrl = null;
+        try {
+          // Get current unused token for this SP identifier
+          const currentToken = await chatTokenService.getCurrentUnusedTokenBySpIdentifier(spIdentifier);
+          if (currentToken) {
+            newTokenUrl = `https://snapfix.bg/u/${spIdentifier}/c/${currentToken}`;
+            logger.info('Generated new token URL for expired token redirect', { spIdentifier, newTokenUrl });
+          }
+        } catch (e) {
+          logger.warn('Could not get new token URL', { spIdentifier, error: e });
+        }
+
         const response: APIResponse = {
           success: false,
           error: {
             code: 'INVALID_TOKEN',
             message: result.error || 'Token validation failed'
+          },
+          data: {
+            newTokenUrl // Include new token URL for redirect button
           },
           metadata: {
             timestamp: new Date(),
@@ -72,6 +91,69 @@ router.get('/public/:spIdentifier/validate/:token',
           conversationId: result.conversationId,
           sessionId: result.sessionId,
           message: 'Token validated successfully'
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        }
+      };
+
+      return res.json(response);
+
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/v1/chat/public/:spIdentifier/use/:token
+ * Use a chat token - marks it as used and creates conversation
+ * Called AFTER user completes registration/login
+ */
+router.post('/public/:spIdentifier/use/:token',
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { spIdentifier, token } = req.params;
+
+      if (!spIdentifier || !token) {
+        throw new ServiceTextProError('Missing required parameters', 'MISSING_PARAMETERS', 400);
+      }
+
+      logger.info('Using chat token (marking as used)', {
+        spIdentifier,
+        token: token.substring(0, 4) + '****',
+        ip: req.ip
+      });
+
+      // This marks the token as used and creates the conversation
+      const result = await chatTokenService.validateAndUseToken(spIdentifier, token);
+
+      if (!result.isValid) {
+        const response: APIResponse = {
+          success: false,
+          error: {
+            code: 'INVALID_TOKEN',
+            message: result.error || 'Token use failed'
+          },
+          metadata: {
+            timestamp: new Date(),
+            requestId: (req as any).requestId,
+            version: config.app.version
+          }
+        };
+        return res.status(400).json(response);
+      }
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          valid: true,
+          userId: result.userId,
+          conversationId: result.conversationId,
+          sessionId: result.sessionId,
+          message: 'Token used successfully'
         },
         metadata: {
           timestamp: new Date(),

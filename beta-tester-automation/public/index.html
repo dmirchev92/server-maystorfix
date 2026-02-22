@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapFix - Бета регистрация</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 520px;
+      width: 100%;
+    }
+
+    .logo-section {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      display: block;
+      margin: 0 auto 12px;
+      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+    }
+
+    .app-name {
+      font-size: 26px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .app-tagline {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .card {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 16px;
+      padding: 28px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+    }
+
+    .card h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .card > p {
+      color: #94a3b8;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    /* Referral banner */
+    .referral-banner {
+      margin-bottom: 16px;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 12px;
+      text-align: center;
+      display: none;
+    }
+    .referral-banner.show { display: block; }
+    .referral-banner .ref-text { font-size: 14px; color: #a5b4fc; }
+    .referral-banner .ref-name { font-weight: 600; color: #c4b5fd; }
+
+    /* Role selector */
+    .role-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .role-card {
+      padding: 16px 12px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 2px solid rgba(148, 163, 184, 0.15);
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .role-card:hover {
+      border-color: rgba(59, 130, 246, 0.4);
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    .role-card.active {
+      border-color: #3b82f6;
+      background: rgba(59, 130, 246, 0.1);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .role-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+    .role-label { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+    .role-desc { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+    /* Form */
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 5px;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 11px 14px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 10px;
+      color: #f8fafc;
+      font-size: 14px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-group select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    .form-group select option {
+      background: #1e293b;
+      color: #f8fafc;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+    }
+
+    .form-group input::placeholder { color: #475569; }
+
+    .form-group input.invalid {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .field-hint {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .field-error {
+      font-size: 11px;
+      color: #f87171;
+      margin-top: 4px;
+      display: none;
+    }
+
+    /* Password strength */
+    .pw-checks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 8px;
+      margin-top: 6px;
+    }
+    .pw-check {
+      font-size: 11px;
+      color: #64748b;
+      transition: color 0.2s;
+    }
+    .pw-check.pass { color: #4ade80; }
+    .pw-check::before { content: '○ '; }
+    .pw-check.pass::before { content: '● '; }
+
+    /* SP section */
+    .sp-section { display: none; }
+    .sp-section.show { display: block; }
+
+    .section-divider {
+      font-size: 13px;
+      font-weight: 600;
+      color: #60a5fa;
+      margin: 20px 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+    }
+
+    /* Terms checkbox */
+    .terms-section {
+      margin: 18px 0 16px;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 1px;
+      accent-color: #3b82f6;
+      flex-shrink: 0;
+    }
+
+    /* Submit */
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .submit-btn:active { transform: translateY(0); }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Status messages */
+    .status-message {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      display: none;
+      text-align: center;
+    }
+    .status-message.success { display: block; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .status-message.error { display: block; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; }
+    .status-message.loading { display: block; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.2); color: #60a5fa; }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(96, 165, 250, 0.3);
+      border-top: 2px solid #60a5fa;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Success screens */
+    .success-screen {
+      margin-top: 20px;
+      padding: 24px;
+      border-radius: 16px;
+      text-align: center;
+      display: none;
+      animation: fadeInUp 0.5s ease;
+    }
+
+    .success-screen.gmail {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(59, 130, 246, 0.08));
+      border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+
+    .success-screen.apk {
+      background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(59, 130, 246, 0.08));
+      border: 1px solid rgba(251, 191, 36, 0.25);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .success-icon { font-size: 48px; margin-bottom: 12px; }
+    .success-title { font-size: 16px; font-weight: 600; color: #f8fafc; margin-bottom: 4px; }
+    .success-subtitle { font-size: 13px; color: #94a3b8; margin-bottom: 16px; line-height: 1.5; }
+
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 12px;
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .download-btn:hover { transform: translateY(-2px); }
+    .download-btn:active { transform: translateY(0); }
+
+    .download-btn.google {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.35);
+    }
+    .download-btn.apk-dl {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
+    }
+
+    .download-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+    .disclaimer {
+      margin-top: 14px;
+      padding: 10px 14px;
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.15);
+      border-radius: 8px;
+      font-size: 11px;
+      color: #fbbf24;
+      line-height: 1.5;
+    }
+
+    .verify-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #60a5fa;
+    }
+
+    .login-note {
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      border-radius: 8px;
+      font-size: 12px;
+      color: #93c5fd;
+      line-height: 1.5;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      color: #475569;
+      font-size: 11px;
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 20px; }
+      .card h2 { font-size: 18px; }
+      .form-row { grid-template-columns: 1fr; gap: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo-section">
+      <img src="app-logo.png" alt="SnapFix" class="logo">
+      <div class="app-name">SnapFix</div>
+      <div class="app-tagline">Платформа за майстори и клиенти</div>
+    </div>
+
+    <div class="card">
+      <div id="referralBanner" class="referral-banner">
+        <span class="ref-text">🎁 Поканени сте от <span id="referrerName" class="ref-name"></span></span>
+      </div>
+
+      <h2>Бета регистрация</h2>
+      <p>Създайте акаунт и получете достъп до приложението SnapFix. Регистрацията е безплатна.</p>
+
+      <!-- Registration Form -->
+      <div id="formSection">
+        <!-- Role Selection -->
+        <div class="role-selector">
+          <div class="role-card active" data-role="tradesperson" onclick="selectRole('tradesperson')">
+            <span class="role-icon">🔧</span>
+            <span class="role-label">Майстор</span>
+            <div class="role-desc">Предлагам услуги</div>
+          </div>
+          <div class="role-card" data-role="customer" onclick="selectRole('customer')">
+            <span class="role-icon">🏠</span>
+            <span class="role-label">Клиент</span>
+            <div class="role-desc">Търся майстор</div>
+          </div>
+        </div>
+
+        <form id="registerForm" novalidate>
+          <!-- Name Row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firstName">Име *</label>
+              <input type="text" id="firstName" placeholder="Иван" required>
+            </div>
+            <div class="form-group">
+              <label for="lastName">Фамилия *</label>
+              <input type="text" id="lastName" placeholder="Иванов" required>
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="form-group">
+            <label for="email">Имейл адрес *</label>
+            <input type="email" id="email" placeholder="example@gmail.com" required>
+            <div class="field-hint">Gmail адреси получават достъп през Google Play. За други имейли - директно изтегляне.</div>
+          </div>
+
+          <!-- Phone -->
+          <div class="form-group">
+            <label for="phoneNumber">Телефонен номер *</label>
+            <input type="tel" id="phoneNumber" placeholder="0888123456">
+            <div class="field-hint">Формат: 0888123456 или +359888123456</div>
+            <div class="field-error" id="phoneError"></div>
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <label for="password">Парола *</label>
+            <input type="password" id="password" placeholder="Минимум 8 символа">
+            <div class="pw-checks" id="pwChecks">
+              <span class="pw-check" id="pwLen">8+ символа</span>
+              <span class="pw-check" id="pwUpper">Главна буква</span>
+              <span class="pw-check" id="pwLower">Малка буква</span>
+              <span class="pw-check" id="pwDigit">Цифра</span>
+              <span class="pw-check" id="pwSpecial">Специален символ</span>
+            </div>
+          </div>
+
+          <!-- Confirm Password -->
+          <div class="form-group">
+            <label for="confirmPassword">Потвърдете паролата *</label>
+            <input type="password" id="confirmPassword" placeholder="Повторете паролата">
+            <div class="field-error" id="confirmError"></div>
+          </div>
+
+          <!-- SP Section -->
+          <div id="spSection" class="sp-section show">
+            <div class="section-divider">Информация за майстора</div>
+
+            <div class="form-group">
+              <label for="serviceCategory">Категория услуги *</label>
+              <select id="serviceCategory">
+                <option value="">-- Изберете категория --</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="companyName">Име на фирма (по избор)</label>
+              <input type="text" id="companyName" placeholder="Моята фирма ЕООД">
+            </div>
+
+            <div class="form-group">
+              <label for="city">Град</label>
+              <select id="city">
+                <option value="">-- Изберете град --</option>
+              </select>
+              <div class="field-hint">Можете да обновите местоположението от приложението по-късно.</div>
+            </div>
+          </div>
+
+          <!-- Terms -->
+          <div class="terms-section">
+            <label class="checkbox-label">
+              <input type="checkbox" id="acceptTerms">
+              <span>Приемам <a href="https://snapfix.bg/terms" target="_blank" style="color: #60a5fa;">условията за ползване</a> и <a href="https://snapfix.bg/privacy" target="_blank" style="color: #60a5fa;">политиката за поверителност</a></span>
+            </label>
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitBtn">
+            Регистрация
+          </button>
+        </form>
+      </div>
+
+      <!-- Status Message -->
+      <div id="statusMessage" class="status-message"></div>
+
+      <!-- Success: Gmail -->
+      <div id="successGmail" class="success-screen gmail">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Регистрацията е успешна!</div>
+        <div class="success-subtitle">Добавянето ви към Google Play може да отнеме няколко минути.</div>
+        <a href="https://play.google.com/apps/testing/com.servicetextpro" target="_blank" class="download-btn google">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92zm10.89 10.893l2.302 2.302-10.937 6.333 8.635-8.635zm3.199-3.199l2.302 2.302a1 1 0 0 1 0 1.38l-2.302 2.302L15.396 12l2.302-2.492zM5.864 2.658L16.8 8.99l-2.302 2.302L5.864 2.658z"/></svg>
+          Изтеглете от Google Play
+        </a>
+        <div class="verify-note">📧 Проверете имейла си за верификация на акаунта.</div>
+        <div class="login-note">💡 Вашият акаунт е създаден. Влезте с имейл и парола в приложението (не се регистрирайте отново).</div>
+      </div>
+
+      <!-- Success: APK -->
+      <div id="successApk" class="success-screen apk">
+        <div class="success-icon">✅</div>
+        <div class="success-title">Регистрацията е успешна!</div>
+        <div class="success-subtitle">Изтеглете приложението директно от линка по-долу.</div>
+        <a href="https://snapfix.bg/downloads/ServiceTextPro-latest.apk" class="download-btn apk-dl">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Изтеглете APK файл
+        </a>
+        <div class="disclaimer">
+          ℹ️ Приложението е същото като в Google Play. За бета тестването Google позволява само Gmail адреси, затова ви предлагаме директно изтегляне.
+        </div>
+        <div class="verify-note">📧 Проверете имейла си за верификация на акаунта.</div>
+        <div class="login-note">💡 Вашият акаунт е създаден. Влезте с имейл и парола в приложението (не се регистрирайте отново).</div>
+      </div>
+
+      <!-- Success: Already Registered -->
+      <div id="successAlready" class="success-screen gmail">
+        <div class="success-icon">ℹ️</div>
+        <div class="success-title" id="alreadyTitle">Вече имате акаунт</div>
+        <div class="success-subtitle" id="alreadySubtitle"></div>
+        <a id="alreadyDownloadBtn" href="#" target="_blank" class="download-btn google">
+          Изтеглете приложението
+        </a>
+        <div class="login-note">💡 Влезте с вашия имейл и парола в приложението.</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      &copy; 2026 SnapFix. Всички права запазени.
+    </div>
+  </div>
+
+  <script>
+    // State
+    let selectedRole = 'tradesperson';
+    let referralCode = null;
+    let citiesLoaded = false;
+    let categoriesLoaded = false;
+
+    // DOM
+    const form = document.getElementById('registerForm');
+    const formSection = document.getElementById('formSection');
+    const statusEl = document.getElementById('statusMessage');
+    const submitBtn = document.getElementById('submitBtn');
+    const spSection = document.getElementById('spSection');
+    const pwChecks = {
+      len: document.getElementById('pwLen'),
+      upper: document.getElementById('pwUpper'),
+      lower: document.getElementById('pwLower'),
+      digit: document.getElementById('pwDigit'),
+      special: document.getElementById('pwSpecial'),
+    };
+
+    // Role selection
+    function selectRole(role) {
+      selectedRole = role;
+      document.querySelectorAll('.role-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.role === role);
+      });
+      spSection.classList.toggle('show', role === 'tradesperson');
+    }
+
+    // Password strength check
+    document.getElementById('password').addEventListener('input', function() {
+      const pw = this.value;
+      pwChecks.len.classList.toggle('pass', pw.length >= 8);
+      pwChecks.upper.classList.toggle('pass', /[A-Z]/.test(pw));
+      pwChecks.lower.classList.toggle('pass', /[a-z]/.test(pw));
+      pwChecks.digit.classList.toggle('pass', /\d/.test(pw));
+      pwChecks.special.classList.toggle('pass', /[!@#$%^&*(),.?":{}|<>]/.test(pw));
+    });
+
+    // Confirm password check
+    document.getElementById('confirmPassword').addEventListener('input', function() {
+      const confirmErr = document.getElementById('confirmError');
+      if (this.value && this.value !== document.getElementById('password').value) {
+        confirmErr.textContent = 'Паролите не съвпадат';
+        confirmErr.style.display = 'block';
+        this.classList.add('invalid');
+      } else {
+        confirmErr.style.display = 'none';
+        this.classList.remove('invalid');
+      }
+    });
+
+    // Check for referral code in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      fetch(`api/validate-referral/${encodeURIComponent(refCode)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.valid) {
+            referralCode = refCode;
+            document.getElementById('referrerName').textContent = data.referrerName;
+            document.getElementById('referralBanner').classList.add('show');
+          }
+        })
+        .catch(() => {});
+    }
+
+    // Load service categories
+    fetch('api/service-categories')
+      .then(r => r.json())
+      .then(categories => {
+        const select = document.getElementById('serviceCategory');
+        categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat.value;
+          opt.textContent = cat.label;
+          select.appendChild(opt);
+        });
+        categoriesLoaded = true;
+      })
+      .catch(() => {});
+
+    // Load cities
+    fetch('api/cities')
+      .then(r => r.json())
+      .then(data => {
+        const cities = data?.data?.cities || data?.cities || data || [];
+        const select = document.getElementById('city');
+        const cityList = Array.isArray(cities) ? cities : [];
+        cityList.forEach(city => {
+          const opt = document.createElement('option');
+          opt.value = city.label || city.value || city;
+          opt.textContent = city.label || city.value || city;
+          select.appendChild(opt);
+        });
+        citiesLoaded = true;
+      })
+      .catch(() => {});
+
+    // Validation helpers
+    function validatePassword(pw) {
+      return pw.length >= 8 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /\d/.test(pw) && /[!@#$%^&*(),.?":{}|<>]/.test(pw);
+    }
+
+    function validatePhone(phone) {
+      return /^\+359[0-9]{8,9}$/.test(phone) || /^0[0-9]{8,9}$/.test(phone);
+    }
+
+    function validateName(name) {
+      return name.trim().length >= 1 && /^[a-zA-ZА-Яа-я\s]+$/.test(name.trim());
+    }
+
+    // Show status
+    function showStatus(type, message) {
+      statusEl.className = `status-message ${type}`;
+      if (type === 'loading') {
+        statusEl.innerHTML = `<span class="spinner"></span> ${message}`;
+      } else {
+        statusEl.textContent = message;
+      }
+    }
+
+    function hideStatus() {
+      statusEl.className = 'status-message';
+      statusEl.style.display = 'none';
+    }
+
+    // Form submit
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const firstName = document.getElementById('firstName').value.trim();
+      const lastName = document.getElementById('lastName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phoneNumber = document.getElementById('phoneNumber').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const serviceCategory = document.getElementById('serviceCategory').value;
+      const companyName = document.getElementById('companyName').value.trim();
+      const city = document.getElementById('city').value;
+      const acceptTerms = document.getElementById('acceptTerms').checked;
+
+      // Validate
+      if (!firstName || !validateName(firstName)) {
+        showStatus('error', 'Моля, въведете валидно име (само букви).');
+        return;
+      }
+      if (!lastName || !validateName(lastName)) {
+        showStatus('error', 'Моля, въведете валидна фамилия (само букви).');
+        return;
+      }
+      if (!email) {
+        showStatus('error', 'Моля, въведете имейл адрес.');
+        return;
+      }
+      if (!validatePhone(phoneNumber)) {
+        showStatus('error', 'Невалиден телефонен номер. Формат: 0888123456 или +359888123456');
+        return;
+      }
+      if (!validatePassword(password)) {
+        showStatus('error', 'Паролата трябва да съдържа поне 8 символа, главна буква, малка буква, цифра и специален символ.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        showStatus('error', 'Паролите не съвпадат.');
+        return;
+      }
+      if (selectedRole === 'tradesperson' && !serviceCategory) {
+        showStatus('error', 'Моля, изберете категория услуги.');
+        return;
+      }
+      if (!acceptTerms) {
+        showStatus('error', 'Трябва да приемете условията за ползване.');
+        return;
+      }
+
+      // Submit
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Регистрация...';
+      const isGmailAddr = email.toLowerCase().endsWith('@gmail.com') || email.toLowerCase().endsWith('@googlemail.com');
+      showStatus('loading', isGmailAddr
+        ? 'Добавяме ви в Google Play и създаваме акаунта ви. Това може да отнеме до 1-2 минути...'
+        : 'Създаваме вашия акаунт...');
+
+      try {
+        const payload = {
+          email,
+          password,
+          firstName,
+          lastName,
+          phoneNumber,
+          role: selectedRole,
+        };
+
+        if (selectedRole === 'tradesperson') {
+          payload.serviceCategory = serviceCategory;
+          payload.companyName = companyName;
+          payload.city = city;
+        }
+
+        if (referralCode) {
+          payload.referralCode = referralCode;
+        }
+
+        const response = await fetch('api/submit-register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Hide form and status
+          formSection.style.display = 'none';
+          hideStatus();
+
+          if (data.alreadyRegistered) {
+            // Existing user
+            const alreadyScreen = document.getElementById('successAlready');
+            document.getElementById('alreadySubtitle').textContent = data.message;
+            const btn = document.getElementById('alreadyDownloadBtn');
+            if (data.isGmail) {
+              btn.href = 'https://play.google.com/apps/testing/com.servicetextpro';
+              btn.textContent = 'Google Play';
+              btn.className = 'download-btn google';
+            } else {
+              btn.href = 'https://snapfix.bg/downloads/ServiceTextPro-latest.apk';
+              btn.textContent = 'Изтеглете APK';
+              btn.className = 'download-btn apk-dl';
+            }
+            alreadyScreen.style.display = 'block';
+          } else if (data.isGmail) {
+            document.getElementById('successGmail').style.display = 'block';
+          } else {
+            document.getElementById('successApk').style.display = 'block';
+          }
+        } else {
+          showStatus('error', data.message || 'Възникна грешка при регистрацията.');
+        }
+      } catch (error) {
+        showStatus('error', 'Възникна грешка при свързването. Моля, опитайте отново.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Регистрация';
+      }
+    });
+  </script>
+</body>
+</html>

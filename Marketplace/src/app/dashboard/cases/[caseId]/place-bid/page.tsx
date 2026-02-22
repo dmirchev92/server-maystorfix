@@ -109,7 +109,7 @@ export default function PlaceBidPage() {
     const pointCost = calculatePointCost(formData.proposedBudgetRange)
     
     // Show confirmation with point cost
-    const confirmMessage = `Сигурни ли сте, че искате да наддавате за тази заявка?\n\n💰 Предлагана цена: ${formData.proposedBudgetRange} лв\n⭐ Ако спечелите, ще платите: ${pointCost} точки\n\nПродължавате ли?`
+    const confirmMessage = `Сигурни ли сте, че искате да наддавате за тази заявка?\n\n💰 Предлагана цена: ${formData.proposedBudgetRange} €\n⭐ Ако спечелите, ще платите: ${pointCost} точки\n\nПродължавате ли?`
     
     if (!confirm(confirmMessage)) {
       return
@@ -243,7 +243,7 @@ export default function PlaceBidPage() {
               {formData.proposedBudgetRange && (
                 <div className="mt-3 pt-3 border-t border-indigo-400/30">
                   <p className="text-indigo-100 font-semibold">
-                    ⭐ Ако спечелите с оферта {formData.proposedBudgetRange} лв: <span className="text-yellow-300">{calculatePointCost(formData.proposedBudgetRange)} точки</span>
+                    ⭐ Ако спечелите с оферта {formData.proposedBudgetRange} €: <span className="text-yellow-300">{calculatePointCost(formData.proposedBudgetRange)} точки</span>
                   </p>
                 </div>
               )}

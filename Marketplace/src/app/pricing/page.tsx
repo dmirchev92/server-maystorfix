@@ -34,14 +34,14 @@ export default function PricingPage() {
             </div>
             
             <div className="text-center mb-6">
-              <span className="text-4xl font-bold text-white">0 лв</span>
+              <span className="text-4xl font-bold text-white">0 €</span>
               <span className="text-slate-400 block">14 дни или 5 заявки</span>
             </div>
 
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
-                <span>Достъп до заявки до 500 лв</span>
+                <span>Достъп до заявки до 250 €</span>
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
@@ -83,7 +83,7 @@ export default function PricingPage() {
             </div>
             
             <div className="text-center mb-6">
-              <span className="text-4xl font-bold text-white">349 лв</span>
+              <span className="text-4xl font-bold text-white">179 €</span>
               <span className="text-slate-400 block">на година (с ДДС)</span>
             </div>
 
@@ -94,7 +94,7 @@ export default function PricingPage() {
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
-                <span>Заявки до <strong>1500 лв</strong> бюджет</span>
+                <span>Заявки до <strong>1000 €</strong> бюджет</span>
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
@@ -114,7 +114,7 @@ export default function PricingPage() {
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
-                <span>Допълнителни точки: <strong>0.30 лв/точка</strong></span>
+                <span>Допълнителни точки: <strong>0.15 €/точка</strong></span>
               </li>
             </ul>
 
@@ -136,7 +136,7 @@ export default function PricingPage() {
             </div>
             
             <div className="text-center mb-6">
-              <span className="text-4xl font-bold text-white">489 лв</span>
+              <span className="text-4xl font-bold text-white">249 €</span>
               <span className="text-slate-400 block">на година (с ДДС)</span>
             </div>
 
@@ -171,7 +171,7 @@ export default function PricingPage() {
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-purple-400 mt-1">✓</span>
-                <span>Допълнителни точки: <strong>0.25 лв/точка</strong></span>
+                <span>Допълнителни точки: <strong>0.13 €/точка</strong></span>
               </li>
             </ul>
 
@@ -213,67 +213,67 @@ export default function PricingPage() {
                   </thead>
                   <tbody className="text-slate-300">
                     <tr className="border-b border-white/5">
-                      <td className="py-2">1 - 250 лв</td>
+                      <td className="py-2">1 - 125 €</td>
                       <td className="text-center">15 точки</td>
                       <td className="text-center">12 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">251 - 500 лв</td>
+                      <td className="py-2">126 - 250 €</td>
                       <td className="text-center">25 точки</td>
                       <td className="text-center">20 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">501 - 750 лв</td>
+                      <td className="py-2">251 - 375 €</td>
                       <td className="text-center">35 точки</td>
                       <td className="text-center">28 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">751 - 1000 лв</td>
+                      <td className="py-2">376 - 500 €</td>
                       <td className="text-center">45 точки</td>
                       <td className="text-center">36 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">1001 - 2000 лв</td>
+                      <td className="py-2">501 - 1000 €</td>
                       <td className="text-center">70 точки</td>
                       <td className="text-center">56 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">2001 - 3000 лв</td>
+                      <td className="py-2">1001 - 1500 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">100 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">3001 - 4000 лв</td>
+                      <td className="py-2">1501 - 2000 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">140 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">4001 - 5000 лв</td>
+                      <td className="py-2">2001 - 2500 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">180 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">5001 - 6000 лв</td>
+                      <td className="py-2">2501 - 3000 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">220 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">6001 - 7000 лв</td>
+                      <td className="py-2">3001 - 3500 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">260 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">7001 - 8000 лв</td>
+                      <td className="py-2">3501 - 4000 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">300 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">8001 - 9000 лв</td>
+                      <td className="py-2">4001 - 4500 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">340 точки</td>
                     </tr>
                     <tr>
-                      <td className="py-2">9001 - 10000 лв</td>
+                      <td className="py-2">4501 - 5000 €</td>
                       <td className="text-center text-slate-500">—</td>
                       <td className="text-center">380 точки</td>
                     </tr>
@@ -327,23 +327,23 @@ export default function PricingPage() {
             <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
               <div className="bg-slate-800/50 rounded-xl p-6 text-center">
                 <h3 className="text-xl font-bold text-green-400 mb-2">Normal план</h3>
-                <p className="text-3xl font-bold text-white mb-2">0.30 лв</p>
+                <p className="text-3xl font-bold text-white mb-2">0.15 €</p>
                 <p className="text-slate-400">за точка</p>
                 <div className="mt-4 space-y-2 text-sm text-slate-300">
-                  <p>50 точки = 15 лв</p>
-                  <p>100 точки = 30 лв</p>
-                  <p>200 точки = 60 лв</p>
+                  <p>50 точки = 7.50 €</p>
+                  <p>100 точки = 15 €</p>
+                  <p>200 точки = 30 €</p>
                 </div>
               </div>
               
               <div className="bg-slate-800/50 rounded-xl p-6 text-center">
                 <h3 className="text-xl font-bold text-purple-400 mb-2">PRO план</h3>
-                <p className="text-3xl font-bold text-white mb-2">0.25 лв</p>
+                <p className="text-3xl font-bold text-white mb-2">0.13 €</p>
                 <p className="text-slate-400">за точка</p>
                 <div className="mt-4 space-y-2 text-sm text-slate-300">
-                  <p>50 точки = 12.50 лв</p>
-                  <p>100 точки = 25 лв</p>
-                  <p>200 точки = 50 лв</p>
+                  <p>50 точки = 6.50 €</p>
+                  <p>100 точки = 13 €</p>
+                  <p>200 точки = 26 €</p>
                 </div>
               </div>
             </div>
@@ -376,8 +376,8 @@ export default function PricingPage() {
                 </tr>
                 <tr className="border-t border-white/5 bg-white/5">
                   <td className="p-4 font-medium">Максимален бюджет на заявка</td>
-                  <td className="text-center p-4">500 лв</td>
-                  <td className="text-center p-4">1500 лв</td>
+                  <td className="text-center p-4">250 €</td>
+                  <td className="text-center p-4">1000 €</td>
                   <td className="text-center p-4 text-purple-400">Неограничен</td>
                 </tr>
                 <tr className="border-t border-white/5">
@@ -425,8 +425,8 @@ export default function PricingPage() {
                 <tr className="border-t border-white/5 bg-white/5">
                   <td className="p-4 font-medium">Цена за допълнителни точки</td>
                   <td className="text-center p-4">—</td>
-                  <td className="text-center p-4">0.30 лв</td>
-                  <td className="text-center p-4 text-purple-400">0.25 лв</td>
+                  <td className="text-center p-4">0.15 €</td>
+                  <td className="text-center p-4 text-purple-400">0.13 €</td>
                 </tr>
               </tbody>
             </table>
@@ -644,7 +644,7 @@ export default function PricingPage() {
             <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-xl p-6">
               <h3 className="text-lg font-bold text-white mb-2">Какво се случва, ако ми свършат точките?</h3>
               <p className="text-slate-300">
-                Можете да закупите допълнителни точки по всяко време от вашия профил. Цената зависи от плана ви - 0.30 лв за Normal и 0.25 лв за PRO.
+                Можете да закупите допълнителни точки по всяко време от вашия профил. Цената зависи от плана ви - 0.15 € за Normal и 0.13 € за PRO.
               </p>
             </div>
 
@@ -674,6 +674,47 @@ export default function PricingPage() {
               <p className="text-slate-300">
                 При подновяване на абонамента получавате нова годишна квота точки. Препоръчваме да използвате точките си активно през годината.
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Payment Info Section */}
+        <section className="mb-20">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-white mb-4">💳 Информация за плащане</h2>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-2xl p-8">
+              <div className="grid md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-4">Приемаме</h3>
+                  <div className="flex flex-wrap gap-3">
+                    <span className="bg-white/10 px-4 py-2 rounded-lg text-white font-medium">💳 Visa</span>
+                    <span className="bg-white/10 px-4 py-2 rounded-lg text-white font-medium">💳 Mastercard</span>
+                    <span className="bg-white/10 px-4 py-2 rounded-lg text-white font-medium">🍎 Apple Pay</span>
+                    <span className="bg-white/10 px-4 py-2 rounded-lg text-white font-medium">📱 Google Pay</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white mb-4">Сигурност</h3>
+                  <div className="space-y-2 text-slate-300">
+                    <p>🔒 256-bit SSL криптиране</p>
+                    <p>✅ Плащанията се обработват от Stripe</p>
+                    <p>🛡️ PCI DSS Level 1 сертификация</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-8 pt-8 border-t border-white/10">
+                <h3 className="text-xl font-bold text-white mb-4">Условия</h3>
+                <div className="grid md:grid-cols-2 gap-4 text-slate-300">
+                  <p>• Абонаментът се подновява автоматично всяка година</p>
+                  <p>• Можете да откажете по всяко време от настройките</p>
+                  <p>• При отказ запазвате достъп до края на периода</p>
+                  <p>• Без скрити такси или допълнителни разходи</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>

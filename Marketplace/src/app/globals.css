@@ -30,9 +30,10 @@ html, body {
   min-height: 100vh;
   /* Prevent horizontal scroll and fix mobile touch scrolling */
   overflow-x: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  /* Prevent pull-to-refresh and overscroll bounce */
-  overscroll-behavior: none;
+  /* Allow normal scroll behavior */
+  overscroll-behavior-x: none;
 }
 
 /* Fix touch scrolling on iOS */

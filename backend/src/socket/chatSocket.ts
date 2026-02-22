@@ -8,6 +8,24 @@ import { Server, Socket } from 'socket.io'
 import { ChatService } from '../services/ChatService'
 import { verify } from 'jsonwebtoken'
 
+const onlineUsers = new Set<string>()
+
+export const markUserOnline = (userId: string) => {
+  onlineUsers.add(userId)
+}
+
+export const markUserOffline = (userId: string) => {
+  onlineUsers.delete(userId)
+}
+
+export const isUserOnline = (userId: string) => {
+  return onlineUsers.has(userId)
+}
+
+export const getOnlineUserIds = () => {
+  return Array.from(onlineUsers)
+}
+
 interface AuthenticatedSocket extends Socket {
   userId?: string
   userRole?: string
@@ -108,6 +126,8 @@ export class ChatSocketHandler {
 
     // Emit online presence
     this.broadcastPresence(userId, 'online')
+
+    markUserOnline(userId)
 
     console.log(`👤 User ${userId} connected (${this.userSockets.get(userId)!.size} active sockets)`)
   }
@@ -291,6 +311,7 @@ export class ChatSocketHandler {
       if (this.userSockets.get(userId)?.size === 0) {
         this.userSockets.delete(userId)
         this.broadcastPresence(userId, 'offline')
+        markUserOffline(userId)
         console.log(`👤 User ${userId} went offline`)
       }
 

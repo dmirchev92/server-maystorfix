@@ -80,7 +80,7 @@ export function ReviewResponseModal({ isOpen, caseData, onClose, onRespond, poin
             </div>
             <div>
               <span className="text-slate-400">Предложен бюджет:</span>
-              <p className="text-emerald-400 font-semibold">{customerBudget} лв</p>
+              <p className="text-emerald-400 font-semibold">{customerBudget} €</p>
             </div>
             {caseData.preferred_date && (
               <div>
@@ -196,7 +196,7 @@ export function ReviewResponseModal({ isOpen, caseData, onClose, onRespond, poin
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-emerald-300 font-medium">При приемане ще бъдат удържани точки</p>
-                  <p className="text-slate-400 text-sm">Базирано на бюджета: {customerBudget} лв</p>
+                  <p className="text-slate-400 text-sm">Базирано на бюджета: {customerBudget} €</p>
                 </div>
                 <div className="text-right">
                   <p className="text-slate-400 text-sm">Вашите точки:</p>

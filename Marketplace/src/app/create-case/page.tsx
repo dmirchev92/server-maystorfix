@@ -19,6 +19,7 @@ export default function CreateCasePage() {
   const providerId = searchParams.get('providerId')
   const providerName = searchParams.get('providerName')
   const conversationId = searchParams.get('conversationId')
+  const providerCategory = searchParams.get('providerCategory')
   const chatSource = searchParams.get('chatSource') // Direct chat source (e.g., 'searchchat')
 
   // Redirect to login if not authenticated
@@ -101,7 +102,7 @@ export default function CreateCasePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 relative overflow-x-hidden">
       {/* Industrial background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-indigo-500/10 to-slate-500/10 rounded-lg blur-3xl"></div>
@@ -179,7 +180,7 @@ export default function CreateCasePage() {
         onSubmit={handleCaseSubmit}
         providerName={providerName || "Всички специалисти"}
         providerId={providerId || undefined}
-        providerCategory="general"
+        providerCategory={providerCategory || 'general'}
         customerPhone={user?.phoneNumber || ''}
         mode="direct"
       />

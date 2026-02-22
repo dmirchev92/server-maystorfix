@@ -85,7 +85,7 @@ export class SMSVerificationService {
       );
 
       // Send SMS via Mobica
-      const message = `Вашият код за потвърждение е: ${code}\n\nКодът е валиден ${CODE_EXPIRY_MINUTES} минути.\n\nMaystorFix`;
+      const message = `Вашият код за потвърждение е: ${code}\n\nКодът е валиден ${CODE_EXPIRY_MINUTES} минути.\n\nSnapFix`;
       
       const smsResult = await this.mobicaService.sendSMS(
         formattedPhone,

@@ -40,6 +40,7 @@ export function Footer() {
               <li><Link href="/about" className="text-slate-400 hover:text-white transition-colors">За нас</Link></li>
               <li><Link href="/how-it-works" className="text-slate-400 hover:text-white transition-colors">Как работи</Link></li>
               <li><Link href="/contact" className="text-slate-400 hover:text-white transition-colors">Контакти</Link></li>
+              <li><Link href="/faq" className="text-slate-400 hover:text-white transition-colors">Въпроси (FAQ)</Link></li>
               <li><Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">Поверителност</Link></li>
             </ul>
           </div>

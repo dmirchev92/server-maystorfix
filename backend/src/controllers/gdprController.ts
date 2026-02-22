@@ -7,8 +7,10 @@ import rateLimit from 'express-rate-limit';
 
 import { GDPRService } from '../services/GDPRService';
 import { DatabaseFactory } from '../models/DatabaseFactory';
+import { authenticateToken } from '../middleware/auth';
 import config from '../utils/config';
 import logger, { gdprLogger } from '../utils/logger';
+import { normalizeConsentType } from '../utils/consentHelpers';
 import {
   ServiceTextProError,
   GDPRComplianceError,
@@ -18,7 +20,7 @@ import {
 } from '../types';
 
 const router = Router();
-const gdprService = new GDPRService();
+const gdprService = GDPRService.getInstance();
 
 // Rate limiting for GDPR requests (more generous as these are user rights)
 const gdprLimiter = rateLimit({
@@ -129,87 +131,87 @@ router.get('/privacy-notice', async (req: Request, res: Response, next: NextFunc
       success: true,
       data: {
         companyInfo: {
-          name: 'ServiceText Pro',
-          address: 'Sofia, Bulgaria',
+          name: 'SnapFix',
+          address: 'София, България',
           email: config.gdpr.dpo.email,
           phone: config.gdpr.dpo.phone
         },
         dataController: {
-          name: 'ServiceText Pro Ltd.',
+          name: 'SnapFix',
           contact: config.gdpr.dpo.email,
           dpoContact: config.gdpr.dpo
         },
         dataProcessing: {
           purposes: [
-            'Providing business communication services',
-            'AI-powered conversation analysis',
-            'Business analytics and reporting',
-            'Customer support and service improvement',
-            'Legal compliance and audit trails'
+            'Предоставяне на платформа за свързване на майстори и клиенти',
+            'Изпращане на SMS известия при пропуснати обаждания',
+            'Чат комуникация между майстори и клиенти',
+            'Бизнес аналитика и статистики за майсторите',
+            'Push известия за нови заявки и съобщения',
+            'Система за случаи (cases) и наддаване (bidding)',
+            'Реферална програма и точкова система',
+            'Спазване на правни изисквания и одитни записи'
           ],
           legalBases: [
-            'Legitimate interest for service provision',
-            'Consent for marketing and analytics',
-            'Contract performance for paid services',
-            'Legal obligation for tax and business records'
+            'Легитимен интерес за предоставяне на услугата',
+            'Съгласие за съхранение на съобщения и маркетинг',
+            'Изпълнение на договор за платени услуги',
+            'Правно задължение за данъчни и бизнес записи'
           ],
           dataCategories: {
-            workers: [
-              'Personal data (name, email, phone)',
-              'Business information (ЕИК, ДДС, certifications)',
-              'Usage data and app interactions',
-              'Communication data with customers'
+            serviceProviders: [
+              'Лични данни (име, имейл, телефон)',
+              'Бизнес информация (ЕИК, ДДС, категории услуги, сертификати)',
+              'Профилна информация (снимки, описание, град)',
+              'Данни за обаждания и SMS съобщения',
+              'Чат комуникация с клиенти',
+              'Статистики и аналитика за приходи',
+              'Точки, абонамент и реферална активност'
             ],
             customers: [
-              'Contact information (phone number, name if provided)',
-              'Communication content and history',
-              'Service interaction patterns',
-              'Technical data (IP address, device info)'
+              'Контактна информация (телефонен номер, име)',
+              'Съдържание на чат съобщения',
+              'Данни за заявки (случаи)',
+              'Технически данни (IP адрес, тип устройство)'
             ]
           }
         },
         dataRetention: {
-          conversationData: `${config.gdpr.dataRetention.conversationMonths} months`,
-          businessData: `${config.gdpr.dataRetention.businessDataMonths} months`,
-          analyticsData: `${config.gdpr.dataRetention.analyticsMonths} months`,
-          auditLogs: `${config.gdpr.dataRetention.auditLogMonths} months`,
+          conversationData: `${config.gdpr.dataRetention.conversationMonths} месеца`,
+          businessData: `${config.gdpr.dataRetention.businessDataMonths} месеца`,
+          analyticsData: `${config.gdpr.dataRetention.analyticsMonths} месеца`,
+          auditLogs: `${config.gdpr.dataRetention.auditLogMonths} месеца`,
+          billingData: '84 месеца (7 години - законово изискване)',
           automaticDeletion: config.gdpr.compliance.autoDeleteExpiredData
         },
         userRights: {
-          access: 'Request a copy of your personal data',
-          rectification: 'Correct inaccurate personal data',
-          erasure: 'Request deletion of your personal data',
-          restriction: 'Limit how we process your data',
-          portability: 'Receive your data in a machine-readable format',
-          objection: 'Object to certain types of processing',
-          withdrawConsent: 'Withdraw previously given consent'
+          access: 'Заявка за копие на вашите лични данни (чл. 15)',
+          rectification: 'Корекция на неточни лични данни (чл. 16)',
+          erasure: 'Заявка за изтриване на данните ви (чл. 17)',
+          restriction: 'Ограничаване на обработката на данни (чл. 18)',
+          portability: 'Получаване на данните в машиночетим формат (чл. 20)',
+          objection: 'Възражение срещу определени видове обработка (чл. 21)',
+          withdrawConsent: 'Оттегляне на дадено съгласие по всяко време'
         },
         thirdPartySharing: [
-          'WhatsApp/Meta - for message delivery (with DPA)',
-          'Viber/Rakuten - for message delivery (with DPA)',
-          'Telegram - for message delivery (with DPA)',
-          'Cloud providers - for data hosting (with DPA)',
-          'Analytics providers - anonymized data only'
+          'Mobica SMS API — за изпращане на SMS съобщения (с договор за обработка)',
+          'Firebase/Google — за push известия (с договор за обработка)',
+          'Облачен хостинг доставчик — за съхранение на данни в ЕС (с договор за обработка)'
         ],
         internationalTransfers: {
-          adequacyDecisions: ['Countries with EU adequacy decisions'],
-          safeguards: ['Standard Contractual Clauses', 'Binding Corporate Rules'],
-          yourRights: 'You can request information about transfers affecting your data'
-        },
-        cookies: {
-          essential: 'Required for app functionality',
-          analytics: 'Optional - used for service improvement',
-          marketing: 'Optional - used for targeted content'
+          dataLocation: 'Данните се съхраняват на сървъри в Европейския съюз',
+          safeguards: ['Стандартни договорни клаузи (SCC)', 'Решения за адекватност на ЕК'],
+          yourRights: 'Можете да поискате информация за трансфери, засягащи вашите данни'
         },
         contact: {
           dpo: config.gdpr.dpo,
-          complaints: 'Commission for Personal Data Protection (Bulgaria)',
-          responseTime: '72 hours maximum'
+          complaints: 'Комисия за защита на личните данни (КЗЛД), България — https://cpdp.bg/',
+          responseTime: 'До 30 дни (максимум 72 часа за първоначален отговор)'
         },
         updates: {
-          lastUpdated: new Date().toISOString(),
-          notificationMethod: 'Email and in-app notification',
-          previousVersions: 'Available upon request'
+          lastUpdated: '2026-02-10',
+          notificationMethod: 'Имейл и известие в приложението',
+          previousVersions: 'Достъпни при поискване'
         }
       },
       metadata: {
@@ -237,7 +239,7 @@ router.get('/privacy-notice', async (req: Request, res: Response, next: NextFunc
  */
 router.get('/my-data',
   gdprLimiter,
-  // TODO: Add authentication middleware
+  authenticateToken,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -281,9 +283,9 @@ router.get('/my-data',
 router.post('/export-data',
   exportLimiter,
   gdprLimiter,
+  authenticateToken,
   validateDataExportRequest,
   handleValidationErrors,
-  // TODO: Add authentication middleware
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -337,9 +339,9 @@ router.post('/export-data',
  */
 router.post('/delete-my-data',
   gdprLimiter,
+  authenticateToken,
   validateDataErasureRequest,
   handleValidationErrors,
-  // TODO: Add authentication middleware
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -399,9 +401,9 @@ router.post('/delete-my-data',
  */
 router.post('/correct-my-data',
   gdprLimiter,
+  authenticateToken,
   validateDataRectificationRequest,
   handleValidationErrors,
-  // TODO: Add authentication middleware
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -454,7 +456,7 @@ router.post('/correct-my-data',
  */
 router.get('/data-processing-info',
   gdprLimiter,
-  // TODO: Add authentication middleware
+  authenticateToken,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -505,16 +507,81 @@ router.get('/data-processing-info',
 );
 
 /**
+ * GET /api/v1/gdpr/my-consents
+ * Get current user's consent preferences
+ */
+router.get('/my-consents',
+  authenticateToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+      }
+
+      const db = DatabaseFactory.getDatabase();
+      const pool = (db as any).getPool();
+      
+      // Get user's current consents from database
+      const consents = await (db as any).query(
+        `SELECT consent_type, granted, timestamp, withdrawn_at, legal_basis 
+         FROM gdpr_consents 
+         WHERE user_id = $1 
+         ORDER BY timestamp DESC`,
+        [userId]
+      );
+
+      // Group by consent_type to get latest for each type
+      const latestConsents: Record<string, any> = {};
+      for (const consent of consents) {
+        if (!latestConsents[consent.consent_type]) {
+          latestConsents[consent.consent_type] = {
+            consentType: consent.consent_type,
+            granted: consent.granted && !consent.withdrawn_at,
+            grantedAt: consent.timestamp,
+            withdrawnAt: consent.withdrawn_at,
+            legalBasis: consent.legal_basis
+          };
+        }
+      }
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          consents: Object.values(latestConsents),
+          availableTypes: Object.values(ConsentType)
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
+        },
+        gdpr: {
+          dataProcessingBasis: DataProcessingBasis.CONSENT,
+          retentionPeriod: 'Until consent is withdrawn',
+          rightsInformation: 'You can update your consent preferences at any time'
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * POST /api/v1/gdpr/update-consents
- * Update consent preferences
+ * Update consent preferences - saves to database
  */
 router.post('/update-consents',
+  authenticateToken,
   gdprLimiter,
   body('consents').isArray({ min: 1 }).withMessage('Consents array is required'),
-  body('consents.*.consentType').isIn(Object.values(ConsentType)).withMessage('Invalid consent type'),
+  body('consents.*.consentType').isString().withMessage('Consent type is required'),
   body('consents.*.granted').isBoolean().withMessage('Consent granted must be boolean'),
   handleValidationErrors,
-  // TODO: Add authentication middleware
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -523,13 +590,46 @@ router.post('/update-consents',
       }
 
       const { consents } = req.body;
+      const db = DatabaseFactory.getDatabase();
+      const pool = (db as any).getPool();
+      const now = new Date().toISOString();
 
-      await gdprService.updateUserConsents({
+      // ✅ Normalize consent types (mobile → backend) before saving
+      const normalizedConsents = consents.map((consent: any) => ({
+        ...consent,
+        consentType: normalizeConsentType(consent.consentType)
+      }));
+
+      logger.info('📝 Updating consents', {
         userId,
-        consents,
-        requestedBy: userId,
-        ipAddress: req.ip
+        consentsCount: normalizedConsents.length,
+        types: normalizedConsents.map((c: any) => c.consentType)
       });
+
+      // Save each consent to database
+      for (const consent of normalizedConsents) {
+        const consentId = `consent_${userId}_${consent.consentType}_${Date.now()}`;
+
+        // If withdrawing consent, update existing record
+        if (!consent.granted) {
+          await (db as any).query(
+            `UPDATE gdpr_consents
+             SET withdrawn_at = $1
+             WHERE user_id = $2 AND consent_type = $3 AND withdrawn_at IS NULL`,
+            [now, userId, consent.consentType]
+          );
+        }
+
+        // Insert new consent record
+        await (db as any).query(
+          `INSERT INTO gdpr_consents (id, user_id, consent_type, granted, timestamp, ip_address, legal_basis)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [consentId, userId, consent.consentType, consent.granted, now, req.ip || 'unknown', consent.legalBasis || 'consent']
+        );
+      }
+
+      // ✅ Clear consent cache for user after updates
+      gdprService.clearConsentCache(userId);
 
       const response: APIResponse = {
         success: true,
@@ -567,7 +667,7 @@ router.post('/update-consents',
  * Get GDPR compliance status for the user
  */
 router.get('/compliance-status',
-  // TODO: Add authentication middleware
+  authenticateToken,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
@@ -575,46 +675,72 @@ router.get('/compliance-status',
         throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
       }
 
-      // Check user's GDPR compliance status
-      const user = req.user;
-      if (!user) {
-        throw new ServiceTextProError('User data not found', 'USER_NOT_FOUND', 404);
+      const db = DatabaseFactory.getDatabase();
+      const pool = (db as any).getPool();
+
+      // Fetch user data from DB
+      const userResult = await pool.query(
+        'SELECT id, data_retention_until FROM users WHERE id = $1',
+        [userId]
+      );
+      if (userResult.rows.length === 0) {
+        throw new ServiceTextProError('User not found', 'USER_NOT_FOUND', 404);
       }
+
+      const dataRetentionUntil = userResult.rows[0].data_retention_until 
+        ? new Date(userResult.rows[0].data_retention_until) 
+        : new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000);
+
+      // Fetch consents from DB
+      const consentsResult = await (db as any).query(
+        `SELECT consent_type, granted, timestamp, withdrawn_at, legal_basis
+         FROM gdpr_consents WHERE user_id = $1 ORDER BY timestamp DESC`,
+        [userId]
+      );
+
+      // Get latest consent per type
+      const latestConsents: Record<string, any> = {};
+      for (const c of consentsResult) {
+        if (!latestConsents[c.consent_type]) {
+          latestConsents[c.consent_type] = c;
+        }
+      }
+      const consentsList = Object.values(latestConsents);
       
       const now = new Date();
-      const isDataRetentionValid = user.dataRetentionUntil > now;
-      const hasEssentialConsent = user.gdprConsents.some(
-        (c: any) => c.consentType === ConsentType.ESSENTIAL_SERVICE && c.granted && !c.withdrawnAt
+      const isDataRetentionValid = dataRetentionUntil > now;
+      const hasEssentialConsent = consentsList.some(
+        (c: any) => c.consent_type === ConsentType.ESSENTIAL_SERVICE && c.granted && !c.withdrawn_at
       );
 
       const response: APIResponse = {
         success: true,
         data: {
-          complianceStatus: user.isGdprCompliant && isDataRetentionValid && hasEssentialConsent 
+          complianceStatus: isDataRetentionValid && hasEssentialConsent 
             ? 'COMPLIANT' 
             : 'REQUIRES_ATTENTION',
           checks: {
             gdprConsentsValid: hasEssentialConsent,
             dataRetentionValid: isDataRetentionValid,
-            privacyNoticeAcknowledged: true, // Assumed if user is registered
+            privacyNoticeAcknowledged: true,
             dataProcessingTransparent: true
           },
           dataRetention: {
-            validUntil: user.dataRetentionUntil,
-            daysRemaining: Math.ceil((user.dataRetentionUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+            validUntil: dataRetentionUntil,
+            daysRemaining: Math.ceil((dataRetentionUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
           },
-          consents: user.gdprConsents.map((consent: any) => ({
-            type: consent.consentType,
+          consents: consentsList.map((consent: any) => ({
+            type: consent.consent_type,
             granted: consent.granted,
             grantedAt: consent.timestamp,
-            withdrawnAt: consent.withdrawnAt,
-            legalBasis: consent.legalBasis
+            withdrawnAt: consent.withdrawn_at,
+            legalBasis: consent.legal_basis
           })),
           recommendations: [
-            ...(isDataRetentionValid ? [] : ['Contact support to extend data retention']),
-            ...(hasEssentialConsent ? [] : ['Essential service consent is required']),
-            'Review your privacy settings regularly',
-            'Keep your contact information up to date'
+            ...(isDataRetentionValid ? [] : ['Свържете се с нас за удължаване на периода за съхранение']),
+            ...(hasEssentialConsent ? [] : ['Необходимо е съгласие за основни услуги']),
+            'Преглеждайте настройките си за поверителност редовно',
+            'Поддържайте контактната си информация актуална'
           ]
         },
         metadata: {
@@ -624,8 +750,59 @@ router.get('/compliance-status',
         },
         gdpr: {
           dataProcessingBasis: DataProcessingBasis.LEGITIMATE_INTEREST,
-          retentionPeriod: 'Compliance status logs kept for 7 years',
-          rightsInformation: 'This helps ensure your GDPR rights are protected'
+          retentionPeriod: 'Записите за съответствие се пазят 7 години',
+          rightsInformation: 'Това помага да гарантираме вашите GDPR права'
+        }
+      };
+
+      res.json(response);
+
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /api/v1/gdpr/extend-data-retention
+ * Allows users to extend their data retention period
+ * Called when user confirms they want to continue using the service
+ */
+router.post('/extend-data-retention',
+  authenticateToken,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req as any).user?.id;
+      if (!userId) {
+        throw new ServiceTextProError('Authentication required', 'AUTHENTICATION_REQUIRED', 401);
+      }
+
+      const db = DatabaseFactory.getDatabase();
+      const pool = (db as any).getPool();
+
+      // Extend data retention by 7 years from now
+      const newRetentionDate = new Date();
+      newRetentionDate.setFullYear(newRetentionDate.getFullYear() + 7);
+
+      await pool.query(
+        'UPDATE users SET data_retention_until = $1, updated_at = NOW() WHERE id = $2',
+        [newRetentionDate, userId]
+      );
+
+      // Log the extension
+      gdprLogger.logConsentChange(userId, 'DATA_RETENTION_EXTENDED', true, req.ip || 'unknown');
+
+      const response: APIResponse = {
+        success: true,
+        data: {
+          message: 'Периодът за съхранение на данни е удължен успешно.',
+          newRetentionDate: newRetentionDate,
+          yearsExtended: 7
+        },
+        metadata: {
+          timestamp: new Date(),
+          requestId: (req as any).requestId,
+          version: config.app.version
         }
       };
 

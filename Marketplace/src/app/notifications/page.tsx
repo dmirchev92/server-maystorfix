@@ -283,19 +283,6 @@ export default function NotificationsPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
 
-      {/* Test button to verify React is working */}
-      <div className="max-w-4xl mx-auto px-4 pt-4">
-        <button 
-          onClick={() => {
-            console.log('✅ TEST BUTTON CLICKED - React is working!')
-            alert('React is working!')
-          }}
-          className="bg-green-600 text-white px-4 py-2 rounded"
-        >
-          TEST: Click me to verify React works
-        </button>
-      </div>
-
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
         {/* Page Header */}

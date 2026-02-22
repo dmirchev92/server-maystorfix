@@ -675,7 +675,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Цена на час (лв)
+                      Цена на час (€)
                     </label>
                     <input
                       type="number"

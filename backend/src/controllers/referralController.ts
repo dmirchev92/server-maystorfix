@@ -18,12 +18,14 @@ export const getReferralCode = async (req: Request, res: Response): Promise<void
 
     const referralCode = await referralService.getOrCreateReferralCode(userId);
     const referralLink = `${process.env.MARKETPLACE_URL || 'http://localhost:3002'}/signup?ref=${referralCode}`;
+    const betaReferralLink = `https://snapfix.bg/beta/?ref=${referralCode}`;
 
     res.json({
       success: true,
       data: {
         referralCode,
-        referralLink
+        referralLink,
+        betaReferralLink
       }
     });
   } catch (error) {

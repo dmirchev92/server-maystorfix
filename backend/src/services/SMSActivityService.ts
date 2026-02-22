@@ -116,6 +116,8 @@ export class SMSActivityService {
    */
   async logActivity(activity: Omit<SMSActivityRecord, 'id' | 'timestamp'>): Promise<void> {
     try {
+      // Note: Analytics is now part of essential_service consent - no separate check needed
+
       // Skip logging for PostgreSQL until proper implementation
       if (this.isPostgreSQL) {
         logger.debug('📊 SMS Activity (PostgreSQL - logging disabled)');

@@ -3,6 +3,7 @@
 
 import axios from 'axios';
 import logger from '../utils/logger';
+import { maskPhone } from '../utils/phonePrivacy';
 import { ServiceTextProError } from '../types';
 
 interface MobicaSMSRequest {
@@ -31,7 +32,7 @@ export class MobicaService {
   constructor() {
     this.username = process.env.MOBICA_USERNAME || '';
     this.password = process.env.MOBICA_PASSWORD || '';
-    this.senderId = process.env.MOBICA_SENDER_ID || 'MaystorFix';
+    this.senderId = process.env.MOBICA_SENDER_ID || 'SnapFix';
 
     if (this.username && this.password) {
       this.isConfigured = true;
@@ -102,7 +103,7 @@ export class MobicaService {
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
 
       logger.info('📱 [MOBICA] Sending SMS', {
-        phone: formattedPhone,
+        phone: maskPhone(formattedPhone),
         messageLength: message.length,
         messageId: messageId || 'auto'
       });
@@ -128,7 +129,7 @@ export class MobicaService {
       logger.info('📤 [MOBICA] Sending request', {
         url: this.apiUrl,
         username: this.username,
-        phone: formattedPhone
+        phone: maskPhone(formattedPhone)
       });
 
       const response = await axios.post<MobicaResponse>(
@@ -151,7 +152,7 @@ export class MobicaService {
       // Check response
       if (response.data.code === '1004') {
         logger.info('✅ [MOBICA] SMS sent successfully', {
-          phone: formattedPhone,
+          phone: maskPhone(formattedPhone),
           messageId: messageId,
           response: response.data
         });
@@ -162,7 +163,7 @@ export class MobicaService {
         };
       } else {
         logger.error('❌ [MOBICA] SMS failed', {
-          phone: formattedPhone,
+          phone: maskPhone(formattedPhone),
           code: response.data.code,
           description: response.data.description
         });
@@ -177,7 +178,7 @@ export class MobicaService {
         error: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        phone: phoneNumber
+        phone: maskPhone(phoneNumber)
       });
 
       return {
@@ -202,6 +203,9 @@ export class MobicaService {
     error?: string;
   }> {
     try {
+      // Note: No GDPR consent check here - SMS is a business feature controlled by SP's settings/subscription
+      // The SP is the data controller sending SMS to their customers, not a user data protection issue
+
       // Import ChatTokenService dynamically to avoid circular dependency
       const { ChatTokenService } = await import('./ChatTokenService');
       const chatTokenService = new ChatTokenService();
@@ -222,7 +226,7 @@ export class MobicaService {
       }
 
       logger.info('📱 [MOBICA] Sending missed call SMS', {
-        phone: phoneNumber,
+        phone: maskPhone(phoneNumber),
         userId,
         businessName,
         messageLength: message.length,
@@ -235,7 +239,7 @@ export class MobicaService {
     } catch (error: any) {
       logger.error('❌ [MOBICA] Failed to send missed call SMS', {
         error: error.message,
-        phone: phoneNumber,
+        phone: maskPhone(phoneNumber),
         userId
       });
 

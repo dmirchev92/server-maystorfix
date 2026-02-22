@@ -5,6 +5,7 @@ import config from '../utils/config';
 import { SMSSecurityService } from '../services/SMSSecurityService';
 import { SMSActivityService } from '../services/SMSActivityService';
 import { VipService } from '../services/VipService';
+import bcrypt from 'bcryptjs';
 
 const vipService = new VipService();
 
@@ -98,7 +99,7 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
           id, user_id, business_name, service_category, description,
           experience_years, hourly_rate, city, neighborhood, address, 
           phone_number, email, website_url, profile_image_url, 
-          rating, total_reviews, is_active, created_at, updated_at
+          rating, total_reviews, is_active, offered_services, created_at, updated_at
          FROM service_provider_profiles 
          WHERE user_id = ?`,
         [actualUserId],
@@ -154,7 +155,7 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
       email: user.email,
       firstName: user.first_name,
       lastName: user.last_name,
-      phoneNumber: user.phone_number,
+      phoneNumber: (req as any).user?.id === actualUserId ? user.phone_number : undefined,
       role: user.role,
       // Profile information (may be null if no profile exists)
       businessName: profile?.business_name || `${user.first_name} ${user.last_name}`,
@@ -165,7 +166,7 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
       city: profile?.city || 'Sofia',
       neighborhood: profile?.neighborhood,
       address: profile?.address,
-      profilePhone: profile?.phone_number,
+      profilePhone: (req as any).user?.id === actualUserId ? profile?.phone_number : undefined,
       profileEmail: profile?.email,
       website: profile?.website_url,
       profileImageUrl: profile?.profile_image_url,
@@ -175,7 +176,8 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
       profileCreatedAt: profile?.created_at,
       profileUpdatedAt: profile?.updated_at,
       certificates: certificates,
-      gallery: gallery
+      gallery: gallery,
+      offeredServices: profile?.offered_services || []
     };
 
     logger.info('✅ Provider info retrieved successfully', { 
@@ -222,13 +224,13 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
     // Base selection
     let selectQuery = `
       SELECT 
-        u.id, u.first_name, u.last_name, u.email, u.phone_number,
+        u.id, u.first_name, u.last_name, u.email,
         spp.business_name, spp.service_category, spp.description,
         spp.experience_years, spp.hourly_rate, spp.city, spp.neighborhood, 
-        spp.address, spp.phone_number as profile_phone, 
+        spp.address, 
         spp.email as profile_email, spp.website_url as website, 
         spp.profile_image_url, spp.rating, spp.total_reviews, spp.is_active,
-        spp.latitude, spp.longitude,
+        spp.latitude, spp.longitude, spp.offered_services,
         COALESCE((SELECT json_agg(psc.category_id) FROM provider_service_categories psc WHERE psc.provider_id = u.id), '[]'::json) as service_categories,
         COALESCE((SELECT COUNT(*) FROM marketplace_service_cases msc WHERE msc.provider_id = u.id AND msc.status = 'completed'), 0) as completed_projects
     `;
@@ -320,7 +322,6 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       email: provider.email,
       firstName: provider.first_name,
       lastName: provider.last_name,
-      phoneNumber: provider.phone_number,
       businessName: provider.business_name || `${provider.first_name} ${provider.last_name}`,
       serviceCategory: provider.service_category || 'general',
       serviceCategories: Array.isArray(provider.service_categories) ? provider.service_categories : [],
@@ -330,7 +331,6 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       city: provider.city || 'Sofia',
       neighborhood: provider.neighborhood,
       address: provider.address,
-      profilePhone: provider.profile_phone,
       profileEmail: provider.profile_email,
       website: provider.website,
       profileImageUrl: provider.profile_image_url,
@@ -340,7 +340,8 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       isActive: Boolean(provider.is_active),
       latitude: provider.latitude ? parseFloat(provider.latitude) : null,
       longitude: provider.longitude ? parseFloat(provider.longitude) : null,
-      distance: provider.distance ? parseFloat(provider.distance) : null
+      distance: provider.distance ? parseFloat(provider.distance) : null,
+      offeredServices: provider.offered_services || []
     }));
 
     logger.info('✅ Provider search completed', { 
@@ -404,7 +405,7 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
                 email: '',
                 firstName: vp.providerName?.split(' ')[0] || '',
                 lastName: vp.providerName?.split(' ').slice(1).join(' ') || '',
-                phoneNumber: vp.phone || '',
+                phoneNumber: '',
                 businessName: vp.businessName || vp.providerName,
                 serviceCategory: category,
                 serviceCategories: [category],
@@ -414,7 +415,7 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
                 city: vp.city,
                 neighborhood: vp.neighborhood,
                 address: '',
-                profilePhone: vp.phone,
+                profilePhone: '',
                 profileEmail: '',
                 website: '',
                 profileImageUrl: vp.profileImageUrl,
@@ -528,7 +529,7 @@ export const getProviderConversations = async (req: Request, res: Response): Pro
  */
 export const updateUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).user?.userId;
+    const userId = (req as any).user?.id || (req as any).user?.userId;
     if (!userId) {
       res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: 'User not authenticated' } });
       return;
@@ -582,9 +583,44 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<vo
 
     // Handle password change
     if (currentPassword && newPassword) {
-      // TODO: Implement password change logic
-      // For now, we'll skip this as it requires password hashing verification
-      logger.info('⚠️ Password change requested but not implemented yet');
+      // Get current password hash from database
+      const userWithPassword = await new Promise<any>((resolve, reject) => {
+        db.db.get(
+          'SELECT password_hash FROM users WHERE id = ?',
+          [userId],
+          (err: any, row: any) => {
+            if (err) reject(err);
+            else resolve(row);
+          }
+        );
+      });
+
+      if (!userWithPassword || !userWithPassword.password_hash) {
+        res.status(400).json({ success: false, error: { code: 'PASSWORD_ERROR', message: 'Unable to verify current password' } });
+        return;
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, userWithPassword.password_hash);
+      if (!isValidPassword) {
+        res.status(400).json({ success: false, error: { code: 'INVALID_PASSWORD', message: 'Current password is incorrect' } });
+        return;
+      }
+
+      // Hash new password and update
+      const newPasswordHash = await bcrypt.hash(newPassword, 12);
+      await new Promise<void>((resolve, reject) => {
+        db.db.run(
+          'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [newPasswordHash, userId],
+          (err: any) => {
+            if (err) reject(err);
+            else resolve();
+          }
+        );
+      });
+
+      logger.info('✅ Password changed successfully for user:', { userId });
     }
 
     // Get updated user data
@@ -774,7 +810,6 @@ const getUpdatedProviderData = async (userId: string): Promise<any> => {
       email: user.email,
       first_name: user.first_name,
       last_name: user.last_name,
-      phone_number: user.phone_number,
       business_name: profile?.business_name || `${user.first_name} ${user.last_name}`,
       service_category: profile?.service_category || 'general',
       description: profile?.description || 'Professional service provider',

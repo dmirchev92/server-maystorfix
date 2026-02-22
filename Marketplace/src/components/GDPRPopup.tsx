@@ -82,7 +82,10 @@ export default function GDPRPopup() {
                 <li>✓ Оттегляне на съгласие по всяко време</li>
               </ul>
               <p className="mt-3 text-gray-500">
-                DPO контакт: <a href="mailto:dpo@snapfix.bg" className="text-blue-600">dpo@snapfix.bg</a>
+                Контакт: <a href="mailto:admin@snapfix.bg" className="text-blue-600">admin@snapfix.bg</a>
+              </p>
+              <p className="mt-1 text-gray-500">
+                Надзорен орган: <a href="https://cpdp.bg/" className="text-blue-600" target="_blank" rel="noopener">КЗЛД (cpdp.bg)</a>
               </p>
             </div>
           )}

@@ -76,13 +76,13 @@ const BidModal: React.FC<BidModalProps> = ({
 
   // Calculate point cost based on proposed budget and user tier
   // Uses new budget ranges matching backend database
-  // Note: Free tier max budget is 400, Normal tier max budget is 750, PRO tier has no limit
+  // During launch mode (all points_cost_* = 0 in DB), cost=0 means FREE access, not restricted
   const calculatePointCost = (budgetRange: string): { cost: number; tierRestricted: boolean } => {
     const userTier = user?.subscription_tier_id || 'free';
     
     // Points costs by tier (Free / Normal / PRO) - matches database budget ranges
     const pointsCosts: { [key: string]: { free: number; normal: number; pro: number } } = {
-      '251-400': { free: 15, normal: 12, pro: 10 },
+      '251-400': { free: 0, normal: 12, pro: 10 },
       '500-750': { free: 0, normal: 25, pro: 20 },
       '751-1000': { free: 0, normal: 35, pro: 28 },
       '1001-1500': { free: 0, normal: 45, pro: 36 },
@@ -106,7 +106,8 @@ const BidModal: React.FC<BidModalProps> = ({
     
     if (userTier === 'free') {
       cost = costs.free;
-      tierRestricted = cost === 0;
+      // During launch mode all free tier costs are 0 = FREE access, not restricted
+      tierRestricted = false;
     } else if (userTier === 'normal') {
       cost = costs.normal;
       tierRestricted = cost === 0;

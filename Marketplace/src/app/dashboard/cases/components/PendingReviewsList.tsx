@@ -64,7 +64,7 @@ export function PendingReviewsList({ reviews, onReview }: PendingReviewsListProp
                 )}
                 {(caseItem.budget || (caseItem as any).customer_budget) && (
                   <span className="bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded font-medium">
-                    💰 {(caseItem as any).customer_budget || caseItem.budget} лв
+                    💰 {(caseItem as any).customer_budget || caseItem.budget} €
                   </span>
                 )}
                 {caseItem.preferred_date && (

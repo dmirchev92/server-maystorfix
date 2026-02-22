@@ -22,7 +22,7 @@ import {
 
 const router = Router();
 const authService = new AuthService();
-const gdprService = new GDPRService();
+const gdprService = GDPRService.getInstance();
 
 // Rate limiting for authentication endpoints (relaxed for development)
 const authLimiter = rateLimit({

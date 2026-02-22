@@ -275,7 +275,7 @@ export default function SurveyModal({
 
               <div>
                 <label className="block text-sm font-medium text-slate-200 mb-2">
-                  Съотношение цена/качество
+                  Цена
                 </label>
                 {renderStars('valueForMoney', surveyData.valueForMoney || 0)}
               </div>

@@ -20,6 +20,7 @@ interface ValidationResult {
   userId?: string;
   conversationId?: string;
   error?: string;
+  newTokenUrl?: string; // URL to redirect to if token is expired
 }
 
 export default function ChatPage({ params }: ChatPageProps) {
@@ -134,15 +135,24 @@ export default function ChatPage({ params }: ChatPageProps) {
       console.error('Token validation error:', err);
       
       let errorMessage = 'Failed to validate chat token';
+      let newTokenUrl = null;
+      
       if (err.response?.data?.error?.message) {
         errorMessage = err.response.data.error.message;
       } else if (err.message) {
         errorMessage = err.message;
       }
+      
+      // Check if we have a new token URL for redirect
+      if (err.response?.data?.data?.newTokenUrl) {
+        newTokenUrl = err.response.data.data.newTokenUrl;
+        console.log('📍 New token URL available:', newTokenUrl);
+      }
 
       setValidationResult({
         valid: false,
-        error: errorMessage
+        error: errorMessage,
+        newTokenUrl: newTokenUrl
       });
       setError(errorMessage);
     } finally {
@@ -349,7 +359,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         city: customerInfo.city || '',
         neighborhood: customerInfo.neighborhood || '',
         address: customerInfo.address || '',
-        gdprConsents: ['essential_service', 'marketing']
+        gdprConsents: ['essential_service']
       };
       
       console.log('📤 Sending registration payload:', {
@@ -380,29 +390,31 @@ export default function ChatPage({ params }: ChatPageProps) {
           localStorage.setItem('auth_token', token);
           localStorage.setItem('user_data', JSON.stringify(user));
           
-          // Update conversation with customer email BEFORE redirecting
-          try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
-            const updateUrl = `${apiUrl}/marketplace/conversations/${validationResult?.conversationId}`;
-            
-            console.log('🔄 Updating conversation with customer email before redirect:', {
-              conversationId: validationResult?.conversationId,
-              customerEmail: user.email,
-              customerName: `${user.firstName} ${user.lastName}`.trim(),
-              customerPhone: user.phoneNumber
-            });
-            
-            await axios.put(updateUrl, {
-              customerId: user.id,
-              customerName: `${user.firstName} ${user.lastName}`.trim(),
-              customerPhone: user.phoneNumber,
-              customerEmail: user.email
-            });
-            
-            console.log('✅ Conversation updated with customer email');
-          } catch (error: any) {
-            console.error('❌ Failed to update conversation:', error);
-            // Continue anyway - not critical
+          // Update conversation with customer info (conversation was created when page loaded)
+          const conversationId = validationResult?.conversationId;
+          if (conversationId) {
+            try {
+              const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
+              const updateUrl = `${apiUrl}/marketplace/conversations/${conversationId}`;
+              
+              console.log('🔄 Updating conversation with customer info:', {
+                conversationId,
+                customerEmail: user.email,
+                customerName: `${user.firstName} ${user.lastName}`.trim(),
+                customerPhone: user.phoneNumber
+              });
+              
+              await axios.put(updateUrl, {
+                customerId: user.id,
+                customerName: `${user.firstName} ${user.lastName}`.trim(),
+                customerPhone: user.phoneNumber,
+                customerEmail: user.email
+              });
+              
+              console.log('✅ Conversation updated with customer info');
+            } catch (error: any) {
+              console.error('❌ Failed to update conversation:', error);
+            }
           }
           
           console.log('Redirecting to main page with chat open...');
@@ -467,29 +479,31 @@ export default function ChatPage({ params }: ChatPageProps) {
         localStorage.setItem('user_data', JSON.stringify(user));
         console.log('Token and user saved successfully!');
         
-        // Update conversation with customer email BEFORE redirecting
-        try {
-          const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
-          const updateUrl = `${apiUrl}/marketplace/conversations/${validationResult?.conversationId}`;
-          
-          console.log('🔄 Updating conversation with customer email before redirect:', {
-            conversationId: validationResult?.conversationId,
-            customerEmail: user.email,
-            customerName: `${user.firstName} ${user.lastName}`.trim(),
-            customerPhone: user.phoneNumber
-          });
-          
-          await axios.put(updateUrl, {
-            customerId: user.id,
-            customerName: `${user.firstName} ${user.lastName}`.trim(),
-            customerPhone: user.phoneNumber,
-            customerEmail: user.email
-          });
-          
-          console.log('✅ Conversation updated with customer email');
-        } catch (error: any) {
-          console.error('❌ Failed to update conversation:', error);
-          // Continue anyway - not critical
+        // Update conversation with customer info (conversation was created when page loaded)
+        const conversationId = validationResult?.conversationId;
+        if (conversationId) {
+          try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
+            const updateUrl = `${apiUrl}/marketplace/conversations/${conversationId}`;
+            
+            console.log('🔄 Updating conversation with customer info:', {
+              conversationId,
+              customerEmail: user.email,
+              customerName: `${user.firstName} ${user.lastName}`.trim(),
+              customerPhone: user.phoneNumber
+            });
+            
+            await axios.put(updateUrl, {
+              customerId: user.id,
+              customerName: `${user.firstName} ${user.lastName}`.trim(),
+              customerPhone: user.phoneNumber,
+              customerEmail: user.email
+            });
+            
+            console.log('✅ Conversation updated with customer info');
+          } catch (error: any) {
+            console.error('❌ Failed to update conversation:', error);
+          }
         }
         
         console.log('Redirecting to main page with chat open...');
@@ -555,11 +569,48 @@ export default function ChatPage({ params }: ChatPageProps) {
     );
   }
 
+  // Show expired token page with redirect button
+  if (validationResult && !validationResult.valid) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex items-center justify-center px-4">
+        <div className="bg-white/10 backdrop-blur-md p-8 rounded-lg shadow-xl border border-white/20 max-w-md w-full">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-white mb-2">
+              Връзката е изтекла
+            </h2>
+            <p className="text-indigo-200 mb-6">
+              Тази връзка вече е била използвана или е изтекла. 
+              {validationResult.newTokenUrl ? ' Натиснете бутона за да получите нова връзка.' : ' Моля, поискайте нова връзка от специалиста.'}
+            </p>
+            
+            {validationResult.newTokenUrl ? (
+              <button
+                onClick={() => window.location.href = validationResult.newTokenUrl!}
+                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg"
+              >
+                Отвори нова връзка
+              </button>
+            ) : (
+              <div className="text-indigo-300 text-sm">
+                Свържете се със специалиста за нова връзка.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show customer information form
   if (showCustomerForm && validationResult?.valid) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 flex items-center justify-center">
-        <div className="bg-white/10 backdrop-blur-md p-8 rounded-lg shadow-xl border border-white/20 max-w-md w-full mx-4">
+      <div className="min-h-screen h-auto bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 overflow-y-scroll py-8 px-4" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="bg-white/10 backdrop-blur-md p-6 sm:p-8 rounded-lg shadow-xl border border-white/20 max-w-md w-full mx-auto mb-8">
           <div className="text-center mb-6">
             <div className="w-12 h-12 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">

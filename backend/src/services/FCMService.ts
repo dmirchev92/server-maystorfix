@@ -81,12 +81,17 @@ export class FCMService {
     notification: FCMNotification
   ): Promise<{ success: number; failed: number }> {
     console.log('📱 FCM DEBUG: sendNotificationToUser called', { userId, title: notification.title, initialized: this.initialized });
-    
+
     if (!this.initialized) {
       console.log('⚠️ FCM DEBUG: Firebase not initialized!');
       logger.warn('⚠️ Firebase not initialized, skipping push notification');
       return { success: 0, failed: 0 };
     }
+
+    // Note: No GDPR consent check for transactional push notifications
+    // Push notifications for messages, case updates, etc. are covered under "legitimate interest"
+    // or "contract performance" - users opted in at OS level when granting notification permissions
+    // Only marketing/promotional notifications would require GDPR consent
 
     try {
       // Get all active device tokens for user

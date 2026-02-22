@@ -287,6 +287,7 @@ export interface SPPointsTransaction {
   balance_after: number;
   reason: string;
   case_id?: string;
+  case_number?: number;
   metadata?: Record<string, any>;
   created_at: Date;
 }

@@ -165,6 +165,10 @@ const SettingsScreen: React.FC = () => {
             <Text style={styles.settingItemText}>За приложението</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('https://snapfix.bg/faq')}>
+            <Text style={styles.settingItemText}>Често задавани въпроси (FAQ)</Text>
+            <Text style={styles.settingItemArrow}>›</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={() => Linking.openURL('mailto:support@snapfix.bg')}>
             <Text style={styles.settingItemText}>Свържи се с нас</Text>
             <Text style={styles.settingItemArrow}>›</Text>

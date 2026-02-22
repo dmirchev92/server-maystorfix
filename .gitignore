@@ -79,8 +79,10 @@ mobile-app/node_modules/
 
 # Large files / Backups
 *.tar.gz
-*.sql
 backend/database.sqlite
+# Allow SQL migration files
+!backend/migrations/*.sql
+!backend/scripts/*.sql
 backend/backups/
 downloads/
 
@@ -93,6 +95,14 @@ pm2_dump.txt
 # Secrets
 mobile-app/android/secrets.properties
 mobile-app/android/local.defaults.properties
+backend/config/google-play-service-account.json
+beta-tester-automation/google-session/
+beta-tester-automation/debug-*.png
+beta-tester-automation/node_modules/
 
 # Build info
 Marketplace/tsconfig.tsbuildinfo
+
+# Playwright browsers (large binary files)
+beta-tester-automation/pw-browsers/
+**/pw-browsers/

@@ -161,20 +161,21 @@ export class ChatTokenService {
    * Get current unused token for user
    */
   async getCurrentUnusedToken(userId: string, spIdentifier: string): Promise<string | null> {
+    return this.getCurrentUnusedTokenBySpIdentifier(spIdentifier);
+  }
+
+  /**
+   * Get current unused token by SP identifier only (for expired token redirects)
+   */
+  async getCurrentUnusedTokenBySpIdentifier(spIdentifier: string): Promise<string | null> {
     try {
-      const result = await new Promise<any[]>((resolve, reject) => {
-        (this.database as any).db.all(
-          'SELECT token FROM chat_tokens WHERE sp_identifier = ? AND is_used = FALSE AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1',
-          [spIdentifier],
-          (err: any, rows: any[]) => {
-            if (err) reject(err);
-            else resolve(rows || []);
-          }
-        );
-      });
+      const result = await this.database.query(
+        'SELECT token FROM chat_tokens WHERE sp_identifier = $1 AND is_used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1',
+        [spIdentifier]
+      );
       return result.length > 0 ? result[0].token : null;
     } catch (error) {
-      logger.error('Failed to get current unused token', { userId, error });
+      logger.error('Failed to get current unused token by spIdentifier', { spIdentifier, error });
       return null;
     }
   }
@@ -235,7 +236,66 @@ export class ChatTokenService {
   }
 
   /**
-   * Validate and use a chat token
+   * Validate a chat token WITHOUT marking it as used
+   * This is called when the page loads to check if token is valid
+   */
+  async validateTokenOnly(spIdentifier: string, token: string): Promise<{
+    isValid: boolean;
+    userId?: string;
+    error?: string;
+  }> {
+    try {
+      const result = await new Promise<any[]>((resolve, reject) => {
+        (this.database as any).db.all(
+          `SELECT * FROM chat_tokens WHERE sp_identifier = ? AND token = ?`,
+          [spIdentifier, token],
+          (err: any, rows: any[]) => {
+            if (err) {
+              logger.error('SQL error in validateTokenOnly', { error: err, spIdentifier });
+              reject(err);
+            } else {
+              resolve(rows || []);
+            }
+          }
+        );
+      });
+
+      if (result.length === 0) {
+        return { isValid: false, error: 'Token not found' };
+      }
+
+      const tokenData = result[0];
+
+      // Check if token is already used
+      if (tokenData.is_used) {
+        return { isValid: false, error: 'Token already used' };
+      }
+
+      // Check if token is expired
+      if (new Date(tokenData.expires_at) < new Date()) {
+        return { isValid: false, error: 'Token expired' };
+      }
+
+      logger.info('Token validated (not used yet)', {
+        spIdentifier,
+        token: token.substring(0, 4) + '****',
+        userId: tokenData.user_id
+      });
+
+      return {
+        isValid: true,
+        userId: tokenData.user_id
+      };
+
+    } catch (error) {
+      logger.error('Failed to validate token', { spIdentifier, error });
+      return { isValid: false, error: 'Internal server error' };
+    }
+  }
+
+  /**
+   * Validate and use a chat token (marks token as used)
+   * This should only be called AFTER user completes registration/login
    */
   async validateAndUseToken(spIdentifier: string, token: string): Promise<{
     isValid: boolean;
@@ -450,12 +510,35 @@ export class ChatTokenService {
   }
 
   /**
-   * Get chat URL for service provider
+   * Get chat URL for service provider (uses existing unused token)
    */
   async getChatUrlForUser(userId: string, baseUrl?: string): Promise<string> {
     const { spIdentifier, currentToken } = await this.initializeForUser(userId);
     const url = baseUrl || process.env.FRONTEND_URL || 'https://snapfix.bg';
     return `${url}/u/${spIdentifier}/c/${currentToken}`;
+  }
+
+  /**
+   * Generate a fresh token for each SMS - ensures each customer gets a unique link
+   * Old tokens remain valid so customers who received them can still use them
+   */
+  async generateFreshTokenForSMS(userId: string, baseUrl?: string): Promise<string> {
+    const spIdentifier = await this.getOrCreateServiceProviderIdentifier(userId);
+    if (!spIdentifier) {
+      throw new ServiceTextProError('Service provider not initialized', 'SP_NOT_INITIALIZED', 400);
+    }
+    
+    // Always generate a new token for each SMS
+    const newToken = await this.generateNewToken(userId, spIdentifier);
+    const url = baseUrl || process.env.FRONTEND_URL || 'https://snapfix.bg';
+    
+    logger.info('Generated fresh token for SMS', {
+      userId,
+      spIdentifier,
+      token: newToken.substring(0, 4) + '****'
+    });
+    
+    return `${url}/u/${spIdentifier}/c/${newToken}`;
   }
 
   /**

@@ -293,7 +293,7 @@ export const CaseCard: React.FC<CaseCardProps> = ({
               <div>
                 <div className="text-xs text-slate-400 mb-1 font-medium uppercase tracking-wide">Моята оферта</div>
                 <div className="text-sm font-semibold text-blue-400">
-                  {caseData.winning_bid_price || 'Няма данни'} {caseData.winning_bid_price && 'лв'}
+                  {caseData.winning_bid_price || 'Няма данни'} {caseData.winning_bid_price && '€'}
                 </div>
               </div>
             )}
