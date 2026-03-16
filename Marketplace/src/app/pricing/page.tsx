@@ -83,14 +83,29 @@ export default function PricingPage() {
             </div>
             
             <div className="text-center mb-6">
-              <span className="text-4xl font-bold text-white">179 €</span>
-              <span className="text-slate-400 block">на година (с ДДС)</span>
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-white">1,100 €</span>
+                <span className="text-slate-400 block">на година (с ДДС)</span>
+                <span className="text-green-400 text-sm block mt-1">Спестявате 460 € годишно</span>
+              </div>
+              <div className="text-slate-400">
+                <span className="text-2xl font-semibold text-white">130 €</span>
+                <span className="text-sm block">на месец (с ДДС)</span>
+              </div>
             </div>
 
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
-                <span><strong className="text-green-400">350 точки</strong> годишно</span>
+                <span><strong className="text-green-400">50 точки/месец</strong> (месечен план)</span>
+              </li>
+              <li className="flex items-start gap-2 text-slate-300">
+                <span className="text-green-400 mt-1">✓</span>
+                <span><strong className="text-green-400">1,000 точки</strong> (годишен план)</span>
+              </li>
+              <li className="flex items-start gap-2 text-slate-300">
+                <span className="text-green-400 mt-1">🎁</span>
+                <span className="text-green-400">+10% бонус точки при първа покупка (получавате <strong>1,100 точки</strong> вместо 1,000)</span>
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
@@ -118,9 +133,14 @@ export default function PricingPage() {
               </li>
             </ul>
 
-            <Link href="/signup?tier=normal" className="block w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg text-center transition-colors">
-              Избери Нормален
-            </Link>
+            <div className="space-y-3">
+              <Link href="/signup?tier=normal&plan=yearly" className="block w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg text-center transition-colors">
+                Годишен план - 1,100 €
+              </Link>
+              <Link href="/signup?tier=normal&plan=monthly" className="block w-full py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg text-center transition-colors">
+                Месечен план - 130 €
+              </Link>
+            </div>
           </div>
 
           {/* Pro Tier */}
@@ -136,18 +156,33 @@ export default function PricingPage() {
             </div>
             
             <div className="text-center mb-6">
-              <span className="text-4xl font-bold text-white">249 €</span>
-              <span className="text-slate-400 block">на година (с ДДС)</span>
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-white">1,900 €</span>
+                <span className="text-slate-400 block">на година (с ДДС)</span>
+                <span className="text-purple-400 text-sm block mt-1">Спестявате 860 € годишно</span>
+              </div>
+              <div className="text-slate-400">
+                <span className="text-2xl font-semibold text-white">230 €</span>
+                <span className="text-sm block">на месец (с ДДС)</span>
+              </div>
             </div>
 
             <ul className="space-y-3 mb-8">
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-purple-400 mt-1">✓</span>
-                <span><strong className="text-purple-400">500 точки</strong> годишно</span>
+                <span><strong className="text-purple-400">100 точки/месец</strong> (месечен план)</span>
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-purple-400 mt-1">✓</span>
-                <span><strong>Всички бюджети</strong> на заявки</span>
+                <span><strong className="text-purple-400">2,000 точки</strong> (годишен план)</span>
+              </li>
+              <li className="flex items-start gap-2 text-slate-300">
+                <span className="text-purple-400 mt-1">🎁</span>
+                <span className="text-purple-400"><strong>15% отстъпка</strong> при първа покупка (спестявате <strong>285 €</strong> годишно или <strong>34.50 €</strong> месечно)</span>
+              </li>
+              <li className="flex items-start gap-2 text-slate-300">
+                <span className="text-purple-400 mt-1">✓</span>
+                <span><strong>Неограничен бюджет</strong> на заявки</span>
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-purple-400 mt-1">✓</span>
@@ -175,9 +210,14 @@ export default function PricingPage() {
               </li>
             </ul>
 
-            <Link href="/signup?tier=pro" className="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-center transition-colors">
-              Избери PRO
-            </Link>
+            <div className="space-y-3">
+              <Link href="/signup?tier=pro&plan=yearly" className="block w-full py-3 px-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg text-center transition-colors">
+                Годишен план - 1,900 €
+              </Link>
+              <Link href="/signup?tier=pro&plan=monthly" className="block w-full py-3 px-4 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-lg text-center transition-colors">
+                Месечен план - 230 €
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -679,7 +719,7 @@ export default function PricingPage() {
         </section>
 
         {/* Payment Info Section */}
-        <section className="mb-20">
+        {/* <section className="mb-20">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-white mb-4">💳 Информация за плащане</h2>
           </div>
@@ -717,7 +757,7 @@ export default function PricingPage() {
               </div>
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* CTA Section */}
         <section className="text-center">

@@ -222,17 +222,43 @@ export class SubscriptionService {
         );
       }
 
-      // Record history (use yearly price)
-      const yearlyPrice = (targetTier as any).price_yearly || targetTier.price_monthly;
+      // Check if this is first-time Pro purchase for 15% discount
+      let finalPrice = (targetTier as any).price_yearly || targetTier.price_monthly;
+      let discountApplied = false;
+      
+      if (target_tier_id === SubscriptionTier.PRO) {
+        // Check if user has ever purchased Pro tier before
+        const proHistoryQuery = `
+          SELECT COUNT(*) as count FROM sp_subscription_history 
+          WHERE user_id = $1 AND tier_id = 'pro' AND action IN ('created', 'upgraded', 'renewed')
+        `;
+        const proHistory = await this.database.query(proHistoryQuery, [user_id]);
+        const hasProHistory = parseInt(proHistory[0]?.count || '0') > 0;
+        
+        // Apply 15% discount only on first Pro purchase
+        if (!hasProHistory) {
+          finalPrice = Math.round(finalPrice * 0.85); // 15% discount
+          discountApplied = true;
+          logger.info('First-time Pro purchase discount applied', {
+            userId: user_id,
+            originalPrice: (targetTier as any).price_yearly,
+            discountedPrice: finalPrice,
+            savings: (targetTier as any).price_yearly - finalPrice
+          });
+        }
+      }
+
+      // Record history with final price (discounted or regular)
       await this.recordSubscriptionHistory({
         subscription_id: subscriptionId,
         user_id,
         tier_id: target_tier_id,
         action,
         previous_tier_id: currentTier?.id,
-        amount: yearlyPrice,
+        amount: finalPrice,
         currency: targetTier.currency,
-        performed_by: user_id
+        performed_by: user_id,
+        notes: discountApplied ? '15% first-time Pro discount applied' : undefined
       });
 
       logger.info('Subscription upgraded successfully', {
@@ -407,7 +433,7 @@ export class SubscriptionService {
     });
   }
 
-  private async recordSubscriptionHistory(data: Partial<SPSubscriptionHistory>): Promise<void> {
+  private async recordSubscriptionHistory(data: Partial<SPSubscriptionHistory> & { notes?: string }): Promise<void> {
     const query = `
       INSERT INTO sp_subscription_history (
         id, subscription_id, user_id, tier_id, action, 

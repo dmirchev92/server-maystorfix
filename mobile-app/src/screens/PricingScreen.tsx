@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -26,11 +27,13 @@ const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
   {
     id: 'normal',
     name: 'Normal',
-    price: 179,
-    yearlyPoints: 350,
+    price: 1100,
+    yearlyPoints: 1000,
     maxBudget: 1000,
     features: [
-      '350 точки годишно',
+      '50 точки/месец (месечен план)',
+      '1,000 точки (годишен план)',
+      '🎁 +10% бонус точки при първа покупка (получавате 1,100 точки вместо 1,000)',
       'Достъп до заявки до 1000 €',
       '2 точки за SMS',
       '0.15 €/точка за допълнителни',
@@ -41,11 +44,13 @@ const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
   {
     id: 'pro',
     name: 'PRO',
-    price: 249,
-    yearlyPoints: 500,
+    price: 1900,
+    yearlyPoints: 2000,
     maxBudget: 5000,
     features: [
-      '500 точки годишно',
+      '100 точки/месец (месечен план)',
+      '2,000 точки (годишен план)',
+      '🎁 15% отстъпка при първа покупка (спестявате 285 € годишно или 34.50 € месечно)',
       'Достъп до ВСИЧКИ заявки',
       '1 точка за SMS (50% отстъпка)',
       '0.13 €/точка за допълнителни',
@@ -81,7 +86,8 @@ const POINTS_COSTS = {
   ],
 };
 
-const PricingScreen: React.FC = () => {
+export default function PricingScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const [currentTier, setCurrentTier] = useState<string>('free');
   const [loading, setLoading] = useState(true);
@@ -167,8 +173,15 @@ const PricingScreen: React.FC = () => {
               
               <Text style={styles.planName}>{tier.name}</Text>
               <View style={styles.priceContainer}>
-                <Text style={styles.price}>{tier.price}</Text>
-                <Text style={styles.priceSuffix}>€/година</Text>
+                <View style={styles.yearlyPriceSection}>
+                  <Text style={styles.price}>{tier.price}</Text>
+                  <Text style={styles.priceSuffix}>€/година</Text>
+                  <Text style={styles.savingsText}>Спестявате {tier.id === 'normal' ? '460' : '860'} € годишно</Text>
+                </View>
+                <View style={styles.monthlyPriceSection}>
+                  <Text style={styles.monthlyPrice}>{tier.id === 'normal' ? '130' : '230'} €</Text>
+                  <Text style={styles.monthlyPriceSuffix}>на месец</Text>
+                </View>
               </View>
               
               <View style={styles.featuresContainer}>
@@ -185,14 +198,20 @@ const PricingScreen: React.FC = () => {
                   <Text style={styles.currentPlanText}>Текущ план</Text>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={[styles.selectButton, tier.id === 'pro' && styles.selectButtonPro]}
-                  onPress={() => navigation.navigate('Subscription')}
-                >
-                  <Text style={styles.selectButtonText}>
-                    {currentTier === 'free' ? 'Избери' : 'Надгради'}
-                  </Text>
-                </TouchableOpacity>
+                <View style={styles.buttonContainer}>
+                  <TouchableOpacity
+                    style={[styles.selectButton, tier.id === 'pro' && styles.selectButtonPro]}
+                    onPress={() => navigation.navigate('Subscription', { tier: tier.id, plan: 'yearly' })}
+                  >
+                    <Text style={styles.selectButtonText}>Годишен - {tier.price} €</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.selectButtonMonthly}
+                    onPress={() => navigation.navigate('Subscription', { tier: tier.id, plan: 'monthly' })}
+                  >
+                    <Text style={styles.selectButtonMonthlyText}>Месечен - {tier.id === 'normal' ? '130' : '230'} €</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </View>
           ))}
@@ -274,7 +293,7 @@ const PricingScreen: React.FC = () => {
       )}
 
       {/* Payment Info Section */}
-      <View style={styles.paymentInfoSection}>
+      {/* <View style={styles.paymentInfoSection}>
         <Text style={styles.paymentInfoTitle}>💳 Информация за плащане</Text>
         <View style={styles.paymentInfoCard}>
           <Text style={styles.paymentInfoText}>
@@ -294,12 +313,12 @@ const PricingScreen: React.FC = () => {
           <Text style={styles.securityIcon}>🔒</Text>
           <Text style={styles.securityText}>Защитено плащане с 256-bit SSL криптиране</Text>
         </View>
-      </View>
+      </View> */}
 
       {/* Website Link */}
-      <TouchableOpacity style={styles.websiteLink} onPress={openWebsite}>
+      {/* <TouchableOpacity style={styles.websiteLink} onPress={openWebsite}>
         <Text style={styles.websiteLinkText}>🌐 Виж пълна информация на сайта</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </ScrollView>
   );
 };
@@ -394,9 +413,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
     marginBottom: 16,
+  },
+  yearlyPriceSection: {
+    marginBottom: 12,
   },
   price: {
     fontSize: 36,
@@ -406,7 +426,27 @@ const styles = StyleSheet.create({
   priceSuffix: {
     fontSize: 14,
     color: '#94a3b8',
-    marginLeft: 4,
+    marginTop: 4,
+  },
+  savingsText: {
+    fontSize: 12,
+    color: '#22c55e',
+    marginTop: 4,
+  },
+  monthlyPriceSection: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  monthlyPrice: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+  },
+  monthlyPriceSuffix: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 4,
   },
   featuresContainer: {
     marginBottom: 16,
@@ -435,8 +475,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
   },
+  buttonContainer: {
+    gap: 8,
+  },
   selectButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#22c55e',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
@@ -446,8 +489,19 @@ const styles = StyleSheet.create({
   },
   selectButtonText: {
     color: '#fff',
-    fontWeight: '600',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  selectButtonMonthly: {
+    backgroundColor: '#475569',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  selectButtonMonthlyText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   buyPointsButton: {
     flexDirection: 'row',

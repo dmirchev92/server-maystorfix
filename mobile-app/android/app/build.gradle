@@ -82,8 +82,8 @@ android {
         applicationId "com.servicetextpro"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20
-        versionName "1.18"
+        versionCode 28
+        versionName "1.28.0"
     }
     signingConfigs {
         debug {
