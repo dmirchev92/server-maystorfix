@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -43,6 +44,7 @@ const INITIAL_REGION = {
 };
 
 const MapSearchScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const mapRef = useRef<MapView>(null);
 
@@ -307,7 +309,7 @@ const MapSearchScreen: React.FC = () => {
       }
     } catch (error) {
       Logger.error('❌ MapSearchScreen - Error fetching providers:', error);
-      setFetchError('Грешка при връзката');
+      setFetchError(t('mapConnectionError'));
     } finally {
       setIsLoading(false);
     }
@@ -364,7 +366,7 @@ const MapSearchScreen: React.FC = () => {
       }
     } catch (error) {
       Logger.error('❌ MapSearchScreen - Error fetching cases:', error);
-      setFetchError('Грешка при зареждане на заявките');
+      setFetchError(t('mapLoadCasesError'));
     } finally {
       setIsLoading(false);
     }
@@ -373,12 +375,12 @@ const MapSearchScreen: React.FC = () => {
   // Handle bid on a case
   const handleBid = (caseItem: any) => {
     Alert.alert(
-      '💰 Направи оферта',
-      `Искате ли да направите оферта за тази заявка?\n\n${getCategoryLabel(caseItem.serviceType || caseItem.category)}\n📍 ${caseItem.neighborhood || caseItem.city}\n💵 Бюджет: ${caseItem.budget} €`,
+      `💰 ${t('makeOffer')}`,
+      `${t('mapMakeOfferConfirm')}\n\n${getCategoryLabel(caseItem.serviceType || caseItem.category)}\n📍 ${caseItem.neighborhood || caseItem.city}\n💵 ${t('budget')}: ${caseItem.budget} €`,
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Кандидатствай',
+          text: t('mapApply'),
           onPress: () => {
             // Navigate to provider cases screen with bid parameter
             navigation.navigate('ProviderDashboard', { bidCaseId: caseItem.id });
@@ -400,9 +402,9 @@ const MapSearchScreen: React.FC = () => {
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'Спешно';
-      case 'normal': return 'Нормално';
-      case 'low': return 'Нисък';
+      case 'urgent': return t('mapUrgent');
+      case 'normal': return t('mapNormal');
+      case 'low': return t('mapLow');
       default: return priority;
     }
   };
@@ -433,7 +435,7 @@ const MapSearchScreen: React.FC = () => {
       },
       (error) => {
         Logger.error(error);
-        Alert.alert('Грешка с локацията', 'Не успяхме да определим вашето местоположение.');
+        Alert.alert(t('locationError'), t('locationDetermineError'));
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
     );
@@ -546,13 +548,13 @@ const MapSearchScreen: React.FC = () => {
           style={[styles.actionBtn, styles.profileBtn]}
           onPress={() => handleViewProfile(item)}
         >
-          <Text style={styles.profileBtnText}>Виж профил</Text>
+          <Text style={styles.profileBtnText}>{t('mapViewProfile')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionBtn, styles.chatBtn]}
           onPress={() => handleInquiry(item)}
         >
-          <Text style={styles.actionBtnText}>Запитване</Text>
+          <Text style={styles.actionBtnText}>{t('mapInquiry')}</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -583,7 +585,7 @@ const MapSearchScreen: React.FC = () => {
         <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) }]}>
           <Text style={styles.priorityText}>{getPriorityLabel(item.priority)}</Text>
         </View>
-        <Text style={styles.distanceText}>{item.distanceKm} км</Text>
+        <Text style={styles.distanceText}>{item.distanceKm} {t('mapKm')}</Text>
       </View>
 
       {/* Case Number & Category */}
@@ -600,7 +602,7 @@ const MapSearchScreen: React.FC = () => {
 
       {/* Description */}
       <View style={styles.descriptionContainer}>
-        <Text style={styles.descriptionLabel}>📝 Описание:</Text>
+        <Text style={styles.descriptionLabel}>📝 {t('description')}:</Text>
         <Text style={styles.caseDescription} numberOfLines={2}>
           {item.description}
         </Text>
@@ -615,7 +617,7 @@ const MapSearchScreen: React.FC = () => {
       {/* Screenshots */}
       {item.screenshots && item.screenshots.length > 0 && (
         <View style={styles.screenshotsSection}>
-          <Text style={styles.screenshotsLabel}>📷 Снимки:</Text>
+          <Text style={styles.screenshotsLabel}>📷 {t('photos')}:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotsScroll}>
             {item.screenshots.map((screenshot: any, index: number) => (
               <TouchableOpacity 
@@ -638,7 +640,7 @@ const MapSearchScreen: React.FC = () => {
       {(item.biddingEnabled || item.bidding_enabled) && (
         <View style={styles.biddingSection}>
           <Text style={styles.biddingText}>
-            👥 Оферти: {item.currentBidders || item.current_bidders || 0}/{item.maxBidders || item.max_bidders || 5}
+            👥 {t('bidsCount')}: {item.currentBidders || item.current_bidders || 0}/{item.maxBidders || item.max_bidders || 5}
           </Text>
           <BidButton
             caseId={item.id}
@@ -820,7 +822,7 @@ const MapSearchScreen: React.FC = () => {
                     )}
                   </View>
                   {selectedProvider.freeInspectionActive && (
-                    <Text style={styles.freeInspectionIndicator}>€ безплатен оглед €</Text>
+                    <Text style={styles.freeInspectionIndicator}>€ {t('mapFreeInspection')} €</Text>
                   )}
                   <Text style={styles.providerCategory}>{getServiceCategoryLabel(selectedProvider.serviceCategory)}</Text>
                   <View style={styles.ratingContainer}>
@@ -838,13 +840,13 @@ const MapSearchScreen: React.FC = () => {
                   style={[styles.actionBtn, styles.profileBtn]}
                   onPress={() => handleViewProfile(selectedProvider)}
                 >
-                  <Text style={styles.profileBtnText}>Виж профил</Text>
+                  <Text style={styles.profileBtnText}>{t('mapViewProfile')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, styles.chatBtn, { marginLeft: 8 }]}
                   onPress={() => handleInquiry(selectedProvider)}
                 >
-                  <Text style={styles.actionBtnText}>Запитване</Text>
+                  <Text style={styles.actionBtnText}>{t('mapInquiry')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -860,7 +862,7 @@ const MapSearchScreen: React.FC = () => {
                 <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(selectedCase.priority) }]}>
                   <Text style={styles.priorityText}>{getPriorityLabel(selectedCase.priority)}</Text>
                 </View>
-                <Text style={styles.distanceText}>{selectedCase.distanceKm} км</Text>
+                <Text style={styles.distanceText}>{selectedCase.distanceKm} {t('mapKm')}</Text>
                 <TouchableOpacity style={styles.closeBtn} onPress={() => setSelectedCase(null)}>
                   <Text style={styles.closeBtnText}>✕</Text>
                 </TouchableOpacity>
@@ -880,7 +882,7 @@ const MapSearchScreen: React.FC = () => {
 
               {/* Description */}
               <View style={styles.descriptionContainer}>
-                <Text style={styles.descriptionLabel}>📝 Описание:</Text>
+                <Text style={styles.descriptionLabel}>📝 {t('description')}:</Text>
                 <Text style={styles.caseDescription} numberOfLines={2}>
                   {selectedCase.description}
                 </Text>
@@ -895,7 +897,7 @@ const MapSearchScreen: React.FC = () => {
               {/* Screenshots */}
               {selectedCase.screenshots && selectedCase.screenshots.length > 0 && (
                 <View style={styles.screenshotsSection}>
-                  <Text style={styles.screenshotsLabel}>📷 Снимки:</Text>
+                  <Text style={styles.screenshotsLabel}>📷 {t('photos')}:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotsScroll}>
                     {selectedCase.screenshots.map((screenshot: any, index: number) => (
                       <TouchableOpacity 
@@ -919,7 +921,7 @@ const MapSearchScreen: React.FC = () => {
                 <View style={styles.biddingSection}>
                   <View style={styles.biddingInfo}>
                     <Text style={styles.biddingText}>
-                      👥 Оферти: {selectedCase.currentBidders || selectedCase.current_bidders || 0}/{selectedCase.maxBidders || selectedCase.max_bidders || 5}
+                      👥 {t('bidsCount')}: {selectedCase.currentBidders || selectedCase.current_bidders || 0}/{selectedCase.maxBidders || selectedCase.max_bidders || 5}
                     </Text>
                   </View>
                   <BidButton
@@ -939,7 +941,7 @@ const MapSearchScreen: React.FC = () => {
                   style={styles.bidButton}
                   onPress={() => handleBid(selectedCase)}
                 >
-                  <Text style={styles.bidButtonText}>💰 Направи оферта</Text>
+                  <Text style={styles.bidButtonText}>💰 {t('makeOffer')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -953,7 +955,7 @@ const MapSearchScreen: React.FC = () => {
           {/* List Header with Filters */}
           <View style={styles.listHeader}>
             <Text style={styles.listTitle}>
-              {isProvider ? `Заявки наблизо (${cases.length})` : `Майстори наблизо (${providers.length})`}
+              {isProvider ? `${t('mapCasesNearby')} (${cases.length})` : `${t('mapProvidersNearby')} (${providers.length})`}
               {fetchError && <Text style={{ color: 'red', fontSize: 12 }}> ({fetchError})</Text>}
             </Text>
             <TouchableOpacity
@@ -961,7 +963,7 @@ const MapSearchScreen: React.FC = () => {
               onPress={() => setShowFilters(!showFilters)}
             >
               <Text style={styles.listFilterBtnText}>
-                🔍 Филтри {selectedCategory || selectedRadius !== 10 ? '•' : ''}
+                🔍 {t('mapFilters')} {selectedCategory || selectedRadius !== 10 ? '•' : ''}
               </Text>
             </TouchableOpacity>
           </View>
@@ -971,7 +973,7 @@ const MapSearchScreen: React.FC = () => {
             <View style={styles.listFilterPanel}>
               <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Distance Filter - Dropdown */}
-                <Text style={styles.filterLabel}>Разстояние (км)</Text>
+                <Text style={styles.filterLabel}>{t('mapDistance')}</Text>
                 <View style={styles.pickerContainer}>
                   <Picker
                     selectedValue={selectedRadius}
@@ -980,13 +982,13 @@ const MapSearchScreen: React.FC = () => {
                     dropdownIconColor="#374151"
                   >
                     {DISTANCE_OPTIONS.map((km) => (
-                      <Picker.Item key={km} label={`${km} км`} value={km} />
+                      <Picker.Item key={km} label={`${km} ${t('mapKm')}`} value={km} />
                     ))}
                   </Picker>
                 </View>
 
                 {/* Category Filter - Dropdown */}
-                <Text style={styles.filterLabel}>Категория</Text>
+                <Text style={styles.filterLabel}>{t('category')}</Text>
                 <View style={styles.pickerContainer}>
                   <Picker
                     selectedValue={selectedCategory}
@@ -994,7 +996,7 @@ const MapSearchScreen: React.FC = () => {
                     style={styles.picker}
                     dropdownIconColor="#374151"
                   >
-                    <Picker.Item key="all" label="Всички категории" value="" />
+                    <Picker.Item key="all" label={t('mapAllCategories')} value="" />
                     {serviceCategories.map((cat: Category) => (
                       <Picker.Item key={cat.value || cat.id} label={cat.label} value={cat.id} />
                     ))}
@@ -1004,7 +1006,7 @@ const MapSearchScreen: React.FC = () => {
                 {/* Free Inspection Filter (customers only) */}
                 {!isProvider && (
                   <View style={styles.freeInspectionSection}>
-                    <Text style={styles.filterLabel}>🔧 Безплатен оглед</Text>
+                    <Text style={styles.filterLabel}>🔧 {t('mapFreeInspection')}</Text>
                     
                     {/* Show only free inspection checkbox */}
                     <TouchableOpacity
@@ -1024,14 +1026,14 @@ const MapSearchScreen: React.FC = () => {
                         {showOnlyFreeInspection && <Text style={styles.checkmark}>✓</Text>}
                       </View>
                       <Text style={styles.freeInspectionToggleText}>
-                        Покажи само с безплатен оглед
+                        {t('mapShowOnlyFreeInspection')}
                       </Text>
                     </TouchableOpacity>
 
                     {/* Separate category filter for free inspection */}
                     {showOnlyFreeInspection && (
                       <>
-                        <Text style={styles.filterSubLabel}>Тип майстор (безплатен оглед)</Text>
+                        <Text style={styles.filterSubLabel}>{t('mapProviderType')}</Text>
                         <View style={styles.pickerContainerPurple}>
                           <Picker
                             selectedValue={freeInspectionCategory}
@@ -1044,7 +1046,7 @@ const MapSearchScreen: React.FC = () => {
                             style={styles.picker}
                             dropdownIconColor="#7C3AED"
                           >
-                            <Picker.Item key="all" label="Всички категории" value="" />
+                            <Picker.Item key="all" label={t('mapAllCategories')} value="" />
                             {serviceCategories.map((cat: Category) => (
                               <Picker.Item key={cat.value || cat.id} label={cat.label} value={cat.id} />
                             ))}
@@ -1075,10 +1077,10 @@ const MapSearchScreen: React.FC = () => {
                       </View>
                       <View style={styles.alertsTextContainer}>
                         <Text style={styles.freeInspectionToggleText}>
-                          Известия за безплатен оглед
+                          {t('mapFreeInspectionAlerts')}
                         </Text>
                         <Text style={styles.alertsExplanation}>
-                          Когато има майстор в селектирания радиус, ще получите известие
+                          {t('mapFreeInspectionAlertsDesc')}
                         </Text>
                       </View>
                     </TouchableOpacity>
@@ -1086,7 +1088,7 @@ const MapSearchScreen: React.FC = () => {
                     {/* Radius for free inspection alerts - only 1-3 km */}
                     {freeInspectionAlertsEnabled && (
                       <>
-                        <Text style={styles.filterSubLabel}>Радиус за известия (км)</Text>
+                        <Text style={styles.filterSubLabel}>{t('mapAlertRadius')}</Text>
                         <View style={styles.filterChips}>
                           {[1, 2, 3].map((km) => (
                             <TouchableOpacity
@@ -1122,11 +1124,11 @@ const MapSearchScreen: React.FC = () => {
                     <View style={styles.legendContainer}>
                       <View style={styles.legendItem}>
                         <View style={[styles.legendDot, { backgroundColor: '#7C3AED' }]} />
-                        <Text style={styles.legendText}>Предлага безплатен оглед</Text>
+                        <Text style={styles.legendText}>{t('mapOffersFreeInspection')}</Text>
                       </View>
                       <View style={styles.legendItem}>
                         <View style={[styles.legendDot, { backgroundColor: '#E53E3E' }]} />
-                        <Text style={styles.legendText}>Стандартен майстор</Text>
+                        <Text style={styles.legendText}>{t('mapStandardProvider')}</Text>
                       </View>
                     </View>
                   </View>
@@ -1144,7 +1146,7 @@ const MapSearchScreen: React.FC = () => {
                     }
                   }}
                 >
-                  <Text style={styles.applyFilterBtnText}>Приложи филтри</Text>
+                  <Text style={styles.applyFilterBtnText}>{t('mapApplyFilters')}</Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1157,7 +1159,7 @@ const MapSearchScreen: React.FC = () => {
             contentContainerStyle={styles.listContent}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
-                {isLoading ? 'Зареждане...' : isProvider ? 'Няма намерени заявки в този район.' : 'Няма намерени майстори в този район.'}
+                {isLoading ? t('loading') : isProvider ? t('mapNoCasesInArea') : t('mapNoProvidersInArea')}
               </Text>
             }
           />
@@ -1212,7 +1214,7 @@ const MapSearchScreen: React.FC = () => {
               }
             }}
           >
-            <Text style={styles.nearestBtnText}>🎯 Най-близък</Text>
+            <Text style={styles.nearestBtnText}>🎯 {t('mapNearest')}</Text>
           </TouchableOpacity>
         )}
 
@@ -1223,8 +1225,8 @@ const MapSearchScreen: React.FC = () => {
         >
           <Text style={styles.toggleViewText}>
             {viewMode === 'map' 
-              ? isProvider ? `Покажи списък (${cases.length})` : `Покажи списък (${providers.length})` 
-              : 'Покажи карта'}
+              ? isProvider ? `${t('mapShowList')} (${cases.length})` : `${t('mapShowList')} (${providers.length})` 
+              : t('mapShowMap')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -1241,7 +1243,7 @@ const MapSearchScreen: React.FC = () => {
             {/* Modal Header */}
             <View style={modalStyles.modalHeader}>
               <TouchableOpacity onPress={closeProfileModal} style={modalStyles.closeButton}>
-                <Text style={modalStyles.closeButtonText}>← Назад</Text>
+                <Text style={modalStyles.closeButtonText}>← {t('back')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -1262,7 +1264,7 @@ const MapSearchScreen: React.FC = () => {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={modalStyles.profileName}>
                         {profileProvider.businessName || profileProvider.business_name || 
-                         `${profileProvider.firstName || ''} ${profileProvider.lastName || ''}`.trim() || 'Специалист'}
+                         `${profileProvider.firstName || ''} ${profileProvider.lastName || ''}`.trim() || t('specialist')}
                       </Text>
                       {profileProvider.subscriptionTier === 'pro' && (
                         <View style={styles.proBadge}>
@@ -1271,13 +1273,13 @@ const MapSearchScreen: React.FC = () => {
                       )}
                     </View>
                     {profileProvider.freeInspectionActive && (
-                      <Text style={styles.freeInspectionIndicator}>€ безплатен оглед €</Text>
+                      <Text style={styles.freeInspectionIndicator}>€ {t('mapFreeInspection')} €</Text>
                     )}
                     <Text style={modalStyles.profileCategory}>
                       {getCategoryLabel(profileProvider.serviceCategory || profileProvider.service_category)}
                     </Text>
                     <Text style={modalStyles.profileLocation}>
-                      📍 {profileProvider.city || 'София'}{profileProvider.neighborhood ? `, ${profileProvider.neighborhood}` : ''}
+                      📍 {profileProvider.city || t('mapDefaultCity')}{profileProvider.neighborhood ? `, ${profileProvider.neighborhood}` : ''}
                     </Text>
                   </View>
                 </View>
@@ -1286,61 +1288,61 @@ const MapSearchScreen: React.FC = () => {
                 <View style={modalStyles.ratingSection}>
                   <Text style={modalStyles.ratingStars}>{renderStars(profileProvider.rating || 0)}</Text>
                   <Text style={modalStyles.modalRatingText}>
-                    {Number(profileProvider.rating || 0).toFixed(1)} ({profileProvider.totalReviews || profileProvider.total_reviews || 0} отзива)
+                    {Number(profileProvider.rating || 0).toFixed(1)} ({profileProvider.totalReviews || profileProvider.total_reviews || 0} {t('mapReviews')})
                   </Text>
                 </View>
 
                 {/* Quick Info */}
                 <View style={modalStyles.quickInfoSection}>
-                  <Text style={modalStyles.sectionTitle}>Бърза информация</Text>
+                  <Text style={modalStyles.sectionTitle}>{t('mapQuickInfo')}</Text>
                   <View style={modalStyles.quickInfoGrid}>
                     <View style={modalStyles.quickInfoItem}>
                       <Text style={modalStyles.quickInfoIcon}>⭐</Text>
-                      <Text style={modalStyles.quickInfoLabel}>Опит</Text>
-                      <Text style={modalStyles.quickInfoValue}>{profileProvider.experienceYears || profileProvider.experience_years || 0} год.</Text>
+                      <Text style={modalStyles.quickInfoLabel}>{t('mapExperience')}</Text>
+                      <Text style={modalStyles.quickInfoValue}>{profileProvider.experienceYears || profileProvider.experience_years || 0} {t('mapYears')}</Text>
                     </View>
                     <View style={modalStyles.quickInfoItem}>
                       <Text style={modalStyles.quickInfoIcon}>✅</Text>
-                      <Text style={modalStyles.quickInfoLabel}>Проекти</Text>
+                      <Text style={modalStyles.quickInfoLabel}>{t('mapProjects')}</Text>
                       <Text style={modalStyles.quickInfoValue}>{profileProvider.completedProjects || 0}</Text>
                     </View>
                     <View style={modalStyles.quickInfoItem}>
                       <Text style={modalStyles.quickInfoIcon}>📍</Text>
-                      <Text style={modalStyles.quickInfoLabel}>Град</Text>
-                      <Text style={modalStyles.quickInfoValue} numberOfLines={1}>{profileProvider.city || 'София'}</Text>
+                      <Text style={modalStyles.quickInfoLabel}>{t('mapCity')}</Text>
+                      <Text style={modalStyles.quickInfoValue} numberOfLines={1}>{profileProvider.city || t('mapDefaultCity')}</Text>
                     </View>
                   </View>
                 </View>
 
                 {/* Description */}
                 <View style={modalStyles.descriptionSection}>
-                  <Text style={modalStyles.sectionTitle}>За мен</Text>
+                  <Text style={modalStyles.sectionTitle}>{t('mapAboutMe')}</Text>
                   <Text style={modalStyles.descriptionText}>
-                    {profileProvider.description || `Професионални ${getCategoryLabel(profileProvider.serviceCategory || profileProvider.service_category).toLowerCase()} услуги с качество и гаранция.`}
+                    {profileProvider.description || `${t('mapProfessionalServices')} ${getCategoryLabel(profileProvider.serviceCategory || profileProvider.service_category).toLowerCase()}`}
                   </Text>
                 </View>
 
                 {/* Services */}
                 <View style={modalStyles.servicesSection}>
-                  <Text style={modalStyles.sectionTitle}>Предлагани услуги</Text>
+                  <Text style={modalStyles.sectionTitle}>{t('mapOfferedServices')}</Text>
                   <View style={modalStyles.serviceItem}>
                     <Text style={modalStyles.serviceIcon}>🔧</Text>
-                    <Text style={modalStyles.serviceText}>Основни {getCategoryLabel(profileProvider.serviceCategory || profileProvider.service_category).toLowerCase()} услуги</Text>
+                    <Text style={modalStyles.serviceText}>{t('mapBasicServices')} {getCategoryLabel(profileProvider.serviceCategory || profileProvider.service_category).toLowerCase()}</Text>
                   </View>
                   <View style={modalStyles.serviceItem}>
                     <Text style={modalStyles.serviceIcon}>🚨</Text>
-                    <Text style={modalStyles.serviceText}>Спешни повиквания</Text>
+                    <Text style={modalStyles.serviceText}>{t('mapEmergencyCalls')}</Text>
                   </View>
                   <View style={modalStyles.serviceItem}>
                     <Text style={modalStyles.serviceIcon}>📋</Text>
-                    <Text style={modalStyles.serviceText}>Консултации и оценки</Text>
+                    <Text style={modalStyles.serviceText}>{t('mapConsultations')}</Text>
                   </View>
                 </View>
 
                 {/* Gallery */}
                 {profileProvider.gallery && profileProvider.gallery.length > 0 && (
                   <View style={modalStyles.gallerySection}>
-                    <Text style={modalStyles.sectionTitle}>📸 Галерия</Text>
+                    <Text style={modalStyles.sectionTitle}>📸 {t('mapGallery')}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {profileProvider.gallery.map((imgUrl: string, idx: number) => (
                         <TouchableOpacity key={idx} onPress={() => Linking.openURL(imgUrl)}>
@@ -1353,35 +1355,35 @@ const MapSearchScreen: React.FC = () => {
 
                 {/* Reviews */}
                 <View style={modalStyles.reviewsSection}>
-                  <Text style={modalStyles.sectionTitle}>🌟 Отзиви</Text>
+                  <Text style={modalStyles.sectionTitle}>🌟 {t('mapReviews')}</Text>
                   {reviewsLoading ? (
                     <ActivityIndicator color="#818cf8" style={{ marginVertical: 20 }} />
                   ) : providerReviews.length > 0 ? (
                     providerReviews.slice(0, 5).map((review: any, idx: number) => (
                       <View key={idx} style={modalStyles.reviewCard}>
                         <View style={modalStyles.reviewHeader}>
-                          <Text style={modalStyles.reviewerName}>{review.customer_name || review.customerName || 'Клиент'}</Text>
+                          <Text style={modalStyles.reviewerName}>{review.customer_name || review.customerName || t('mapClient')}</Text>
                           <Text style={modalStyles.reviewRating}>{renderStars(review.rating || 0)}</Text>
                         </View>
                         {(review.service_quality || review.communication || review.timeliness || review.value_for_money) ? (
                           <View style={modalStyles.reviewCategories}>
-                            {review.service_quality ? <Text style={modalStyles.reviewCatItem}>🔧 Качество: {review.service_quality}/5</Text> : null}
-                            {review.communication ? <Text style={modalStyles.reviewCatItem}>💬 Комуникация: {review.communication}/5</Text> : null}
-                            {review.timeliness ? <Text style={modalStyles.reviewCatItem}>⏱ В срок: {review.timeliness}/5</Text> : null}
-                            {review.value_for_money ? <Text style={modalStyles.reviewCatItem}>💰 Цена: {review.value_for_money}/5</Text> : null}
+                            {review.service_quality ? <Text style={modalStyles.reviewCatItem}>🔧 {t('mapQuality')}: {review.service_quality}/5</Text> : null}
+                            {review.communication ? <Text style={modalStyles.reviewCatItem}>💬 {t('mapCommunication')}: {review.communication}/5</Text> : null}
+                            {review.timeliness ? <Text style={modalStyles.reviewCatItem}>⏱ {t('mapOnTime')}: {review.timeliness}/5</Text> : null}
+                            {review.value_for_money ? <Text style={modalStyles.reviewCatItem}>💰 {t('mapPrice')}: {review.value_for_money}/5</Text> : null}
                           </View>
                         ) : null}
                         {review.would_recommend !== undefined && review.would_recommend !== null ? (
-                          <Text style={modalStyles.reviewRecommend}>{review.would_recommend ? '👍 Препоръчва' : '👎 Не препоръчва'}</Text>
+                          <Text style={modalStyles.reviewRecommend}>{review.would_recommend ? `👍 ${t('mapRecommends')}` : `👎 ${t('mapDoesNotRecommend')}`}</Text>
                         ) : null}
-                        <Text style={modalStyles.reviewText}>{review.comment || 'Няма коментар'}</Text>
+                        <Text style={modalStyles.reviewText}>{review.comment || t('mapNoComment')}</Text>
                         <Text style={modalStyles.reviewDate}>
-                          {(review.created_at || review.createdAt) ? new Date(review.created_at || review.createdAt).toLocaleDateString('bg-BG') : ''}
+                          {(review.created_at || review.createdAt) ? new Date(review.created_at || review.createdAt).toLocaleDateString(t('locale')) : ''}
                         </Text>
                       </View>
                     ))
                   ) : (
-                    <Text style={modalStyles.noReviewsText}>Все още няма отзиви</Text>
+                    <Text style={modalStyles.noReviewsText}>{t('mapNoReviews')}</Text>
                   )}
                 </View>
 
@@ -1394,7 +1396,7 @@ const MapSearchScreen: React.FC = () => {
                       handleInquiry(profileProvider);
                     }}
                   >
-                    <Text style={modalStyles.actionButtonText}>� Пусни запитване</Text>
+                    <Text style={modalStyles.actionButtonText}>💬 {t('mapSendInquiry')}</Text>
                   </TouchableOpacity>
                 </View>
 

@@ -3,6 +3,7 @@
 
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -37,6 +38,7 @@ interface DashboardStats {
 }
 
 const CleanDashboardScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
@@ -124,19 +126,19 @@ const CleanDashboardScreen: React.FC = () => {
 
   const handleLogoutPress = async () => {
     Alert.alert(
-      'Излизане',
-      'Сигурни ли сте, че искате да излезете от системата?',
+      t('logout'),
+      t('logoutConfirm'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         { 
-          text: 'Излизане', 
+          text: t('logout'), 
           style: 'destructive', 
           onPress: async () => {
             try {
               await ApiService.logout();
               navigation.replace('Login');
             } catch (error) {
-              Alert.alert('Грешка', 'Проблем при излизане от системата');
+              Alert.alert(t('error'), t('logoutError'));
             }
           }
         },
@@ -173,7 +175,7 @@ const CleanDashboardScreen: React.FC = () => {
           </Text>
         </View>
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogoutPress}>
-          <Text style={styles.logoutButtonText}>Излизане</Text>
+          <Text style={styles.logoutButtonText}>{t('logout')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -231,20 +233,20 @@ const CleanDashboardScreen: React.FC = () => {
         <TouchableOpacity style={styles.actionButton} onPress={handleChatPress}>
           <Text style={styles.actionIcon}>💬</Text>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Чат с клиенти</Text>
-            <Text style={styles.actionSubtitle}>Управление на разговори</Text>
+            <Text style={styles.actionTitle}>{t('chatWithClients')}</Text>
+            <Text style={styles.actionSubtitle}>{t('manageConversations')}</Text>
           </View>
           <Text style={styles.actionArrow}>›</Text>
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.actionButton} 
-          onPress={() => Alert.alert('Настройки', 'Функцията ще бъде добавена скоро')}
+          onPress={() => Alert.alert(t('settings'), t('featureComingSoon'))}
         >
           <Text style={styles.actionIcon}>📱</Text>
           <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Настройки за съобщения</Text>
-            <Text style={styles.actionSubtitle}>WhatsApp, Viber, Telegram</Text>
+            <Text style={styles.actionTitle}>{t('messageSettings')}</Text>
+            <Text style={styles.actionSubtitle}>{t('whatsappViberTelegram')}</Text>
           </View>
           <Text style={styles.actionArrow}>›</Text>
         </TouchableOpacity>

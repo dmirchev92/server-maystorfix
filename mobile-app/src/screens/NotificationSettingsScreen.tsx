@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -51,6 +52,7 @@ const defaultPreferences: NotificationPreferences = {
 };
 
 const NotificationSettingsScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation();
   const [preferences, setPreferences] = useState<NotificationPreferences>(defaultPreferences);
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,7 @@ const NotificationSettingsScreen: React.FC = () => {
       }
     } catch (error) {
       Logger.error('Error fetching notification preferences:', error);
-      Alert.alert('Грешка', 'Неуспешно зареждане на настройките');
+      Alert.alert(t('common:error'), t('loadSettingsError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -106,7 +108,7 @@ const NotificationSettingsScreen: React.FC = () => {
       if (!response.success) {
         // Revert on failure
         setPreferences(oldPreferences);
-        Alert.alert('Грешка', 'Неуспешно запазване на настройките');
+        Alert.alert(t('common:error'), t('saveSettingsError'));
       } else {
         // Refresh SocketIOService preferences cache so changes take effect immediately
         SocketIOService.getInstance().refreshNotificationPreferences();
@@ -114,7 +116,7 @@ const NotificationSettingsScreen: React.FC = () => {
     } catch (error) {
       Logger.error('Error updating notification preference:', error);
       setPreferences(oldPreferences);
-      Alert.alert('Грешка', 'Неуспешно запазване на настройките');
+      Alert.alert(t('common:error'), t('saveSettingsError'));
     } finally {
       setSaving(false);
     }
@@ -134,11 +136,11 @@ const NotificationSettingsScreen: React.FC = () => {
               const response = await ApiService.getInstance().post('/notification-preferences/reset');
               if (response.success && response.data) {
                 setPreferences(response.data);
-                Alert.alert('Успех', 'Настройките са възстановени');
+                Alert.alert(t('common:success'), t('settingsReset'));
               }
             } catch (error) {
               Logger.error('Error resetting preferences:', error);
-              Alert.alert('Грешка', 'Неуспешно възстановяване');
+              Alert.alert(t('common:error'), t('resetError'));
             } finally {
               setSaving(false);
             }
@@ -198,9 +200,9 @@ const NotificationSettingsScreen: React.FC = () => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>🔔 Настройки за известия</Text>
+          <Text style={styles.headerTitle}>🔔 {t('notificationSettings')}</Text>
           <Text style={styles.headerSubtitle}>
-            Изберете кои известия искате да получавате
+            {t('chooseNotifications')}
           </Text>
         </View>
 

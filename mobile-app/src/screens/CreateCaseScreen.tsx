@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -22,6 +23,7 @@ import { launchImageLibrary, launchCamera, Asset } from 'react-native-image-pick
 import ApiService from '../services/ApiService';
 import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
 import debounce from 'lodash/debounce';
+import { TESTING_CONFIG } from '../config/testingConfig';
 
 // Budget ranges matching web (up to 5k Euro)
 const BUDGET_RANGES = [
@@ -170,6 +172,7 @@ function Dropdown({ label, value, options, onSelect, placeholder = 'Избере
 }
 
 export default function CreateCaseScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const { providerId, providerName, providerCategory } = route.params || {};
@@ -346,7 +349,12 @@ export default function CreateCaseScreen() {
               // City
               if (comp.types.includes('locality')) {
                 const cityName = comp.long_name;
-                detectedCity = CITY_NAME_MAP[cityName] || cityName;
+                // TESTING: For international locations, keep original city name
+                if (TESTING_CONFIG.AUTO_DETECT_LOCATION) {
+                  detectedCity = cityName; // Any city worldwide
+                } else {
+                  detectedCity = CITY_NAME_MAP[cityName] || cityName;
+                }
               }
               // Fallback for Sofia
               if (comp.types.includes('administrative_area_level_1') && !detectedCity) {
@@ -480,30 +488,30 @@ export default function CreateCaseScreen() {
   const handleCreate = async () => {
     // Validation
     if (!formData.serviceType) {
-      Alert.alert('Грешка', 'Моля изберете тип услуга');
+      Alert.alert(t('error'), t('selectServiceType'));
       return;
     }
     if (!formData.description) {
-      Alert.alert('Грешка', 'Моля опишете проблема');
+      Alert.alert(t('error'), t('describeproblem'));
       return;
     }
     if (!formData.city || !formData.address) {
-      Alert.alert('Грешка', 'Моля въведете адрес и изберете от предложенията');
+      Alert.alert(t('error'), t('enterAddress'));
       return;
     }
     if (!formData.phone) {
-      Alert.alert('Грешка', 'Моля въведете телефон');
+      Alert.alert(t('error'), t('enterPhone'));
       return;
     }
     if (!formData.budget) {
-      Alert.alert('Грешка', 'Моля изберете бюджет');
+      Alert.alert(t('error'), t('selectBudget'));
       return;
     }
 
     setLoading(true);
     try {
       if (!currentUser) {
-        Alert.alert('Грешка', 'Моля влезте в профила си отново');
+        Alert.alert(t('error'), t('loginAgain'));
         setLoading(false);
         return;
       }
@@ -553,11 +561,11 @@ export default function CreateCaseScreen() {
           [{ text: 'ОК', onPress: () => navigation.goBack() }]
         );
       } else {
-        Alert.alert('Грешка', result.error?.message || 'Неуспешно създаване');
+        Alert.alert(t('error'), result.error?.message || t('creationError'));
       }
     } catch (error) {
       Logger.error('Create case error:', error);
-      Alert.alert('Грешка', 'Възникна проблем при създаването');
+      Alert.alert(t('error'), t('creationProblem'));
     } finally {
       setLoading(false);
     }

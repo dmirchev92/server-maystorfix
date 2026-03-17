@@ -3,6 +3,7 @@
 
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -35,39 +36,10 @@ interface ScheduleSettings {
 
 const USE_NEW_DASHBOARD_UI = true;
 
-// Service category translations (handles both 'locksmith' and 'cat_locksmith' formats)
-const SERVICE_CATEGORY_TRANSLATIONS: { [key: string]: string } = {
-  'electrician': 'Електротехник',
-  'plumber': 'Водопроводчик',
-  'handyman': 'Майстор',
-  'carpenter': 'Дърводелец',
-  'painter': 'Бояджия',
-  'locksmith': 'Ключар',
-  'cleaner': 'Почистване',
-  'gardener': 'Градинар',
-  'mechanic': 'Механик',
-  'roofer': 'Покривни работи',
-  'tiler': 'Плочкаджия',
-  'welder': 'Заварчик',
-  'hvac': 'Отопление и климатизация',
-  'appliance': 'Ремонт на уреди',
-  'mover': 'Хамалски услуги',
-  // cat_ prefixed versions
-  'cat_electrician': 'Електротехник',
-  'cat_plumber': 'Водопроводчик',
-  'cat_handyman': 'Дребни ремонти',
-  'cat_carpenter': 'Дърводелец',
-  'cat_painter': 'Бояджия',
-  'cat_locksmith': 'Ключар',
-  'cat_cleaner': 'Почистване',
-  'cat_gardener': 'Градинар',
-  'cat_mechanic': 'Механик',
-  'cat_roofer': 'Покривни работи',
-  'cat_tiler': 'Плочкаджия',
-  'cat_welder': 'Заварчик',
-  'cat_hvac': 'Отопление и климатизация',
-  'cat_appliance': 'Ремонт на уреди',
-  'cat_mover': 'Хамалски услуги',
+// Helper function to get translated category key
+const getCategoryTranslationKey = (category: string): string => {
+  const normalized = category.toLowerCase().replace('cat_', '');
+  return `category_${normalized}`;
 };
 
 interface User {
@@ -116,7 +88,8 @@ interface ActivityItem {
   timestamp: number;
 }
 
-function ModernDashboardScreen() {
+const ModernDashboardScreen: React.FC = () => {
+  const { t } = useTranslation('dashboard');
   const navigation = useNavigation<any>();
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
@@ -134,7 +107,7 @@ function ModernDashboardScreen() {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [serviceType, setServiceType] = useState<string>('Занаятчия');
+  const [serviceType, setServiceType] = useState<string>('category_handyman');
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [providerStats, setProviderStats] = useState<ProviderStats | null>(null);
   
@@ -226,7 +199,7 @@ function ModernDashboardScreen() {
     } catch (error) {
       Logger.error('❌ ========== DASHBOARD INITIALIZATION ERROR ==========');
       Logger.error('❌ Error initializing screen:', error);
-      Alert.alert('Грешка', 'Проблем при зареждане на данните');
+      Alert.alert(t('common:error'), t('errorLoadingData'));
     }
   };
   
@@ -256,7 +229,7 @@ function ModernDashboardScreen() {
   
   const handleDataRetentionExtended = () => {
     setShowDataRetentionModal(false);
-    Alert.alert('✅ Успех', 'Периодът за съхранение на данни е удължен с 7 години.');
+    Alert.alert(t('common:success'), t('dataRetentionExtended'));
   };
   
   const handleDataRetentionDismissed = async () => {
@@ -307,19 +280,19 @@ function ModernDashboardScreen() {
       
       // Show results to user
       Alert.alert(
-        'Резултат от теста на базата данни',
-        `Здравословна проверка: ${healthResponse.success ? '✅ Успешно' : '❌ Неуспешно'}\n` +
-        `Статистики: ${statsResponse.success ? '✅ Успешно' : '❌ Неуспешно'}\n` +
-        `Синхронизация: ${syncResponse.success ? '✅ Успешно' : '❌ Неуспешно'}\n\n` +
-        `Проверете конзолата за подробности.`,
+        t('dbTestResult'),
+        `${t('healthCheck')} ${healthResponse.success ? `✅ ${t('successful')}` : `❌ ${t('failed')}`}\n` +
+        `${t('statistics')}: ${statsResponse.success ? `✅ ${t('successful')}` : `❌ ${t('failed')}`}\n` +
+        `${t('sync')}: ${syncResponse.success ? `✅ ${t('successful')}` : `❌ ${t('failed')}`}\n\n` +
+        t('checkConsoleDetails'),
         [{ text: 'OK' }]
       );
       
     } catch (error) {
       Logger.error('❌ Database connection test failed:', error);
       Alert.alert(
-        'Грешка при тест на базата данни',
-        `Възникна грешка: ${error}`,
+        t('dbTestError'),
+        `${t('errorOccurred')} ${error}`,
         [{ text: 'OK' }]
       );
     }
@@ -343,9 +316,9 @@ function ModernDashboardScreen() {
     const newActivity: ActivityItem = {
       id: `call_${Date.now()}`,
       icon: '📞',
-      title: 'Пропуснато обаждане',
+      title: t('missedCall'),
       subtitle: `${event.phoneNumber} • ${event.formattedTime}`,
-      status: 'AI отговор',
+      status: t('aiResponse'),
       timestamp: event.timestamp,
     };
 
@@ -354,8 +327,8 @@ function ModernDashboardScreen() {
 
     // Show notification
     Alert.alert(
-      'Пропуснато обаждане',
-      `От: ${event.phoneNumber}\nВреме: ${event.formattedTime}`,
+      t('missedCallFrom'),
+      `${t('from')} ${event.phoneNumber}\n${t('time')} ${event.formattedTime}`,
       [{ text: 'OK' }]
     );
   };
@@ -424,7 +397,7 @@ function ModernDashboardScreen() {
         const mappedUser: User = {
           id: userData.id,
           email: userData.email,
-          firstName: userData.firstName || userData.first_name || 'Потребител',
+          firstName: userData.firstName || userData.first_name || t('user'),
           lastName: userData.lastName || userData.last_name || '',
           phoneNumber: userData.phoneNumber || userData.phone_number || '',
           role: userData.role || 'tradesperson',
@@ -451,10 +424,8 @@ function ModernDashboardScreen() {
             if (profileResponse.success && profileResponse.data) {
               const profileData: any = profileResponse.data;
               if (profileData.serviceCategory) {
-                // Translate to Bulgarian if it's in English
-                const translatedCategory = SERVICE_CATEGORY_TRANSLATIONS[profileData.serviceCategory.toLowerCase()] 
-                  || profileData.serviceCategory;
-                setServiceType(translatedCategory);
+                const categoryKey = getCategoryTranslationKey(profileData.serviceCategory);
+                setServiceType(categoryKey);
               }
               if (profileData.profileImageUrl) {
                 setProfileImageUrl(profileData.profileImageUrl);
@@ -609,9 +580,9 @@ function ModernDashboardScreen() {
         .map((call, index) => ({
           id: call.id || `call_${index}`,
           icon: '📞',
-          title: 'Пропуснато обаждане',
+          title: t('missedCall'),
           subtitle: `${call.phoneNumber} • ${call.formattedTime}`,
-          status: call.aiResponseSent ? 'AI отговор изпратен' : 'Обработва се',
+          status: call.aiResponseSent ? t('aiResponseSent') : t('processing'),
           timestamp: call.timestamp,
         }));
 
@@ -778,7 +749,7 @@ function ModernDashboardScreen() {
       }
     } catch (error) {
       Logger.error('Error changing location mode:', error);
-      Alert.alert('Грешка', 'Неуспешна промяна на настройките за локация');
+      Alert.alert(t('common:error'), t('locationModeChangeError'));
       // Revert on error
       await loadLocationPreference();
     } finally {
@@ -800,8 +771,8 @@ function ModernDashboardScreen() {
         const hasPermissions = await callDetectionService.requestPermissions();
         if (!hasPermissions) {
           Alert.alert(
-            'Разрешения са необходими',
-            'За автоматични SMS при пропуснати обаждания са необходими разрешения за:\n\n• Достъп до състоянието на телефона\n• Достъп до списъка с обаждания\n\nМоля отидете в Настройки > Приложения > SnapFix > Разрешения.',
+            t('permissionsRequired'),
+            t('callDetectionPermissions'),
             [{ text: 'OK' }]
           );
           setIsSmsEnabled(false);
@@ -819,13 +790,13 @@ function ModernDashboardScreen() {
           await callDetectionService.stopDetection();
           await refreshCallDetectionStatus();
           setIsSmsEnabled(false);
-          Alert.alert('Грешка', 'Нужни са разрешения за SMS');
+          Alert.alert(t('common:error'), t('smsPermissionsNeeded'));
           return;
         }
         
         Alert.alert(
-          '✅ Авто SMS активирано',
-          'При пропуснато обаждане автоматично ще се изпрати SMS с линк за чат.',
+          `✅ ${t('autoSMSActivated')}`,
+          t('autoSMSMessage'),
           [{ text: 'OK' }]
         );
       } else {
@@ -842,7 +813,7 @@ function ModernDashboardScreen() {
     } catch (error) {
       Logger.error('Error toggling SMS with call detection:', error);
       setIsSmsEnabled(!isSmsEnabled); // Revert
-      Alert.alert('Грешка', 'Неуспешна промяна на настройките');
+      Alert.alert(t('common:error'), t('settingsChangeError'));
     } finally {
       setIsTogglingSms(false);
     }
@@ -864,8 +835,8 @@ function ModernDashboardScreen() {
         
         if (!hasPermission) {
           Alert.alert(
-            'Изисква се разрешение',
-            'Филтрирането на контакти изисква достъп до контактите. Моля, разрешете достъпа.',
+            t('contactPermissionRequired'),
+            t('contactPermissionMessage'),
             [{ text: 'OK' }]
           );
           setIsTogglingFilter(false);
@@ -881,15 +852,15 @@ function ModernDashboardScreen() {
       await callDetectionService.syncSettingsToNative();
       
       Alert.alert(
-        newFiltering ? '✅ Филтър включен' : '❌ Филтър изключен',
+        newFiltering ? `✅ ${t('filterOn')}` : `❌ ${t('filterOff')}`,
         newFiltering 
-          ? 'SMS ще се изпращат само до непознати номера (не на семейство/приятели).'
-          : 'SMS ще се изпращат до всички пропуснати обаждания.',
+          ? t('filterOnMessage')
+          : t('filterOffMessage'),
         [{ text: 'OK' }]
       );
     } catch (error) {
       Logger.error('Error toggling contact filter:', error);
-      Alert.alert('Грешка', 'Неуспешна промяна на филтъра');
+      Alert.alert(t('common:error'), t('filterChangeError'));
     } finally {
       setIsTogglingFilter(false);
     }
@@ -915,17 +886,17 @@ function ModernDashboardScreen() {
       if (response.success) {
         setFreeInspectionActive(value);
         Alert.alert(
-          value ? '✅ Безплатен оглед активиран' : '❌ Безплатен оглед деактивиран',
+          value ? `✅ ${t('freeInspectionActivated')}` : `❌ ${t('freeInspectionDeactivated')}`,
           value 
-            ? 'Клиентите наблизо ще получат известие и ще могат да ви намерят на картата.' 
-            : 'Вече не се показвате като предлагащ безплатен оглед.'
+            ? t('freeInspectionActiveMessage')
+            : t('freeInspectionInactiveMessage')
         );
       } else {
-        Alert.alert('Грешка', 'Неуспешна промяна на статуса');
+        Alert.alert(t('common:error'), t('statusChangeError'));
       }
     } catch (error) {
       Logger.error('Error toggling free inspection:', error);
-      Alert.alert('Грешка', 'Неуспешна връзка със сървъра');
+      Alert.alert(t('common:error'), t('serverConnectionError'));
     } finally {
       setFreeInspectionLoading(false);
     }
@@ -939,12 +910,12 @@ function ModernDashboardScreen() {
 
   const handleLogoutPress = async () => {
     Alert.alert(
-      'Излизане',
-      'Сигурни ли сте, че искате да излезете от системата?',
+      t('logout'),
+      t('logoutConfirm'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         { 
-          text: 'Излизане', 
+          text: t('logout'), 
           style: 'destructive', 
           onPress: async () => {
             try {
@@ -955,7 +926,7 @@ function ModernDashboardScreen() {
               // Notify app to reset auth state if needed
               AuthBus.emit('logout');
             } catch (error) {
-              Alert.alert('Грешка', 'Проблем при излизане от системата');
+              Alert.alert(t('common:error'), t('logoutError'));
             }
           }
         },
@@ -970,7 +941,7 @@ function ModernDashboardScreen() {
   if (!user) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Грешка: Няма данни за потребителя</Text>
+        <Text style={styles.errorText}>{t('errorNoUserData')}</Text>
       </View>
     );
   }
@@ -1002,14 +973,14 @@ function ModernDashboardScreen() {
               )}
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.welcomeText}>Добре дошли,</Text>
+              <Text style={styles.welcomeText}>{t('welcome')}</Text>
               <Text style={styles.userName}>
-                {user ? `${user.firstName} ${user.lastName}` : 'Зареждане...'}
+                {user ? `${user.firstName} ${user.lastName}` : t('loading')}
               </Text>
               <View style={styles.serviceTypesContainer}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
                   <Text style={styles.userRole}>
-                    {serviceType}
+                    {t(serviceType)}
                   </Text>
                   {/* Subscription Badge */}
                   <View style={{
@@ -1037,7 +1008,7 @@ function ModernDashboardScreen() {
                   </View>
                 </View>
               </View>
-              <Text style={styles.profileHint}>Виж профила ›</Text>
+              <Text style={styles.profileHint}>{t('viewProfile')}</Text>
             </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingsIconButton} onPress={() => navigation.navigate('Settings')}>
@@ -1055,7 +1026,7 @@ function ModernDashboardScreen() {
           >
             <View style={styles.automationHubTitleRow}>
               <Text style={styles.automationHubIcon}>⚡</Text>
-              <Text style={styles.automationHubTitle}>Автоматизация</Text>
+              <Text style={styles.automationHubTitle}>{t('automation')}</Text>
             </View>
             <View style={styles.automationHubStatus}>
               <View style={[
@@ -1069,7 +1040,7 @@ function ModernDashboardScreen() {
                   isSmsEnabled ? '📱' : '',
                   freeInspectionActive ? '🔧' : '',
                   locationMode !== 'off' ? '📍' : ''
-                ].filter(Boolean).join(' ') || 'Изкл.'}
+                ].filter(Boolean).join(' ') || t('off')}
               </Text>
               <Text style={styles.automationExpandIcon}>
                 {isAutomationExpanded ? '▲' : '▼'}
@@ -1090,9 +1061,9 @@ function ModernDashboardScreen() {
               >
                 <Text style={styles.automationRowIcon}>📱</Text>
                 <View style={styles.automationRowText}>
-                  <Text style={styles.automationRowLabel}>Авто SMS</Text>
+                  <Text style={styles.automationRowLabel}>{t('autoSMS')}</Text>
                   <Text style={styles.automationRowStatus}>
-                    {isSmsEnabled ? 'Активно • Следи обаждания' : 'Неактивно'}
+                    {isSmsEnabled ? `${t('active')} • ${t('monitoringCalls')}` : t('inactive')}
                   </Text>
                 </View>
                 <View style={[
@@ -1116,9 +1087,9 @@ function ModernDashboardScreen() {
                 >
                   <Text style={styles.automationRowIcon}>👥</Text>
                   <View style={styles.automationRowText}>
-                    <Text style={styles.automationRowLabel}>Филтър контакти</Text>
+                    <Text style={styles.automationRowLabel}>{t('contactFilter')}</Text>
                     <Text style={styles.automationRowStatus}>
-                      {filterKnownContacts ? 'Само непознати' : 'Всички номера'}
+                      {filterKnownContacts ? t('filterEnabled') : t('filterDisabled')}
                     </Text>
                   </View>
                   <View style={[
@@ -1142,9 +1113,9 @@ function ModernDashboardScreen() {
               >
                 <Text style={styles.automationRowIcon}>🔧</Text>
                 <View style={styles.automationRowText}>
-                  <Text style={styles.automationRowLabel}>Безплатен оглед</Text>
+                  <Text style={styles.automationRowLabel}>{t('freeInspection')}</Text>
                   <Text style={styles.automationRowStatus}>
-                    {freeInspectionActive ? 'Активен' : 'Неактивен'}
+                    {freeInspectionActive ? t('active') : t('inactive')}
                   </Text>
                 </View>
                 <View style={[
@@ -1162,7 +1133,7 @@ function ModernDashboardScreen() {
               <View style={styles.locationSection}>
                 <View style={styles.locationHeader}>
                   <Text style={styles.automationRowIcon}>📍</Text>
-                  <Text style={styles.automationRowLabel}>Споделяне на локация</Text>
+                  <Text style={styles.automationRowLabel}>{t('locationSharing')}</Text>
                 </View>
                 
                 <View style={styles.locationModeSelector}>
@@ -1184,7 +1155,7 @@ function ModernDashboardScreen() {
                     <Text style={[
                       styles.locationModeText,
                       locationMode === 'off' && styles.locationModeTextSelected
-                    ]}>Изключено</Text>
+                    ]}>{t('off')}</Text>
                   </TouchableOpacity>
 
                   {/* Always On */}
@@ -1205,7 +1176,7 @@ function ModernDashboardScreen() {
                     <Text style={[
                       styles.locationModeText,
                       locationMode === 'always' && styles.locationModeTextSelected
-                    ]}>Винаги вкл.</Text>
+                    ]}>{t('alwaysOn')}</Text>
                   </TouchableOpacity>
 
                   {/* Schedule */}
@@ -1228,7 +1199,7 @@ function ModernDashboardScreen() {
                       <Text style={[
                         styles.locationModeText,
                         locationMode === 'schedule' && styles.locationModeTextSelectedSchedule
-                      ]}>По график</Text>
+                      ]}>{t('scheduled')}</Text>
                       {scheduleSettings && (
                         <Text style={styles.locationScheduleTime}>
                           {scheduleSettings.start_time} - {scheduleSettings.end_time}
@@ -1250,7 +1221,7 @@ function ModernDashboardScreen() {
                 style={styles.automationSettingsLink}
                 onPress={() => navigation.navigate('SMS')}
               >
-                <Text style={styles.automationSettingsText}>⚙️ Пълни настройки за автоматизация</Text>
+                <Text style={styles.automationSettingsText}>⚙️ {t('fullAutomationSettings')}</Text>
                 <Text style={styles.automationSettingsArrow}>›</Text>
               </TouchableOpacity>
             </View>
@@ -1258,257 +1229,68 @@ function ModernDashboardScreen() {
         </View>
         {/* ==================== END AUTOMATION HUB ==================== */}
 
-        {/* Quick Actions */}
-        <View style={styles.navigationGrid}>
-          <Text style={styles.navigationTitle}>Бързи действия</Text>
+        {/* Quick Actions Navigation */}
+        <View style={styles.actionsContainer}>
           <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Cases')}>
               <Text style={styles.navIcon}>📋</Text>
-              <Text style={styles.navLabel}>Заявки</Text>
+                <Text style={styles.actionText}>{t('viewCases')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navCard} onPress={handleChatPress}>
               <Text style={styles.navIcon}>💬</Text>
-              <Text style={styles.navLabel}>Чат</Text>
+                <Text style={styles.actionText}>{t('viewChat')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('SMS')}>
               <Text style={styles.navIcon}>📱</Text>
-              <Text style={styles.navLabel}>SMS</Text>
+                <Text style={styles.actionText}>{t('viewSMS')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('MyBids')}>
               <Text style={styles.navIcon}>🏷️</Text>
-              <Text style={styles.navLabel}>Оферти</Text>
+                <Text style={styles.actionText}>{t('viewBids')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Points')}>
               <Text style={styles.navIcon}>💎</Text>
-              <Text style={styles.navLabel}>Точки</Text>
+                <Text style={styles.actionText}>{t('viewPoints')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('VipVisibility')}>
               <Text style={styles.navIcon}>👑</Text>
-              <Text style={styles.navLabel}>VIP</Text>
+                <Text style={styles.actionText}>{t('viewVIP')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('ReferralDashboard')}>
               <Text style={styles.navIcon}>🎯</Text>
-              <Text style={styles.navLabel}>Препоръки</Text>
+                <Text style={styles.actionText}>{t('viewReferrals')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('MapSearch')}>
               <Text style={styles.navIcon}>🗺️</Text>
-              <Text style={styles.navLabel}>Карта</Text>
+                <Text style={styles.actionText}>{t('viewMap')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('IncomeDashboard')}>
               <Text style={styles.navIcon}>📈</Text>
-              <Text style={styles.navLabel}>Приходи</Text>
+                <Text style={styles.actionText}>{t('viewIncome')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.navigationRow}>
             <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Statistics')}>
               <Text style={styles.navIcon}>📊</Text>
-              <Text style={styles.navLabel}>Статистики</Text>
+                <Text style={styles.actionText}>{t('viewStatistics')}</Text>
             </TouchableOpacity>
             {user?.email === 'admin@snapfix.bg' && (
               <TouchableOpacity style={styles.navCard} onPress={() => navigation.navigate('Game')}>
                 <Text style={styles.navIcon}>🎮</Text>
-                <Text style={styles.navLabel}>Игра</Text>
+                <Text style={styles.actionText}>{t('viewGame')}</Text>
               </TouchableOpacity>
             )}
           </View>
         </View>
-
-        {/* Recent Activity - Commented out as requested */}
-        {/* <View style={styles.activityContainer}>
-          <Text style={styles.sectionTitle}>Последна активност</Text>
-          {recentActivity.length > 0 ? (
-            recentActivity.map((activity) => (
-              <View key={activity.id} style={styles.activityItem}>
-                <Text style={styles.activityIcon}>{activity.icon}</Text>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>{activity.title}</Text>
-                  <Text style={styles.activitySubtitle}>{activity.subtitle}</Text>
-                </View>
-                <Text style={[
-                  styles.activityStatus,
-                  activity.status === 'Завършен' ? styles.completedStatus : 
-                  activity.status === 'Активен' ? styles.activeStatus : styles.processingStatus
-                ]}>
-                  {activity.status}
-                </Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.activityItem}>
-              <Text style={styles.activityIcon}>ℹ️</Text>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Няма последна активност</Text>
-                <Text style={styles.activitySubtitle}>Стартирайте детекцията за да видите обаждания</Text>
-              </View>
-            </View>
-          )}
-        </View> */}
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Последна актуализация: {lastUpdated.toLocaleTimeString('bg-BG')}
-          </Text>
-        </View>
-        
-        {/* Data Retention Modal */}
-        <DataRetentionModal
-          visible={showDataRetentionModal}
-          daysRemaining={dataRetentionDaysRemaining}
-          onClose={handleDataRetentionDismissed}
-          onExtended={handleDataRetentionExtended}
-        />
-      </ScrollView>
-    );
-  }
-
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
-      }
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.userInfo}
-          onPress={() => navigation.navigate('EditProfile')}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.welcomeText}>Добре дошли,</Text>
-          <Text style={styles.userName}>
-            {user ? `${user.firstName} ${user.lastName}` : 'Зареждане...'}
-          </Text>
-          <Text style={styles.userRole}>
-            {user ? (user.role === 'tradesperson' ? 'Занаятчия' : user.role) : 'Зареждане...'}
-          </Text>
-          <Text style={styles.profileHint}>Виж профила ›</Text>
-        </TouchableOpacity>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity style={styles.testButton} onPress={testDatabaseConnection}>
-            <Text style={styles.testButtonText}>Тест DB</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogoutPress}>
-            <Text style={styles.logoutButtonText}>Излизане</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, styles.primaryCard]}>
-            <Text style={styles.statNumber}>{stats.totalCalls}</Text>
-            <Text style={styles.statLabel}>Общо обаждания</Text>
-          </View>
-          <View style={[styles.statCard, styles.warningCard]}>
-            <Text style={styles.statNumber}>{stats.missedCalls}</Text>
-            <Text style={styles.statLabel}>Пропуснати</Text>
-          </View>
-        </View>
-        
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, styles.successCard]}>
-            <Text style={styles.statNumber}>{stats.smsSent}</Text>
-            <Text style={styles.statLabel}>📤 SMS Изпратени</Text>
-          </View>
-          <View style={[styles.statCard, styles.infoCard]}>
-            <Text style={styles.statNumber}>{stats.avgResponseTime}</Text>
-            <Text style={styles.statLabel}>Ср. време отговор</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Auto SMS Status */}
-      <View style={styles.statusContainer}>
-        <Text style={styles.sectionTitle}>Авто SMS</Text>
-        
-        <View style={styles.statusCard}>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Статус:</Text>
-            <View style={[
-              styles.statusIndicator, 
-              isSmsEnabled ? styles.statusActive : styles.statusInactive
-            ]}>
-              <Text style={styles.statusText}>
-                {isSmsEnabled ? 'Активно' : 'Неактивно'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Разрешения:</Text>
-            <View style={[
-              styles.statusIndicator,
-              callDetectionStatus.hasPermissions ? styles.statusActive : styles.statusInactive
-            ]}>
-              <Text style={styles.statusText}>
-                {callDetectionStatus.hasPermissions ? 'Дадени' : 'Нужни'}
-              </Text>
-            </View>
-          </View>
-
-
-
-          <View style={styles.buttonRow}>
-            {!isSmsEnabled ? (
-              <TouchableOpacity style={styles.startButton} onPress={handleToggleSmsWithCallDetection}>
-                <Text style={styles.buttonText}>Стартирай Авто SMS</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity style={styles.stopButton} onPress={handleToggleSmsWithCallDetection}>
-                <Text style={styles.buttonText}>Спри Авто SMS</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.actionsContainer}>
-        <Text style={styles.sectionTitle}>Бързи действия</Text>
-        
-        <TouchableOpacity style={styles.actionButton} onPress={handleChatPress}>
-          <Text style={styles.actionIcon}>💬</Text>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Чат с клиенти</Text>
-            <Text style={styles.actionSubtitle}>Управление на разговори</Text>
-          </View>
-          <Text style={styles.actionArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => Alert.alert('Настройки', 'Функцията ще бъде добавена скоро')}
-        >
-          <Text style={styles.actionIcon}>📱</Text>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>Настройки за съобщения</Text>
-            <Text style={styles.actionSubtitle}>WhatsApp, Viber, Telegram</Text>
-          </View>
-          <Text style={styles.actionArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.actionButton} 
-          onPress={() => navigation.navigate('Settings', { screen: 'Consent' })}
-        >
-          <Text style={styles.actionIcon}>🔒</Text>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionTitle}>GDPR & Поверителност</Text>
-            <Text style={styles.actionSubtitle}>Управление на данните</Text>
-          </View>
-          <Text style={styles.actionArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
+        {/* ==================== END QUICK ACTIONS ==================== */}
 
       {/* Recent Activity */}
       {/* <View style={styles.activityContainer}>
-        <Text style={styles.sectionTitle}>Последна активност</Text>
+        <Text style={styles.sectionTitle}>{t('recentActivity')}</Text>
         
         {recentActivity.length > 0 ? (
           recentActivity.map((activity) => (
@@ -1520,8 +1302,8 @@ function ModernDashboardScreen() {
               </View>
               <Text style={[
                 styles.activityStatus,
-                activity.status === 'Завършен' ? styles.completedStatus : 
-                activity.status === 'Активен' ? styles.activeStatus : styles.processingStatus
+                activity.status === t('completed') ? styles.completedStatus : 
+                activity.status === t('active') ? styles.activeStatus : styles.processingStatus
               ]}>
                 {activity.status}
               </Text>
@@ -1531,8 +1313,8 @@ function ModernDashboardScreen() {
           <View style={styles.activityItem}>
             <Text style={styles.activityIcon}>ℹ️</Text>
             <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Няма последна активност</Text>
-              <Text style={styles.activitySubtitle}>Стартирайте детекцията за да видите обаждания</Text>
+              <Text style={styles.activityTitle}>{t('noRecentActivity')}</Text>
+              <Text style={styles.activitySubtitle}>{t('startDetectionToSeeCalls')}</Text>
             </View>
           </View>
         )}
@@ -1541,11 +1323,14 @@ function ModernDashboardScreen() {
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Последна актуализация: {lastUpdated.toLocaleTimeString('bg-BG')}
+          {t('lastUpdate')}: {lastUpdated.toLocaleTimeString(t('common:locale'))}
         </Text>
       </View>
     </ScrollView>
-  );
+    );
+  }
+
+  return null;
 };
 
 const { width } = Dimensions.get('window');

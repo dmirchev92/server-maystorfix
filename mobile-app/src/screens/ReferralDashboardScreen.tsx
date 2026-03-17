@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -45,13 +46,12 @@ interface ReferralReward {
 interface ReferralDashboard {
   referralCode: string;
   referralLink: string;
-  betaReferralLink: string;
-  betaReferrals: number;
   referredUsers: ReferredUser[];
   totalRewards: ReferralReward[];
 }
 
 const ReferralDashboardScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation();
   const [dashboard, setDashboard] = useState<ReferralDashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,7 +68,7 @@ const ReferralDashboardScreen: React.FC = () => {
       const token = await AsyncStorage.getItem('auth_token');
       
       if (!token) {
-        setError('Не сте влезли в профила си');
+        setError(t('pleaseLoginAgain'));
         return;
       }
 
@@ -80,14 +80,14 @@ const ReferralDashboardScreen: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Неуспешно зареждане на данните');
+        throw new Error(t('loadError'));
       }
 
       const data: any = await response.json();
       setDashboard(data.data);
     } catch (err) {
       Logger.error('Error fetching referral dashboard:', err);
-      setError('Грешка при зареждане на данните');
+      setError(t('loadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -103,7 +103,7 @@ const ReferralDashboardScreen: React.FC = () => {
     if (!dashboard?.referralLink) return;
     
     Clipboard.setString(dashboard.referralLink);
-    Alert.alert('Успех', 'Препоръчителната връзка е копирана!');
+    Alert.alert(t('common:success'), t('referralLinkCopied'));
   };
 
   const shareReferralLink = async () => {
@@ -111,48 +111,27 @@ const ReferralDashboardScreen: React.FC = () => {
 
     try {
       await Share.share({
-        message: `Присъедини се към SnapFix и получи достъп до най-добрите майстори в България! ${dashboard.referralLink}`,
-        title: 'SnapFix Покана',
+        message: `${t('refShareMessage')} ${dashboard.referralLink}`,
+        title: t('refShareTitle'),
       });
     } catch (error) {
       Logger.error('Error sharing:', error);
     }
   };
 
-  const copyBetaLink = () => {
-    if (!dashboard?.betaReferralLink) return;
-    
-    Clipboard.setString(dashboard.betaReferralLink);
-    Alert.alert('Успех', 'Бета линкът е копиран!');
-  };
-
-  const shareBetaLink = async () => {
-    if (!dashboard?.betaReferralLink) return;
-
-    try {
-      await Share.share({
-        message: `Изпробвай SnapFix - приложението за намиране на майстори! Стани бета тестер: ${dashboard.betaReferralLink}`,
-        title: 'SnapFix Бета Тестване',
-      });
-    } catch (error) {
-      Logger.error('Error sharing beta:', error);
-    }
-  };
 
   const getRewardTypeText = (type: string, points?: number) => {
     switch (type) {
       case 'signup_bonus':
-        return `+${points || 5} точки (регистрация)`;
+        return `+${points || 5} ${t('points').toLowerCase()} (${t('refSignup')})`;
       case 'referrer_signup_bonus':
-        return `+${points || 5} точки (препоръка)`;
+        return `+${points || 5} ${t('points').toLowerCase()} (${t('refReferral')})`;
       case 'clicks_50_bonus':
-        return `+${points || 10} точки (50 клика)`;
+        return `+${points || 10} ${t('points').toLowerCase()} (50 ${t('refClicks')})`;
       case 'aggregate_5x50_bonus':
-        return `+${points || 100} точки (5 препоръки)`;
-      case 'beta_tester_bonus':
-        return `+${points || 5} точки (бета тестер)`;
+        return `+${points || 100} ${t('points').toLowerCase()} (5 ${t('refReferrals')})`;
       default:
-        return `+${points || 0} точки`;
+        return `+${points || 0} ${t('points').toLowerCase()}`;
     }
   };
 
@@ -173,7 +152,7 @@ const ReferralDashboardScreen: React.FC = () => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Зареждане...</Text>
+        <Text style={styles.loadingText}>{t('loading')}</Text>
       </View>
     );
   }
@@ -183,7 +162,7 @@ const ReferralDashboardScreen: React.FC = () => {
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>❌ {error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchDashboard}>
-          <Text style={styles.retryButtonText}>Опитай отново</Text>
+          <Text style={styles.retryButtonText}>{t('tryAgain')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -192,7 +171,7 @@ const ReferralDashboardScreen: React.FC = () => {
   if (!dashboard) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Няма данни за показване</Text>
+        <Text style={styles.errorText}>{t('noResults')}</Text>
       </View>
     );
   }
@@ -209,28 +188,28 @@ const ReferralDashboardScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.navigate('ProviderDashboard' as never)} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.backHeaderTitle}>Препоръки</Text>
+        <Text style={styles.backHeaderTitle}>{t('dashboard:referrals')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <View style={styles.header}>
-        <Text style={styles.title}>🎯 Препоръчай приятел</Text>
+        <Text style={styles.title}>🎯 {t('refRecommendFriend')}</Text>
         <Text style={styles.subtitle}>
-          Споделете вашия код и спечелете награди!
+          {t('refShareAndEarn')}
         </Text>
       </View>
 
       {/* Referral Code & Link Section */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>📋 Вашият препоръчителен код</Text>
+        <Text style={styles.cardTitle}>📋 {t('refYourCode')}</Text>
         
         <View style={styles.codeContainer}>
-          <Text style={styles.codeLabel}>Препоръчителен код:</Text>
+          <Text style={styles.codeLabel}>{t('refReferralCode')}:</Text>
           <Text style={styles.code}>{dashboard.referralCode}</Text>
         </View>
 
         <View style={styles.linkContainer}>
-          <Text style={styles.linkLabel}>Пълна връзка:</Text>
+          <Text style={styles.linkLabel}>{t('refFullLink')}:</Text>
           <Text style={styles.link} numberOfLines={2}>
             {dashboard.referralLink}
           </Text>
@@ -238,54 +217,27 @@ const ReferralDashboardScreen: React.FC = () => {
 
         <View style={styles.buttonRow}>
           <TouchableOpacity style={styles.shareButton} onPress={shareReferralLink}>
-            <Text style={styles.shareButtonText}>📤 Сподели</Text>
+            <Text style={styles.shareButtonText}>📤 {t('refShare')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.copyButton} onPress={copyReferralLink}>
-            <Text style={styles.copyButtonText}>🔗 Копирай връзка</Text>
+            <Text style={styles.copyButtonText}>🔗 {t('refCopyLink')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Beta Referral Section */}
-      <View style={[styles.card, { borderLeftColor: '#22c55e' }]}>
-        <Text style={styles.cardTitle}>📱 Бета тестери (+5 точки за всеки)</Text>
-        
-        <View style={styles.linkContainer}>
-          <Text style={styles.linkLabel}>Поканете приятели да тестват приложението:</Text>
-          <Text style={styles.link} numberOfLines={2}>
-            {dashboard.betaReferralLink}
-          </Text>
-        </View>
-
-        {dashboard.betaReferrals > 0 && (
-          <View style={{ alignItems: 'center', marginBottom: 12 }}>
-            <Text style={[styles.statValue, { color: '#4ade80' }]}>{dashboard.betaReferrals}</Text>
-            <Text style={styles.statLabel}>поканени тестери</Text>
-          </View>
-        )}
-
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={[styles.shareButton, { backgroundColor: '#22c55e' }]} onPress={shareBetaLink}>
-            <Text style={styles.shareButtonText}>📤 Сподели</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.copyButton} onPress={copyBetaLink}>
-            <Text style={styles.copyButtonText}>🔗 Копирай линк</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
 
       {/* Referred Users Section */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>👥 Препоръчани потребители</Text>
+        <Text style={styles.cardTitle}>👥 {t('refReferredUsers')}</Text>
         
         {dashboard.referredUsers.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🤷‍♂️</Text>
             <Text style={styles.emptyText}>
-              Все още няма препоръчани потребители
+              {t('refNoReferredUsers')}
             </Text>
             <Text style={styles.emptySubtext}>
-              Споделете вашия код с приятели!
+              {t('refShareYourCode')}
             </Text>
           </View>
         ) : (
@@ -297,21 +249,21 @@ const ReferralDashboardScreen: React.FC = () => {
                     {user.referredUser.businessName || 
                      `${user.referredUser.firstName} ${user.referredUser.lastName}`}
                   </Text>
-                  <Text style={styles.userStatus}>Статус: {user.status}</Text>
+                  <Text style={styles.userStatus}>{t('refStatus')}: {user.status}</Text>
                 </View>
                 
                 <View style={styles.userStats}>
                   <View style={styles.statItem}>
                     <Text style={styles.statValue}>{user.totalClicks}</Text>
-                    <Text style={styles.statLabel}>Общо кликове</Text>
+                    <Text style={styles.statLabel}>{t('refTotalClicks')}</Text>
                   </View>
                   <View style={styles.statItem}>
                     <Text style={styles.statValue}>{user.validClicks}</Text>
-                    <Text style={styles.statLabel}>Валидни</Text>
+                    <Text style={styles.statLabel}>{t('refValid')}</Text>
                   </View>
                   <View style={styles.statItem}>
                     <Text style={styles.statValue}>{user.monthlyClicks}</Text>
-                    <Text style={styles.statLabel}>Този месец</Text>
+                    <Text style={styles.statLabel}>{t('refThisMonth')}</Text>
                   </View>
                 </View>
               </View>
@@ -322,13 +274,13 @@ const ReferralDashboardScreen: React.FC = () => {
 
       {/* Rewards Section */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>🎁 Награди</Text>
+        <Text style={styles.cardTitle}>🎁 {t('refRewards')}</Text>
         
         {dashboard.totalRewards.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>🎯</Text>
             <Text style={styles.emptyText}>
-              Все още няма спечелени награди
+              {t('refNoRewards')}
             </Text>
           </View>
         ) : (
@@ -346,18 +298,18 @@ const ReferralDashboardScreen: React.FC = () => {
                     ]}
                   >
                     <Text style={styles.rewardStatusText}>
-                      {reward.status === 'earned' ? 'Спечелена' :
-                       reward.status === 'applied' ? 'Приложена' : 'Изтекла'}
+                      {reward.status === 'earned' ? t('refEarned') :
+                       reward.status === 'applied' ? t('refApplied') : t('refExpired')}
                     </Text>
                   </View>
                 </View>
                 
                 <Text style={styles.rewardProgress}>
-                  Прогрес: {reward.clicksAchieved}/{reward.clicksRequired} кликове
+                  {t('refProgress')}: {reward.clicksAchieved}/{reward.clicksRequired} {t('refClicks')}
                 </Text>
                 
                 <Text style={styles.rewardDate}>
-                  Спечелена на: {new Date(reward.earnedAt).toLocaleDateString('bg-BG')}
+                  {t('refEarnedOn')}: {new Date(reward.earnedAt).toLocaleDateString(t('locale'))}
                 </Text>
               </View>
             ))}

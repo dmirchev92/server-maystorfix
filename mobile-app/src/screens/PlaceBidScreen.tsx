@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -37,6 +38,7 @@ interface CaseDetails {
 }
 
 export default function PlaceBidScreen() {
+  const { t } = useTranslation('common');
   const route = useRoute();
   const navigation = useNavigation();
   const { caseId } = route.params as RouteParams;
@@ -60,12 +62,12 @@ export default function PlaceBidScreen() {
         // Auto-open bid modal once case is loaded
         setShowBidModal(true);
       } else {
-        Alert.alert('Грешка', 'Не може да се зареди информацията за заявката');
+        Alert.alert(t('common:error'), t('common:loadCaseInfoFailed'));
         navigation.goBack();
       }
     } catch (error) {
       Logger.error('Error loading case:', error);
-      Alert.alert('Грешка', 'Възникна грешка при зареждането');
+      Alert.alert(t('common:error'), t('common:loadingError'));
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -87,7 +89,7 @@ export default function PlaceBidScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary.solid} />
-        <Text style={styles.loadingText}>Зареждане...</Text>
+        <Text style={styles.loadingText}>{t('loading')}</Text>
       </View>
     );
   }
@@ -95,57 +97,57 @@ export default function PlaceBidScreen() {
   if (!caseDetails) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Заявката не е намерена</Text>
+        <Text style={styles.errorText}>{t('caseNotFound')}</Text>
       </View>
     );
   }
 
   const budgetRange = caseDetails.budget 
     ? `${caseDetails.budget} €` 
-    : 'Не е посочен';
+    : t('notSpecified');
 
   return (
     <View style={styles.container}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>Направете оферта</Text>
+          <Text style={styles.title}>{t('makeOffer')}</Text>
           <Text style={styles.subtitle}>{caseDetails.service_type}</Text>
         </View>
 
         <View style={styles.detailsCard}>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>📍 Локация:</Text>
+            <Text style={styles.detailLabel}>📍 {t('location')}:</Text>
             <Text style={styles.detailValue}>
-              {caseDetails.city || 'Не е посочена'}
+              {caseDetails.city || t('notSpecified')}
               {caseDetails.neighborhood ? `, ${caseDetails.neighborhood}` : ''}
             </Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>📝 Описание:</Text>
+            <Text style={styles.detailLabel}>📝 {t('description')}:</Text>
             <Text style={styles.detailValue}>{caseDetails.description}</Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>💰 Бюджет на клиента:</Text>
+            <Text style={styles.detailLabel}>💰 {t('clientBudget')}:</Text>
             <Text style={styles.detailValue}>{budgetRange}</Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>📅 Предпочитана дата:</Text>
+            <Text style={styles.detailLabel}>📅 {t('preferredDate')}:</Text>
             <Text style={styles.detailValue}>
               {new Date(caseDetails.preferred_date).toLocaleDateString('bg-BG')}
             </Text>
           </View>
 
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>🕐 Предпочитано време:</Text>
+            <Text style={styles.detailLabel}>🕐 {t('preferredTime')}:</Text>
             <Text style={styles.detailValue}>{caseDetails.preferred_time}</Text>
           </View>
 
           {caseDetails.current_bidders !== undefined && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>👥 Наддавачи:</Text>
+              <Text style={styles.detailLabel}>👥 {t('bidders')}:</Text>
               <Text style={styles.detailValue}>
                 {caseDetails.current_bidders} / {caseDetails.max_bidders || '∞'}
               </Text>

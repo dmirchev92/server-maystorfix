@@ -4,14 +4,12 @@
   "downloadUrl": "https://snapfix.bg/downloads/ServiceTextPro-latest.apk",
   "updateRequired": false,
   "releaseNotes": {
-    "bg": "Версия 1.22.0 - 100% Двуезична:\n• ВСИЧКИ 39 екрана сега на Български и English\n• Пълна internationalization (i18n) система\n• Превключване на език в настройките\n• Международна поддръжка за телефонни номера\n• Готова за глобално пускане",
-    "en": "Version 1.22.0 - 100% Bilingual:\n• ALL 39 screens now in Bulgarian and English\n• Complete internationalization (i18n) system\n• Language switcher in settings\n• International phone number support\n• Ready for global launch"
+    "bg": "Версия 1.28.0:\n• Подобрения и оптимизации\n• Поправки на грешки",
+    "en": "Version 1.28.0:\n• Improvements and optimizations\n• Bug fixes"
   },
   "features": [
-    "100% bilingual support (BG/EN)",
-    "All 39 screens converted",
-    "Complete i18n infrastructure",
-    "Language persistence",
-    "International ready"
+    "Performance improvements",
+    "Bug fixes",
+    "Stability enhancements"
   ]
 }

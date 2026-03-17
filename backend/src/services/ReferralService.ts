@@ -531,8 +531,6 @@ export class ReferralService {
   async getReferralDashboard(userId: string): Promise<{
     referralCode: string;
     referralLink: string;
-    betaReferralLink: string;
-    betaReferrals: number;
     referredUsers: ReferralStats[];
     totalRewards: ReferralReward[];
   }> {
@@ -541,18 +539,6 @@ export class ReferralService {
         // Get referral code
         const referralCode = await this.getOrCreateReferralCode(userId);
         const referralLink = `${process.env.MARKETPLACE_URL || 'https://marketplace.servicetextpro.com'}/signup?ref=${referralCode}`;
-        const betaReferralLink = `https://snapfix.bg/beta/?ref=${referralCode}`;
-
-        // Get beta tester referral count
-        const betaReferrals = await new Promise<number>((resolveBeta) => {
-          this.db.db.get(
-            'SELECT COUNT(*) as count FROM beta_testers WHERE referral_code = $1',
-            [referralCode],
-            (err: any, row: any) => {
-              resolveBeta(err ? 0 : (parseInt(row?.count) || 0));
-            }
-          );
-        });
 
         // Get referred users with stats
         this.db.db.all(
@@ -641,8 +627,6 @@ export class ReferralService {
                   resolve({
                     referralCode,
                     referralLink,
-                    betaReferralLink,
-                    betaReferrals,
                     referredUsers,
                     totalRewards: transformedRewards
                   });

@@ -16,7 +16,7 @@ const faqItems: FAQItem[] = [
   {
     category: 'sms',
     question: 'Плащам ли за SMS-ите, които изпращам?',
-    answer: 'В момента сме в тестова (бета) версия и SMS-ите са напълно безплатни — получавате 50 безплатни SMS на месец. След края на тестовия период SMS-ите ще се заплащат чрез точки: 2 точки за Normal план или 1 точка за PRO план. Точките ще бъдат включени в абонамента ви.'
+    answer: 'В момента сме в тестова (бета) версия и SMS-ите са напълно безплатни — получавате 50 безплатни SMS на месец. След края на тестовия период SMS-ите ще се заплащат чрез точки: 2 точки за Normal план или 1 точка за PRO план. Точките се купуват допълнително или са включени в месечния абонамент.'
   },
   {
     category: 'sms',
@@ -91,6 +91,22 @@ const faqItems: FAQItem[] = [
   },
   {
     category: 'providers',
+    question: 'Защо да използвам SMS функцията?',
+    answer: (
+      <div className="space-y-3">
+        <p>SMS функцията превръща всяко пропуснато обаждане в потенциална работа:</p>
+        <ul className="list-disc list-inside space-y-2 text-slate-400">
+          <li><strong className="text-white">Не губите клиенти</strong> — Дори когато сте на обект и не можете да вдигнете, клиентът получава SMS с линк към профила ви</li>
+          <li><strong className="text-white">Автоматично</strong> — Приложението засича пропуснато обаждане и изпраща SMS без ваша намеса</li>
+          <li><strong className="text-white">Професионално послание</strong> — Клиентът вижда, че сте зает, но сте организиран и ще му отговорите</li>
+          <li><strong className="text-white">Директен линк</strong> — SMS-ът съдържа линк към вашия профил с галерия, отзиви и чат бутон</li>
+        </ul>
+        <p className="text-green-400 font-medium">🎁 В момента: 50 безплатни SMS месечно докато сме в бета!</p>
+      </div>
+    )
+  },
+  {
+    category: 'providers',
     question: 'Какво са точките и как ги използвам?',
     answer: (
       <div className="space-y-3">
@@ -104,8 +120,8 @@ const faqItems: FAQItem[] = [
         <p><strong className="text-white">Как се получават:</strong></p>
         <ul className="list-disc list-inside space-y-1 text-slate-400">
           <li>Месечна порция с абонамента (Free: 15, Normal: 60, Pro: 100)</li>
-          <li>Закупуване на допълнителни (Normal: 0.15 €/точка, Pro: 0.13 €/точка)</li>
-          <li>Реферали — до 15 точки на реферал + 100 точки бонус</li>
+          <li>Закупуване на допълнителни (Normal: 0.15 €/0.29 лв. за точка, Pro: 0.13 €/0.25 лв. за точка)</li>
+          <li>Реферали — до 15 точки на реферал + 100 точки бонус при 10 реферала</li>
         </ul>
         <p className="text-amber-400 text-sm">⚡ В момента (тестова версия) всички функции са безплатни и точки не се изразходват.</p>
       </div>
@@ -132,9 +148,9 @@ const faqItems: FAQItem[] = [
             <tbody className="text-slate-400">
               <tr className="border-b border-white/10">
                 <td className="py-2 pr-3 text-slate-300">Цена/месец</td>
-                <td className="text-center py-2 px-3">0 €</td>
-                <td className="text-center py-2 px-3">130 €</td>
-                <td className="text-center py-2 px-3">180 €</td>
+                <td className="text-center py-2 px-3">0 €<br/>(0 лв.)</td>
+                <td className="text-center py-2 px-3">130 €<br/>(255 лв.)</td>
+                <td className="text-center py-2 px-3">180 €<br/>(353 лв.)</td>
               </tr>
               <tr className="border-b border-white/10">
                 <td className="py-2 pr-3 text-slate-300">Точки/месец</td>
@@ -144,8 +160,8 @@ const faqItems: FAQItem[] = [
               </tr>
               <tr className="border-b border-white/10">
                 <td className="py-2 pr-3 text-slate-300">Макс. бюджет</td>
-                <td className="text-center py-2 px-3 text-red-400">до 200 €</td>
-                <td className="text-center py-2 px-3 text-yellow-400">до 1 000 €</td>
+                <td className="text-center py-2 px-3 text-red-400">до 200 €<br/>(392 лв.)</td>
+                <td className="text-center py-2 px-3 text-yellow-400">до 1 000 €<br/>(1960 лв.)</td>
                 <td className="text-center py-2 px-3 text-green-400">Без лимит</td>
               </tr>
               <tr className="border-b border-white/10">
@@ -172,79 +188,79 @@ const faqItems: FAQItem[] = [
             </thead>
             <tbody className="text-slate-400">
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">1–125 €</td>
+                <td className="py-1.5 pr-3">1–125 € (2–245 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">10</td>
                 <td className="text-center py-1.5 px-3">10</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">126–250 €</td>
+                <td className="py-1.5 pr-3">126–250 € (247–490 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">20</td>
                 <td className="text-center py-1.5 px-3">15</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">251–400 €</td>
+                <td className="py-1.5 pr-3">251–400 € (492–784 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">40</td>
                 <td className="text-center py-1.5 px-3">30</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">401–500 €</td>
+                <td className="py-1.5 pr-3">401–500 € (786–980 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">60</td>
                 <td className="text-center py-1.5 px-3">50</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">501–1 000 €</td>
+                <td className="py-1.5 pr-3">501–1 000 € (982–1960 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">100</td>
                 <td className="text-center py-1.5 px-3">80</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">1 001–1 500 €</td>
+                <td className="py-1.5 pr-3">1 001–1 500 € (1962–2940 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">110</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">1 501–2 000 €</td>
+                <td className="py-1.5 pr-3">1 501–2 000 € (2942–3920 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">160</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">2 001–2 500 €</td>
+                <td className="py-1.5 pr-3">2 001–2 500 € (3922–4900 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">215</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">2 501–3 000 €</td>
+                <td className="py-1.5 pr-3">2 501–3 000 € (4902–5880 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">280</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">3 001–3 500 €</td>
+                <td className="py-1.5 pr-3">3 001–3 500 € (5882–6860 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">350</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">3 501–4 000 €</td>
+                <td className="py-1.5 pr-3">3 501–4 000 € (6862–7840 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">430</td>
               </tr>
               <tr className="border-b border-white/10">
-                <td className="py-1.5 pr-3">4 001–4 500 €</td>
+                <td className="py-1.5 pr-3">4 001–4 500 € (7842–8820 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">520</td>
               </tr>
               <tr>
-                <td className="py-1.5 pr-3">4 501–5 000 €</td>
+                <td className="py-1.5 pr-3">4 501–5 000 € (8822–9800 лв.)</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
                 <td className="text-center py-1.5 px-3">640</td>
@@ -324,8 +340,8 @@ const faqItems: FAQItem[] = [
               <tr>
                 <td className="py-1.5 pr-3">Допълнителни точки</td>
                 <td className="text-center py-1.5 px-3 text-red-400">❌</td>
-                <td className="text-center py-1.5 px-3">0.15 €/т.</td>
-                <td className="text-center py-1.5 px-3">0.13 €/т.</td>
+                <td className="text-center py-1.5 px-3">0.15 € / 0.29 лв.</td>
+                <td className="text-center py-1.5 px-3">0.13 € / 0.25 лв.</td>
               </tr>
             </tbody>
           </table>
@@ -340,7 +356,22 @@ const faqItems: FAQItem[] = [
   {
     category: 'customers',
     question: 'Безплатно ли е за клиенти?',
-    answer: 'Да! Клиентите използват платформата напълно безплатно. Можете да търсите майстори, да преглеждате профили и отзиви, да пишете в чата и да публикувате заявки без никакво заплащане.'
+    answer: 'Да! Клиентите използват платформата напълно безплатно. Можете да търсите майстори, да преглеждате профили и отзиви, да пишете в чата и да публикувате заявки без никакво заплащане. Платформата е безплатна за клиенти завинаги — майсторите плащат абонамент за бизнес инструментите, а клиентите използват всичко без такси.'
+  },
+  {
+    category: 'customers',
+    question: 'Как клиентите намират моя профил?',
+    answer: (
+      <div className="space-y-2">
+        <p>Клиентите могат да ви намерят по няколко начина:</p>
+        <ul className="list-disc list-inside space-y-1 text-slate-400">
+          <li>Чрез <strong className="text-white">SMS</strong> — получават линк към профила ви при пропуснато обаждане</li>
+          <li>Чрез <strong className="text-white">картата</strong> — виждат ви като наблизо специалист (само Pro план)</li>
+          <li>Чрез <strong className="text-white">маркетплейса</strong> — търсят по категория и локация</li>
+          <li>Чрез <strong className="text-white">заявки</strong> — публикуват заявка и вие кандидатствате</li>
+        </ul>
+      </div>
+    )
   },
   {
     category: 'customers',
@@ -361,6 +392,50 @@ const faqItems: FAQItem[] = [
   },
   {
     category: 'general',
+    question: 'Как мога да изтегля приложението?',
+    answer: (
+      <div className="space-y-3">
+        <p>В момента приложението е в <strong className="text-green-400">бета версия</strong> и можете да се присъедините като бета тестер напълно безплатно!</p>
+        <div className="bg-indigo-900/30 border border-indigo-500/30 rounded-lg p-4">
+          <p className="font-medium text-white mb-2">📱 Регистрирайте се за бета достъп:</p>
+          <a 
+            href="https://snapfix.bg/beta/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+          >
+            <span>🔗</span>
+            Регистрация за бета тестване
+          </a>
+        </div>
+        <p className="text-sm text-slate-400">Регистрирайте се на страницата и ще получите инструкции как да изтеглите приложението (чрез Google Play за Gmail адреси или директно APK за други имейли).</p>
+      </div>
+    )
+  },
+  {
+    category: 'general',
+    question: 'Какво е бета версия и защо да се присъединя сега?',
+    answer: (
+      <div className="space-y-3">
+        <p>Бета версията е ранна тестова версия на приложението, която пускаме преди официалния старт. Ето защо си струва да се присъедините сега:</p>
+        <ul className="list-disc list-inside space-y-2 text-slate-400">
+          <li><strong className="text-green-400">50 безплатни SMS месечно</strong> — докато тестваме платформата</li>
+          <li><strong className="text-green-400">Всички функции напълно безплатно</strong> — без ограничения за бюджет на заявки, брой снимки, категории услуги</li>
+          <li><strong className="text-yellow-400">Първи на пазара</strong> — започнете да градите профил, галерия и отзиви преди конкуренцията</li>
+          <li><strong className="text-yellow-400">Реферален бонус</strong> — спечелете до 250 точки като поканите колеги (виж долу)</li>
+          <li><strong className="text-purple-400">Влияние върху развитието</strong> — вашата обратна връзка помага да направим приложението още по-добро</li>
+        </ul>
+        <p className="text-amber-400 font-medium">⏰ Когато излезем от бета, данните ви остават — профил, галерия, отзиви, реферални точки!</p>
+      </div>
+    )
+  },
+  {
+    category: 'general',
+    question: 'Има ли iOS версия?',
+    answer: 'В момента разработваме само за Android (Google Play). iOS версията ще бъде пусната след официалния старт на платформата. Междувременно можете да използвате уебсайта snapfix.bg от всяко устройство.'
+  },
+  {
+    category: 'general',
     question: 'Трябва ли ми приложението или мога да ползвам само сайта?',
     answer: 'Сайтът е достъпен за всички — и за търсене на майстори, и за управление на профила. Но мобилното приложение е необходимо за SMS функцията при пропуснати обаждания и за споделяне на местоположение на картата, тъй като тези функции изискват достъп до телефонните възможности.'
   },
@@ -368,6 +443,79 @@ const faqItems: FAQItem[] = [
     category: 'general',
     question: 'Как се регистрирам?',
     answer: 'Регистрацията е бърза — нужни са ви само имейл адрес и парола. След регистрация попълвате профила си с информация за бизнеса, категории услуги и локация. Можете да добавите снимки, сертификати и описание.'
+  },
+  {
+    category: 'general',
+    question: 'Как работи реферал програмата?',
+    answer: (
+      <div className="space-y-3">
+        <p>Можете да печелите точки като поканите други майстори да се регистрират в платформата с вашия реферален код.</p>
+        <div className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border border-purple-500/30 rounded-lg p-4">
+          <p className="font-medium text-white mb-2">💰 Как печеля:</p>
+          <ul className="space-y-2 text-slate-300">
+            <li>• <strong className="text-yellow-400">5 точки</strong> — Реферал се регистрира с вашия код</li>
+            <li>• <strong className="text-yellow-400">+5 точки</strong> — Реферал попълни профила си (снимка, услуги, локация)</li>
+            <li>• <strong className="text-yellow-400">+5 точки</strong> — Реферал активира SMS функцията</li>
+            <li>• <strong className="text-green-400">+100 точки БОНУС</strong> — При достигане на 10 активни реферала</li>
+          </ul>
+        </div>
+        <p className="text-sm"><strong className="text-white">Максимум:</strong> 15 точки на реферал × 10 реферала + 100 бонус = <span className="text-green-400 font-bold">250 точки</span></p>
+        <p className="text-slate-400">Реферални код намирате в Настройки → Моят реферален код. Споделете го с колеги от бранша!</p>
+      </div>
+    )
+  },
+  {
+    category: 'general',
+    question: 'Какво се случва с моите данни след края на бета версията?',
+    answer: 'Всички ваши данни остават запазени! Профил, галерия снимки, отзиви, чат история, спечелени реферални точки — всичко остава. Когато платформата излезе официално, просто ще изберете абонаментен план и ще продължите да използвате акаунта си с всички постижения.'
+  },
+  {
+    category: 'providers',
+    question: 'Как работят отстъпките при първа покупка на абонамент?',
+    answer: (
+      <div className="space-y-3">
+        <p>Всеки потребител има право на <strong className="text-green-400">отстъпка при първа покупка</strong> за всяка комбинация от план и тип абонамент:</p>
+        
+        <div className="bg-gradient-to-r from-green-900/30 to-purple-900/30 border border-green-500/30 rounded-lg p-4">
+          <p className="font-medium text-white mb-3">🎁 Налични отстъпки (общо 4):</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <p className="text-green-400 font-medium mb-1">Normal Месечен</p>
+              <p className="text-slate-300">10% отстъпка (спестявате 13 €)</p>
+              <p className="text-slate-400 text-xs">Плащате 117 € вместо 130 €</p>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <p className="text-green-400 font-medium mb-1">Normal Годишен</p>
+              <p className="text-slate-300">10% отстъпка (спестявате 140 €)</p>
+              <p className="text-slate-400 text-xs">Плащате 1,260 € вместо 1,400 €</p>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <p className="text-purple-400 font-medium mb-1">Pro Месечен</p>
+              <p className="text-slate-300">15% отстъпка (спестявате 34.50 €)</p>
+              <p className="text-slate-400 text-xs">Плащате 195.50 € вместо 230 €</p>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-3">
+              <p className="text-purple-400 font-medium mb-1">Pro Годишен</p>
+              <p className="text-slate-300">15% отстъпка (спестявате 285 €)</p>
+              <p className="text-slate-400 text-xs">Плащате 1,615 € вместо 1,900 €</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-4">
+          <p className="font-medium text-white mb-2">✅ Важно да знаете:</p>
+          <ul className="space-y-2 text-slate-300 text-sm">
+            <li>• Всяка отстъпка се прилага <strong>само веднъж</strong> за съответната комбинация</li>
+            <li>• Можете да получите отстъпка за <strong>всяка от 4-те комбинации</strong> независимо</li>
+            <li>• Например: Ако купите Normal месечен с отстъпка, по-късно можете да получите отстъпка и за Normal годишен</li>
+            <li>• Или: Ако започнете с Pro месечен, можете да надградите до Pro годишен и пак да получите отстъпка</li>
+            <li>• Не е важно кой план купувате първи - всяка комбинация има своя независима отстъпка</li>
+          </ul>
+        </div>
+
+        <p className="text-amber-400 text-sm font-medium">💡 Съвет: Годишният план винаги е по-изгоден - освен отстъпката при първа покупка, спестявате и от по-ниската годишна цена!</p>
+      </div>
+    )
   },
 ]
 

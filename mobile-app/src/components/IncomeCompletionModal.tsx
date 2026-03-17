@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Modal,
   View,
@@ -33,6 +34,7 @@ export default function IncomeCompletionModal({
   onClose,
   onComplete,
 }: IncomeCompletionModalProps) {
+  const { t } = useTranslation('common');
   const [completionNotes, setCompletionNotes] = useState('');
   const [includeIncome, setIncludeIncome] = useState(false);
   const [amount, setAmount] = useState('');
@@ -66,19 +68,19 @@ export default function IncomeCompletionModal({
       setIncomeNotes('');
     } catch (error) {
       Logger.error('Error completing case:', error);
-      Alert.alert('Грешка', 'Възникна грешка при завършването на заявката');
+      Alert.alert(t('error'), t('incomeCompleteError'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const paymentMethods = [
-    { label: 'Изберете метод', value: '' },
-    { label: '💵 Кеш', value: 'cash' },
-    { label: '💳 Картово плащане', value: 'card' },
-    { label: '🏦 Банков път', value: 'bank_transfer' },
+    { label: t('incomeSelectMethod'), value: '' },
+    { label: `💵 ${t('incomeCash')}`, value: 'cash' },
+    { label: `💳 ${t('incomeCard')}`, value: 'card' },
+    { label: `🏦 ${t('incomeBankTransfer')}`, value: 'bank_transfer' },
     { label: '🌐 Revolut', value: 'online' },
-    { label: '📝 Друго', value: 'other' },
+    { label: `📝 ${t('incomeOther')}`, value: 'other' },
   ];
 
   return (
@@ -92,19 +94,19 @@ export default function IncomeCompletionModal({
         <View style={styles.modalContainer}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>🏁 Завършване на заявка</Text>
+            <Text style={styles.headerTitle}>🏁 {t('incomeCompleteCase')}</Text>
             <Text style={styles.headerSubtitle}>{caseTitle}</Text>
           </View>
 
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
             {/* Completion Notes */}
             <View style={styles.section}>
-              <Text style={styles.label}>Бележки за завършване</Text>
+              <Text style={styles.label}>{t('incomeCompletionNotes')}</Text>
               <TextInput
                 style={styles.textArea}
                 value={completionNotes}
                 onChangeText={setCompletionNotes}
-                placeholder="Опишете какво е направено..."
+                placeholder={t('incomeDescribeWork')}
                 placeholderTextColor={theme.colors.text.tertiary}
                 multiline
                 numberOfLines={3}
@@ -116,10 +118,10 @@ export default function IncomeCompletionModal({
               <View style={styles.incomeToggleContent}>
                 <View style={styles.incomeToggleTextContainer}>
                   <Text style={styles.incomeToggleTitle}>
-                    💰 Добави приход от тази заявка
+                    💰 {t('incomeAddIncome')}
                   </Text>
                   <Text style={styles.incomeToggleSubtitle}>
-                    Проследявайте приходите си за по-добро управление на бизнеса
+                    {t('incomeTrackSubtitle')}
                   </Text>
                 </View>
                 <Switch
@@ -137,7 +139,7 @@ export default function IncomeCompletionModal({
                 {/* Amount */}
                 <View style={styles.section}>
                   <Text style={styles.label}>
-                    Сума <Text style={styles.required}>*</Text>
+                    {t('incomeAmount')} <Text style={styles.required}>*</Text>
                   </Text>
                   <View style={styles.amountInputContainer}>
                     <TextInput
@@ -154,7 +156,7 @@ export default function IncomeCompletionModal({
 
                 {/* Payment Method */}
                 <View style={styles.section}>
-                  <Text style={styles.label}>Метод на плащане</Text>
+                  <Text style={styles.label}>{t('incomePaymentMethod')}</Text>
                   <View style={styles.pickerContainer}>
                     {paymentMethods.map((method) => (
                       <TouchableOpacity
@@ -180,12 +182,12 @@ export default function IncomeCompletionModal({
 
                 {/* Income Notes */}
                 <View style={styles.section}>
-                  <Text style={styles.label}>Допълнителни бележки</Text>
+                  <Text style={styles.label}>{t('incomeAdditionalNotes')}</Text>
                   <TextInput
                     style={styles.textArea}
                     value={incomeNotes}
                     onChangeText={setIncomeNotes}
-                    placeholder="Напр. частично плащане, бонус и т.н..."
+                    placeholder={t('incomeNotesPlaceholder')}
                     placeholderTextColor={theme.colors.text.tertiary}
                     multiline
                     numberOfLines={2}
@@ -197,8 +199,7 @@ export default function IncomeCompletionModal({
             {/* Info Box */}
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
-                <Text style={styles.infoBold}>💡 Съвет:</Text> Добавянето на приход ви помага да
-                проследявате месечните си приходи и да анализирате бизнеса си по-добре.
+                <Text style={styles.infoBold}>💡 {t('incomeTip')}:</Text> {t('incomeTipText')}
               </Text>
             </View>
           </ScrollView>
@@ -210,7 +211,7 @@ export default function IncomeCompletionModal({
               onPress={onClose}
               disabled={isSubmitting}
             >
-              <Text style={styles.cancelButtonText}>Отказ</Text>
+              <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -223,7 +224,7 @@ export default function IncomeCompletionModal({
               disabled={isSubmitting || (includeIncome && (!amount || parseFloat(amount) <= 0))}
             >
               <Text style={styles.submitButtonText}>
-                {isSubmitting ? '⏳ Завършване...' : '✅ Завърши заявката'}
+                {isSubmitting ? `⏳ ${t('incomeCompleting')}` : `✅ ${t('incomeComplete')}`}
               </Text>
             </TouchableOpacity>
           </View>

@@ -1,7 +1,9 @@
 // Forgot Password Screen for SnapFix
 // Allows users to request a password reset email
 
+import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -19,6 +21,7 @@ import ApiService from '../services/ApiService';
 import theme from '../styles/theme';
 
 const ForgotPasswordScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);

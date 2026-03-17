@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -42,6 +43,7 @@ interface PointsBalance {
 }
 
 export default function SubscriptionScreen() {
+  const { t } = useTranslation('subscription');
   const navigation = useNavigation<any>();
   const [tiers, setTiers] = useState<SubscriptionTier[]>([]);
   const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
@@ -76,7 +78,7 @@ export default function SubscriptionScreen() {
       }
     } catch (error) {
       Logger.error('Error loading subscription data:', error);
-      Alert.alert('Грешка', 'Не успяхме да заредим информацията за абонаментите');
+      Alert.alert(t('common:error'), t('loadingSubscriptions'));
     } finally {
       setLoading(false);
     }
@@ -84,17 +86,17 @@ export default function SubscriptionScreen() {
 
   const handleUpgrade = async (tierId: string, tierName: string, price: number) => {
     if (tierId === 'free') {
-      Alert.alert('Информация', 'Вече сте на безплатния план');
+      Alert.alert(t('common:info'), t('alreadyOnFree'));
       return;
     }
 
     Alert.alert(
-      'Потвърдете надстройването',
-      `Искате ли да надстроите до ${tierName} за ${price} €/година (с ДДС)?\n\nЗа да завършите процеса, моля свържете се с нас за плащане.`,
+      t('confirmUpgrade'),
+      t('upgradeQuestion', { tierName, price }),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('common:cancel'), style: 'cancel' },
         {
-          text: 'Продължи',
+          text: t('continue'),
           onPress: async () => {
             try {
               setUpgrading(true);
@@ -111,8 +113,8 @@ export default function SubscriptionScreen() {
                 AuthBus.emit('userUpdated');
                 
                 Alert.alert(
-                  'Успех!',
-                  'Вашата заявка за надстройване е приета. Нашият екип ще се свърже с вас за финализиране на плащането.',
+                  t('upgradeSuccess'),
+                  t('upgradeSuccessMessage'),
                   [
                     {
                       text: 'OK',
@@ -124,11 +126,11 @@ export default function SubscriptionScreen() {
                   ]
                 );
               } else {
-                Alert.alert('Грешка', response.error?.message || 'Възникна грешка при надстройването');
+                Alert.alert(t('common:error'), response.error?.message || t('upgradeError'));
               }
             } catch (error) {
               Logger.error('Error upgrading subscription:', error);
-              Alert.alert('Грешка', 'Не успяхме да обработим заявката за надстройване');
+              Alert.alert(t('common:error'), t('upgradeProcessError'));
             } finally {
               setUpgrading(false);
             }
@@ -175,7 +177,9 @@ export default function SubscriptionScreen() {
       features.push('Базова видимост');
       features.push('Чат съобщения');
     } else if (tier.id === 'normal') {
-      features.push(`💰 ${limits?.points_yearly_included || 350} точки/година`);
+      features.push('💰 50 точки/месец (месечен)');
+      features.push(`💰 ${limits?.points_yearly_included || 1000} точки (годишен)`);
+      features.push('🎁 10% отстъпка при първа покупка');
       features.push(`💵 Заявки до ${limits?.max_case_budget || 1000} €`);
       features.push('📱 SMS: 2 точки/SMS');
       features.push('💳 Допълнителни точки: 0.15 €/точка');
@@ -184,9 +188,11 @@ export default function SubscriptionScreen() {
       features.push('Подобрена видимост в търсенето');
       features.push('Премиум значка');
     } else if (tier.id === 'pro') {
-      features.push(`💰 ${limits?.points_yearly_included || 500} точки/година`);
-      features.push('💵 Всички бюджети на заявки');
-      features.push('📱 SMS: 1 точка/SMS');
+      features.push('💰 100 точки/месец (месечен)');
+      features.push(`💰 ${limits?.points_yearly_included || 2000} точки (годишен)`);
+      features.push('🎁 15% отстъпка при първа покупка');
+      features.push('💵 Неограничен бюджет на заявки');
+      features.push('📱 SMS: 1 точка/SMS (50% отстъпка)');
       features.push('💳 Допълнителни точки: 0.13 €/точка');
       features.push('Неограничени категории');
       features.push('Неограничени снимки');
@@ -203,7 +209,7 @@ export default function SubscriptionScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary.solid} />
-        <Text style={styles.loadingText}>Зареждане...</Text>
+        <Text style={styles.loadingText}>{t('common:loading')}</Text>
       </View>
     );
   }
@@ -211,9 +217,9 @@ export default function SubscriptionScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Абонаментни Планове</Text>
+        <Text style={styles.title}>{t('subscriptionPlans')}</Text>
         <Text style={styles.subtitle}>
-          Изберете плана, който отговаря на вашите нужди
+          {t('choosePlan')}
         </Text>
       </View>
 
@@ -258,7 +264,7 @@ export default function SubscriptionScreen() {
                   <Text style={styles.tierName}>{tier.name_bg}</Text>
                   {isCurrentTier && (
                     <View style={styles.currentBadge}>
-                      <Text style={styles.currentBadgeText}>Текущ</Text>
+                      <Text style={styles.currentBadgeText}>{t('current')}</Text>
                     </View>
                   )}
                 </View>
@@ -267,16 +273,26 @@ export default function SubscriptionScreen() {
               <Text style={styles.tierDescription}>{tier.description_bg}</Text>
 
               <View style={styles.priceContainer}>
-                <Text style={styles.price}>
-                  {tier.id === 'normal' ? '179 €' : tier.id === 'pro' ? '249 €' : 'Безплатно'}
-                </Text>
-                {tier.id !== 'free' && (
-                  <Text style={styles.priceUnit}>на година (с ДДС)</Text>
+                {tier.id === 'free' ? (
+                  <Text style={styles.price}>{t('free')}</Text>
+                ) : (
+                  <>
+                    <Text style={styles.price}>
+                      {tier.id === 'normal' ? '1,400 €' : '1,900 €'}
+                    </Text>
+                    <Text style={styles.priceUnit}>{t('perYear')}</Text>
+                    <Text style={styles.priceMonthly}>
+                      или {tier.id === 'normal' ? '130 €' : '230 €'}/месец
+                    </Text>
+                    <Text style={styles.discountBadge}>
+                      🎁 {tier.id === 'normal' ? '10%' : '15%'} отстъпка при първа покупка
+                    </Text>
+                  </>
                 )}
               </View>
 
               <View style={styles.featuresContainer}>
-                <Text style={styles.featuresTitle}>Включва:</Text>
+                <Text style={styles.featuresTitle}>{t('includes')}</Text>
                 {features.map((feature, index) => (
                   <View key={index} style={styles.featureItem}>
                     <Text style={styles.featureIcon}>✓</Text>
@@ -288,7 +304,7 @@ export default function SubscriptionScreen() {
               {!isCurrentTier && tier.id !== 'free' && (
                 <TouchableOpacity
                   style={[styles.upgradeButton, { backgroundColor: tierColor }]}
-                  onPress={() => handleUpgrade(tier.id, tier.name_bg, tier.id === 'normal' ? 179 : 249)}
+                  onPress={() => handleUpgrade(tier.id, tier.name_bg, tier.id === 'normal' ? 1400 : 1900)}
                   disabled={upgrading}
                 >
                   {upgrading ? (
@@ -303,34 +319,16 @@ export default function SubscriptionScreen() {
 
               {isCurrentTier && (
                 <View style={styles.currentPlanButton}>
-                  <Text style={styles.currentPlanButtonText}>Активен план</Text>
+                  <Text style={styles.currentPlanButtonText}>{t('activePlan')}</Text>
                 </View>
               )}
             </View>
           );
         })}
-      </View>
-
-      {/* Payment Info Section */}
-      <View style={styles.paymentInfoSection}>
-        <Text style={styles.paymentInfoTitle}>💳 Информация за плащане</Text>
-        <View style={styles.paymentInfoCard}>
-          <Text style={styles.paymentInfoText}>
-            • Плащанията се обработват сигурно чрез Stripe
-          </Text>
-          <Text style={styles.paymentInfoText}>
-            • Приемаме Visa, Mastercard, Apple Pay, Google Pay
-          </Text>
-          <Text style={styles.paymentInfoText}>
-            • Абонаментът се подновява автоматично всяка година
-          </Text>
-          <Text style={styles.paymentInfoText}>
-            • Можете да откажете по всяко време от настройките
-          </Text>
-        </View>
+        
         <View style={styles.securityBadge}>
           <Text style={styles.securityIcon}>🔒</Text>
-          <Text style={styles.securityText}>Защитено плащане с 256-bit SSL криптиране</Text>
+          <Text style={styles.securityText}>{t('securePayment')}</Text>
         </View>
       </View>
 
@@ -477,6 +475,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text.secondary,
     marginTop: 4,
+  },
+  priceMonthly: {
+    fontSize: 14,
+    color: theme.colors.text.secondary,
+    marginTop: 4,
+  },
+  discountBadge: {
+    fontSize: 13,
+    color: '#10b981',
+    fontWeight: '600',
+    marginTop: 8,
   },
   featuresContainer: {
     marginBottom: 20,

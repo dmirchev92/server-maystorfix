@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -37,31 +38,6 @@ interface SMSPointsStatus {
   pointsSpentOnSMS?: number;
 }
 
-// SMS Templates
-const SMS_TEMPLATES = {
-  latin: {
-    id: 'latin',
-    name: 'Латиница (1 SMS)',
-    text: 'Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]',
-    description: 'По-евтино - използва само 1 SMS',
-    badge: '💰 По-евтино'
-  },
-  bulgarian: {
-    id: 'bulgarian',
-    name: 'Кирилица (2 SMS)',
-    text: 'Зает съм, ще върна обаждане след няколко минути.\n\nЗапочнете чат тук:\n[chat_link]',
-    description: 'На български - използва 2 SMS заради кирилицата',
-    badge: '🇧🇬 Български'
-  },
-  custom: {
-    id: 'custom',
-    name: 'Персонализиран',
-    text: '',
-    description: 'Напишете свое съобщение',
-    badge: '✏️ Custom'
-  }
-};
-
 // Helper function to calculate SMS segments
 function calculateSMSSegments(text: string): { chars: number; segments: number; maxChars: number; isUnicode: boolean } {
   const gsmChars = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&'()*+,\-.\/0-9:;<=>?¡A-ZÄÖÑܧ¿a-zäöñüà]*$/;
@@ -80,7 +56,8 @@ function calculateSMSSegments(text: string): { chars: number; segments: number; 
   return { chars, segments, maxChars: maxCharsPerSegment, isUnicode };
 }
 
-function SMSScreen() {
+export default function SMSScreen() {
+  const { t } = useTranslation('sms');
   const [smsStats, setSmsStats] = useState<SMSStats>({
     isEnabled: false,
     sentCount: 0,
@@ -101,6 +78,31 @@ function SMSScreen() {
 
   const smsService = SMSService.getInstance();
   const socketService = SocketIOService.getInstance();
+
+  // SMS Templates - defined inside component to access t()
+  const getSmsTemplates = () => ({
+    latin: {
+      id: 'latin',
+      name: t('smsTemplateLatin'),
+      text: 'Zaet sum, shte vurna obajdane sled nqkolko minuti.\n\nZapochnete chat tuk:\n[chat_link]',
+      description: t('smsTemplateLatinDesc'),
+      badge: t('smsTemplateLatinBadge')
+    },
+    bulgarian: {
+      id: 'bulgarian',
+      name: t('smsTemplateBulgarian'),
+      text: 'Зает съм, ще върна обаждане след няколко минути.\n\nЗапочнете чат тук:\n[chat_link]',
+      description: t('smsTemplateBulgarianDesc'),
+      badge: t('smsTemplateBulgarianBadge')
+    },
+    custom: {
+      id: 'custom',
+      name: t('smsTemplateCustom'),
+      text: '',
+      description: t('smsTemplateCustomDesc'),
+      badge: t('smsTemplateCustomBadge')
+    }
+  });
 
   useEffect(() => {
     loadSMSData();
@@ -148,12 +150,13 @@ function SMSScreen() {
             stats.isEnabled = false;
             
             Alert.alert(
-              '⚠️ Разрешенията са отнети',
-              'Автоматичните SMS бяха изключени, защото разрешенията за обаждания са премахнати.\n\nМоля, включете отново SMS функцията.',
-              [{ text: 'Разбрах' }]
+              t('permissionsRevoked'),
+              t('permissionsRevokedMessage'),
+              [{ text: t('ok') }]
             );
           } else {
-            // Re-sync settings to native in case they were lost
+            Logger.debug('✅ Permissions verified - SMS can work properly');
+            // Sync settings to native for background operation
             await callDetectionService.syncSettingsToNative();
           }
         }
@@ -222,9 +225,9 @@ function SMSScreen() {
           
           // Alert user about the issue
           Alert.alert(
-            '⚠️ Разрешенията са отнети',
-            'Автоматичните SMS бяха изключени, защото разрешенията за обаждания са премахнати.\n\nТова може да се случи след актуализация на приложението.\n\nМоля, включете отново SMS функцията, за да дадете разрешенията.',
-            [{ text: 'Разбрах' }]
+            t('permissionsRevoked'),
+            t('permissionsRevokedMessage'),
+            [{ text: t('ok') }]
           );
         } else {
           Logger.debug('✅ Permissions verified - SMS can work properly');
@@ -288,9 +291,10 @@ function SMSScreen() {
       Logger.debug('✅ SMS data loaded successfully');
       
       // Detect which template is being used
-      if (config.message === SMS_TEMPLATES.latin.text) {
+      const templates = getSmsTemplates();
+      if (config.message === templates.latin.text) {
         setSelectedTemplate('latin');
-      } else if (config.message === SMS_TEMPLATES.bulgarian.text) {
+      } else if (config.message === templates.bulgarian.text) {
         setSelectedTemplate('bulgarian');
       } else {
         setSelectedTemplate('custom');
@@ -317,33 +321,35 @@ function SMSScreen() {
 
   const handleTemplateChange = async (templateId: 'latin' | 'bulgarian' | 'custom') => {
     setSelectedTemplate(templateId);
+    const templates = getSmsTemplates();
     if (templateId === 'custom') {
       if (!customText) {
         setCustomText(messageText);
       }
       setMessageText(customText || messageText);
     } else {
-      setMessageText(SMS_TEMPLATES[templateId].text);
+      setMessageText(templates[templateId].text);
     }
     
     // Update preview
     const currentLink = smsService.getCurrentChatLinkSync();
-    const newText = templateId === 'custom' ? (customText || messageText) : SMS_TEMPLATES[templateId].text;
+    const newText = templateId === 'custom' ? (customText || messageText) : templates[templateId].text;
     setDisplayText(newText.replace('[chat_link]', currentLink));
   };
 
   const handleSaveTemplate = async () => {
-    const textToSave = selectedTemplate === 'custom' ? customText : SMS_TEMPLATES[selectedTemplate].text;
+    const templates = getSmsTemplates();
+    const textToSave = selectedTemplate === 'custom' ? customText : templates[selectedTemplate].text;
     
     if (!textToSave.trim()) {
-      Alert.alert('Грешка', 'Съобщението не може да бъде празно');
+      Alert.alert(t('error'), t('templateCannotBeEmpty'));
       return;
     }
     
     if (!textToSave.includes('[chat_link]')) {
       Alert.alert(
-        'Липсва [chat_link]',
-        'Съобщението трябва да съдържа [chat_link] за да се изпрати линк към чата.\n\nПример: "Можете да започнете чат с мен тук: [chat_link]"'
+        t('missingChatLink'),
+        t('templateMustContainChatLink')
       );
       return;
     }
@@ -351,9 +357,9 @@ function SMSScreen() {
     try {
       setSaving(true);
       await smsService.updateConfig({ message: textToSave.trim() });
-      Alert.alert('✅ Успешно', 'SMS шаблонът е запазен успешно!');
+      Alert.alert(t('common:success'), t('templateSaved'));
     } catch (error) {
-      Alert.alert('❌ Грешка', 'Неуспешно запазване на шаблона');
+      Alert.alert(t('common:error'), t('templateSaveError'));
     } finally {
       setSaving(false);
     }
@@ -392,14 +398,14 @@ function SMSScreen() {
         if (!newEnabled) {
           // SMS toggle failed, stop call detection too
           await callDetectionService.stopDetection();
-          Alert.alert('Грешка', 'Нужни са разрешения за SMS');
+          Alert.alert(t('common:error'), t('smsPermissionsNeeded'));
           return;
         }
         
         Alert.alert(
-          '✅ Авто SMS активирано',
-          'При пропуснато обаждане автоматично ще се изпрати SMS с линк за чат.',
-          [{ text: 'Добре' }]
+          `✅ ${t('autoSmsActivated')}`,
+          t('autoSmsActivatedMessage'),
+          [{ text: t('common:ok') }]
         );
       } else {
         // DISABLING: Stop call detection and disable SMS
@@ -413,7 +419,7 @@ function SMSScreen() {
       await loadSMSData();
     } catch (error) {
       Logger.error('Error toggling SMS:', error);
-      Alert.alert('Грешка', 'Неуспешна промяна на SMS настройките');
+      Alert.alert(t('common:error'), t('smsSettingsChangeFailed'));
     }
   };
 
@@ -436,9 +442,9 @@ function SMSScreen() {
         
         if (!hasPermission) {
           Alert.alert(
-            'Изисква се разрешение',
-            'Филтрирането на контакти изисква достъп до контактите. Моля, разрешете достъпа.',
-            [{ text: 'Добре' }]
+            t('permissionRequired'),
+            t('contactFilteringPermission'),
+            [{ text: t('common:ok') }]
           );
           return;
         }
@@ -449,15 +455,15 @@ function SMSScreen() {
       
       if (newFiltering) {
         Alert.alert(
-          'Филтрирането на контакти е включено! 📞',
-          'SMS ще се изпращат само до непознати номера.\n\nТова предотвратява пращането на SMS до близки.',
-          [{ text: 'Добре' }]
+          `${t('contactFilteringEnabled')} 📞`,
+          t('contactFilteringEnabledMessage'),
+          [{ text: t('common:ok') }]
         );
       } else {
         Alert.alert(
-          'Филтрирането на контакти е изключено',
-          'SMS ще се изпращат до всички пропуснати повиквания, включително контакти.',
-          [{ text: 'Добре' }]
+          t('contactFilteringDisabled'),
+          t('contactFilteringDisabledMessage'),
+          [{ text: t('common:ok') }]
         );
       }
       
@@ -470,12 +476,12 @@ function SMSScreen() {
       
     } catch (error) {
       Logger.error('Error toggling contact filtering:', error);
-      Alert.alert('Грешка', 'Неуспешна промяна на филтрирането');
+      Alert.alert(t('common:error'), t('filteringChangeFailed'));
     }
   };
 
   const formatLastSent = (timestamp?: number) => {
-    if (!timestamp) return 'Никога';
+    if (!timestamp) return t('never');
     const date = new Date(timestamp);
     return date.toLocaleString('bg-BG');
   };
@@ -489,19 +495,19 @@ function SMSScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>SMS Настройки</Text>
-        <Text style={styles.subtitle}>Автоматични SMS при пропуснати повиквания</Text>
+        <Text style={styles.title}>{t('smsSettings')}</Text>
+        <Text style={styles.subtitle}>{t('autoSmsOnMissedCalls')}</Text>
       </View>
 
       {/* Automation Settings Card */}
       <View style={styles.statusCard}>
         <View style={styles.statusHeader}>
-          <Text style={styles.statusTitle}>Настройки за автоматизация</Text>
+          <Text style={styles.statusTitle}>{t('automationSettings')}</Text>
         </View>
 
         {/* Enable/Disable Switch */}
         <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Включи автоматични SMS</Text>
+          <Text style={styles.statusLabel}>{t('enableAutoSms')}</Text>
           <Switch
             value={smsStats.isEnabled}
             onValueChange={handleToggleSMS}
@@ -511,7 +517,7 @@ function SMSScreen() {
         </View>
 
         <View style={styles.statusRow}>
-          <Text style={styles.statusLabel}>Изпратени съобщения:</Text>
+          <Text style={styles.statusLabel}>{t('sentMessages')}:</Text>
           <Text style={styles.statusValue}>{smsStats.sentCount}</Text>
         </View>
 
@@ -520,9 +526,9 @@ function SMSScreen() {
         {/* Contact Filtering Section */}
         <View style={styles.statusRow}>
           <View style={{ flex: 1, marginRight: 10 }}>
-            <Text style={styles.filterTitle}>Филтриране на контакти</Text>
+            <Text style={styles.filterTitle}>{t('contactFiltering')}</Text>
             <Text style={styles.filterSubtitle}>
-              Изберете дали да пращате SMS на хора от контактите си
+              {t('contactFilteringDesc')}
             </Text>
           </View>
           <Switch
@@ -535,78 +541,85 @@ function SMSScreen() {
         
         <Text style={styles.filterDescription}>
           {(smsStats.filterKnownContacts ?? false)
-            ? '✅ Филтърът е ВКЛЮЧЕН: SMS ще се изпращат само до непознати номера (не на семейство/приятели)'
-            : '🚫 Филтърът е ИЗКЛЮЧЕН: SMS ще се изпращат до ВСИЧКИ пропуснати повиквания (вкл. семейство и приятели)'
+            ? t('filterOnMessage')
+            : t('filterOffMessage')
           }
         </Text>
       </View>
 
       {/* SMS Template Selection */}
       <View style={styles.messageCard}>
-        <Text style={styles.messageTitle}>✏️ SMS Шаблон</Text>
-        <Text style={styles.messageSubtitle}>Изберете шаблон за автоматичното съобщение</Text>
+        <Text style={styles.messageTitle}>✏️ {t('smsTemplate')}</Text>
+        <Text style={styles.messageSubtitle}>{t('selectTemplateForAutoMessage')}</Text>
         
         {/* Template Options */}
         <View style={styles.templateContainer}>
-          {/* Latin Template */}
-          <TouchableOpacity 
-            style={[styles.templateOption, selectedTemplate === 'latin' && styles.templateOptionSelected]}
-            onPress={() => handleTemplateChange('latin')}
-          >
-            <View style={styles.templateRadio}>
-              {selectedTemplate === 'latin' && <View style={styles.templateRadioInner} />}
-            </View>
-            <View style={styles.templateContent}>
-              <View style={styles.templateHeader}>
-                <Text style={styles.templateName}>{SMS_TEMPLATES.latin.name}</Text>
-                <View style={[styles.templateBadge, styles.templateBadgeGreen]}>
-                  <Text style={styles.templateBadgeText}>💰 По-евтино</Text>
-                </View>
-              </View>
-              <Text style={styles.templateDescription}>{SMS_TEMPLATES.latin.description}</Text>
-              <Text style={styles.templatePreview}>{SMS_TEMPLATES.latin.text.replace('\n', ' ').substring(0, 45)}...</Text>
-            </View>
-          </TouchableOpacity>
+          {(() => {
+            const templates = getSmsTemplates();
+            return (
+              <>
+                {/* Latin Template */}
+                <TouchableOpacity 
+                  style={[styles.templateOption, selectedTemplate === 'latin' && styles.templateOptionSelected]}
+                  onPress={() => handleTemplateChange('latin')}
+                >
+                  <View style={styles.templateRadio}>
+                    {selectedTemplate === 'latin' && <View style={styles.templateRadioInner} />}
+                  </View>
+                  <View style={styles.templateContent}>
+                    <View style={styles.templateHeader}>
+                      <Text style={styles.templateName}>{templates.latin.name}</Text>
+                      <View style={[styles.templateBadge, styles.templateBadgeGreen]}>
+                        <Text style={styles.templateBadgeText}>{templates.latin.badge}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.templateDescription}>{templates.latin.description}</Text>
+                    <Text style={styles.templatePreview}>{templates.latin.text.replace('\n', ' ').substring(0, 45)}...</Text>
+                  </View>
+                </TouchableOpacity>
 
-          {/* Bulgarian Template */}
-          <TouchableOpacity 
-            style={[styles.templateOption, selectedTemplate === 'bulgarian' && styles.templateOptionSelectedBlue]}
-            onPress={() => handleTemplateChange('bulgarian')}
-          >
-            <View style={styles.templateRadio}>
-              {selectedTemplate === 'bulgarian' && <View style={styles.templateRadioInnerBlue} />}
-            </View>
-            <View style={styles.templateContent}>
-              <View style={styles.templateHeader}>
-                <Text style={styles.templateName}>{SMS_TEMPLATES.bulgarian.name}</Text>
-                <View style={[styles.templateBadge, styles.templateBadgeBlue]}>
-                  <Text style={styles.templateBadgeText}>🇧🇬 Български</Text>
-                </View>
-              </View>
-              <Text style={styles.templateDescription}>{SMS_TEMPLATES.bulgarian.description}</Text>
-              <Text style={styles.templatePreview}>{SMS_TEMPLATES.bulgarian.text.replace('\n', ' ').substring(0, 45)}...</Text>
-            </View>
-          </TouchableOpacity>
+                {/* Bulgarian Template */}
+                <TouchableOpacity 
+                  style={[styles.templateOption, selectedTemplate === 'bulgarian' && styles.templateOptionSelectedBlue]}
+                  onPress={() => handleTemplateChange('bulgarian')}
+                >
+                  <View style={styles.templateRadio}>
+                    {selectedTemplate === 'bulgarian' && <View style={styles.templateRadioInnerBlue} />}
+                  </View>
+                  <View style={styles.templateContent}>
+                    <View style={styles.templateHeader}>
+                      <Text style={styles.templateName}>{templates.bulgarian.name}</Text>
+                      <View style={[styles.templateBadge, styles.templateBadgeBlue]}>
+                        <Text style={styles.templateBadgeText}>{templates.bulgarian.badge}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.templateDescription}>{templates.bulgarian.description}</Text>
+                    <Text style={styles.templatePreview}>{templates.bulgarian.text.replace('\n', ' ').substring(0, 45)}...</Text>
+                  </View>
+                </TouchableOpacity>
 
-          {/* Custom Template */}
-          <TouchableOpacity 
-            style={[styles.templateOption, selectedTemplate === 'custom' && styles.templateOptionSelectedPurple]}
-            onPress={() => handleTemplateChange('custom')}
-          >
-            <View style={styles.templateRadio}>
-              {selectedTemplate === 'custom' && <View style={styles.templateRadioInnerPurple} />}
-            </View>
-            <View style={styles.templateContent}>
-              <Text style={styles.templateName}>{SMS_TEMPLATES.custom.name}</Text>
-              <Text style={styles.templateDescription}>{SMS_TEMPLATES.custom.description}</Text>
-            </View>
-          </TouchableOpacity>
+                {/* Custom Template */}
+                <TouchableOpacity 
+                  style={[styles.templateOption, selectedTemplate === 'custom' && styles.templateOptionSelectedPurple]}
+                  onPress={() => handleTemplateChange('custom')}
+                >
+                  <View style={styles.templateRadio}>
+                    {selectedTemplate === 'custom' && <View style={styles.templateRadioInnerPurple} />}
+                  </View>
+                  <View style={styles.templateContent}>
+                    <Text style={styles.templateName}>{templates.custom.name}</Text>
+                    <Text style={styles.templateDescription}>{templates.custom.description}</Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            );
+          })()}
         </View>
 
         {/* Custom Text Input */}
         {selectedTemplate === 'custom' && (
           <View style={styles.customTextContainer}>
-            <Text style={styles.customTextLabel}>Вашето съобщение:</Text>
+            <Text style={styles.customTextLabel}>{t('yourMessage')}:</Text>
             <TextInput
               style={styles.messageInput}
               value={customText}
@@ -615,7 +628,7 @@ function SMSScreen() {
                 const currentLink = smsService.getCurrentChatLinkSync();
                 setDisplayText(text.replace('[chat_link]', currentLink));
               }}
-              placeholder="Напишете вашето съобщение тук..."
+              placeholder={t('writeYourMessageHere')}
               placeholderTextColor="#999999"
               multiline
               numberOfLines={4}
@@ -623,7 +636,7 @@ function SMSScreen() {
             />
             <View style={styles.customTextWarning}>
               <Text style={styles.customTextWarningText}>
-                ⚠️ [chat_link] е задължително! Ще бъде заменен с линк към чата.
+                {t('chatLinkRequired')}
               </Text>
             </View>
           </View>
@@ -635,21 +648,21 @@ function SMSScreen() {
           return (
             <View style={[styles.charCounterContainer, smsInfo.isUnicode ? styles.charCounterWarning : styles.charCounterSuccess]}>
               <View style={styles.charCounterRow}>
-                <Text style={styles.charCounterLabel}>Брой символи:</Text>
+                <Text style={styles.charCounterLabel}>{t('characterCount')}:</Text>
                 <Text style={[styles.charCounterValue, smsInfo.isUnicode ? styles.charCounterValueWarning : styles.charCounterValueSuccess]}>
                   {smsInfo.chars}
                 </Text>
               </View>
               <View style={styles.charCounterRow}>
-                <Text style={styles.charCounterLabel}>Тип кодиране:</Text>
+                <Text style={styles.charCounterLabel}>{t('encodingType')}:</Text>
                 <View style={[styles.encodingBadge, smsInfo.isUnicode ? styles.encodingBadgeWarning : styles.encodingBadgeSuccess]}>
                   <Text style={styles.encodingBadgeText}>
-                    {smsInfo.isUnicode ? 'Unicode (Кирилица)' : 'GSM-7 (Латиница)'}
+                    {smsInfo.isUnicode ? t('unicodeCyrillic') : t('gsmLatin')}
                   </Text>
                 </View>
               </View>
               <View style={[styles.charCounterRow, styles.charCounterRowBorder]}>
-                <Text style={styles.charCounterLabelBold}>Брой SMS:</Text>
+                <Text style={styles.charCounterLabelBold}>{t('smsCount')}:</Text>
                 <View style={styles.smsCountContainer}>
                   <Text style={[styles.smsCountValue, smsInfo.segments > 1 ? styles.charCounterValueWarning : styles.charCounterValueSuccess]}>
                     {smsInfo.segments}
@@ -663,9 +676,9 @@ function SMSScreen() {
 
         {/* SMS Preview */}
         <View style={styles.previewContainer}>
-          <Text style={styles.previewTitle}>📱 Преглед на SMS:</Text>
-          <Text style={styles.previewText}>{displayText || 'Зареждане на преглед...'}</Text>
-          <Text style={styles.previewSubtitle}>Това е съобщението, което клиентите ще получат</Text>
+          <Text style={styles.previewTitle}>📱 {t('smsPreview')}:</Text>
+          <Text style={styles.previewText}>{displayText || t('common:loading')}</Text>
+          <Text style={styles.previewSubtitle}>{t('smsPreviewSubtitle')}</Text>
         </View>
 
         {/* Save Button */}
@@ -674,7 +687,7 @@ function SMSScreen() {
           onPress={handleSaveTemplate}
           disabled={saving}
         >
-          <Text style={styles.saveButtonText}>{saving ? '⏳ Запазване...' : '💾 Запази Шаблон'}</Text>
+          <Text style={styles.saveButtonText}>{saving ? `⏳ ${t('saving')}...` : `💾 ${t('saveTemplate')}`}</Text>
         </TouchableOpacity>
       </View>
 
@@ -682,7 +695,7 @@ function SMSScreen() {
       {smsPointsStatus && (
         <View style={styles.smsLimitCard}>
           <View style={styles.smsLimitHeader}>
-            <Text style={styles.smsLimitTitle}>💎 SMS & Точки</Text>
+            <Text style={styles.smsLimitTitle}>💎 {t('smsAndPoints')}</Text>
             <View style={[styles.tierBadge, 
               smsPointsStatus.tier === 'pro' ? styles.tierPro : 
               smsPointsStatus.tier === 'normal' ? styles.tierNormal : styles.tierFree
@@ -693,26 +706,26 @@ function SMSScreen() {
             </View>
           </View>
           <View style={styles.smsLimitRow}>
-            <Text style={styles.smsLimitLabel}>Цена на SMS:</Text>
+            <Text style={styles.smsLimitLabel}>{t('smsCost')}:</Text>
             <Text style={styles.smsLimitValue}>
-              {smsPointsStatus.pointsCost} {smsPointsStatus.pointsCost === 1 ? 'точка' : 'точки'}
+              {smsPointsStatus.pointsCost} {t('common:points').toLowerCase()}
             </Text>
           </View>
           <View style={styles.smsLimitRow}>
-            <Text style={styles.smsLimitLabel}>Баланс точки:</Text>
+            <Text style={styles.smsLimitLabel}>{t('pointsBalance')}:</Text>
             <Text style={[styles.smsLimitValue, { color: smsPointsStatus.canSend ? '#4ade80' : '#ef4444' }]}>
-              {smsPointsStatus.pointsBalance} точки
+              {smsPointsStatus.pointsBalance} {t('common:points').toLowerCase()}
             </Text>
           </View>
           {smsPointsStatus.totalSmsSent !== undefined && (
             <View style={styles.smsLimitRow}>
-              <Text style={styles.smsLimitLabel}>Изпратени SMS:</Text>
+              <Text style={styles.smsLimitLabel}>{t('sentMessages')}:</Text>
               <Text style={styles.smsLimitValue}>{smsPointsStatus.totalSmsSent}</Text>
             </View>
           )}
           {!smsPointsStatus.canSend && (
             <View style={styles.limitWarning}>
-              <Text style={styles.limitWarningText}>❌ Недостатъчно точки</Text>
+              <Text style={styles.limitWarningText}>❌ {t('insufficientPoints')}</Text>
             </View>
           )}
         </View>
@@ -720,33 +733,30 @@ function SMSScreen() {
 
       {/* How It Works / Info Card */}
       <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>💡 Как работи SMS системата?</Text>
+        <Text style={styles.infoTitle}>💡 {t('howSmsWorks')}</Text>
         <Text style={styles.infoText}>
-          • SMS са неограничени - плащате с точки{'\n'}
-          • PRO потребители: 1 точка за SMS{'\n'}
-          • NORMAL потребители: 2 точки за SMS{'\n'}
-          • FREE потребители: Не могат да изпращат SMS
+          {t('howSmsWorksText')}
         </Text>
         
         {/* Encoding Explanation */}
         <View style={styles.encodingExplanation}>
-          <Text style={styles.encodingExplanationTitle}>📝 Защо кирилицата използва повече SMS?</Text>
+          <Text style={styles.encodingExplanationTitle}>📝 {t('whyCyrillicUsesMoreSms')}</Text>
           <Text style={styles.encodingExplanationText}>
-            SMS съобщенията използват различно кодиране в зависимост от символите:
+            {t('encodingExplanationText')}
           </Text>
           <View style={styles.encodingGrid}>
             <View style={styles.encodingGridItemGreen}>
-              <Text style={styles.encodingGridTitle}>Латиница (GSM-7)</Text>
-              <Text style={styles.encodingGridValue}>160 символа/SMS</Text>
-              <Text style={styles.encodingGridDesc}>A-Z, 0-9, основни символи</Text>
+              <Text style={styles.encodingGridTitle}>{t('latinGsm7')}</Text>
+              <Text style={styles.encodingGridValue}>{t('charsPerSmsLatin')}</Text>
+              <Text style={styles.encodingGridDesc}>{t('latinCharsDesc')}</Text>
             </View>
             <View style={styles.encodingGridItemOrange}>
-              <Text style={styles.encodingGridTitleOrange}>Кирилица (Unicode)</Text>
-              <Text style={styles.encodingGridValueOrange}>70 символа/SMS</Text>
-              <Text style={styles.encodingGridDesc}>А-Я, емотикони, специални</Text>
+              <Text style={styles.encodingGridTitleOrange}>{t('cyrillicUnicode')}</Text>
+              <Text style={styles.encodingGridValueOrange}>{t('charsPerSmsCyrillic')}</Text>
+              <Text style={styles.encodingGridDesc}>{t('cyrillicCharsDesc')}</Text>
             </View>
           </View>
-          <Text style={styles.encodingTip}>💡 Съвет: Използвайте латиница - по-малко символи = по-малко SMS сегменти!</Text>
+          <Text style={styles.encodingTip}>💡 {t('encodingTip')}</Text>
         </View>
       </View>
 

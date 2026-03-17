@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -109,27 +110,28 @@ const cleanFormattedAddress = (address: string | undefined, city?: string): stri
   return cleaned;
 };
 
-// Helper function to mask address - show only neighborhood, hide street/number
-// Used to prevent SPs from going directly to addresses before winning the case
-const getMaskedAddress = (address: string | undefined, city?: string, neighborhood?: string): string => {
-  // Only show city and neighborhood, not the full street address
-  if (neighborhood) {
-    return neighborhood;
-  }
-  
-  // If no neighborhood but we have an address, try to extract just the neighborhood/district part
-  if (address) {
-    // Common patterns for Bulgarian neighborhoods: "Ж.К", "кв.", "ж.к.", "квартал"
-    const neighborhoodMatch = address.match(/(ж\.?\s*к\.?\s*[^,]+|кв\.?\s*[^,]+|квартал\s*[^,]+)/i);
-    if (neighborhoodMatch) {
-      return neighborhoodMatch[0].trim();
-    }
-  }
-  
-  return 'Районът е скрит';
-};
-
 export default function CasesScreen() {
+  const { t } = useTranslation('common');
+  
+  // Helper function to mask address - show only neighborhood, hide street/number
+  // Used to prevent SPs from going directly to addresses before winning the case
+  const getMaskedAddress = (address: string | undefined, city?: string, neighborhood?: string): string => {
+    // Only show city and neighborhood, not the full street address
+    if (neighborhood) {
+      return neighborhood;
+    }
+    
+    // If no neighborhood but we have an address, try to extract just the neighborhood/district part
+    if (address) {
+      // Common patterns for Bulgarian neighborhoods: "Ж.К", "кв.", "ж.к.", "квартал"
+      const neighborhoodMatch = address.match(/(ж\.?\s*к\.?\s*[^,]+|кв\.?\s*[^,]+|квартал\s*[^,]+)/i);
+      if (neighborhoodMatch) {
+        return neighborhoodMatch[0].trim();
+      }
+    }
+    
+    return t('neighborhoodHidden');
+  };
   const navigation = useNavigation<any>();
   const [cases, setCases] = useState<Case[]>([]);
   const [stats, setStats] = useState<CaseStats | null>(null);
@@ -182,8 +184,8 @@ export default function CasesScreen() {
   
   // Budget ranges from database
   const BUDGET_RANGES = [
-    { value: '', label: 'Всички' },
-    { value: '1-125', label: 'До 125 €' },
+    { value: '', label: t('all') },
+    { value: '1-125', label: t('upTo125') },
     { value: '126-250', label: '126 - 250 €' },
     { value: '251-400', label: '251 - 400 €' },
     { value: '401-500', label: '401 - 500 €' },
@@ -235,19 +237,19 @@ export default function CasesScreen() {
       
       if (response.success) {
         const messages: Record<string, string> = {
-          accept: 'Заявката е приета! Точките са удържани.',
-          decline: 'Заявката е отказана.',
-          counter: 'Офертата е изпратена към клиента.',
+          accept: t('caseAcceptedReview'),
+          decline: t('caseDeclinedReview'),
+          counter: t('offerSentReview'),
         };
-        Alert.alert('Успех', messages[action]);
+        Alert.alert(t('reviewActionSuccess'), messages[action]);
         fetchPendingReviews();
         fetchCases();
         fetchStats();
       } else {
-        Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+        Alert.alert(t('error'), response.error?.message || t('errorOccurred'));
       }
     } catch (error: any) {
-      Alert.alert('Грешка', error.message || 'Възникна грешка');
+      Alert.alert(t('error'), error.message || t('errorOccurred'));
     } finally {
       setReviewActionLoading(null);
     }
@@ -347,12 +349,11 @@ export default function CasesScreen() {
         setCases(cases);
       } else {
         Logger.error('📋 CasesScreen - Failed to fetch cases:', response.error);
-        Alert.alert('Грешка', response.error?.message || 'Не успяхме да заредим заявките');
         setCases([]);
       }
     } catch (error) {
       Logger.error('📋 CasesScreen - Error fetching cases:', error);
-      Alert.alert('Грешка', 'Не успяхме да заредим заявките');
+      Alert.alert(t('error'), t('loadCasesError'));
       setCases([]);
     } finally {
       setLoading(false);
@@ -385,12 +386,12 @@ export default function CasesScreen() {
     if (!user) return;
 
     Alert.alert(
-      'Приемане на заявка',
-      'Сигурни ли сте, че искате да приемете тази заявка?',
+      t('acceptCaseTitle'),
+      t('acceptCaseMessage'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Приеми',
+          text: t('accept'),
           onPress: async () => {
             try {
               const response = await ApiService.getInstance().acceptCase(
@@ -400,7 +401,7 @@ export default function CasesScreen() {
               );
               
               if (response.success) {
-                Alert.alert('Успех', 'Заявката беше приета успешно!');
+                Alert.alert(t('success'), t('caseAccepted'));
                 await fetchCases();
                 await fetchStats();
               } else {
@@ -410,12 +411,12 @@ export default function CasesScreen() {
                   const message = `${response.error?.message}\n\n${details.reason || ''}`;
                   
                   Alert.alert(
-                    'Безплатният период изтече',
+                    t('trialExpiredTitle'),
                     message,
                     [
-                      { text: 'По-късно', style: 'cancel' },
+                      { text: t('later'), style: 'cancel' },
                       {
-                        text: 'Надстрой сега',
+                        text: t('upgradeNow'),
                         onPress: () => {
                           navigation.navigate('Subscription');
                         }
@@ -423,12 +424,12 @@ export default function CasesScreen() {
                     ]
                   );
                 } else {
-                  Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+                  Alert.alert(t('error'), response.error?.message || t('error'));
                 }
               }
             } catch (error) {
               Logger.error('Error accepting case:', error);
-              Alert.alert('Грешка', 'Не успяхме да приемем заявката');
+              Alert.alert(t('error'), t('acceptError'));
             }
           },
         },
@@ -440,12 +441,12 @@ export default function CasesScreen() {
     if (!user) return;
 
     Alert.alert(
-      'Отказване на заявка',
-      'Сигурни ли сте, че искате да откажете тази заявка?',
+      t('declineCaseTitle'),
+      t('declineCaseMessage'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Откажи',
+          text: t('decline'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -456,15 +457,15 @@ export default function CasesScreen() {
               );
               
               if (response.success) {
-                Alert.alert('Успех', 'Заявката беше отказана');
+                Alert.alert(t('success'), t('caseDeclined'));
                 await fetchCases();
                 await fetchStats();
               } else {
-                Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+                Alert.alert(t('error'), response.error?.message || t('error'));
               }
             } catch (error) {
               Logger.error('Error declining case:', error);
-              Alert.alert('Грешка', 'Не успяхме да откажем заявката');
+              Alert.alert(t('error'), t('declineError'));
             }
           },
         },
@@ -503,7 +504,7 @@ export default function CasesScreen() {
       );
 
       if (response.success) {
-        Alert.alert('Успех', 'Заявката беше завършена успешно!');
+        Alert.alert(t('success'), t('caseCompleted'));
         setCompletionModal({ visible: false, caseId: '', caseTitle: '' });
 
         // Refresh data
@@ -512,11 +513,11 @@ export default function CasesScreen() {
           fetchStats();
         }, 500);
       } else {
-        Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+        Alert.alert(t('error'), response.error?.message || t('completeError'));
       }
     } catch (error) {
       Logger.error('Error completing case:', error);
-      Alert.alert('Грешка', 'Не успяхме да завършим заявката');
+      Alert.alert(t('error'), t('completeError'));
     }
   };
 
@@ -527,15 +528,15 @@ export default function CasesScreen() {
       const response = await ApiService.getInstance().undeclineCase(caseId, user.id);
       
       if (response.success) {
-        Alert.alert('Успех', 'Заявката беше възстановена!');
+        Alert.alert(t('success'), t('caseRestored'));
         await fetchCases();
         await fetchStats();
       } else {
-        Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+        Alert.alert(t('error'), response.error?.message || t('restoreError'));
       }
     } catch (error) {
       Logger.error('Error un-declining case:', error);
-      Alert.alert('Грешка', 'Не успяхме да възстановим заявката');
+      Alert.alert(t('error'), t('restoreError'));
     }
   };
 
@@ -561,18 +562,18 @@ export default function CasesScreen() {
       }
       setIsTracking(false);
       setTrackingCaseId(null);
-      Alert.alert('Проследяване спряно', 'Вече не споделяте локацията си с клиента.');
+      Alert.alert(t('trackingStopped'), t('trackingStoppedMessage'));
       return;
     }
 
     // Start tracking
     Alert.alert(
-      'Споделяне на локация',
-      'Ще започнем да споделяме вашата локация с клиента, докато пътувате към адреса. Съгласни ли сте?',
+      t('locationSharing'),
+      t('startLocationSharingConfirm'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('common:cancel'), style: 'cancel' },
         {
-          text: 'Да, тръгвам',
+          text: t('yesImGoing'),
           onPress: () => {
             const id = Geolocation.watchPosition(
               (position) => {
@@ -594,7 +595,7 @@ export default function CasesScreen() {
             setWatchId(id);
             setIsTracking(true);
             setTrackingCaseId(caseId);
-            Alert.alert('Приятен път!', 'Клиентът вече вижда къде се намирате.');
+            Alert.alert(t('haveAGoodTrip'), t('clientSeesLocation'));
           }
         }
       ]
@@ -615,11 +616,11 @@ export default function CasesScreen() {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: any = {
-      pending: { label: '🟡 Чакаща', color: '#fbbf24' }, // amber-400 - logical for pending/waiting
-      accepted: { label: '🟢 Приета', color: '#4ade80' }, // green-400 - success
-      wip: { label: '⚡ В процес', color: '#60a5fa' }, // blue-400 - in progress
-      completed: { label: '🏁 Завършена', color: '#64748b' }, // slate-500 - neutral/done
-      declined: { label: '❌ Отказана', color: '#f87171' }, // red-400 - error/declined
+      pending: { label: `🟡 ${t('pending')}`, color: '#fbbf24' }, // amber-400 - logical for pending/waiting
+      accepted: { label: `🟢 ${t('accepted')}`, color: '#4ade80' }, // green-400 - success
+      wip: { label: `⚡ ${t('inProgress')}`, color: '#60a5fa' }, // blue-400 - in progress
+      completed: { label: `🏁 ${t('completed')}`, color: '#64748b' }, // slate-500 - neutral/done
+      declined: { label: `❌ ${t('declined')}`, color: '#f87171' }, // red-400 - error/declined
     };
 
     const config = statusConfig[status] || { label: status, color: theme.colors.gray[500] };
@@ -665,7 +666,7 @@ export default function CasesScreen() {
     if (assignmentType === 'specific') {
       return (
         <View style={[styles.assignmentBadge, styles.directAssignmentBadge]}>
-          <Text style={styles.assignmentBadgeText}>👤 Директна заявка</Text>
+          <Text style={styles.assignmentBadgeText}>👤 {t('directCase')}</Text>
         </View>
       );
     } 
@@ -686,7 +687,7 @@ export default function CasesScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary.solid} />
-        <Text style={styles.loadingText}>Зареждане...</Text>
+        <Text style={styles.loadingText}>{t('common:loading')}</Text>
       </View>
     );
   }
@@ -711,22 +712,22 @@ export default function CasesScreen() {
   };
   
   const getCategoryLabel = () => {
-    if (selectedCategories.length === 0) return 'Категория';
+    if (selectedCategories.length === 0) return t('category');
     if (selectedCategories.length === 1) {
       const cat = SERVICE_CATEGORIES.find(c => c.value === selectedCategories[0]);
-      return cat ? cat.label : 'Категория';
+      return cat ? cat.label : t('category');
     }
-    return `${selectedCategories.length} избрани`;
+    return `${selectedCategories.length} ${t('selected')}`;
   };
   
   const getBudgetLabel = () => {
-    if (!budgetFilter) return 'Бюджет';
+    if (!budgetFilter) return t('budget');
     const range = BUDGET_RANGES.find(r => r.value === budgetFilter);
-    return range ? range.label : 'Бюджет';
+    return range ? range.label : t('budget');
   };
   
   const getCityLabel = () => {
-    if (!cityFilter) return 'Град';
+    if (!cityFilter) return t('city');
     return cityFilter;
   };
 
@@ -734,7 +735,7 @@ export default function CasesScreen() {
     <View style={styles.container}>
       {/* Header - Centered Title */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Заявки</Text>
+        <Text style={styles.headerTitle}>{t('cases')}</Text>
       </View>
       
       {/* View Mode Tabs - Compact Single Row */}
@@ -748,7 +749,7 @@ export default function CasesScreen() {
             <View style={styles.tabContentWithBadge}>
               <Text style={styles.tabIcon}>📩</Text>
               <Text style={[styles.tabText, viewMode === 'reviews' && styles.activeTabText]}>
-                Преглед
+                {t('review')}
               </Text>
             </View>
             <View style={styles.reviewBadgeAbsolute}>
@@ -762,7 +763,7 @@ export default function CasesScreen() {
         >
           <Text style={styles.tabIcon}>🆕</Text>
           <Text style={[styles.tabText, viewMode === 'available' && styles.activeTabText]}>
-            Налични
+            {t('available')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -771,7 +772,7 @@ export default function CasesScreen() {
         >
           <Text style={styles.tabIcon}>✅</Text>
           <Text style={[styles.tabText, viewMode === 'assigned' && styles.activeTabText]}>
-            Моите
+            {t('mine')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -780,7 +781,7 @@ export default function CasesScreen() {
         >
           <Text style={styles.tabIcon}>💰</Text>
           <Text style={[styles.tabText, viewMode === 'bids' && styles.activeTabText]}>
-            Оферти
+            {t('bids')}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -789,7 +790,7 @@ export default function CasesScreen() {
         >
           <Text style={styles.tabIcon}>❌</Text>
           <Text style={[styles.tabText, viewMode === 'declined' && styles.activeTabText]}>
-            Отказани
+            {t('declined')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -824,9 +825,9 @@ export default function CasesScreen() {
             onPress={() => setShowStatusDropdown(true)}
           >
             <Text style={styles.filterButtonText}>
-              {statusFilter === '' ? 'Статус' : 
-               statusFilter === 'wip' ? 'В процес' : 
-               statusFilter === 'completed' ? 'Завършени' : 'Статус'} ▼
+              {statusFilter === '' ? t('status') : 
+               statusFilter === 'wip' ? t('inProgress') : 
+               statusFilter === 'completed' ? t('completed') : t('status')} ▼
             </Text>
           </TouchableOpacity>
         )}
@@ -842,7 +843,7 @@ export default function CasesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Избери категории</Text>
+              <Text style={styles.modalTitle}>{t('selectCategories')}</Text>
               <TouchableOpacity onPress={() => setShowCategoryDropdown(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -853,7 +854,7 @@ export default function CasesScreen() {
                   style={styles.clearAllButton}
                   onPress={() => setSelectedCategories([])}
                 >
-                  <Text style={styles.clearAllText}>✕ Изчисти всички ({selectedCategories.length})</Text>
+                  <Text style={styles.clearAllText}>✕ {t('clearAll')} ({selectedCategories.length})</Text>
                 </TouchableOpacity>
               )}
               {SERVICE_CATEGORIES.map(cat => {
@@ -878,7 +879,7 @@ export default function CasesScreen() {
               style={styles.modalDoneButton}
               onPress={() => setShowCategoryDropdown(false)}
             >
-              <Text style={styles.modalDoneText}>Готово</Text>
+              <Text style={styles.modalDoneText}>{t('common:done')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -894,7 +895,7 @@ export default function CasesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Избери бюджет</Text>
+              <Text style={styles.modalTitle}>{t('selectBudget')}</Text>
               <TouchableOpacity onPress={() => setShowBudgetDropdown(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -926,7 +927,7 @@ export default function CasesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Избери град</Text>
+              <Text style={styles.modalTitle}>{t('selectCity')}</Text>
               <TouchableOpacity onPress={() => setShowCityDropdown(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -937,7 +938,7 @@ export default function CasesScreen() {
                 onPress={() => { setCityFilter(''); setShowCityDropdown(false); }}
               >
                 <Text style={[styles.modalItemText, !cityFilter && styles.modalItemTextActive]}>
-                  Всички градове
+                  {t('allCities')}
                 </Text>
               </TouchableOpacity>
               {getAvailableCities().map(city => (
@@ -966,7 +967,7 @@ export default function CasesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Филтър по статус</Text>
+              <Text style={styles.modalTitle}>{t('filterByStatus')}</Text>
               <TouchableOpacity onPress={() => setShowStatusDropdown(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -977,7 +978,7 @@ export default function CasesScreen() {
                 onPress={() => { setStatusFilter(''); setShowStatusDropdown(false); }}
               >
                 <Text style={[styles.modalItemText, statusFilter === '' && styles.modalItemTextActive]}>
-                  Всички
+                  {t('all')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity 
@@ -985,7 +986,7 @@ export default function CasesScreen() {
                 onPress={() => { setStatusFilter('wip'); setShowStatusDropdown(false); }}
               >
                 <Text style={[styles.modalItemText, statusFilter === 'wip' && styles.modalItemTextActive]}>
-                  ⚡ В процес
+                  ⚡ {t('inProgress')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity 
@@ -993,7 +994,7 @@ export default function CasesScreen() {
                 onPress={() => { setStatusFilter('completed'); setShowStatusDropdown(false); }}
               >
                 <Text style={[styles.modalItemText, statusFilter === 'completed' && styles.modalItemTextActive]}>
-                  🏁 Завършени
+                  🏁 {t('completed')}
                 </Text>
               </TouchableOpacity>
             </ScrollView>
@@ -1014,9 +1015,9 @@ export default function CasesScreen() {
           pendingReviews.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateIcon}>📭</Text>
-              <Text style={styles.emptyStateText}>Няма заявки за преглед</Text>
+              <Text style={styles.emptyStateText}>{t('noCasesForReview')}</Text>
               <Text style={styles.emptyStateSubtext}>
-                Когато клиент ви изпрати директна заявка, тя ще се появи тук
+                {t('directCaseWillAppearHere')}
               </Text>
             </View>
           ) : (
@@ -1027,10 +1028,10 @@ export default function CasesScreen() {
                     <View style={styles.categoryIconSmall}>
                       <CategoryIcon category={review.category} size={20} color="#fb923c" />
                     </View>
-                    <Text style={styles.caseTitle}>{review.service_type || CATEGORY_LABELS[review.category] || review.category || 'Заявка'}</Text>
+                    <Text style={styles.caseTitle}>{review.service_type || CATEGORY_LABELS[review.category] || review.category || t('case')}</Text>
                   </View>
                   <View style={styles.reviewBadgeSmall}>
-                    <Text style={styles.reviewBadgeSmallText}>📩 За преглед</Text>
+                    <Text style={styles.reviewBadgeSmallText}>📩 {t('forReview')}</Text>
                   </View>
                 </View>
                 
@@ -1053,7 +1054,7 @@ export default function CasesScreen() {
                     disabled={reviewActionLoading === review.id}
                   >
                     <Text style={styles.reviewActionBtnText}>
-                      {reviewActionLoading === review.id ? '...' : '✅ Приеми'}
+                      {reviewActionLoading === review.id ? '...' : `✅ ${t('acceptReview')}`}
                     </Text>
                   </TouchableOpacity>
                   
@@ -1061,12 +1062,12 @@ export default function CasesScreen() {
                     style={[styles.reviewActionBtn, styles.counterBtn]}
                     onPress={() => {
                       Alert.prompt(
-                        'Предложи бюджет',
-                        'Въведете вашата оферта (напр. 250-500)',
+                        t('proposeBudget'),
+                        t('enterYourOffer'),
                         [
-                          { text: 'Отказ', style: 'cancel' },
+                          { text: t('cancel'), style: 'cancel' },
                           { 
-                            text: 'Изпрати', 
+                            text: t('send'), 
                             onPress: (budget: string | undefined) => budget && handleReviewResponse(review.id, 'counter', budget) 
                           }
                         ],
@@ -1076,7 +1077,7 @@ export default function CasesScreen() {
                     }}
                     disabled={reviewActionLoading === review.id}
                   >
-                    <Text style={styles.reviewActionBtnText}>💰 Друга цена</Text>
+                    <Text style={styles.reviewActionBtnText}>💰 {t('differentPrice')}</Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity
@@ -1084,7 +1085,7 @@ export default function CasesScreen() {
                     onPress={() => handleReviewResponse(review.id, 'decline')}
                     disabled={reviewActionLoading === review.id}
                   >
-                    <Text style={styles.reviewActionBtnText}>❌ Откажи</Text>
+                    <Text style={styles.reviewActionBtnText}>❌ {t('decline')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1094,16 +1095,16 @@ export default function CasesScreen() {
           myBids.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateIcon}>💰</Text>
-              <Text style={styles.emptyStateText}>Няма кандидатури</Text>
+              <Text style={styles.emptyStateText}>{t('noApplications')}</Text>
               <Text style={styles.emptyStateSubtext}>
-                Все още не сте подали кандидатури за заявки
+                {t('noApplicationsYet')}
               </Text>
             </View>
           ) : (
             myBids.map((bid: any) => (
               <View key={bid.id} style={styles.caseCard}>
                 <View style={styles.caseHeader}>
-                  <Text style={styles.caseTitle}>{bid.description || bid.service_type || 'Заявка'}</Text>
+                  <Text style={styles.caseTitle}>{bid.description || bid.service_type || t('case')}</Text>
                   <View style={[
                     styles.statusBadge,
                     bid.bid_status === 'pending' && styles.pendingBadge,
@@ -1111,28 +1112,28 @@ export default function CasesScreen() {
                     bid.bid_status === 'lost' && styles.lostBadge,
                   ]}>
                     <Text style={styles.statusBadgeText}>
-                      {bid.bid_status === 'pending' ? '⏳ Чакаща' :
-                       bid.bid_status === 'won' ? '✅ Спечелена' :
-                       bid.bid_status === 'lost' ? '❌ Загубена' : bid.bid_status}
+                      {bid.bid_status === 'pending' ? `⏳ ${t('bidPending')}` :
+                       bid.bid_status === 'won' ? `✅ ${t('bidWon')}` :
+                       bid.bid_status === 'lost' ? `❌ ${t('bidLost')}` : bid.bid_status}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.caseDetails}>
-                  <Text style={styles.detailText}>💰 Предложена цена: {bid.proposed_budget_range} €</Text>
+                  <Text style={styles.detailText}>💰 {t('proposedPrice')}: {bid.proposed_budget_range} €</Text>
                   {bid.city && (
-                    <Text style={styles.detailText}>📍 Град: {bid.city}</Text>
+                    <Text style={styles.detailText}>📍 {t('city')}: {bid.city}</Text>
                   )}
                   {bid.budget && (
-                    <Text style={styles.detailText}>💵 Бюджет на клиента: {bid.budget} €</Text>
+                    <Text style={styles.detailText}>💵 {t('clientBudget')}: {bid.budget} €</Text>
                   )}
                   {bid.bid_comment && (
-                    <Text style={styles.detailText}>💬 Коментар: {bid.bid_comment}</Text>
+                    <Text style={styles.detailText}>💬 {t('comment')}: {bid.bid_comment}</Text>
                   )}
                   {bid.case_status && (
-                    <Text style={styles.detailText}>📋 Статус на заявката: {
-                      bid.case_status === 'pending' ? 'Чакаща' :
-                      bid.case_status === 'accepted' ? 'Приета' :
-                      bid.case_status === 'completed' ? 'Завършена' : bid.case_status
+                    <Text style={styles.detailText}>📋 {t('caseStatus')}: {
+                      bid.case_status === 'pending' ? t('pending') :
+                      bid.case_status === 'accepted' ? t('accepted') :
+                      bid.case_status === 'completed' ? t('completed') : bid.case_status
                     }</Text>
                   )}
                 </View>
@@ -1142,11 +1143,11 @@ export default function CasesScreen() {
         ) : cases.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>📋</Text>
-            <Text style={styles.emptyStateText}>Няма заявки</Text>
+            <Text style={styles.emptyStateText}>{t('noCases')}</Text>
             <Text style={styles.emptyStateSubtext}>
-              {viewMode === 'available' && 'Няма налични заявки в момента'}
-              {viewMode === 'assigned' && 'Нямате приети заявки'}
-              {viewMode === 'declined' && 'Нямате отказани заявки'}
+              {viewMode === 'available' && t('noAvailableCasesNow')}
+              {viewMode === 'assigned' && t('noAcceptedCases')}
+              {viewMode === 'declined' && t('noDeclinedCases')}
             </Text>
           </View>
         ) : (
@@ -1172,12 +1173,12 @@ export default function CasesScreen() {
                     <View style={styles.headerContent}>
                       {/* Title first */}
                       <Text style={styles.caseTitle} numberOfLines={1}>
-                        {CATEGORY_LABELS[caseItem.service_type] || CATEGORY_LABELS[caseItem.category] || caseItem.service_type || caseItem.category || 'Заявка'}
+                        {CATEGORY_LABELS[caseItem.service_type] || CATEGORY_LABELS[caseItem.category] || caseItem.service_type || caseItem.category || t('case')}
                       </Text>
                       {/* Case number + Status badge below title */}
                       <View style={styles.headerBottomRow}>
                         {caseItem.case_number && (
-                          <Text style={styles.caseNumberLabel}>Заявка #{caseItem.case_number}</Text>
+                          <Text style={styles.caseNumberLabel}>{t('case')} #{caseItem.case_number}</Text>
                         )}
                         {getAssignmentBadge(caseItem)}
                         {/* Status Badge - Only in "Моите" tab */}
@@ -1189,8 +1190,8 @@ export default function CasesScreen() {
                             caseItem.status === 'completed' && styles.caseStatusCompleted,
                           ]}>
                             <Text style={styles.caseStatusBadgeText}>
-                              {caseItem.status === 'wip' || caseItem.status === 'accepted' ? '⚡ В процес' : 
-                               caseItem.status === 'completed' ? '🏁 Завършена' : caseItem.status}
+                              {caseItem.status === 'wip' || caseItem.status === 'accepted' ? `⚡ ${t('inProgress')}` : 
+                               caseItem.status === 'completed' ? `🏁 ${t('completed')}` : caseItem.status}
                             </Text>
                           </View>
                         )}
@@ -1202,7 +1203,7 @@ export default function CasesScreen() {
                   {/* 1. Description - Most important */}
                   {caseItem.description && (
                     <View style={styles.descriptionSection}>
-                      <Text style={styles.descriptionLabel}>Описание:</Text>
+                      <Text style={styles.descriptionLabel}>{t('description')}:</Text>
                       <Text style={styles.descriptionText} numberOfLines={isExpanded ? undefined : 2}>
                         {caseItem.description}
                       </Text>
@@ -1216,14 +1217,14 @@ export default function CasesScreen() {
                       <Text style={styles.infoText}>
                         <Text style={styles.infoHighlight}>
                           💰 {caseItem.winning_bid_price || caseItem.sp_counter_budget || caseItem.budget} €
-                          {(viewMode === 'assigned' && (caseItem.winning_bid_price || caseItem.sp_counter_budget)) ? ' (договорена)' : ''}
+                          {(viewMode === 'assigned' && (caseItem.winning_bid_price || caseItem.sp_counter_budget)) ? ` (${t('negotiated')})` : ''}
                         </Text>
                       </Text>
                     )}
                     {caseItem.bidding_enabled && (
                       <Text style={styles.infoText}>
                         <Text style={styles.infoIcon}>👥 </Text>
-                        {caseItem.current_bidders || 0}/{caseItem.max_bidders || 3} оферти
+                        {caseItem.current_bidders || 0}/{caseItem.max_bidders || 3} {t('bidsCount')}
                       </Text>
                     )}
                     {(caseItem.preferred_date || caseItem.created_at) && (
@@ -1247,10 +1248,10 @@ export default function CasesScreen() {
                           </Text>
                           {caseItem.latitude && caseItem.longitude && (
                             <TouchableOpacity 
-                              onPress={() => openMap(caseItem.latitude!, caseItem.longitude!, 'Адрес на клиента')}
+                              onPress={() => openMap(caseItem.latitude!, caseItem.longitude!, t('clientAddress'))}
                               style={styles.navButton}
                             >
-                              <Text style={styles.navButtonText}>🗺️ Отвори в карти</Text>
+                              <Text style={styles.navButtonText}>🗺️ {t('openInMaps')}</Text>
                             </TouchableOpacity>
                           )}
                         </>
@@ -1260,7 +1261,7 @@ export default function CasesScreen() {
                             📍 {caseItem.city}{caseItem.city ? ', ' : ''}{getMaskedAddress(caseItem.formatted_address || caseItem.address, caseItem.city, caseItem.neighborhood)}
                           </Text>
                           <View style={styles.addressMaskedNote}>
-                            <Text style={styles.addressMaskedText}>🔒 Пълен адрес след спечелване</Text>
+                            <Text style={styles.addressMaskedText}>🔒 {t('fullAddressAfterWinning')}</Text>
                           </View>
                         </>
                       )}
@@ -1272,7 +1273,7 @@ export default function CasesScreen() {
                     <View style={styles.caseDetails}>
                       {caseItem.phone && (
                         <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>📞 Телефон:</Text>
+                          <Text style={styles.detailLabel}>📞 {t('phone')}:</Text>
                           <View style={{flex: 1}}>
                             <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: (caseItem as any).phone_masked ? 8 : 0}}>
                               <Text style={[styles.detailValue, (caseItem as any).phone_masked && {color: '#94a3b8'}]}>
@@ -1281,14 +1282,14 @@ export default function CasesScreen() {
                               {(caseItem as any).phone_masked && (
                                 <View style={{backgroundColor: 'rgba(251, 191, 36, 0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4}}>
                                   <Text style={{fontSize: 10, color: '#fbbf24'}}>
-                                    🔒 Скрит
+                                    🔒 {t('hidden')}
                                   </Text>
                                 </View>
                               )}
                             </View>
                             {(caseItem as any).phone_masked && (
                               <Text style={{fontSize: 10, color: '#64748b', fontStyle: 'italic'}}>
-                                Видим след спечелване
+                                {t('visibleAfterWinning')}
                               </Text>
                             )}
                           </View>
@@ -1296,8 +1297,8 @@ export default function CasesScreen() {
                       )}
                       {caseItem.square_meters && (
                         <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>📏 Площ:</Text>
-                          <Text style={styles.detailValue}>{caseItem.square_meters} кв.м</Text>
+                          <Text style={styles.detailLabel}>📏 {t('area')}:</Text>
+                          <Text style={styles.detailValue}>{caseItem.square_meters} {t('sqm')}</Text>
                         </View>
                       )}
                       {/* COMMENTED OUT: priority - feature not needed for now
@@ -1315,7 +1316,7 @@ export default function CasesScreen() {
                       {/* Screenshots */}
                       {caseItem.screenshots && caseItem.screenshots.length > 0 && (
                         <View style={styles.screenshotsSection}>
-                          <Text style={styles.detailLabel}>📷 Снимки:</Text>
+                          <Text style={styles.detailLabel}>📷 {t('photos')}:</Text>
                           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotsScroll}>
                             {caseItem.screenshots.map((screenshot, index) => (
                               <TouchableOpacity 
@@ -1375,7 +1376,7 @@ export default function CasesScreen() {
                           handleDeclineCase(caseItem.id);
                         }}
                       >
-                        <Text style={styles.actionButtonText}>Откажи</Text>
+                        <Text style={styles.actionButtonText}>{t('decline')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -1392,7 +1393,7 @@ export default function CasesScreen() {
                           handleCompleteCase(caseItem.id);
                         }}
                       >
-                        <Text style={styles.actionButtonText}>🏁 Завърши</Text>
+                        <Text style={styles.actionButtonText}>🏁 {t('completeCase')}</Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -1406,7 +1407,7 @@ export default function CasesScreen() {
                         handleUndeclineCase(caseItem.id);
                       }}
                     >
-                      <Text style={styles.actionButtonText}>↩️ Върни в налични</Text>
+                      <Text style={styles.actionButtonText}>↩️ {t('restoreToAvailable')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>

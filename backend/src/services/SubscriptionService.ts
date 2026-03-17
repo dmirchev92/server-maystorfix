@@ -222,28 +222,50 @@ export class SubscriptionService {
         );
       }
 
-      // Check if this is first-time Pro purchase for 15% discount
-      let finalPrice = (targetTier as any).price_yearly || targetTier.price_monthly;
-      let discountApplied = false;
+      // Determine if this is monthly or yearly based on price
+      const yearlyPrice = (targetTier as any).price_yearly || 0;
+      const monthlyPrice = targetTier.price_monthly || 0;
+      const isYearlyPlan = Math.abs(yearlyPrice - monthlyPrice) > 100; // If prices differ significantly, we're using yearly
+      const planType = isYearlyPlan ? 'yearly' : 'monthly';
       
-      if (target_tier_id === SubscriptionTier.PRO) {
-        // Check if user has ever purchased Pro tier before
-        const proHistoryQuery = `
+      // Check if this is first-time purchase for discount (Pro: 15%, Normal: 10%)
+      let finalPrice = isYearlyPlan ? yearlyPrice : monthlyPrice;
+      let discountApplied = false;
+      let discountPercentage = 0;
+      
+      if (target_tier_id === SubscriptionTier.PRO || target_tier_id === SubscriptionTier.NORMAL) {
+        // Check if user has ever purchased this specific tier + plan type combination before
+        const tierPlanHistoryQuery = `
           SELECT COUNT(*) as count FROM sp_subscription_history 
-          WHERE user_id = $1 AND tier_id = 'pro' AND action IN ('created', 'upgraded', 'renewed')
+          WHERE user_id = $1 AND tier_id = $2 AND action IN ('created', 'upgraded', 'renewed')
+          AND (notes LIKE $3 OR notes LIKE $4)
         `;
-        const proHistory = await this.database.query(proHistoryQuery, [user_id]);
-        const hasProHistory = parseInt(proHistory[0]?.count || '0') > 0;
+        const tierPlanHistory = await this.database.query(tierPlanHistoryQuery, [
+          user_id, 
+          target_tier_id,
+          `%${planType}%`,
+          `%${planType.charAt(0).toUpperCase() + planType.slice(1)}%` // Also match capitalized version
+        ]);
+        const hasTierPlanHistory = parseInt(tierPlanHistory[0]?.count || '0') > 0;
         
-        // Apply 15% discount only on first Pro purchase
-        if (!hasProHistory) {
-          finalPrice = Math.round(finalPrice * 0.85); // 15% discount
+        // Apply discount only on first purchase of this tier + plan type
+        if (!hasTierPlanHistory) {
+          if (target_tier_id === SubscriptionTier.PRO) {
+            finalPrice = Math.round(finalPrice * 0.85); // 15% discount
+            discountPercentage = 15;
+          } else if (target_tier_id === SubscriptionTier.NORMAL) {
+            finalPrice = Math.round(finalPrice * 0.90); // 10% discount
+            discountPercentage = 10;
+          }
           discountApplied = true;
-          logger.info('First-time Pro purchase discount applied', {
+          logger.info(`First-time ${target_tier_id} ${planType} purchase discount applied`, {
             userId: user_id,
-            originalPrice: (targetTier as any).price_yearly,
+            tier: target_tier_id,
+            planType,
+            discountPercentage,
+            originalPrice: isYearlyPlan ? yearlyPrice : monthlyPrice,
             discountedPrice: finalPrice,
-            savings: (targetTier as any).price_yearly - finalPrice
+            savings: (isYearlyPlan ? yearlyPrice : monthlyPrice) - finalPrice
           });
         }
       }
@@ -258,7 +280,7 @@ export class SubscriptionService {
         amount: finalPrice,
         currency: targetTier.currency,
         performed_by: user_id,
-        notes: discountApplied ? '15% first-time Pro discount applied' : undefined
+        notes: discountApplied ? `${discountPercentage}% first-time ${target_tier_id} ${planType} discount applied` : `${target_tier_id} ${planType} subscription`
       });
 
       logger.info('Subscription upgraded successfully', {

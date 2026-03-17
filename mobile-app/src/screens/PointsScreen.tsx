@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -36,6 +37,7 @@ interface PointsBalance {
 }
 
 const PointsScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation();
   const [balance, setBalance] = useState<PointsBalance | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -46,9 +48,9 @@ const PointsScreen: React.FC = () => {
   // Helper function to get tier display name
   const getTierDisplayName = (tier: string) => {
     switch (tier?.toLowerCase()) {
-      case 'pro': return 'Професионален';
-      case 'normal': return 'Нормален';
-      default: return 'Безплатен';
+      case 'pro': return t('tierPro');
+      case 'normal': return t('tierNormal');
+      default: return t('tierFree');
     }
   };
 
@@ -377,7 +379,7 @@ const PointsScreen: React.FC = () => {
           {Math.abs(item.points_amount)}
         </Text>
         <Text style={styles.transactionBalance}>
-          Баланс: {item.balance_after}
+          {t('balance')}: {item.balance_after}
         </Text>
       </View>
     </View>
@@ -388,7 +390,7 @@ const PointsScreen: React.FC = () => {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
-        <Text style={styles.loadingText}>Зареждане...</Text>
+        <Text style={styles.loadingText}>{t('loading')}</Text>
       </View>
     );
   }
@@ -400,25 +402,25 @@ const PointsScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Точки</Text>
+        <Text style={styles.headerTitle}>{t('common:points')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       {/* Balance Card */}
       <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Налични точки</Text>
+        <Text style={styles.balanceLabel}>{t('availablePoints')}</Text>
         <Text style={styles.balanceAmount}>{balance?.current_balance || 0}</Text>
         
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Спечелени</Text>
+            <Text style={styles.statLabel}>{t('earned')}</Text>
             <Text style={[styles.statValue, { color: '#10b981' }]}>
               +{balance?.total_earned || 0}
             </Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Изразходвани</Text>
+            <Text style={styles.statLabel}>{t('spent')}</Text>
             <Text style={[styles.statValue, { color: '#ef4444' }]}>
               -{balance?.total_spent || 0}
             </Text>
@@ -427,10 +429,10 @@ const PointsScreen: React.FC = () => {
 
         <View style={styles.subscriptionInfo}>
           <Text style={styles.subscriptionText} numberOfLines={1}>
-            {getTierDisplayName(subscriptionTier)} план
+            {getTierDisplayName(subscriptionTier)} {t('plan')}
           </Text>
           <Text style={styles.subscriptionText} numberOfLines={1}>
-            {balance?.monthly_allowance || 50} точки/год.
+            {balance?.monthly_allowance || 50} {t('pointsPerYear')}
           </Text>
         </View>
 
@@ -438,15 +440,15 @@ const PointsScreen: React.FC = () => {
           style={styles.upgradeButton}
           onPress={() => navigation.navigate('Subscription' as never)}
         >
-          <Text style={styles.upgradeButtonText}>Надградете плана</Text>
+          <Text style={styles.upgradeButtonText}>{t('upgradePlan')}</Text>
         </TouchableOpacity>
       </View>
 
       {/* Transactions List */}
       <View style={styles.transactionsHeader}>
-        <Text style={styles.transactionsTitle}>История на транзакциите</Text>
+        <Text style={styles.transactionsTitle}>{t('transactionHistory')}</Text>
         <Text style={styles.transactionsCount}>
-          {transactions.length} {transactions.length === 1 ? 'транзакция' : 'транзакции'}
+          {transactions.length} {transactions.length === 1 ? t('transaction') : t('transactions')}
         </Text>
       </View>
 
@@ -461,7 +463,7 @@ const PointsScreen: React.FC = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>Все още няма транзакции</Text>
+            <Text style={styles.emptyText}>{t('noTransactionsYet')}</Text>
           </View>
         }
       />

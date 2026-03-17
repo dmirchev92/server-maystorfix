@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -15,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import theme from '../styles/theme';
 
 const ChangePasswordScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation();
   const [saving, setSaving] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -30,23 +32,23 @@ const ChangePasswordScreen: React.FC = () => {
   const handleSave = async () => {
     // Validation
     if (!formData.currentPassword) {
-      Alert.alert('Грешка', 'Моля въведете текущата парола');
+      Alert.alert(t('error'), t('enterCurrentPassword'));
       return;
     }
     if (!formData.newPassword) {
-      Alert.alert('Грешка', 'Моля въведете нова парола');
+      Alert.alert(t('error'), t('enterNewPassword'));
       return;
     }
     if (formData.newPassword.length < 6) {
-      Alert.alert('Грешка', 'Паролата трябва да е поне 6 символа');
+      Alert.alert(t('error'), t('passwordMinLength'));
       return;
     }
     if (formData.newPassword !== formData.confirmPassword) {
-      Alert.alert('Грешка', 'Паролите не съвпадат');
+      Alert.alert(t('error'), t('passwordsMismatch'));
       return;
     }
     if (formData.currentPassword === formData.newPassword) {
-      Alert.alert('Грешка', 'Новата парола трябва да е различна от текущата');
+      Alert.alert(t('error'), t('passwordMustBeDifferent'));
       return;
     }
 
@@ -81,11 +83,11 @@ const ChangePasswordScreen: React.FC = () => {
         );
       } else {
         const errorData: any = await response.json();
-        Alert.alert('Грешка', errorData.error?.message || 'Неуспешна промяна на паролата');
+        Alert.alert(t('error'), errorData.error?.message || t('passwordChangeError'));
       }
     } catch (error) {
       Logger.error('Error changing password:', error);
-      Alert.alert('Грешка', 'Неуспешна промяна на паролата');
+      Alert.alert(t('error'), t('passwordChangeError'));
     } finally {
       setSaving(false);
     }
@@ -97,11 +99,11 @@ const ChangePasswordScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>‹ Назад</Text>
+            <Text style={styles.backButtonText}>‹ {t('common:back')}</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Смени парола</Text>
+          <Text style={styles.headerTitle}>{t('changePassword')}</Text>
           <Text style={styles.headerSubtitle}>
-            Изберете силна парола за защита на профила си
+            {t('chooseStrongPassword')}
           </Text>
         </View>
 
@@ -123,7 +125,7 @@ const ChangePasswordScreen: React.FC = () => {
                 style={styles.eyeButton}
                 onPress={() => setShowCurrentPassword(!showCurrentPassword)}
               >
-                <Text style={styles.eyeIcon}>{showCurrentPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <Text style={styles.eyeIcon}>{showCurrentPassword ? '�' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -144,7 +146,7 @@ const ChangePasswordScreen: React.FC = () => {
                 style={styles.eyeButton}
                 onPress={() => setShowNewPassword(!showNewPassword)}
               >
-                <Text style={styles.eyeIcon}>{showNewPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <Text style={styles.eyeIcon}>{showNewPassword ? '�' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.hint}>Минимум 6 символа</Text>
@@ -166,7 +168,7 @@ const ChangePasswordScreen: React.FC = () => {
                 style={styles.eyeButton}
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
               >
-                <Text style={styles.eyeIcon}>{showConfirmPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <Text style={styles.eyeIcon}>{showConfirmPassword ? '�' : '👁️'}</Text>
               </TouchableOpacity>
             </View>
           </View>

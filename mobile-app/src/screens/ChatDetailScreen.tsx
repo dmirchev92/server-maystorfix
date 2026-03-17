@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -30,6 +31,7 @@ interface RouteParams {
 }
 
 function ChatDetailScreen() {
+  const { t } = useTranslation('common');
   const route = useRoute();
   const navigation = useNavigation();
   const { conversationId: initialConversationId, providerId, providerName } = route.params as RouteParams;
@@ -152,7 +154,7 @@ function ChatDetailScreen() {
             await loadMessagesForConversation(realConversationId);
           } else {
             Logger.error('❌ Failed to create conversation:', createResponse.error);
-            Alert.alert('Грешка', 'Не успяхме да създадем чат. Моля, опитайте отново.');
+            Alert.alert(t('error'), t('createChatError'));
           }
         } else {
           // Load messages for existing conversation
@@ -162,7 +164,7 @@ function ChatDetailScreen() {
 
     } catch (error) {
       Logger.error('❌ ChatDetailScreen - Error initializing chat:', error);
-      Alert.alert('Грешка', 'Не успяхме да заредим чата. Моля, опитайте отново.');
+      Alert.alert(t('error'), t('loadChatError'));
     } finally {
       setIsLoading(false);
     }
@@ -225,7 +227,7 @@ function ChatDetailScreen() {
     // Don't allow sending to new_ conversations (should be created first)
     if (actualConversationId.startsWith('new_')) {
       Logger.warn('⚠️ Cannot send message - conversation not yet created');
-      Alert.alert('Моля изчакайте', 'Чатът се създава...');
+      Alert.alert(t('pleaseWait'), t('chatCreating'));
       return;
     }
 
@@ -384,7 +386,7 @@ function ChatDetailScreen() {
             onPress={() => setShowCaseModal(true)}
           >
             <Text style={styles.headerActionIcon}>📋</Text>
-            <Text style={styles.headerActionText}>Заявка</Text>
+            <Text style={styles.headerActionText}>{t('case')}</Text>
           </TouchableOpacity>
         </View>
 

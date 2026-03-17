@@ -71,10 +71,7 @@ export default function PricingPage() {
           </div>
 
           {/* Normal Tier */}
-          <div className="bg-gradient-to-b from-green-900/30 to-slate-800/50 backdrop-blur-md border-2 border-green-500/50 rounded-2xl p-8 relative transform md:scale-105">
-            <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-              Препоръчан
-            </div>
+          <div className="bg-gradient-to-b from-green-900/30 to-slate-800/50 backdrop-blur-md border border-green-500/30 rounded-2xl p-8 relative">
             
             <div className="text-center mb-6">
               <span className="text-4xl mb-4 block">⭐</span>
@@ -105,7 +102,7 @@ export default function PricingPage() {
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">🎁</span>
-                <span className="text-green-400">+10% бонус точки при първа покупка (получавате <strong>1,100 точки</strong> вместо 1,000)</span>
+                <span className="text-green-400"><strong>10% отстъпка</strong> при първа покупка (спестявате <strong>140 €</strong> годишно или <strong>13 €</strong> месечно)</span>
               </li>
               <li className="flex items-start gap-2 text-slate-300">
                 <span className="text-green-400 mt-1">✓</span>
@@ -144,9 +141,9 @@ export default function PricingPage() {
           </div>
 
           {/* Pro Tier */}
-          <div className="bg-gradient-to-b from-purple-900/30 to-slate-800/50 backdrop-blur-md border border-purple-500/30 rounded-2xl p-8 relative">
+          <div className="bg-gradient-to-b from-purple-900/30 to-slate-800/50 backdrop-blur-md border-2 border-purple-500/50 rounded-2xl p-8 relative transform md:scale-105">
             <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-purple-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-              👑 PRO
+              Препоръчан
             </div>
             
             <div className="text-center mb-6">

@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -24,6 +25,7 @@ import theme from '../styles/theme';
 const { width } = Dimensions.get('window');
 
 export default function CustomerDashboardScreen() {
+  const { t } = useTranslation('dashboard');
   const navigation = useNavigation<any>();
   const [user, setUser] = useState<any>(null);
   const [recentCases, setRecentCases] = useState<any[]>([]);
@@ -147,7 +149,7 @@ export default function CustomerDashboardScreen() {
     if (phone) {
       Linking.openURL(`tel:${phone}`);
     } else {
-      Alert.alert('Няма телефон', 'Този специалист не е предоставил телефонен номер.');
+      Alert.alert(t('noPhone'), t('noPhoneMessage'));
     }
   };
 
@@ -179,12 +181,12 @@ export default function CustomerDashboardScreen() {
 
   const handleLogout = async () => {
     Alert.alert(
-      'Изход',
-      'Сигурни ли сте, че искате да излезете?',
+      t('logout'),
+      t('logoutConfirm'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         { 
-          text: 'Изход', 
+          text: t('logout'), 
           style: 'destructive',
           onPress: async () => {
             try {
@@ -217,12 +219,12 @@ export default function CustomerDashboardScreen() {
             </Text>
           </View>
           <View style={styles.userInfo}>
-            <Text style={styles.welcomeText}>Добре дошли,</Text>
+            <Text style={styles.welcomeText}>{t('welcome')}</Text>
             <Text style={styles.userName}>
-              {user ? `${user.firstName} ${user.lastName}` : 'Клиент'}
+              {user ? `${user.firstName} ${user.lastName}` : t('client')}
             </Text>
             <View style={styles.serviceTypesContainer}>
-              <Text style={styles.userRole}>Клиент</Text>
+              <Text style={styles.userRole}>{t('client')}</Text>
             </View>
           </View>
         </View>
@@ -237,21 +239,21 @@ export default function CustomerDashboardScreen() {
           <Text style={styles.kpiValue}>{activeCasesCount}</Text>
           <View style={styles.kpiLabelRow}>
             <Text style={styles.kpiIcon}>📋</Text>
-            <Text style={styles.kpiLabelText}>Активни заявки</Text>
+            <Text style={styles.kpiLabelText}>{t('activeCases')}</Text>
           </View>
         </View>
         <View style={[styles.kpiCard, styles.kpiMessages]}>
           <Text style={styles.kpiValue}>{unreadMessagesCount}</Text>
           <View style={styles.kpiLabelRow}>
             <Text style={styles.kpiIcon}>💬</Text>
-            <Text style={styles.kpiLabelText}>Съобщения</Text>
+            <Text style={styles.kpiLabelText}>{t('messages')}</Text>
           </View>
         </View>
       </View>
 
       {/* Quick Actions Grid */}
       <View style={styles.navigationGrid}>
-        <Text style={styles.navigationTitle}>Бързи действия</Text>
+        <Text style={styles.navigationTitle}>{t('quickActions')}</Text>
         
         <View style={styles.navigationRow}>
           <TouchableOpacity 
@@ -259,7 +261,7 @@ export default function CustomerDashboardScreen() {
             onPress={() => navigation.navigate('CreateCase')}
           >
             <Text style={styles.navIcon}>➕</Text>
-            <Text style={styles.navLabel}>Нова заявка</Text>
+            <Text style={styles.navLabel}>{t('newCase')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -267,7 +269,7 @@ export default function CustomerDashboardScreen() {
             onPress={() => navigation.navigate('MyCases')}
           >
             <Text style={styles.navIcon}>📋</Text>
-            <Text style={styles.navLabel}>Моите заявки</Text>
+            <Text style={styles.navLabel}>{t('myCases')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -275,7 +277,7 @@ export default function CustomerDashboardScreen() {
             onPress={() => navigation.navigate('Search')}
           >
             <Text style={styles.navIcon}>🔍</Text>
-            <Text style={styles.navLabel}>Търсене</Text>
+            <Text style={styles.navLabel}>{t('search')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -285,7 +287,7 @@ export default function CustomerDashboardScreen() {
             onPress={() => navigation.navigate('Chat')}
           >
             <Text style={styles.navIcon}>💬</Text>
-            <Text style={styles.navLabel}>Чат</Text>
+            <Text style={styles.navLabel}>{t('chat')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -293,7 +295,7 @@ export default function CustomerDashboardScreen() {
             onPress={() => navigation.getParent()?.navigate('MapSearch')}
           >
             <Text style={styles.navIcon}>🗺️</Text>
-            <Text style={styles.navLabel}>Карта</Text>
+            <Text style={styles.navLabel}>{t('map')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -301,7 +303,7 @@ export default function CustomerDashboardScreen() {
             onPress={() => navigation.navigate('Settings')}
           >
             <Text style={styles.navIcon}>⚙️</Text>
-            <Text style={styles.navLabel}>Настройки</Text>
+            <Text style={styles.navLabel}>{t('settings')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -310,8 +312,8 @@ export default function CustomerDashboardScreen() {
       {vipProviders.length > 0 && (
         <View style={styles.vipSection}>
           <View style={styles.vipHeader}>
-            <Text style={styles.vipTitle}>👑 VIP Специалисти</Text>
-            <Text style={styles.vipSubtitle}>Платена видимост</Text>
+            <Text style={styles.vipTitle}>👑 {t('vipSpecialists')}</Text>
+            <Text style={styles.vipSubtitle}>{t('paidVisibility')}</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.vipScroll}>
             {vipProviders.map((provider, index) => (
@@ -349,9 +351,9 @@ export default function CustomerDashboardScreen() {
 
       {/* Recent Activity / Tips could go here */}
       <View style={styles.promoCard}>
-        <Text style={styles.promoTitle}>Намерете майстор</Text>
+        <Text style={styles.promoTitle}>{t('findProfessional')}</Text>
         <Text style={styles.promoText}>
-          Използвайте картата или публикувайте заявка, за да намерите най-добрия професионалист за вашия ремонт.
+          {t('findProfessionalText')}
         </Text>
       </View>
 
@@ -369,9 +371,9 @@ export default function CustomerDashboardScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={closeVipModal} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>← Назад</Text>
+                <Text style={styles.closeButtonText}>← {t('back')}</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>👑 VIP Профил</Text>
+              <Text style={styles.modalTitle}>👑 {t('vipProfile')}</Text>
             </View>
 
             {selectedVip && (
@@ -419,27 +421,27 @@ export default function CustomerDashboardScreen() {
 
                 {/* Quick Info */}
                 <View style={styles.quickInfoSection}>
-                  <Text style={styles.sectionTitle}>Бърза информация</Text>
+                  <Text style={styles.sectionTitle}>{t('quickInfo')}</Text>
                   <View style={styles.quickInfoGrid}>
                     <View style={styles.quickInfoItem}>
                       <Text style={styles.quickInfoIcon}>⭐</Text>
-                      <Text style={styles.quickInfoLabel}>Опит</Text>
+                      <Text style={styles.quickInfoLabel}>{t('experience')}</Text>
                       <Text style={styles.quickInfoValue}>
-                        {selectedVip.experienceYears || 0} год.
+                        {selectedVip.experienceYears || 0} {t('years')}
                       </Text>
                     </View>
                     <View style={styles.quickInfoItem}>
                       <Text style={styles.quickInfoIcon}>📞</Text>
-                      <Text style={styles.quickInfoLabel}>Телефон</Text>
+                      <Text style={styles.quickInfoLabel}>{t('phone')}</Text>
                       <Text style={styles.quickInfoValue} numberOfLines={1}>
-                        {selectedVip.phoneNumber || 'Няма'}
+                        {selectedVip.phoneNumber || t('common:none')}
                       </Text>
                     </View>
                     <View style={styles.quickInfoItem}>
                       <Text style={styles.quickInfoIcon}>💰</Text>
-                      <Text style={styles.quickInfoLabel}>Цена/час</Text>
+                      <Text style={styles.quickInfoLabel}>{t('pricePerHour')}</Text>
                       <Text style={styles.quickInfoValue} numberOfLines={1}>
-                        {selectedVip.hourlyRate ? `${selectedVip.hourlyRate} €` : 'По договаряне'}
+                        {selectedVip.hourlyRate ? `${selectedVip.hourlyRate} €` : t('negotiable')}
                       </Text>
                     </View>
                   </View>
@@ -447,7 +449,7 @@ export default function CustomerDashboardScreen() {
 
                 {/* Description */}
                 <View style={styles.descriptionSection}>
-                  <Text style={styles.sectionTitle}>За мен</Text>
+                  <Text style={styles.sectionTitle}>{t('aboutMe')}</Text>
                   <Text style={styles.descriptionText}>
                     {selectedVip.description || 
                      `Професионални ${getCategoryLabel(selectedVip.categoryId || selectedVip.serviceCategory || '').toLowerCase()} услуги с качество и гаранция.`}
@@ -457,7 +459,7 @@ export default function CustomerDashboardScreen() {
                 {/* Gallery */}
                 {selectedVip.gallery && selectedVip.gallery.length > 0 && (
                   <View style={styles.gallerySection}>
-                    <Text style={styles.sectionTitle}>📸 Галерия</Text>
+                    <Text style={styles.sectionTitle}>📸 {t('gallery')}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       {selectedVip.gallery.map((imgUrl: string, idx: number) => (
                         <TouchableOpacity key={idx} onPress={() => Linking.openURL(imgUrl)}>
@@ -470,7 +472,7 @@ export default function CustomerDashboardScreen() {
 
                 {/* Reviews */}
                 <View style={styles.reviewsSection}>
-                  <Text style={styles.sectionTitle}>🌟 Отзиви</Text>
+                  <Text style={styles.sectionTitle}>🌟 {t('reviews')}</Text>
                   {reviewsLoading ? (
                     <ActivityIndicator color="#818cf8" style={{ marginVertical: 20 }} />
                   ) : vipReviews.length > 0 ? (

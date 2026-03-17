@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -31,7 +32,8 @@ interface Bid {
   customer_name?: string;
 }
 
-const MyBidsScreen: React.FC = () => {
+export default function MyBidsScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const [bids, setBids] = useState<Bid[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,10 +70,10 @@ const MyBidsScreen: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: any = {
-      pending: { label: 'Чакаща', color: '#f59e0b', icon: '⏳' },
-      won: { label: 'Спечелена', color: '#10b981', icon: '🎉' },
-      lost: { label: 'Загубена', color: '#ef4444', icon: '❌' },
-      refunded: { label: 'Възстановена', color: '#6b7280', icon: '↩️' },
+      pending: { label: t('bidPending'), color: '#f59e0b', icon: '⏳' },
+      won: { label: t('bidWon'), color: '#10b981', icon: '🎉' },
+      lost: { label: t('bidLost'), color: '#ef4444', icon: '❌' },
+      refunded: { label: t('bidRefunded'), color: '#6b7280', icon: '↩️' },
     };
     
     const config = statusConfig[status] || { label: status, color: '#6b7280', icon: '•' };
@@ -94,7 +96,7 @@ const MyBidsScreen: React.FC = () => {
     const caseDisplay = bid.case_number ? bid.case_number.toString() : (bid.case_id ? bid.case_id.substring(0, 8) : '');
     navigation.navigate('CaseBids', {
       caseId: bid.case_id,
-      caseDescription: bid.case_description || `Заявка #${caseDisplay}`,
+      caseDescription: bid.case_description || `${t('case')} #${caseDisplay}`,
     });
   };
 
@@ -102,7 +104,7 @@ const MyBidsScreen: React.FC = () => {
     const caseDisplay = item.case_number ? item.case_number.toString() : (item.case_id ? item.case_id.substring(0, 8) : '');
     const displayTitle = item.case_description 
       ? `${item.case_description} #${caseDisplay}`
-      : `Заявка #${caseDisplay}`;
+      : `${t('case')} #${caseDisplay}`;
     
     return (
       <TouchableOpacity 
@@ -123,27 +125,27 @@ const MyBidsScreen: React.FC = () => {
       <View style={styles.bidDetails}>
         {(item.case_budget || item.budget) && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>💰 Бюджет клиент:</Text>
+            <Text style={styles.detailLabel}>💰 {t('clientBudget')}:</Text>
             <Text style={styles.detailValue}>{item.case_budget || item.budget} €</Text>
           </View>
         )}
         
         {item.proposed_budget_range && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>💵 Ваша оферта:</Text>
+            <Text style={styles.detailLabel}>💵 {t('yourOffer')}:</Text>
             <Text style={styles.detailValue}>{item.proposed_budget_range} €</Text>
           </View>
         )}
         
         {(item.case_city || item.city) && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>📍 Град:</Text>
+            <Text style={styles.detailLabel}>📍 {t('city')}:</Text>
             <Text style={styles.detailValue}>{item.case_city || item.city}</Text>
           </View>
         )}
 
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>💎 Точки:</Text>
+          <Text style={styles.detailLabel}>💎 {t('points')}:</Text>
           <Text style={[
             styles.detailValue,
             item.bid_status === 'won' ? styles.pointsWon : 
@@ -151,13 +153,13 @@ const MyBidsScreen: React.FC = () => {
             styles.pointsPending
           ]}>
             {item.bid_status === 'won' ? `-${item.points_bid}` :
-             item.bid_status === 'lost' ? `-${item.points_deducted} (${Math.round((item.points_bid - item.points_deducted) / item.points_bid * 100)}% възстановени)` :
-             `-${item.points_bid} (резервирани)`}
+             item.bid_status === 'lost' ? `-${item.points_deducted} (${Math.round((item.points_bid - item.points_deducted) / item.points_bid * 100)}% ${t('refunded')})` :
+             `-${item.points_bid} (${t('reserved')})`}
           </Text>
         </View>
 
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>📅 Дата:</Text>
+          <Text style={styles.detailLabel}>📅 {t('date')}:</Text>
           <Text style={styles.detailValue}>
             {new Date(item.created_at).toLocaleDateString('bg-BG')}
           </Text>
@@ -165,7 +167,7 @@ const MyBidsScreen: React.FC = () => {
       </View>
       
       <View style={styles.viewCaseHint}>
-        <Text style={styles.viewCaseHintText}>Натисни за детайли →</Text>
+        <Text style={styles.viewCaseHintText}>{t('tapForDetails')} →</Text>
       </View>
     </TouchableOpacity>
   );
@@ -175,7 +177,7 @@ const MyBidsScreen: React.FC = () => {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
-        <Text style={styles.loadingText}>Зареждане...</Text>
+        <Text style={styles.loadingText}>{t('loading')}</Text>
       </View>
     );
   }
@@ -183,9 +185,9 @@ const MyBidsScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Моите оферти</Text>
+        <Text style={styles.headerTitle}>{t('common:myBids')}</Text>
         <Text style={styles.headerSubtitle}>
-          {bids.length} {bids.length === 1 ? 'оферта' : 'оферти'}
+          {bids.length} {bids.length === 1 ? t('common:bid') : t('common:bidsPlural')}
         </Text>
       </View>
 
@@ -196,7 +198,7 @@ const MyBidsScreen: React.FC = () => {
           onPress={() => setFilter('all')}
         >
           <Text style={[styles.filterText, filter === 'all' && styles.filterTextActive]}>
-            Всички ({bids.length})
+            {t('all')} ({bids.length})
           </Text>
         </TouchableOpacity>
         
@@ -205,7 +207,7 @@ const MyBidsScreen: React.FC = () => {
           onPress={() => setFilter('pending')}
         >
           <Text style={[styles.filterText, filter === 'pending' && styles.filterTextActive]}>
-            Чакащи ({bids.filter(b => b.bid_status === 'pending').length})
+            {t('bidPending')} ({bids.filter(b => b.bid_status === 'pending').length})
           </Text>
         </TouchableOpacity>
         
@@ -214,7 +216,7 @@ const MyBidsScreen: React.FC = () => {
           onPress={() => setFilter('won')}
         >
           <Text style={[styles.filterText, filter === 'won' && styles.filterTextActive]}>
-            Спечелени ({bids.filter(b => b.bid_status === 'won').length})
+            {t('bidWon')} ({bids.filter(b => b.bid_status === 'won').length})
           </Text>
         </TouchableOpacity>
         
@@ -223,7 +225,7 @@ const MyBidsScreen: React.FC = () => {
           onPress={() => setFilter('lost')}
         >
           <Text style={[styles.filterText, filter === 'lost' && styles.filterTextActive]}>
-            Загубени ({bids.filter(b => b.bid_status === 'lost').length})
+            {t('bidLost')} ({bids.filter(b => b.bid_status === 'lost').length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -241,8 +243,8 @@ const MyBidsScreen: React.FC = () => {
             <Text style={styles.emptyIcon}>📭</Text>
             <Text style={styles.emptyText}>
               {filter === 'all' 
-                ? 'Все още нямате оферти'
-                : `Няма ${filter === 'pending' ? 'чакащи' : filter === 'won' ? 'спечелени' : 'загубени'} оферти`}
+                ? t('noBidsYet')
+                : `${t('no')} ${filter === 'pending' ? t('bidPending').toLowerCase() : filter === 'won' ? t('bidWon').toLowerCase() : t('bidLost').toLowerCase()} ${t('bidsPlural').toLowerCase()}`}
             </Text>
           </View>
         }

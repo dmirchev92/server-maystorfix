@@ -1,5 +1,5 @@
 import { Logger } from '../utils/Logger';
-import { Alert, Linking, Platform, PermissionsAndroid } from 'react-native';
+import { Alert, Linking } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 
 const API_BASE_URL = 'https://snapfix.bg/api/v1';
@@ -102,68 +102,36 @@ class UpdateService {
 
     buttons.push({
       text: 'Обнови сега',
-      onPress: () => this.downloadAndInstall(versionInfo.downloadUrl),
+      onPress: () => this.openPlayStore(),
     });
 
     Alert.alert(title, message, buttons, { cancelable: !forceUpdate });
   }
 
   /**
-   * Request storage permission for Android
+   * Open the app in Google Play Store for updates
    */
-  private async requestStoragePermission(): Promise<boolean> {
-    if (Platform.OS !== 'android') return true;
+  async openPlayStore(): Promise<void> {
+    const packageName = 'com.servicetextpro';
+    const playStoreUrl = `market://details?id=${packageName}`;
+    const browserUrl = `https://play.google.com/store/apps/details?id=${packageName}`;
 
     try {
-      // For Android 10+ (API 29+), we don't need WRITE_EXTERNAL_STORAGE for app-specific directories
-      const androidVersion = Platform.Version;
-      if (typeof androidVersion === 'number' && androidVersion >= 29) {
-        return true;
-      }
-
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-        {
-          title: 'Разрешение за съхранение',
-          message: 'Приложението се нуждае от достъп за изтегляне на обновлението',
-          buttonNeutral: 'Питай ме по-късно',
-          buttonNegative: 'Откажи',
-          buttonPositive: 'Разреши',
-        }
-      );
-
-      return granted === PermissionsAndroid.RESULTS.GRANTED;
-    } catch (err) {
-      Logger.error('Permission error:', err);
-      return false;
-    }
-  }
-
-  /**
-   * Download APK by opening the URL in the browser.
-   * RNFetchBlob crashes on Android 14+ (targetSdk 34+) due to registerReceiver
-   * requiring RECEIVER_EXPORTED flag. Using Linking.openURL lets the system
-   * browser/download manager handle the APK download safely.
-   */
-  async downloadAndInstall(downloadUrl: string): Promise<void> {
-    if (Platform.OS !== 'android') {
-      Alert.alert('Информация', 'Автоматичното обновление е налично само за Android. Моля посетете App Store за обновление.');
-      return;
-    }
-
-    try {
-      Logger.debug('📥 Opening download URL in browser:', downloadUrl);
-      const supported = await Linking.canOpenURL(downloadUrl);
-      if (supported) {
-        await Linking.openURL(downloadUrl);
+      Logger.debug('📱 Opening Google Play Store for update');
+      
+      // Try to open Play Store app first
+      const canOpenPlayStore = await Linking.canOpenURL(playStoreUrl);
+      if (canOpenPlayStore) {
+        await Linking.openURL(playStoreUrl);
       } else {
-        Alert.alert('Грешка', 'Не може да се отвори линкът за изтегляне.');
+        // Fallback to browser if Play Store app not available
+        await Linking.openURL(browserUrl);
       }
     } catch (error: any) {
-      Logger.error('❌ Download error:', error);
+      Logger.error('❌ Error opening Play Store:', error);
       Alert.alert(
-        'Грешка при изтегляне',
-        `Не успяхме да отворим линка: ${error.message}`,
+        'Грешка',
+        'Не може да се отвори Google Play Store. Моля, обновете приложението ръчно.',
         [{ text: 'OK' }]
       );
     }

@@ -5,6 +5,7 @@ import axios from 'axios';
 import logger from '../utils/logger';
 import { maskPhone } from '../utils/phonePrivacy';
 import { ServiceTextProError } from '../types';
+import { TESTING_CONFIG } from '../config/testingConfig';
 
 interface MobicaSMSRequest {
   user: string;
@@ -203,6 +204,19 @@ export class MobicaService {
     error?: string;
   }> {
     try {
+      // TESTING: Check if international SMS is allowed
+      const isBulgarianNumber = phoneNumber.startsWith('+359') || phoneNumber.startsWith('359');
+      
+      if (!TESTING_CONFIG.ALLOW_INTERNATIONAL_SMS && !isBulgarianNumber) {
+        logger.warn('🚫 [MOBICA] International SMS blocked by testing config', {
+          phone: maskPhone(phoneNumber),
+          userId
+        });
+        return {
+          success: false,
+          error: 'SMS to international numbers is currently disabled. Bulgarian numbers only.'
+        };
+      }
       // Note: No GDPR consent check here - SMS is a business feature controlled by SP's settings/subscription
       // The SP is the data controller sending SMS to their customers, not a user data protection issue
 

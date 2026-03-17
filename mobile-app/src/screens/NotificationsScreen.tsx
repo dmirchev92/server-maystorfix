@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -26,6 +27,7 @@ interface Notification {
 }
 
 export default function NotificationsScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,7 +204,7 @@ export default function NotificationsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Известия</Text>
+        <Text style={styles.headerTitle}>{t('common:notifications')}</Text>
         {notifications.some(n => !n.read) && (
           <TouchableOpacity
             onPress={async () => {

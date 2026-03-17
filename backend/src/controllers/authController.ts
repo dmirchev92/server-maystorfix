@@ -10,6 +10,7 @@ import { GDPRService } from '../services/GDPRService';
 import { authenticateToken } from '../middleware/auth';
 import { loginSecurity, rateLimits, inputSanitization } from '../middleware/advancedSecuritySimple';
 import config from '../utils/config';
+import { TESTING_CONFIG } from '../config/testingConfig';
 import logger, { gdprLogger } from '../utils/logger';
 import {
   UserRole,
@@ -79,6 +80,17 @@ const validateRegistration = [
   
   body('phoneNumber')
     .custom((value) => {
+      // TESTING: Allow international phones if flag enabled
+      if (TESTING_CONFIG.ALLOW_INTERNATIONAL_PHONES) {
+        // Accept any international format: +XXX followed by 7-14 digits
+        const internationalFormat = /^\+[1-9][0-9]{7,14}$/;
+        if (!internationalFormat.test(value)) {
+          throw new Error('Телефонният номер трябва да започва с + и код на държава (например: +359888123456, +1234567890)');
+        }
+        return true;
+      }
+      
+      // Production: Bulgaria only
       // Accept +359 format or 0 format for Bulgarian numbers
       const plusFormat = /^\+359[0-9]{8,9}$/;
       const zeroFormat = /^0[0-9]{8,9}$/;

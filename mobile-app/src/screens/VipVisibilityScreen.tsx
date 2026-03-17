@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -76,7 +77,28 @@ interface LeaderboardEntry {
   isBuyout: boolean;
 }
 
+const CITY_MAP: { [key: string]: string } = {
+  'София': 'city_sofia', 'Пловдив': 'city_plovdiv', 'Варна': 'city_varna',
+  'Бургас': 'city_burgas', 'Русе': 'city_ruse', 'Стара Загора': 'city_starazagora',
+  'Плевен': 'city_pleven', 'Сливен': 'city_sliven', 'Добрич': 'city_dobrich',
+  'Шумен': 'city_shumen', 'Перник': 'city_pernik', 'Хасково': 'city_haskovo',
+  'Ямбол': 'city_yambol', 'Пазарджик': 'city_pazardzhik', 'Благоевград': 'city_blagoevgrad',
+  'Велико Търново': 'city_velikotarnovo', 'Враца': 'city_vratsa', 'Габрово': 'city_gabrovo',
+  'Видин': 'city_vidin', 'Кюстендил': 'city_kyustendil', 'Монтана': 'city_montana',
+  'Ловеч': 'city_lovech', 'Смолян': 'city_smolyan', 'Банско': 'city_bansko',
+  'Петрич': 'city_petrich', 'Самоков': 'city_samokov', 'Троян': 'city_troyan',
+  'Казанлък': 'city_kazanlak', 'Асеновград': 'city_asenovgrad', 'Дупница': 'city_dupnitsa',
+  'Сандански': 'city_sandanski', 'Севлиево': 'city_sevlievo', 'Карлово': 'city_karlovo',
+  'Велинград': 'city_velingrad', 'Ботевград': 'city_botevgrad', 'Димитровград': 'city_dimitrovgrad',
+  'Силистра': 'city_silistra', 'Разград': 'city_razgrad', 'Търговище': 'city_targovishte',
+  'Свиленград': 'city_svilengrad', 'Харманли': 'city_harmanli', 'Лом': 'city_lom',
+  'Несебър': 'city_nesebar', 'Поморие': 'city_pomorie', 'Созопол': 'city_sozopol',
+  'Гоце Делчев': 'city_gotseDelchev', 'Айтос': 'city_aytos', 'Чирпан': 'city_chirpan',
+  'Панагюрище': 'city_panagyurishte',
+};
+
 const VipVisibilityScreen: React.FC = () => {
+  const { t, i18n } = useTranslation('common');
   const navigation = useNavigation();
   const apiService = ApiService.getInstance();
 
@@ -135,13 +157,24 @@ const VipVisibilityScreen: React.FC = () => {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('bg-BG', {
+    const locale = i18n.language === 'en' ? 'en-US' : 'bg-BG';
+    return date.toLocaleDateString(locale, {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const getCategoryLabel = (categoryId: string, fallbackLabel: string) => {
+    // Backend already provides the translated Bulgarian label in categoryLabelBg
+    return fallbackLabel;
+  };
+
+  const getCityLabel = (city: string) => {
+    const key = CITY_MAP[city];
+    return key ? t(key) : city;
   };
 
   const openBidModal = (auction: VipAuction) => {
@@ -180,7 +213,7 @@ const VipVisibilityScreen: React.FC = () => {
     
     const increment = parseInt(bidAmount);
     if (isNaN(increment) || increment < (config?.minBidIncrement || 5)) {
-      Alert.alert('Грешка', `Минималното увеличение е ${config?.minBidIncrement || 5} точки.`);
+      Alert.alert(t('error'), `${t('vipMinBidIncrement')} ${config?.minBidIncrement || 5} ${t('points').toLowerCase()}.`);
       return;
     }
 
@@ -193,14 +226,14 @@ const VipVisibilityScreen: React.FC = () => {
       );
 
       if (res.success) {
-        Alert.alert('Успех', res.data?.message || 'Офертата е успешно повишена.');
+        Alert.alert(t('success'), res.data?.message || t('vipBidSuccess'));
         setBidModalVisible(false);
         fetchData();
       } else {
-        Alert.alert('Грешка', res.error?.message || 'Възникна грешка при наддаването.');
+        Alert.alert(t('error'), res.error?.message || t('vipBidError'));
       }
     } catch (error) {
-      Alert.alert('Грешка', 'Възникна грешка при наддаването.');
+      Alert.alert(t('error'), t('vipBidError'));
     } finally {
       setActionLoading(false);
     }
@@ -212,25 +245,25 @@ const VipVisibilityScreen: React.FC = () => {
       : config?.searchVip.buyoutPoints;
 
     Alert.alert(
-      'Потвърждение',
-      `Сигурен ли си, че искаш да закупиш VIP слот за ${buyoutPoints} точки?\n\nТочките ще бъдат удържани веднага.`,
+      t('confirm'),
+      `${t('vipBuyoutConfirm')} ${buyoutPoints} ${t('points').toLowerCase()}?\n\n${t('vipPointsDeductedImmediately')}`,
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: 'Закупи',
+          text: t('vipBuyoutBtn'),
           style: 'destructive',
           onPress: async () => {
             setActionLoading(true);
             try {
               const res = await apiService.buyoutVipSlot(auction.vipType, auction.categoryId);
               if (res.success) {
-                Alert.alert('Успех', res.data?.message || 'VIP слотът е закупен успешно!');
+                Alert.alert(t('success'), res.data?.message || t('vipBuyoutSuccess'));
                 fetchData();
               } else {
-                Alert.alert('Грешка', res.error?.message || 'Възникна грешка при закупуването.');
+                Alert.alert(t('error'), res.error?.message || t('vipBuyoutError'));
               }
             } catch (error) {
-              Alert.alert('Грешка', 'Възникна грешка при закупуването.');
+              Alert.alert(t('error'), t('vipBuyoutError'));
             } finally {
               setActionLoading(false);
             }
@@ -259,7 +292,7 @@ const VipVisibilityScreen: React.FC = () => {
       >
         <View style={styles.emptyContainer}>
           <Text style={{ fontSize: 64 }}>👑</Text>
-          <Text style={styles.emptyText}>VIP функцията не е активна</Text>
+          <Text style={styles.emptyText}>{t('vipNotActive')}</Text>
         </View>
       </LinearGradient>
     );
@@ -281,7 +314,7 @@ const VipVisibilityScreen: React.FC = () => {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={{ fontSize: 24, color: '#fff' }}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>VIP Видимост</Text>
+          <Text style={styles.headerTitle}>{t('vipVisibility')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -289,26 +322,26 @@ const VipVisibilityScreen: React.FC = () => {
         <View style={styles.balanceCard}>
           <View style={styles.balanceRow}>
             <View>
-              <Text style={styles.balanceLabel}>Налични точки</Text>
+              <Text style={styles.balanceLabel}>{t('availablePoints')}</Text>
               <Text style={styles.balanceValue}>{pointsBalance}</Text>
             </View>
             <View style={styles.auctionStatus}>
               {config.isAuctionOpen ? (
                 <>
                   <View style={[styles.statusDot, { backgroundColor: theme.colors.success.solid }]} />
-                  <Text style={styles.statusText}>Търгът е отворен</Text>
+                  <Text style={styles.statusText}>{t('vipAuctionOpen')}</Text>
                 </>
               ) : (
                 <>
                   <View style={[styles.statusDot, { backgroundColor: theme.colors.gray[400] }]} />
-                  <Text style={styles.statusText}>Търгът е затворен</Text>
+                  <Text style={styles.statusText}>{t('vipAuctionClosed')}</Text>
                 </>
               )}
             </View>
           </View>
           {!config.isAuctionOpen && config.nextAuction?.startsAt && (
             <Text style={styles.nextAuction}>
-              Следващ търг: {formatDate(config.nextAuction.startsAt)}
+              {t('vipNextAuction')}: {formatDate(config.nextAuction.startsAt)}
             </Text>
           )}
         </View>
@@ -316,11 +349,11 @@ const VipVisibilityScreen: React.FC = () => {
         {/* Current Placements */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            👑 Активни VIP слотове
+            👑 {t('vipActiveSlots')}
           </Text>
           {placements.length === 0 ? (
             <View style={styles.emptySection}>
-              <Text style={styles.emptySectionText}>Нямате активни VIP слотове</Text>
+              <Text style={styles.emptySectionText}>{t('vipNoActiveSlots')}</Text>
             </View>
           ) : (
             placements.map((placement, index) => (
@@ -331,19 +364,19 @@ const VipVisibilityScreen: React.FC = () => {
                     { backgroundColor: placement.vipType === 'HOMEPAGE_VIP' ? '#FFD700' : '#C0C0C0' }
                   ]}>
                     <Text style={styles.vipTypeBadgeText}>
-                      {placement.vipType === 'HOMEPAGE_VIP' ? 'Начална' : 'Търсене'}
+                      {placement.vipType === 'HOMEPAGE_VIP' ? t('homepage') : t('search')}
                     </Text>
                   </View>
                   <Text style={styles.placementRank}>#{placement.rank}</Text>
                 </View>
-                <Text style={styles.placementCategory}>{placement.categoryLabelBg}</Text>
+                <Text style={styles.placementCategory}>{getCategoryLabel(placement.categoryId, placement.categoryLabelBg)}</Text>
                 {placement.city && (
-                  <Text style={styles.placementCity}>{placement.city}</Text>
+                  <Text style={styles.placementCity}>{getCityLabel(placement.city)}</Text>
                 )}
                 <View style={styles.placementFooter}>
-                  <Text style={styles.placementPoints}>{placement.pointsSpent} точки</Text>
+                  <Text style={styles.placementPoints}>{placement.pointsSpent} {t('points').toLowerCase()}</Text>
                   <Text style={styles.placementExpires}>
-                    до {formatDate(placement.expiresAt)}
+                    {t('vipUntil')} {formatDate(placement.expiresAt)}
                   </Text>
                 </View>
               </View>
@@ -354,11 +387,11 @@ const VipVisibilityScreen: React.FC = () => {
         {/* Available Auctions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            🔨 Налични търгове
+            🔨 {t('vipAvailableAuctions')}
           </Text>
           {auctions.length === 0 ? (
             <View style={styles.emptySection}>
-              <Text style={styles.emptySectionText}>Няма налични търгове</Text>
+              <Text style={styles.emptySectionText}>{t('vipNoAuctions')}</Text>
             </View>
           ) : (
             auctions.map((auction, index) => (
@@ -369,33 +402,33 @@ const VipVisibilityScreen: React.FC = () => {
                     { backgroundColor: auction.vipType === 'HOMEPAGE_VIP' ? '#FFD700' : '#C0C0C0' }
                   ]}>
                     <Text style={styles.vipTypeBadgeText}>
-                      {auction.vipType === 'HOMEPAGE_VIP' ? 'Начална страница' : 'Търсене'}
+                      {auction.vipType === 'HOMEPAGE_VIP' ? t('homepage') : t('search')}
                     </Text>
                   </View>
                   <Text style={styles.slotsRemaining}>
-                    {auction.slotsRemaining} свободни
+                    {auction.slotsRemaining} {t('vipSlotsAvailable')}
                   </Text>
                 </View>
                 
-                <Text style={styles.auctionCategory}>{auction.categoryLabelBg}</Text>
+                <Text style={styles.auctionCategory}>{getCategoryLabel(auction.categoryId, auction.categoryLabelBg)}</Text>
                 {auction.city && (
-                  <Text style={styles.auctionCity}>{auction.city}</Text>
+                  <Text style={styles.auctionCity}>{getCityLabel(auction.city)}</Text>
                 )}
 
                 <View style={styles.auctionInfo}>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Начална цена</Text>
-                    <Text style={styles.infoValue}>{auction.startBidPoints} т.</Text>
+                    <Text style={styles.infoLabel}>{t('vipStartPrice')}</Text>
+                    <Text style={styles.infoValue}>{auction.startBidPoints} {t('pointsAbbr')}</Text>
                   </View>
                   <View style={styles.infoItem}>
                     <Text style={styles.infoLabel}>Buyout</Text>
-                    <Text style={styles.infoValue}>{auction.buyoutPoints} т.</Text>
+                    <Text style={styles.infoValue}>{auction.buyoutPoints} {t('pointsAbbr')}</Text>
                   </View>
                   {auction.currentBid && (
                     <View style={styles.infoItem}>
-                      <Text style={styles.infoLabel}>Твоята оферта</Text>
+                      <Text style={styles.infoLabel}>{t('yourOffer')}</Text>
                       <Text style={[styles.infoValue, { color: theme.colors.success.solid }]}>
-                        {auction.currentBid} т. (#{auction.currentRank})
+                        {auction.currentBid} {t('pointsAbbr')} (#{auction.currentRank})
                       </Text>
                     </View>
                   )}
@@ -409,7 +442,7 @@ const VipVisibilityScreen: React.FC = () => {
                         onPress={() => openBidModal(auction)}
                         disabled={actionLoading}
                       >
-                        <Text style={styles.actionButtonText}>➕ Кандидатствай</Text>
+                        <Text style={styles.actionButtonText}>➕ {t('vipApply')}</Text>
                       </TouchableOpacity>
                       
                       {auction.slotsRemaining > 0 && (
@@ -428,7 +461,7 @@ const VipVisibilityScreen: React.FC = () => {
                     style={[styles.actionButton, styles.leaderboardButton]}
                     onPress={() => openLeaderboard(auction)}
                   >
-                    <Text style={styles.actionButtonText}>🏆 Класация</Text>
+                    <Text style={styles.actionButtonText}>🏆 {t('ranking')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -438,40 +471,40 @@ const VipVisibilityScreen: React.FC = () => {
 
         {/* Info Section */}
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Как работи VIP?</Text>
+          <Text style={styles.infoTitle}>{t('vipHowItWorks')}</Text>
           <View style={styles.infoRow}>
             <Text style={{ fontSize: 18, marginRight: 10 }}>📅</Text>
-            <Text style={styles.infoText}>Търгът е отворен всяка неделя от 00:00 до 22:00</Text>
+            <Text style={styles.infoText}>{t('vipInfo1')}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={{ fontSize: 18, marginRight: 10 }}>👑</Text>
-            <Text style={styles.infoText}>VIP се показва от понеделник до неделя (7 дни)</Text>
+            <Text style={styles.infoText}>{t('vipInfo2')}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={{ fontSize: 18, marginRight: 10 }}>🏆</Text>
-            <Text style={styles.infoText}>Топ 3 оферти печелят VIP слот за седмицата</Text>
+            <Text style={styles.infoText}>{t('vipInfo3')}</Text>
           </View>
         </View>
 
         {/* Button Explanations */}
         <View style={styles.infoSection}>
-          <Text style={styles.infoTitle}>Какво правят бутоните?</Text>
+          <Text style={styles.infoTitle}>{t('vipButtonsTitle')}</Text>
           <View style={styles.infoRow}>
             <Text style={{ fontSize: 18, marginRight: 10 }}>➕</Text>
             <Text style={styles.infoText}>
-              <Text style={{ fontWeight: '600', color: '#fff' }}>Кандидатствай</Text> - Участвай в търга с оферта. Точките се удържат само ако спечелиш.
+              <Text style={{ fontWeight: '600', color: '#fff' }}>{t('vipApply')}</Text> - {t('vipApplyDesc')}
             </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={{ fontSize: 18, marginRight: 10 }}>⚡</Text>
             <Text style={styles.infoText}>
-              <Text style={{ fontWeight: '600', color: '#fff' }}>Buyout</Text> - Мигновено закупуване на VIP слот. Точките се удържат веднага и гарантирано получаваш слот.
+              <Text style={{ fontWeight: '600', color: '#fff' }}>Buyout</Text> - {t('vipBuyoutDesc')}
             </Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={{ fontSize: 18, marginRight: 10 }}>🏆</Text>
             <Text style={styles.infoText}>
-              <Text style={{ fontWeight: '600', color: '#fff' }}>Класация</Text> - Виж текущото класиране на всички оферти за този търг.
+              <Text style={{ fontWeight: '600', color: '#fff' }}>{t('ranking')}</Text> - {t('vipRankingDesc')}
             </Text>
           </View>
         </View>
@@ -486,25 +519,25 @@ const VipVisibilityScreen: React.FC = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Наддаване</Text>
+            <Text style={styles.modalTitle}>{t('bidding')}</Text>
             <Text style={styles.modalSubtitle}>
-              {selectedAuction?.categoryLabelBg} - {selectedAuction?.vipType === 'HOMEPAGE_VIP' ? 'Начална страница' : 'Търсене'}
+              {selectedAuction ? getCategoryLabel(selectedAuction.categoryId, selectedAuction.categoryLabelBg) : ''} - {selectedAuction?.vipType === 'HOMEPAGE_VIP' ? t('homepage') : t('search')}
             </Text>
             
             {selectedAuction?.currentBid ? (
               <Text style={styles.currentBidText}>
-                Твоята текуща оферта: {selectedAuction.currentBid} точки
+                {t('vipYourCurrentBid')}: {selectedAuction.currentBid} {t('points').toLowerCase()}
               </Text>
             ) : (
               <Text style={styles.currentBidText}>
-                Нямаш оферта за този търг
+                {t('vipNoBidYet')}
               </Text>
             )}
 
             <Text style={styles.inputLabel}>
               {selectedAuction?.currentBid 
-                ? `Увеличение (мин. ${config?.minBidIncrement} точки)` 
-                : `Оферта в точки`}
+                ? `${t('vipIncrement')} (${t('vipMin')} ${config?.minBidIncrement} ${t('points').toLowerCase()})` 
+                : t('vipBidInPoints')}
             </Text>
             <TextInput
               style={styles.input}
@@ -532,7 +565,7 @@ const VipVisibilityScreen: React.FC = () => {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => setBidModalVisible(false)}
               >
-                <Text style={styles.cancelButtonText}>Отказ</Text>
+                <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.confirmButton]}
@@ -542,7 +575,7 @@ const VipVisibilityScreen: React.FC = () => {
                 {actionLoading ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.confirmButtonText}>Изпрати</Text>
+                  <Text style={styles.confirmButtonText}>{t('send')}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -559,15 +592,15 @@ const VipVisibilityScreen: React.FC = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '70%' }]}>
-            <Text style={styles.modalTitle}>Класация</Text>
+            <Text style={styles.modalTitle}>{t('ranking')}</Text>
             <Text style={styles.modalSubtitle}>
-              {selectedAuction?.categoryLabelBg}
+              {selectedAuction ? getCategoryLabel(selectedAuction.categoryId, selectedAuction.categoryLabelBg) : ''}
             </Text>
 
             {!config?.isAuctionOpen ? (
-              <Text style={styles.leaderboardClosed}>Търгът не е активен</Text>
+              <Text style={styles.leaderboardClosed}>{t('vipAuctionNotActive')}</Text>
             ) : leaderboard.length === 0 ? (
-              <Text style={styles.leaderboardEmpty}>Няма оферти</Text>
+              <Text style={styles.leaderboardEmpty}>{t('vipNoBids')}</Text>
             ) : (
               <ScrollView style={styles.leaderboardList}>
                 {leaderboard.map((entry, index) => (
@@ -584,7 +617,7 @@ const VipVisibilityScreen: React.FC = () => {
                       <Text style={styles.leaderboardBusiness}>{entry.businessName}</Text>
                     </View>
                     <View style={styles.leaderboardBid}>
-                      <Text style={styles.leaderboardBidAmount}>{entry.bidAmount} т.</Text>
+                      <Text style={styles.leaderboardBidAmount}>{entry.bidAmount} {t('pointsAbbr')}</Text>
                       {entry.isBuyout && (
                         <View style={styles.buyoutBadge}>
                           <Text style={styles.buyoutBadgeText}>Buyout</Text>
@@ -600,7 +633,7 @@ const VipVisibilityScreen: React.FC = () => {
               style={[styles.modalButton, styles.closeButton]}
               onPress={() => setLeaderboardVisible(false)}
             >
-              <Text style={styles.closeButtonText}>Затвори</Text>
+              <Text style={styles.closeButtonText}>{t('close')}</Text>
             </TouchableOpacity>
           </View>
         </View>

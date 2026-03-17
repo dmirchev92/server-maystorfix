@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
+import { useTranslation } from 'react-i18next';
 
 interface PrivacySection {
   id: string;
@@ -20,121 +21,55 @@ interface PrivacySection {
 
 const PrivacyScreen: React.FC = () => {
   const { currentMode } = useSelector((state: RootState) => state.app);
+  const { t } = useTranslation('common');
   
   const [sections, setSections] = useState<PrivacySection[]>([
     {
       id: 'data_collection',
-      title: 'Какви данни събираме',
-      content: `Събираме следните видове данни за предоставяне на нашите услуги:
-
-• Лични данни (име, имейл, телефон) при регистрация
-• Бизнес информация (ЕИК, ДДС, категории услуги, сертификати)
-• Профилна информация (снимки, описание, град)
-• Данни за пропуснати обаждания и SMS съобщения
-• Чат съобщения между майстори и клиенти
-• Статистики за приходи и заявки
-• Технически данни (IP адрес, тип устройство)
-
-Всички данни се събират в съответствие с GDPR и само за целите на услугата.`,
+      title: t('data_collection_title'),
+      content: t('data_collection_content'),
       expanded: false,
     },
     {
       id: 'data_usage',
-      title: 'Как използваме данните',
-      content: `Вашите данни се използват за:
-
-• Свързване на майстори с клиенти чрез платформата
-• Изпращане на SMS известия при пропуснати обаждания
-• Чат комуникация между майстори и клиенти
-• Push известия за нови заявки и съобщения
-• Система за случаи (cases) и наддаване (bidding)
-• Бизнес аналитика и статистики
-• Реферална програма и точкова система
-• Спазване на правни изисквания
-
-Не продаваме и не споделяме данните ви с трети страни за маркетинг цели.`,
+      title: t('data_usage_title'),
+      content: t('data_usage_content'),
       expanded: false,
     },
     {
       id: 'sms_communication',
-      title: 'SMS комуникация',
-      content: `Когато пропуснете обаждане, SnapFix може автоматично:
-
-• Да изпрати SMS на клиента с вашия шаблон за отговор
-• Да включи линк за чат, за да продължите разговора
-• Да запише информацията за пропуснатото обаждане
-
-SMS съобщенията се изпращат чрез Mobica SMS API. Вие контролирате шаблона и настройките за автоматични SMS от екрана за SMS настройки.`,
+      title: t('sms_communication_title'),
+      content: t('sms_communication_content'),
       expanded: false,
     },
     {
       id: 'data_storage',
-      title: 'Съхранение и сигурност',
-      content: `Вашите данни се съхраняват:
-
-• На сигурни сървъри в Европейския съюз
-• С криптирана връзка (HTTPS/TLS)
-• С ограничен достъп само за необходимия персонал
-• За периода, необходим за услугата
-• В съответствие с GDPR изискванията
-
-Прилагаме строги мерки за сигурност и редовно проверяваме защитата.`,
+      title: t('data_storage_title'),
+      content: t('data_storage_content'),
       expanded: false,
     },
     {
       id: 'data_rights',
-      title: 'Вашите права според GDPR',
-      content: `Според GDPR имате право на:
-
-• Достъп до всички данни, които съхраняваме (чл. 15)
-• Корекция на неточни данни (чл. 16)
-• Изтриване на данните — право на забвене (чл. 17)
-• Ограничаване на обработката (чл. 18)
-• Пренос на данните в машиночетим формат (чл. 20)
-• Възражение срещу обработката (чл. 21)
-• Оттегляне на съгласие по всяко време
-
-Упражнете правата си от екран "Права на данните" или пишете на admin@snapfix.bg.`,
+      title: t('data_rights_title'),
+      content: t('data_rights_content'),
       expanded: false,
     },
     {
       id: 'data_retention',
-      title: 'Период на съхранение',
-      content: `Данните се съхраняват за следните периоди:
-
-• Бизнес данни и профил: 60 месеца (5 години)
-• Чат разговори: 24 месеца (2 години)
-• Аналитика и статистики: 12 месеца (1 година)
-• Одитни записи: 84 месеца (7 години)
-• Данни за фактуриране: 84 месеца (7 години — законово изискване)
-
-След изтичането на периода, данните се изтриват или анонимизират автоматично.`,
+      title: t('data_retention_title'),
+      content: t('data_retention_content'),
       expanded: false,
     },
     {
       id: 'third_party',
-      title: 'Трети страни и партньори',
-      content: `Споделяме данни със следните доставчици:
-
-• Mobica SMS API — за изпращане на SMS съобщения
-• Firebase Cloud Messaging (Google) — за push известия
-• Облачен хостинг доставчик — за съхранение на данни в ЕС
-
-Всички партньори са GDPR съвместими и имат подписани договори за обработка на данни (DPA).`,
+      title: t('third_party_title'),
+      content: t('third_party_content'),
       expanded: false,
     },
     {
       id: 'contact_info',
-      title: 'Контактна информация',
-      content: `За въпроси относно поверителността:
-
-• Имейл: admin@snapfix.bg
-• Телефон: +359 88 462 9498
-• Уебсайт: snapfix.bg
-
-Надзорен орган: Комисия за защита на личните данни (КЗЛД) — https://cpdp.bg/
-
-Отговаряме на всички заявки в рамките на 30 дни.`,
+      title: t('contact_info_title'),
+      content: t('contact_info_content'),
       expanded: false,
     },
   ]);
@@ -164,18 +99,18 @@ SMS съобщенията се изпращат чрез Mobica SMS API. Вие
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Политика за поверителност</Text>
+        <Text style={styles.title}>{t('title')}</Text>
         <Text style={styles.subtitle}>
-          Как защитаваме и използваме вашите данни
+          {t('subtitle')}
         </Text>
         <Text style={styles.lastUpdated}>
-          Последна актуализация: {new Date().toLocaleDateString('bg-BG')}
+          {t('last_updated')} {new Date().toLocaleDateString('bg-BG')}
         </Text>
       </View>
 
       <View style={styles.infoBanner}>
         <Text style={styles.infoBannerText}>
-          🔒 Вашите данни са защитени според GDPR. Този документ обяснява как работим с вашата информация.
+          🔒 {t('info_banner_text')}
         </Text>
       </View>
 
@@ -206,30 +141,30 @@ SMS съобщенията се изпращат чрез Mobica SMS API. Вие
           style={styles.actionButton}
           onPress={openPrivacyEmail}
         >
-          <Text style={styles.actionButtonText}>📧 Въпроси за поверителност</Text>
+          <Text style={styles.actionButtonText}>{t('action_button_1')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.actionButton}
           onPress={openDPOEmail}
         >
-          <Text style={styles.actionButtonText}>👤 Data Protection Officer</Text>
+          <Text style={styles.actionButtonText}>{t('action_button_2')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.actionButton}
           onPress={openFullPrivacyPolicy}
         >
-          <Text style={styles.actionButtonText}>🌐 Пълна политика на уебсайта</Text>
+          <Text style={styles.actionButtonText}>{t('action_button_3')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Този документ е в сила от 1 януари 2024 г. и се актуализира при промени в практиките ни.
+          {t('footer_text_1')}
         </Text>
         <Text style={styles.footerText}>
-          За най-новата версия, моля проверете нашия уебсайт.
+          {t('footer_text_2')}
         </Text>
       </View>
     </ScrollView>
@@ -349,7 +284,3 @@ const styles = StyleSheet.create({
 });
 
 export default PrivacyScreen;
-
-
-
-

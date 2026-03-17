@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -56,6 +57,7 @@ interface CaseDetails {
 }
 
 export default function CaseBidsScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<CaseBidsRouteProp>();
   const { caseId, caseDescription } = route.params || {};
@@ -133,7 +135,7 @@ export default function CaseBidsScreen() {
       }
     } catch (error) {
       Logger.error('Error fetching bids:', error);
-      Alert.alert('Грешка', 'Неуспешно зареждане на офертите');
+      Alert.alert(t('common:error'), t('common:loadBidsFailed'));
     } finally {
       setLoading(false);
     }
@@ -160,7 +162,7 @@ export default function CaseBidsScreen() {
               const response = await ApiService.getInstance().selectWinningBid(caseId, bidId);
 
               if (response.success) {
-                Alert.alert('Успех', 'Изпълнителят беше избран успешно!', [
+                Alert.alert(t('common:success'), t('contractorSelectedSuccess'), [
                   {
                     text: 'OK',
                     onPress: () => navigation.goBack(),
@@ -168,11 +170,11 @@ export default function CaseBidsScreen() {
                 ]);
               } else {
                 const errorMsg = (response.error as any)?.message || 'Възникна грешка';
-                Alert.alert('Грешка', errorMsg);
+                Alert.alert(t('common:error'), errorMsg);
               }
             } catch (error: any) {
               Logger.error('Error selecting winner:', error);
-              Alert.alert('Грешка', 'Неуспешен избор на изпълнител');
+              Alert.alert(t('common:error'), t('contractorSelectionFailed'));
             } finally {
               setSelecting(null);
             }
@@ -286,7 +288,7 @@ export default function CaseBidsScreen() {
     if (phone) {
       Linking.openURL(`tel:${phone}`);
     } else {
-      Alert.alert('Няма телефон', 'Този специалист не е предоставил телефонен номер.');
+      Alert.alert(t('noPhone'), t('noPhoneProvided'));
     }
   };
 
@@ -468,9 +470,9 @@ export default function CaseBidsScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <TouchableOpacity onPress={closeProfileModal} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>← Назад</Text>
+                <Text style={styles.closeButtonText}>← {t('common:back')}</Text>
               </TouchableOpacity>
-              <Text style={styles.modalTitle}>Профил на специалист</Text>
+              <Text style={styles.modalTitle}>{t('specialistProfile')}</Text>
             </View>
 
             {selectedBid && (

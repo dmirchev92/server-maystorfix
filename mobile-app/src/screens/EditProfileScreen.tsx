@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -66,6 +67,7 @@ interface ProfileData {
 }
 
 const EditProfileScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -159,15 +161,15 @@ const EditProfileScreen: React.FC = () => {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         {
-          title: 'Достъп до местоположение',
-          message: 'Приложението се нуждае от достъп до вашето местоположение за автоматично определяне на града и квартала.',
-          buttonNeutral: 'Питай ме по-късно',
-          buttonNegative: 'Откажи',
-          buttonPositive: 'Разреши',
+          title: t('locationPermissionTitle'),
+          message: t('locationPermissionMessage'),
+          buttonNeutral: t('askLater'),
+          buttonNegative: t('deny'),
+          buttonPositive: t('allow'),
         }
       );
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        Alert.alert('Грешка', 'Нямате разрешение за достъп до местоположението');
+        Alert.alert(t('error'), t('locationPermissionDenied'));
         return;
       }
     }
@@ -220,9 +222,9 @@ const EditProfileScreen: React.FC = () => {
             }));
             
             Alert.alert(
-              '📍 Местоположение открито',
-              `Град: ${finalCity || 'Неизвестен'}\nКвартал: ${detectedNeighborhood || 'Неизвестен'}`,
-              [{ text: 'OK' }]
+              t('locationDetected'),
+              `${t('city')}: ${finalCity || t('unknown')}\n${t('neighborhood')}: ${detectedNeighborhood || t('unknown')}`,
+              [{ text: t('ok') }]
             );
           } else {
             // Still save coordinates even if city/neighborhood couldn't be determined
@@ -231,11 +233,11 @@ const EditProfileScreen: React.FC = () => {
               latitude: latitude,
               longitude: longitude,
             }));
-            Alert.alert('Внимание', 'Не успяхме да определим града/квартала, но координатите са запазени. Моля изберете град ръчно.');
+            Alert.alert(t('warning'), t('locationNotDetected'));
           }
         } catch (error) {
           Logger.error('Auto-detect location error:', error);
-          Alert.alert('Грешка', 'Възникна проблем при определяне на местоположението');
+          Alert.alert(t('error'), t('locationDetectionError'));
         } finally {
           setDetectingLocation(false);
         }
@@ -243,7 +245,7 @@ const EditProfileScreen: React.FC = () => {
       (error) => {
         Logger.error('Geolocation error:', error.message);
         setDetectingLocation(false);
-        Alert.alert('Грешка', 'Не можахме да определим местоположението ви. Проверете GPS настройките.');
+        Alert.alert(t('error'), t('profileUpdateError'));
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
@@ -339,7 +341,7 @@ const EditProfileScreen: React.FC = () => {
       }
     } catch (error) {
       Logger.error('Error loading profile:', error);
-      setError('Грешка при зареждане на профила');
+      setError(t('profileLoadingError'));
     } finally {
       setLoading(false);
     }
@@ -376,7 +378,7 @@ const EditProfileScreen: React.FC = () => {
       }
 
       if (result.errorCode) {
-        Alert.alert('Грешка', 'Неуспешно избиране на снимка');
+        Alert.alert(t('error'), t('imageSelectionError'));
         return;
       }
 
@@ -387,7 +389,7 @@ const EditProfileScreen: React.FC = () => {
 
       // Check file size (max 5MB)
       if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Грешка', 'Файлът е твърде голям. Максимален размер: 5MB');
+        Alert.alert(t('error'), t('imageFileSizeError'));
         return;
       }
 
@@ -397,7 +399,7 @@ const EditProfileScreen: React.FC = () => {
       // Convert to base64
       const base64Data = asset.base64;
       if (!base64Data) {
-        Alert.alert('Грешка', 'Неуспешно четене на снимката');
+        Alert.alert(t('error'), t('imageReadingError'));
         setSaving(false);
         return;
       }
@@ -426,14 +428,14 @@ const EditProfileScreen: React.FC = () => {
         const baseUrl = 'https://snapfix.bg';
         const imageUrl = `${baseUrl}${uploadResult.data.url}`;
         setProfileData({ ...profileData, profileImageUrl: imageUrl });
-        setSuccess('✅ Снимката е качена успешно!');
+        setSuccess(t('imageUploadSuccess'));
         setTimeout(() => setSuccess(''), 3000);
       } else {
-        throw new Error(uploadResult.error?.message || 'Failed to upload image');
+        throw new Error(uploadResult.error?.message || t('imageUploadError'));
       }
     } catch (error: any) {
       Logger.error('Error uploading image:', error);
-      Alert.alert('Грешка', 'Неуспешно качване на снимката');
+      Alert.alert(t('error'), t('imageUploadError'));
     } finally {
       setSaving(false);
     }
@@ -441,7 +443,7 @@ const EditProfileScreen: React.FC = () => {
 
   const handleGalleryImageUpload = async () => {
     if (galleryImages.length >= 3) {
-      Alert.alert('Грешка', 'Можете да качите максимум 3 снимки');
+      Alert.alert(t('error'), t('galleryImageLimitError'));
       return;
     }
 
@@ -466,7 +468,7 @@ const EditProfileScreen: React.FC = () => {
       }
 
       if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
-        Alert.alert('Грешка', 'Файлът е твърде голям. Максимален размер: 5MB');
+        Alert.alert(t('error'), t('imageFileSizeError'));
         return;
       }
 
@@ -475,7 +477,7 @@ const EditProfileScreen: React.FC = () => {
 
       const base64Data = asset.base64;
       if (!base64Data) {
-        Alert.alert('Грешка', 'Неуспешно четене на снимката');
+        Alert.alert(t('error'), t('imageReadingError'));
         setSaving(false);
         return;
       }
@@ -502,14 +504,14 @@ const EditProfileScreen: React.FC = () => {
         const baseUrl = 'https://snapfix.bg';
         const imageUrl = `${baseUrl}${uploadResult.data.url}`;
         setGalleryImages([...galleryImages, imageUrl]);
-        setSuccess('✅ Снимката е качена успешно! Не забравяйте да запазите промените.');
+        setSuccess(t('galleryImageUploadSuccess'));
         setTimeout(() => setSuccess(''), 5000);
       } else {
-        throw new Error(uploadResult.error?.message || 'Failed to upload image');
+        throw new Error(uploadResult.error?.message || t('galleryImageUploadError'));
       }
     } catch (error: any) {
       Logger.error('Error uploading gallery image:', error);
-      Alert.alert('Грешка', 'Неуспешно качване на снимката');
+      Alert.alert(t('error'), t('galleryImageUploadError'));
     } finally {
       setSaving(false);
     }
@@ -518,15 +520,15 @@ const EditProfileScreen: React.FC = () => {
   const handleSave = async () => {
     // Validation
     if (!profileData.firstName.trim()) {
-      setError('Моля въведете име');
+      setError(t('firstNameRequired'));
       return;
     }
     if (!profileData.lastName.trim()) {
-      setError('Моля въведете фамилия');
+      setError(t('lastNameRequired'));
       return;
     }
     if (!profileData.phoneNumber.trim()) {
-      setError('Моля въведете телефонен номер');
+      setError(t('phoneNumberRequired'));
       return;
     }
     
@@ -535,14 +537,14 @@ const EditProfileScreen: React.FC = () => {
     const plusFormat = /^\+359[0-9]{8,9}$/;
     const zeroFormat = /^0[0-9]{8,9}$/;
     if (!plusFormat.test(phone) && !zeroFormat.test(phone)) {
-      setError('Телефонният номер трябва да започва с +359 или 0 (напр. 0888123456 или +359888123456)');
+      setError(t('phoneNumberInvalid'));
       return;
     }
 
     // Location validation for providers - coordinates are mandatory
     const isProvider = userRole === 'tradesperson' || userRole === 'service_provider';
     if (isProvider && (!profileData.latitude || !profileData.longitude)) {
-      setError('Локацията е задължителна. Моля използвайте бутона "Открий локацията ми" за да бъдете намерени от клиенти.');
+      setError(t('locationRequired'));
       return;
     }
 
@@ -590,16 +592,16 @@ const EditProfileScreen: React.FC = () => {
       const result: any = await updateResponse.json();
 
       if (result.success) {
-        setSuccess('✅ Профилът е актуализиран успешно!');
+        setSuccess(t('profileUpdateSuccess'));
         setTimeout(() => {
           navigation.goBack();
         }, 2000);
       } else {
-        throw new Error(result.error?.message || 'Неуспешна актуализация');
+        throw new Error(result.error?.message || t('profileUpdateError'));
       }
     } catch (error: any) {
       Logger.error('Error saving profile:', error);
-      setError(error.message || 'Грешка при актуализация на профила');
+      setError(error.message || t('profileUpdateError'));
     } finally {
       setSaving(false);
     }
@@ -610,7 +612,7 @@ const EditProfileScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={styles.loadingText}>Зареждане...</Text>
+          <Text style={styles.loadingText}>{t('loading')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -622,9 +624,9 @@ const EditProfileScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Назад</Text>
+            <Text style={styles.backButtonText}>{t('back')}</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>✏️ Редактирай профил</Text>
+          <Text style={styles.headerTitle}>{t('editProfile')}</Text>
         </View>
 
         {/* Success/Error Messages */}
@@ -643,7 +645,7 @@ const EditProfileScreen: React.FC = () => {
         <View style={styles.formContainer}>
           {/* Profile Picture Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Профилна снимка</Text>
+            <Text style={styles.sectionTitle}>{t('profilePicture')}</Text>
             <View style={styles.profilePictureContainer}>
               <View style={styles.avatarContainer}>
                 {profileData.profileImageUrl ? (
@@ -665,14 +667,14 @@ const EditProfileScreen: React.FC = () => {
                   onPress={handleImageUpload}
                   disabled={saving}
                 >
-                  <Text style={styles.uploadButtonText}>📷 Качи снимка</Text>
+                  <Text style={styles.uploadButtonText}>{t('uploadImage')}</Text>
                 </TouchableOpacity>
-                <Text style={styles.hint}>Макс. 5MB. Препоръчително: 400x400px</Text>
+                <Text style={styles.hint}>{t('imageHint')}</Text>
                 {profileData.profileImageUrl ? (
                   <TouchableOpacity
                     onPress={() => setProfileData({ ...profileData, profileImageUrl: '' })}
                   >
-                    <Text style={styles.removePhotoText}>🗑️ Премахни снимката</Text>
+                    <Text style={styles.removePhotoText}>{t('removeImage')}</Text>
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -682,8 +684,8 @@ const EditProfileScreen: React.FC = () => {
           {/* Gallery Section - Provider only */}
           {isProvider && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Галерия с работи ({galleryImages.length}/3)</Text>
-              <Text style={styles.sectionDescription}>Качете до 3 снимки на завършени проекти</Text>
+              <Text style={styles.sectionTitle}>{t('gallery')}</Text>
+              <Text style={styles.sectionDescription}>{t('galleryDescription')}</Text>
               <View style={styles.galleryGrid}>
                 {galleryImages.map((imageUrl, index) => (
                   <View key={index} style={styles.galleryItem}>
@@ -706,19 +708,19 @@ const EditProfileScreen: React.FC = () => {
                     disabled={saving}
                   >
                     <Text style={styles.addGalleryIcon}>📸</Text>
-                    <Text style={styles.addGalleryText}>Качи снимка</Text>
+                    <Text style={styles.addGalleryText}>{t('addGalleryImage')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              <Text style={styles.hint}>Макс. 5MB на снимка. Препоръчително: 800x600px</Text>
+              <Text style={styles.hint}>{t('galleryHint')}</Text>
             </View>
           )}
 
           {/* Offered Services Section - Provider only */}
           {isProvider && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Предлагани услуги ({offeredServices.length}/10)</Text>
-              <Text style={styles.sectionDescription}>Добавете услугите, които предлагате на клиентите</Text>
+              <Text style={styles.sectionTitle}>{t('offeredServices')}</Text>
+              <Text style={styles.sectionDescription}>{t('offeredServicesDescription')}</Text>
               
               {/* Add new service input */}
               <View style={styles.addServiceRow}>
@@ -726,7 +728,7 @@ const EditProfileScreen: React.FC = () => {
                   style={styles.addServiceInput}
                   value={newService}
                   onChangeText={setNewService}
-                  placeholder="Напр. Монтаж на ключалки, Спешни ремонти..."
+                  placeholder={t('addServicePlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                   maxLength={50}
                 />
@@ -762,53 +764,53 @@ const EditProfileScreen: React.FC = () => {
               </View>
 
               {offeredServices.length === 0 && (
-                <Text style={styles.noServicesText}>Все още няма добавени услуги. Добавете услугите, които предлагате.</Text>
+                <Text style={styles.noServicesText}>{t('noServices')}</Text>
               )}
 
-              <Text style={styles.hint}>Примери: Смяна на брави, Аварийно отключване, Монтаж на врати, Консултации</Text>
+              <Text style={styles.hint}>{t('offeredServicesHint')}</Text>
             </View>
           )}
 
           {/* Personal Information */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Лична информация</Text>
+            <Text style={styles.sectionTitle}>{t('personalInfo')}</Text>
             <View style={styles.formRow}>
               <View style={styles.formHalf}>
-                <Text style={styles.label}>Име *</Text>
+                <Text style={styles.label}>{t('firstName')}</Text>
                 <TextInput
                   style={styles.input}
                   value={profileData.firstName}
                   onChangeText={(text) => setProfileData({ ...profileData, firstName: text })}
-                  placeholder="Въведете име"
+                  placeholder={t('firstNamePlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                 />
               </View>
               <View style={styles.formHalf}>
-                <Text style={styles.label}>Фамилия *</Text>
+                <Text style={styles.label}>{t('lastName')}</Text>
                 <TextInput
                   style={styles.input}
                   value={profileData.lastName}
                   onChangeText={(text) => setProfileData({ ...profileData, lastName: text })}
-                  placeholder="Въведете фамилия"
+                  placeholder={t('lastNamePlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                 />
               </View>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Телефон *</Text>
+              <Text style={styles.label}>{t('phoneNumber')}</Text>
               <TextInput
                 style={styles.input}
                 value={profileData.phoneNumber}
                 onChangeText={(text) => setProfileData({ ...profileData, phoneNumber: text })}
-                placeholder="+359..."
+                placeholder={t('phoneNumberPlaceholder')}
                 placeholderTextColor="rgba(255,255,255,0.4)"
                 keyboardType="phone-pad"
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Email (не може да се променя)</Text>
+              <Text style={styles.label}>{t('email')}</Text>
               <TextInput
                 style={[styles.input, styles.inputDisabled]}
                 value={profileData.email}
@@ -820,38 +822,38 @@ const EditProfileScreen: React.FC = () => {
           {/* Business Information - Provider only */}
           {isProvider && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Бизнес информация</Text>
+              <Text style={styles.sectionTitle}>{t('businessInfo')}</Text>
               
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Име на бизнеса</Text>
+                <Text style={styles.label}>{t('businessName')}</Text>
                 <TextInput
                   style={styles.input}
                   value={profileData.businessName}
                   onChangeText={(text) => setProfileData({ ...profileData, businessName: text })}
-                  placeholder="Напр. Електро Експерт ЕООД"
+                  placeholder={t('businessNamePlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                 />
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Категория услуга</Text>
+                <Text style={styles.label}>{t('serviceCategory')}</Text>
                 <TouchableOpacity 
                   style={styles.pickerContainer}
                   onPress={() => setShowCategoryPicker(true)}
                 >
                   <Text style={styles.pickerText}>
-                    {serviceCategories.find(c => c.value === profileData.serviceCategory)?.label || 'Изберете категория'}
+                    {serviceCategories.find(c => c.value === profileData.serviceCategory)?.label || t('selectServiceCategory')}
                   </Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Описание</Text>
+                <Text style={styles.label}>{t('description')}</Text>
                 <TextInput
                   style={[styles.input, styles.textArea]}
                   value={profileData.description}
                   onChangeText={(text) => setProfileData({ ...profileData, description: text })}
-                  placeholder="Опишете вашите услуги и опит..."
+                  placeholder={t('descriptionPlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                   multiline
                   numberOfLines={4}
@@ -861,7 +863,7 @@ const EditProfileScreen: React.FC = () => {
 
               <View style={styles.formRow}>
                 <View style={styles.formHalf}>
-                  <Text style={styles.label}>Години опит</Text>
+                  <Text style={styles.label}>{t('experienceYears')}</Text>
                   <TextInput
                     style={styles.input}
                     value={profileData.experienceYears?.toString() || ''}
@@ -872,7 +874,7 @@ const EditProfileScreen: React.FC = () => {
                   />
                 </View>
                 <View style={styles.formHalf}>
-                  <Text style={styles.label}>Цена на час (€)</Text>
+                  <Text style={styles.label}>{t('hourlyRate')}</Text>
                   <TextInput
                     style={styles.input}
                     value={profileData.hourlyRate?.toString() || ''}
@@ -889,7 +891,7 @@ const EditProfileScreen: React.FC = () => {
           {/* Location - Provider only */}
           {isProvider && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Локация</Text>
+              <Text style={styles.sectionTitle}>{t('location')}</Text>
               
               {/* Auto-detect location button */}
               <TouchableOpacity
@@ -900,46 +902,46 @@ const EditProfileScreen: React.FC = () => {
                 {detectingLocation ? (
                   <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <Text style={styles.detectLocationButtonText}>📍 Открий автоматично</Text>
+                  <Text style={styles.detectLocationButtonText}>{t('detectLocation')}</Text>
                 )}
               </TouchableOpacity>
               
               <View style={styles.formRow}>
                 <View style={styles.formHalf}>
-                  <Text style={styles.label}>Град</Text>
+                  <Text style={styles.label}>{t('city')}</Text>
                   <TouchableOpacity 
                     style={styles.pickerContainer}
                     onPress={() => setShowCityPicker(true)}
                   >
                     <Text style={styles.pickerText}>
-                      {profileData.city || 'Изберете град'}
+                      {profileData.city || t('selectCity')}
                     </Text>
                   </TouchableOpacity>
                 </View>
                 <View style={styles.formHalf}>
-                  <Text style={styles.label}>Квартал</Text>
+                  <Text style={styles.label}>{t('neighborhood')}</Text>
                   <TouchableOpacity 
                     style={[styles.pickerContainer, !profileData.city && styles.pickerDisabled]}
                     onPress={() => profileData.city && setShowNeighborhoodPicker(true)}
                     disabled={!profileData.city}
                   >
                     <Text style={styles.pickerText}>
-                      {!profileData.city ? 'Първо изберете град' : (profileData.neighborhood || 'Изберете квартал')}
+                      {!profileData.city ? t('selectCityFirst') : (profileData.neighborhood || t('selectNeighborhood'))}
                     </Text>
                   </TouchableOpacity>
                   {profileData.city && getNeighborhoods().length === 0 && (
-                    <Text style={styles.hint}>Кварталите за {profileData.city} скоро ще бъдат добавени</Text>
+                    <Text style={styles.hint}>{t('neighborhoodsComingSoon')}</Text>
                   )}
                 </View>
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>Адрес</Text>
+                <Text style={styles.label}>{t('address')}</Text>
                 <TextInput
                   style={styles.input}
                   value={profileData.address}
                   onChangeText={(text) => setProfileData({ ...profileData, address: text })}
-                  placeholder="ул. Примерна 123"
+                  placeholder={t('addressPlaceholder')}
                   placeholderTextColor="rgba(255,255,255,0.4)"
                 />
               </View>
@@ -955,23 +957,23 @@ const EditProfileScreen: React.FC = () => {
             {saving ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.saveButtonText}>💾 Запази промените</Text>
+              <Text style={styles.saveButtonText}>{t('saveChanges')}</Text>
             )}
           </TouchableOpacity>
 
           {/* Delete Account Section */}
           <View style={styles.dangerSection}>
-            <Text style={styles.dangerSectionTitle}>⚠️ Опасна зона</Text>
+            <Text style={styles.dangerSectionTitle}>{t('dangerZone')}</Text>
             <TouchableOpacity
               style={styles.deleteAccountButton}
               onPress={() => {
                 Alert.alert(
-                  '⚠️ Изтриване на акаунт',
-                  'Сигурни ли сте, че искате да изтриете акаунта си?\n\n❌ Всички ваши данни ще бъдат изтрити завинаги\n❌ Всички заявки, чатове и история ще бъдат загубени\n❌ Това действие е необратимо!',
+                  t('deleteAccount'),
+                  t('deleteAccountWarning'),
                   [
-                    { text: 'Отказ', style: 'cancel' },
+                    { text: t('cancel'), style: 'cancel' },
                     {
-                      text: 'Продължи',
+                      text: t('proceed'),
                       style: 'destructive',
                       onPress: () => {
                         setShowDeleteModal(true);
@@ -1000,7 +1002,7 @@ const EditProfileScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Изберете категория</Text>
+              <Text style={styles.modalTitle}>{t('selectCategory')}</Text>
               <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -1037,7 +1039,7 @@ const EditProfileScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Изберете град</Text>
+              <Text style={styles.modalTitle}>{t('selectCity')}</Text>
               <TouchableOpacity onPress={() => setShowCityPicker(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -1074,7 +1076,7 @@ const EditProfileScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Изберете квартал</Text>
+              <Text style={styles.modalTitle}>{t('selectNeighborhood')}</Text>
               <TouchableOpacity onPress={() => setShowNeighborhoodPicker(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -1110,9 +1112,9 @@ const EditProfileScreen: React.FC = () => {
       >
         <View style={styles.deleteModalOverlay}>
           <View style={styles.deleteModalContent}>
-            <Text style={styles.deleteModalTitle}>🔐 Потвърдете изтриването</Text>
+            <Text style={styles.deleteModalTitle}>🔐 {t('confirmDeletion')}</Text>
             <Text style={styles.deleteModalSubtitle}>
-              Въведете паролата си за да потвърдите изтриването на акаунта:
+              {t('enterPasswordToConfirm')}
             </Text>
             
             <TextInput
@@ -1141,7 +1143,7 @@ const EditProfileScreen: React.FC = () => {
                 disabled={deleting || !deletePassword}
                 onPress={async () => {
                   if (!deletePassword) {
-                    Alert.alert('Грешка', 'Моля въведете парола');
+                    Alert.alert(t('error'), t('enterPassword'));
                     return;
                   }
                   setDeleting(true);
@@ -1168,10 +1170,10 @@ const EditProfileScreen: React.FC = () => {
                         }}]
                       );
                     } else {
-                      Alert.alert('Грешка', result.error?.message || 'Неуспешно изтриване на акаунта');
+                      Alert.alert(t('error'), result.error?.message || t('deleteAccountError'));
                     }
                   } catch (error) {
-                    Alert.alert('Грешка', 'Възникна проблем при изтриването');
+                    Alert.alert(t('error'), t('deleteProblem'));
                   } finally {
                     setDeleting(false);
                   }

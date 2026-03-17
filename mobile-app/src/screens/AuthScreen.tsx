@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -43,6 +44,7 @@ interface AuthScreenProps {
 type UserType = 'customer' | 'provider';
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
+  const { t } = useTranslation('auth');
   const [isLogin, setIsLogin] = useState(true);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
@@ -77,8 +79,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   const [showPasswordHint, setShowPasswordHint] = useState(false);
   const [serviceCategories, setServiceCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTier, setSelectedTier] = useState<'free' | 'normal' | 'pro'>('free');
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('yearly');
   const [showTierModal, setShowTierModal] = useState(false);
   const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     // Load saved credentials if any
@@ -245,15 +250,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         {
-          title: 'Достъп до местоположение',
-          message: 'Приложението се нуждае от достъп до вашето местоположение за автоматично определяне на града и квартала.',
-          buttonNeutral: 'Питай ме по-късно',
-          buttonNegative: 'Откажи',
-          buttonPositive: 'Разреши',
+          title: t('locationPermissionTitle'),
+          message: t('locationPermissionMessage'),
+          buttonNeutral: t('askLater'),
+          buttonNegative: t('deny'),
+          buttonPositive: t('allow'),
         }
       );
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        Alert.alert('Грешка', 'Нямате разрешение за достъп до местоположението');
+        Alert.alert(t('common:error'), t('locationPermissionDenied'));
         return;
       }
     }
@@ -278,11 +283,21 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           if (geoData.results?.[0]) {
             detectedAddress = geoData.results[0].formatted_address || '';
             
+            // TESTING: If AUTO_DETECT_LOCATION enabled, accept any location worldwide
+            if (TESTING_CONFIG.AUTO_DETECT_LOCATION) {
+              Logger.info('🌍 International location detection enabled');
+            }
+            
             // Extract city and neighborhood directly from Google's address_components
             for (const comp of geoData.results[0].address_components) {
               // City
               if (comp.types.includes('locality')) {
-                detectedCity = CITY_NAME_MAP[comp.long_name] || comp.long_name;
+                // TESTING: For international locations, keep original city name
+                if (TESTING_CONFIG.AUTO_DETECT_LOCATION) {
+                  detectedCity = comp.long_name; // London, Paris, etc.
+                } else {
+                  detectedCity = CITY_NAME_MAP[comp.long_name] || comp.long_name;
+                }
               }
               // Neighborhood type is most specific - prioritize it
               if (comp.types.includes('neighborhood')) {
@@ -296,7 +311,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
           }
 
           // Prioritize neighborhood over sublocality
-          const finalCity = detectedCity || 'София';
+          // TESTING: For international mode, don't force Sofia as default
+          const finalCity = detectedCity || (TESTING_CONFIG.AUTO_DETECT_LOCATION ? 'Unknown' : 'София');
           const finalNeighborhood = detectedNeighborhood || detectedSublocality;
 
           if (finalCity || finalNeighborhood) {
@@ -310,16 +326,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             setLocationCoords({ latitude, longitude });
 
             Alert.alert(
-              '📍 Местоположение открито',
-              `Град: ${finalCity || 'Неизвестен'}\nКвартал: ${finalNeighborhood || 'Неизвестен'}`,
+              `📍 ${t('locationDetected')}`,
+              t('locationDetectedMessage', { city: finalCity || t('unknown'), neighborhood: finalNeighborhood || t('unknown') }),
               [{ text: 'OK' }]
             );
           } else {
-            Alert.alert('Внимание', 'Не успяхме да определим местоположението. Моля изберете ръчно.');
+            Alert.alert(t('common:warning'), t('locationDetectFailed'));
           }
         } catch (error) {
           Logger.error('Auto-detect location error:', error);
-          Alert.alert('Грешка', 'Възникна проблем при определяне на местоположението');
+          Alert.alert(t('common:error'), t('locationError'));
         } finally {
           setDetectingLocation(false);
         }
@@ -327,7 +343,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       (error) => {
         Logger.error('Geolocation error:', error.message);
         setDetectingLocation(false);
-        Alert.alert('Грешка', 'Не можахме да определим местоположението ви. Проверете GPS настройките.');
+        Alert.alert(t('common:error'), t('gpsError'));
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
@@ -339,7 +355,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
   const handleLogin = async () => {
     if (!formData.email || !formData.password) {
-      Alert.alert('Грешка', 'Моля въведете имейл и парола');
+      Alert.alert(t('common:error'), t('errorEmailPassword'));
       return;
     }
 
@@ -372,10 +388,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         // Navigate immediately; let /auth/me verify in background
         onAuthSuccess(response.data?.user || { id: 'local', email: formData.email } as any);
       } else {
-        Alert.alert('Грешка', response.error?.message || 'Неуспешен вход');
+        Alert.alert(t('common:error'), response.error?.message || t('errorLoginFailed'));
       }
     } catch (error) {
-      Alert.alert('Грешка', 'Възникна грешка при входа');
+      Alert.alert(t('common:error'), t('errorLoginError'));
     } finally {
       setLoading(false);
     }
@@ -392,6 +408,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   };
 
   const validatePhoneNumber = (phone: string): boolean => {
+    // TESTING: Allow international phones if flag enabled
+    if (TESTING_CONFIG.ALLOW_INTERNATIONAL_PHONES) {
+      // Accept any international format: +XXX followed by digits
+      const internationalFormat = /^\+[1-9][0-9]{7,14}$/;
+      return internationalFormat.test(phone);
+    }
+    
+    // Production: Bulgaria only
     // Accept +359 format or 0 format for Bulgarian numbers
     const plusFormat = /^\+359[0-9]{8,9}$/;
     const zeroFormat = /^0[0-9]{8,9}$/;
@@ -399,22 +423,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   };
 
   const formatPhoneNumber = (phone: string): string => {
-    // Convert 0 format to +359 format
+    // If already has +, return as-is
+    if (phone.startsWith('+')) {
+      return phone;
+    }
+    
+    // Convert 0 format to +359 format (Bulgaria only)
     if (phone.startsWith('0')) {
       return '+359' + phone.substring(1);
     }
+    
     return phone;
   };
 
   const handleForgotPassword = async () => {
     if (!forgotPasswordEmail.trim()) {
-      Alert.alert('Грешка', 'Моля въведете имейл адрес');
+      Alert.alert(t('common:error'), t('errorEnterEmail'));
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(forgotPasswordEmail.trim())) {
-      Alert.alert('Грешка', 'Моля въведете валиден имейл адрес');
+      Alert.alert(t('common:error'), t('errorValidEmail'));
       return;
     }
 
@@ -434,46 +464,47 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   const handleRegister = async () => {
     // Common validation
     if (!formData.email || !formData.password || !formData.confirmPassword || !formData.firstName || !formData.lastName || !formData.phoneNumber) {
-      Alert.alert('Грешка', 'Моля попълнете всички задължителни полета');
+      Alert.alert(t('common:error'), t('errorAllFieldsRequired'));
       return;
     }
 
     // Provider-specific validation - only serviceCategory is required, companyName is optional
     if (userType === 'provider' && !formData.serviceCategory) {
-      Alert.alert('Грешка', 'Моля изберете категория услуги');
+      Alert.alert(t('common:error'), t('errorSelectCategory'));
       return;
     }
 
     // Location is mandatory for providers
     if (userType === 'provider' && (!formData.city || !locationCoords)) {
       Alert.alert(
-        'Локацията е задължителна',
-        'Моля използвайте бутона "Открий локацията ми" или въведете адрес ръчно, за да можете да бъдете намерени от клиенти.'
+        t('locationRequired'),
+        t('locationRequiredMessage')
       );
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Грешка', 'Паролите не съвпадат');
+      Alert.alert(t('common:error'), t('errorPasswordMismatch'));
       return;
     }
 
     if (!validatePassword(formData.password)) {
-      Alert.alert('Грешка', 'Паролата трябва да съдържа поне 8 символа, главна буква, малка буква, цифра и специален символ');
+      Alert.alert(t('common:error'), t('errorPasswordWeak'));
       return;
     }
 
     if (!acceptTerms) {
-      Alert.alert('Грешка', 'Трябва да приемете условията за ползване');
+      Alert.alert(t('common:error'), t('errorTermsRequired'));
       return;
     }
 
     // Phone number validation
     if (!validatePhoneNumber(formData.phoneNumber)) {
-      Alert.alert(
-        'Невалиден телефонен номер',
-        'Телефонният номер трябва да започва с +359 или 0\n\nПримери:\n• 0888123456\n• +359888123456'
-      );
+      const errorMessage = TESTING_CONFIG.ALLOW_INTERNATIONAL_PHONES
+        ? t('errorPhoneFormatIntl')
+        : t('errorPhoneFormatBG');
+      
+      Alert.alert(t('errorInvalidPhone'), errorMessage);
       return;
     }
 
@@ -531,11 +562,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         onAuthSuccess(response.data?.user || { id: 'local', email: formData.email } as any);
       } else {
         Logger.debug('Registration failed:', response.error);
-        Alert.alert('Грешка', response.error?.message || 'Неуспешна регистрация');
+        Alert.alert(t('common:error'), response.error?.message || t('errorRegistrationFailed'));
       }
     } catch (error) {
       Logger.debug('Registration error:', error);
-      Alert.alert('Грешка', `Възникна грешка при регистрацията: ${error instanceof Error ? error.message : 'Неизвестна грешка'}`);
+      Alert.alert(t('common:error'), `${t('errorRegistrationError')}: ${error instanceof Error ? error.message : t('errorUnknown')}`);
     } finally {
       setLoading(false);
     }
@@ -552,9 +583,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <View style={[styles.iconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.2)', borderColor: 'rgba(16, 185, 129, 0.3)' }]}>
                 <Text style={styles.icon}>✉️</Text>
               </View>
-              <Text style={styles.title}>Проверете имейла си</Text>
+              <Text style={styles.title}>{t('checkYourEmail')}</Text>
               <Text style={styles.subtitle}>
-                Ако съществува акаунт с имейл {forgotPasswordEmail}, ще получите линк за възстановяване на паролата.
+                {t('passwordResetSent', { email: forgotPasswordEmail })}
               </Text>
             </View>
 
@@ -562,11 +593,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <View style={styles.infoBox}>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoIcon}>📧</Text>
-                  <Text style={styles.infoText}>Линкът е валиден <Text style={styles.bold}>1 час</Text></Text>
+                  <Text style={styles.infoText}>{t('linkValidFor')} <Text style={styles.bold}>{t('oneHour')}</Text></Text>
                 </View>
                 <View style={styles.infoRow}>
                   <Text style={styles.infoIcon}>📥</Text>
-                  <Text style={styles.infoText}>Проверете и папката <Text style={styles.bold}>Спам</Text></Text>
+                  <Text style={styles.infoText}>{t('checkSpam')} <Text style={styles.bold}>{t('spam')}</Text></Text>
                 </View>
               </View>
 
@@ -578,7 +609,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                   setForgotPasswordEmail('');
                 }}
               >
-                <Text style={styles.modernButtonText}>🔓 Обратно към вход</Text>
+                <Text style={styles.modernButtonText}>🔓 {t('backToSignIn')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -588,7 +619,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                   setForgotPasswordEmail('');
                 }}
               >
-                <Text style={styles.switchLink}>Опитайте с друг имейл</Text>
+                <Text style={styles.switchLink}>{t('tryAnotherEmail')}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
@@ -611,22 +642,22 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               style={styles.backButton}
               onPress={() => setIsForgotPassword(false)}
             >
-              <Text style={styles.backButtonText}>← Назад</Text>
+              <Text style={styles.backButtonText}>← {t('back')}</Text>
             </TouchableOpacity>
 
             <View style={styles.header}>
               <View style={styles.iconContainer}>
                 <Text style={styles.icon}>🔑</Text>
               </View>
-              <Text style={styles.title}>Забравена парола</Text>
+              <Text style={styles.title}>{t('forgotPasswordTitle')}</Text>
               <Text style={styles.subtitle}>
-                Въведете имейла си и ще ви изпратим линк за възстановяване
+                {t('forgotPasswordSubtitle')}
               </Text>
             </View>
 
             <View style={styles.form}>
               <View style={styles.fieldContainer}>
-                <Text style={styles.fieldLabel}>Имейл адрес</Text>
+                <Text style={styles.fieldLabel}>{t('emailAddress')}</Text>
                 <TextInput
                   style={styles.modernInput}
                   placeholder="ivan@example.com"
@@ -645,13 +676,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 disabled={loading}
               >
                 <Text style={styles.modernButtonText}>
-                  {loading ? '⏳ Изпращане...' : '📧 Изпратете линк'}
+                  {loading ? `⏳ ${t('sending')}` : `📧 ${t('sendLink')}`}
                 </Text>
               </TouchableOpacity>
 
               <View style={styles.switchContainer}>
                 <TouchableOpacity onPress={() => setIsForgotPassword(false)}>
-                  <Text style={styles.switchLink}>Обратно към вход</Text>
+                  <Text style={styles.switchLink}>{t('backToLogin')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -674,10 +705,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <Text style={styles.icon}>🔧</Text>
             </View>
             <Text style={styles.title}>
-              {isLogin ? 'Влезте в SnapFix' : 'Създайте акаунт'}
+              {isLogin ? t('loginToSnapFix') : t('createAccount')}
             </Text>
             <Text style={styles.subtitle}>
-              {isLogin ? 'Добре дошли отново!' : 'Започнете пътуването си с нас днес.'}
+              {isLogin ? t('welcomeBack') : t('startJourney')}
             </Text>
           </View>
 
@@ -685,7 +716,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             {/* User Type Selection - Only show for registration */}
             {!isLogin && (
               <View style={styles.userTypeContainer}>
-                <Text style={styles.fieldLabel}>Регистрирай се като:</Text>
+                <Text style={styles.fieldLabel}>{t('registerAs')}</Text>
                 <View style={styles.userTypeButtons}>
                   <TouchableOpacity
                     style={[styles.userTypeBtn, userType === 'customer' && styles.userTypeBtnActive]}
@@ -693,9 +724,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                   >
                     <Text style={styles.userTypeIcon}>👤</Text>
                     <Text style={[styles.userTypeBtnText, userType === 'customer' && styles.userTypeBtnTextActive]}>
-                      Клиент
+                      {t('customer')}
                     </Text>
-                    <Text style={styles.userTypeDesc}>Търся услуги</Text>
+                    <Text style={styles.userTypeDesc}>{t('lookingForServices')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.userTypeBtn, userType === 'provider' && styles.userTypeBtnActive]}
@@ -703,9 +734,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                   >
                     <Text style={styles.userTypeIcon}>🔧</Text>
                     <Text style={[styles.userTypeBtnText, userType === 'provider' && styles.userTypeBtnTextActive]}>
-                      Специалист
+                      {t('specialist')}
                     </Text>
-                    <Text style={styles.userTypeDesc}>Предлагам услуги</Text>
+                    <Text style={styles.userTypeDesc}>{t('offeringServices')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -715,10 +746,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <>
                 <View style={styles.row}>
                   <View style={styles.halfWidth}>
-                    <Text style={styles.fieldLabel}>Име *</Text>
+                    <Text style={styles.fieldLabel}>{t('firstName')} *</Text>
                     <TextInput
                       style={styles.modernInput}
-                      placeholder="Иван"
+                      placeholder={t('ivanov')}
                       placeholderTextColor="#64748b"
                       value={formData.firstName}
                       onChangeText={(value) => handleInputChange('firstName', value)}
@@ -726,10 +757,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     />
                   </View>
                   <View style={styles.halfWidth}>
-                    <Text style={styles.fieldLabel}>Фамилия *</Text>
+                    <Text style={styles.fieldLabel}>{t('lastName')} *</Text>
                     <TextInput
                       style={styles.modernInput}
-                      placeholder="Петров"
+                      placeholder={t('petrov')}
                       placeholderTextColor="#64748b"
                       value={formData.lastName}
                       onChangeText={(value) => handleInputChange('lastName', value)}
@@ -739,7 +770,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 </View>
 
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Имейл адрес *</Text>
+                  <Text style={styles.fieldLabel}>{t('emailAddress')} *</Text>
                   <TextInput
                     style={styles.modernInput}
                     placeholder="ivan@example.com"
@@ -752,7 +783,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 </View>
 
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Телефон *</Text>
+                  <Text style={styles.fieldLabel}>{t('phoneLabel')} *</Text>
                   <TextInput
                     style={styles.modernInput}
                     placeholder="+359xxxxxxxxx"
@@ -767,10 +798,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 {userType === 'provider' && (
                   <>
                     <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>Име на фирма (по избор)</Text>
+                      <Text style={styles.fieldLabel}>{t('companyName')} ({t('optional')})</Text>
                       <TextInput
                         style={styles.modernInput}
-                        placeholder="Вашата компания ООД"
+                        placeholder={t('yourCompanyLLC')}
                         placeholderTextColor="#64748b"
                         value={formData.companyName}
                         onChangeText={(value) => handleInputChange('companyName', value)}
@@ -778,7 +809,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                     </View>
 
                     <View style={styles.fieldContainer}>
-                      <Text style={styles.fieldLabel}>Категория услуги *</Text>
+                      <Text style={styles.fieldLabel}>{t('serviceCategory')} *</Text>
                       <View style={styles.modernPickerWrapper}>
                         <Picker
                           selectedValue={formData.serviceCategory}
@@ -786,7 +817,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                           style={styles.modernPicker}
                           dropdownIconColor="#818cf8"
                         >
-                          <Picker.Item label="Изберете категория" value="" color="#64748b" />
+                          <Picker.Item label={t('selectCategory')} value="" color="#64748b" />
                           {serviceCategories.map((category) => (
                             <Picker.Item
                               key={category.id}
@@ -799,24 +830,37 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                       </View>
                     </View>
 
-                    {/* Tier Selection - LAUNCH MODE: Show only Free tier with special benefits */}
+                    {/* Tier Selection - Production Mode: Show all 3 tiers */}
                     <View style={styles.tierSelectionContainer}>
-                      <Text style={styles.fieldLabel}>Избран план</Text>
-                      <View style={styles.tierDisplayBox}>
+                      <Text style={styles.fieldLabel}>{t('selectTier')} *</Text>
+                      <TouchableOpacity
+                        style={styles.tierDisplayBox}
+                        onPress={() => setShowTierModal(true)}
+                      >
                         <View style={styles.tierInfo}>
-                          <Text style={styles.tierName}>🎁 Безплатен (Промо)</Text>
-                          <Text style={styles.tierPrice}>0 € - Пълен достъп</Text>
+                          <Text style={styles.tierName}>
+                            {selectedTier === 'free' && `🆓 ${t('tierFree')}`}
+                            {selectedTier === 'normal' && `⭐ ${t('tierNormal')}`}
+                            {selectedTier === 'pro' && `👑 ${t('tierPro')}`}
+                          </Text>
+                          <Text style={styles.tierPrice}>
+                            {selectedTier === 'free' && `0 € - ${t('trialPeriod')}`}
+                            {selectedTier === 'normal' && (billingPeriod === 'yearly' ? '1,400 €/година' : '130 €/месец')}
+                            {selectedTier === 'pro' && (billingPeriod === 'yearly' ? '1,900 €/година' : '230 €/месец')}
+                          </Text>
                         </View>
-                        <View style={styles.launchBadge}>
-                          <Text style={styles.launchBadgeText}>LAUNCH</Text>
-                        </View>
-                      </View>
-                      <Text style={styles.tierHint}>🚀 Специална оферта: 50 безплатни SMS + пълен достъп до всички функции!</Text>
+                        <Text style={styles.pickerArrow}>▼</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.tierHint}>
+                        {selectedTier === 'free' && `🆓 ${t('freeTierHint')}`}
+                        {selectedTier === 'normal' && `⭐ ${t('recommendedForSmall')}`}
+                        {selectedTier === 'pro' && `👑 ${t('bestForProfessionals')}`}
+                      </Text>
                     </View>
 
                     {/* Location Section */}
                     <View style={styles.locationSection}>
-                      <Text style={styles.sectionLabel}>📍 Локация</Text>
+                      <Text style={styles.sectionLabel}>📍 {t('location')}</Text>
                       
                       {/* Locate Me Button */}
                       <TouchableOpacity
@@ -827,18 +871,18 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                         {detectingLocation ? (
                           <ActivityIndicator size="small" color="#ffffff" />
                         ) : (
-                          <Text style={styles.locateButtonText}>📍 Открий автоматично</Text>
+                          <Text style={styles.locateButtonText}>📍 {t('detectLocation')}</Text>
                         )}
                       </TouchableOpacity>
 
-                      <Text style={styles.orText}>или въведете адрес</Text>
+                      <Text style={styles.orText}>{t('orEnterAddress')}</Text>
 
                       {/* Address Input with Autocomplete */}
                       <View style={styles.fieldContainer}>
-                        <Text style={styles.fieldLabel}>Адрес</Text>
+                        <Text style={styles.fieldLabel}>{t('address')}</Text>
                         <TextInput
                           style={styles.modernInput}
-                          placeholder="Започнете да пишете адрес..."
+                          placeholder={t('startTypingAddress')}
                           placeholderTextColor="#64748b"
                           value={formData.address}
                           onChangeText={(value) => {
@@ -869,65 +913,81 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                       {/* City and Neighborhood Row */}
                       <View style={styles.row}>
                         <View style={styles.halfWidth}>
-                          <Text style={styles.fieldLabel}>Град</Text>
+                          <Text style={styles.fieldLabel}>{t('city')}</Text>
                           <TouchableOpacity
                             style={styles.pickerButton}
                             onPress={() => setShowCityPicker(true)}
                           >
                             <Text style={[styles.pickerButtonText, !formData.city && styles.pickerPlaceholder]}>
-                              {formData.city || 'Изберете град'}
+                              {formData.city || t('selectCity')}
                             </Text>
                             <Text style={styles.pickerArrow}>▼</Text>
                           </TouchableOpacity>
                         </View>
                         <View style={styles.halfWidth}>
-                          <Text style={styles.fieldLabel}>Квартал</Text>
+                          <Text style={styles.fieldLabel}>{t('neighborhood')}</Text>
                           <TouchableOpacity
                             style={[styles.pickerButton, !formData.city && styles.pickerDisabled]}
                             onPress={() => formData.city && setShowNeighborhoodPicker(true)}
                             disabled={!formData.city}
                           >
                             <Text style={[styles.pickerButtonText, !formData.neighborhood && styles.pickerPlaceholder]}>
-                              {!formData.city ? 'Първо изберете град' : (formData.neighborhood || 'Изберете квартал')}
+                              {formData.neighborhood || t('selectNeighborhood')}
                             </Text>
                             <Text style={styles.pickerArrow}>▼</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
-                      <Text style={styles.locationHint}>💡 Локацията помага на клиентите да ви намерят</Text>
+                      <Text style={styles.locationHint}>💡 {t('locationHelps')}</Text>
                     </View>
                   </>
                 )}
 
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Парола *</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    placeholder="••••••••"
-                    placeholderTextColor="#64748b"
-                    value={formData.password}
-                    onChangeText={(value) => handleInputChange('password', value)}
-                    secureTextEntry
-                    onFocus={() => setShowPasswordHint(true)}
-                    onBlur={() => setShowPasswordHint(false)}
-                  />
+                  <Text style={styles.fieldLabel}>{t('common:password')} *</Text>
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      placeholder="••••••••"
+                      placeholderTextColor="#64748b"
+                      value={formData.password}
+                      onChangeText={(value) => handleInputChange('password', value)}
+                      secureTextEntry={!showPassword}
+                      onFocus={() => setShowPasswordHint(true)}
+                      onBlur={() => setShowPasswordHint(false)}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeButton}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                    </TouchableOpacity>
+                  </View>
                   {showPasswordHint && (
                     <Text style={styles.passwordHint}>
-                      Мин. 8 символа, главна буква, малка буква, цифра и специален символ
+                      {t('passwordHint')}
                     </Text>
                   )}
                 </View>
 
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Потвърдете паролата *</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    placeholder="••••••••"
-                    placeholderTextColor="#64748b"
-                    value={formData.confirmPassword}
-                    onChangeText={(value) => handleInputChange('confirmPassword', value)}
-                    secureTextEntry
-                  />
+                  <Text style={styles.fieldLabel}>{t('confirmPassword')} *</Text>
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      placeholder="••••••••"
+                      placeholderTextColor="#64748b"
+                      value={formData.confirmPassword}
+                      onChangeText={(value) => handleInputChange('confirmPassword', value)}
+                      secureTextEntry={!showConfirmPassword}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeButton}
+                      onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      <Text style={styles.eyeIcon}>{showConfirmPassword ? '🙈' : '👁️'}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <View style={styles.checkboxContainer}>
@@ -939,7 +999,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                       {acceptTerms && <Text style={styles.checkmark}>✓</Text>}
                     </View>
                     <Text style={styles.checkboxText}>
-                      Съгласявам се с <Text style={styles.linkText}>Условията и правилата</Text>
+                      {t('acceptTerms')}
                     </Text>
                   </TouchableOpacity>
 
@@ -951,7 +1011,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                       {receiveUpdates && <Text style={styles.checkmark}>✓</Text>}
                     </View>
                     <Text style={styles.checkboxText}>
-                      Получавайте бюлетин и актуализации
+                      {t('receiveNewsletter')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -961,7 +1021,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             {isLogin && (
               <>
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Имейл адрес</Text>
+                  <Text style={styles.fieldLabel}>{t('emailAddress')}</Text>
                   <TextInput
                     style={styles.modernInput}
                     placeholder="ivan@example.com"
@@ -974,15 +1034,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 </View>
 
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.fieldLabel}>Парола</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    placeholder="••••••••"
-                    placeholderTextColor="#64748b"
-                    value={formData.password}
-                    onChangeText={(value) => handleInputChange('password', value)}
-                    secureTextEntry
-                  />
+                  <Text style={styles.fieldLabel}>{t('common:password')}</Text>
+                  <View style={styles.passwordContainer}>
+                    <TextInput
+                      style={styles.passwordInput}
+                      placeholder="••••••••"
+                      placeholderTextColor="#64748b"
+                      value={formData.password}
+                      onChangeText={(value) => handleInputChange('password', value)}
+                      secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity
+                      style={styles.eyeButton}
+                      onPress={() => setShowPassword(!showPassword)}
+                    >
+                      <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </>
             )}
@@ -993,7 +1061,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               disabled={loading}
             >
               <Text style={styles.modernButtonText}>
-                {loading ? '⏳ Зареждане...' : (isLogin ? '🔓 Влезте' : '✨ Създайте акаунт')}
+                {loading ? `⏳ ${t('loading')}` : (isLogin ? `🔓 ${t('signIn')}` : `✨ ${t('createAccount')}`)}
               </Text>
             </TouchableOpacity>
 
@@ -1008,25 +1076,25 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                   <View style={[styles.modernCheckbox, rememberMe && styles.modernCheckboxChecked]}>
                     {rememberMe && <Text style={styles.checkmark}>✓</Text>}
                   </View>
-                  <Text style={styles.checkboxText}>Запомни ме</Text>
+                  <Text style={styles.checkboxText}>{t('rememberMe')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                   style={styles.forgotPasswordBtn}
                   onPress={() => setIsForgotPassword(true)}
                 >
-                  <Text style={styles.forgotPasswordLink}>Забравена парола?</Text>
+                  <Text style={styles.forgotPasswordLink}>{t('forgotPassword')}</Text>
                 </TouchableOpacity>
               </>
             )}
 
             <View style={styles.switchContainer}>
               <Text style={styles.switchText}>
-                {isLogin ? 'Нямате акаунт? ' : 'Вече имате акаунт? '}
+                {isLogin ? t('dontHaveAccount') + ' ' : t('alreadyHaveAccount') + ' '}
               </Text>
               <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
                 <Text style={styles.switchLink}>
-                  {isLogin ? 'Регистрирайте се' : 'Влезте'}
+                  {isLogin ? t('signUpNow') : t('signInNow')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1039,7 +1107,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.tierModalContent}>
             <View style={styles.tierModalHeader}>
-              <Text style={styles.tierModalTitle}>Изберете вашия план</Text>
+              <Text style={styles.tierModalTitle}>{t('selectYourPlan')}</Text>
               <TouchableOpacity onPress={() => setShowTierModal(false)}>
                 <Text style={styles.tierModalClose}>✕</Text>
               </TouchableOpacity>
@@ -1054,52 +1122,99 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 {selectedTier === 'free' && <View style={styles.tierRadioDot} />}
               </View>
               <View style={styles.tierOptionContent}>
-                <Text style={styles.tierOptionName}>🆓 Безплатен</Text>
+                <Text style={styles.tierOptionName}>🆓 {t('tierFree')}</Text>
                 <Text style={styles.tierOptionPrice}>0 €</Text>
-                <Text style={styles.tierFeature}>• 14 дни пробен период</Text>
-                <Text style={styles.tierFeature}>• 5 заявки безплатно</Text>
-                <Text style={styles.tierFeature}>• Бюджети до 250 €</Text>
+                <Text style={styles.tierFeature}>• {t('freeTierDays')}</Text>
+                <Text style={styles.tierFeature}>• {t('freeTierCases')}</Text>
+                <Text style={styles.tierFeature}>• {t('freeTierBudget')}</Text>
               </View>
             </TouchableOpacity>
 
             {/* Normal Tier */}
             <TouchableOpacity
               style={[styles.tierOption, selectedTier === 'normal' && styles.tierOptionSelected]}
-              onPress={() => { setSelectedTier('normal'); setShowTierModal(false); }}
-            >
-              <View style={[styles.tierRadio, selectedTier === 'normal' && styles.tierRadioSelected]}>
-                {selectedTier === 'normal' && <View style={styles.tierRadioDot} />}
-              </View>
-              <View style={styles.tierOptionContent}>
-                <View style={styles.tierNameRow}>
-                  <Text style={styles.tierOptionName}>⭐ Нормален</Text>
-                  <View style={styles.recommendedBadge}>
-                    <Text style={styles.recommendedText}>Препоръчан</Text>
+              onPress={() => { setSelectedTier('normal'); }}
+                    <TouchableOpacity
+                      style={styles.tierModalConfirmButton}
+                      onPress={() => setShowTierModal(false)}
+                    >
+                      <Text style={[styles.billingPeriodText, billingPeriod === 'yearly' && styles.billingPeriodTextActive]}>
+                        Годишно: 1,400 €
+                      </Text>
+                      <Text style={styles.billingPeriodSavings}>🎁 10% отстъпка</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.billingPeriodButton, billingPeriod === 'monthly' && styles.billingPeriodButtonActive]}
+                      onPress={() => setBillingPeriod('monthly')}
+                    >
+                      <Text style={[styles.billingPeriodText, billingPeriod === 'monthly' && styles.billingPeriodTextActive]}>
+                        Месечно: 130 €
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                </View>
-                <Text style={styles.tierOptionPrice}>179 €/година (с ДДС)</Text>
-                <Text style={styles.tierFeature}>• 350 точки/година</Text>
-                <Text style={styles.tierFeature}>• Бюджети до 1000 €</Text>
-                <Text style={styles.tierFeature}>• Пълен достъп до заявки</Text>
+                )}
+                
+                <Text style={styles.tierFeature}>• {billingPeriod === 'yearly' ? '1,000' : '50'} {t('points')}/{billingPeriod === 'yearly' ? t('perYear') : t('perMonth')}</Text>
+                <Text style={styles.tierFeature}>• Заявки до 1,000 €</Text>
+                <Text style={styles.tierFeature}>• SMS: 2 точки/съобщение</Text>
+                <Text style={styles.tierFeature}>• 20 снимки в галерията</Text>
               </View>
             </TouchableOpacity>
 
             {/* Pro Tier */}
             <TouchableOpacity
               style={[styles.tierOption, selectedTier === 'pro' && styles.tierOptionSelected]}
-              onPress={() => { setSelectedTier('pro'); setShowTierModal(false); }}
+              onPress={() => { setSelectedTier('pro'); }}
             >
               <View style={[styles.tierRadio, selectedTier === 'pro' && styles.tierRadioSelected]}>
                 {selectedTier === 'pro' && <View style={styles.tierRadioDot} />}
               </View>
               <View style={styles.tierOptionContent}>
-                <Text style={styles.tierOptionName}>👑 Професионален</Text>
-                <Text style={styles.tierOptionPrice}>249 €/година (с ДДС)</Text>
-                <Text style={styles.tierFeature}>• 500 точки/година</Text>
-                <Text style={styles.tierFeature}>• Неограничени бюджети</Text>
-                <Text style={styles.tierFeature}>• 20% отстъпка на точки</Text>
+                <View style={styles.tierNameRow}>
+                  <Text style={styles.tierOptionName}>👑 {t('tierPro')}</Text>
+                  <View style={styles.recommendedBadge}>
+                    <Text style={styles.recommendedText}>{t('recommended')}</Text>
+                  </View>
+                </View>
+                
+                {/* Billing Period Selection for Pro */}
+                {selectedTier === 'pro' && (
+                  <View style={styles.billingPeriodContainer}>
+                    <TouchableOpacity
+                      style={[styles.billingPeriodButton, billingPeriod === 'yearly' && styles.billingPeriodButtonActive]}
+                      onPress={() => setBillingPeriod('yearly')}
+                    >
+                      <Text style={[styles.billingPeriodText, billingPeriod === 'yearly' && styles.billingPeriodTextActive]}>
+                        Годишно: 1,900 €
+                      </Text>
+                      <Text style={styles.billingPeriodSavings}>🎁 15% отстъпка</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.billingPeriodButton, billingPeriod === 'monthly' && styles.billingPeriodButtonActive]}
+                      onPress={() => setBillingPeriod('monthly')}
+                    >
+                      <Text style={[styles.billingPeriodText, billingPeriod === 'monthly' && styles.billingPeriodTextActive]}>
+                        Месечно: 230 €
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                
+                <Text style={styles.tierFeature}>• {billingPeriod === 'yearly' ? '2,000' : '100'} {t('points')}/{billingPeriod === 'yearly' ? t('perYear') : t('perMonth')}</Text>
+                <Text style={styles.tierFeature}>• Всички бюджети (до 10,000 €)</Text>
+                <Text style={styles.tierFeature}>• SMS: 1 точка/съобщение</Text>
+                <Text style={styles.tierFeature}>• До 100 снимки</Text>
+                <Text style={styles.tierFeature}>• PRO значка + VIP видимост</Text>
                 <Text style={styles.tierFeature}>• Приоритетна поддръжка</Text>
               </View>
+            </TouchableOpacity>
+            
+            {/* Confirm Button */}
+            <TouchableOpacity
+              style={styles.tierModalConfirmButton}
+              onPress={() => setShowTierModal(false)}
+            >
+              <Text style={styles.tierModalConfirmText}>Избери {selectedTier === 'free' ? 'Безплатен' : selectedTier === 'normal' ? 'Normal' : 'Pro'} план</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1108,6 +1223,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       {/* City Picker Modal */}
       <Modal
         visible={showCityPicker}
+/* ... */
         transparent
         animationType="slide"
         onRequestClose={() => setShowCityPicker(false)}
@@ -1115,7 +1231,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         <View style={styles.pickerModal}>
           <View style={styles.pickerModalContent}>
             <View style={styles.pickerModalHeader}>
-              <Text style={styles.pickerModalTitle}>Изберете град</Text>
+              <Text style={styles.pickerModalTitle}>{t('selectCity')}</Text>
               <TouchableOpacity onPress={() => setShowCityPicker(false)}>
                 <Text style={styles.pickerModalClose}>✕</Text>
               </TouchableOpacity>
@@ -1152,7 +1268,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         <View style={styles.pickerModal}>
           <View style={styles.pickerModalContent}>
             <View style={styles.pickerModalHeader}>
-              <Text style={styles.pickerModalTitle}>Изберете квартал</Text>
+              <Text style={styles.pickerModalTitle}>{t('selectNeighborhood')}</Text>
               <TouchableOpacity onPress={() => setShowNeighborhoodPicker(false)}>
                 <Text style={styles.pickerModalClose}>✕</Text>
               </TouchableOpacity>
@@ -1179,7 +1295,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             ) : (
               <View style={{ padding: 24, alignItems: 'center' }}>
                 <Text style={{ color: '#94a3b8', textAlign: 'center' }}>
-                  Няма налични квартали за избрания град
+                  {t('noNeighborhoods')}
                 </Text>
               </View>
             )}
@@ -1304,6 +1420,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     color: '#ffffff',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 14,
+    fontSize: 16,
+    color: '#ffffff',
+  },
+  eyeButton: {
+    padding: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eyeIcon: {
+    fontSize: 18,
   },
   modernPickerWrapper: {
     borderWidth: 1,
@@ -1640,6 +1778,12 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginBottom: 2,
   },
+  tierFeatureHighlight: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   recommendedBadge: {
     backgroundColor: '#10b981',
     paddingHorizontal: 8,
@@ -1649,6 +1793,51 @@ const styles = StyleSheet.create({
   },
   recommendedText: {
     fontSize: 10,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  billingPeriodContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 8,
+  },
+  billingPeriodButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    backgroundColor: '#1e293b',
+  },
+  billingPeriodButtonActive: {
+    borderColor: '#818cf8',
+    backgroundColor: '#818cf8/20',
+  },
+  billingPeriodText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  billingPeriodTextActive: {
+    color: '#818cf8',
+  },
+  billingPeriodSavings: {
+    fontSize: 10,
+    color: '#10b981',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  tierModalConfirmButton: {
+    backgroundColor: '#818cf8',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  tierModalConfirmText: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
   },

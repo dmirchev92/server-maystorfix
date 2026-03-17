@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -62,6 +63,7 @@ const DAYS = [
 ];
 
 const LocationScheduleScreen: React.FC = () => {
+  const { t } = useTranslation('common');
   const navigation = useNavigation();
   const [settings, setSettings] = useState<ScheduleSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
@@ -149,9 +151,9 @@ const LocationScheduleScreen: React.FC = () => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>📅 График за споделяне</Text>
+          <Text style={styles.headerTitle}>📅 {t('sharingSchedule')}</Text>
           <Text style={styles.headerSubtitle}>
-            Настройте автоматично включване и изключване на споделянето на локация
+            {t('autoLocationSharing')}
           </Text>
         </View>
 

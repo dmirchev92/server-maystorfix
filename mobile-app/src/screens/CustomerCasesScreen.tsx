@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -49,6 +50,7 @@ interface Case {
 type StatusFilter = 'active' | 'completed';
 
 export default function CustomerCasesScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const [cases, setCases] = useState<Case[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,13 +77,13 @@ export default function CustomerCasesScreen() {
     try {
       const response = await ApiService.getInstance().customerRespondToCounterOffer(caseId, accept ? 'accept' : 'decline');
       if (response.success) {
-        Alert.alert('Успех', accept ? 'Офертата е приета!' : 'Офертата е отказана.');
+        Alert.alert(t('common:success'), accept ? t('offerAccepted') : t('offerDeclined'));
         fetchCases();
       } else {
-        Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+        Alert.alert(t('common:error'), response.error?.message || t('common:errorOccurred'));
       }
     } catch (error: any) {
-      Alert.alert('Грешка', error.message || 'Възникна грешка');
+      Alert.alert(t('common:error'), error.message || t('common:errorOccurred'));
     } finally {
       setActionLoading(null);
     }
@@ -90,24 +92,24 @@ export default function CustomerCasesScreen() {
   // Send case to marketplace
   const handleSendToMarketplace = async (caseId: string) => {
     Alert.alert(
-      'Изпращане към marketplace',
-      'Искате ли да изпратите заявката към други специалисти?',
+      t('sendToMarketplace'),
+      t('sendToMarketplaceConfirm'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('common:cancel'), style: 'cancel' },
         {
-          text: 'Да',
+          text: t('common:yes'),
           onPress: async () => {
             setActionLoading(caseId);
             try {
               const response = await ApiService.getInstance().sendCaseToMarketplace(caseId);
               if (response.success) {
-                Alert.alert('Успех', 'Заявката е изпратена към marketplace!');
+                Alert.alert(t('common:success'), t('caseSentToMarketplace'));
                 fetchCases();
               } else {
-                Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+                Alert.alert(t('common:error'), response.error?.message || t('common:errorOccurred'));
               }
             } catch (error: any) {
-              Alert.alert('Грешка', error.message || 'Възникна грешка');
+              Alert.alert(t('common:error'), error.message || t('common:errorOccurred'));
             } finally {
               setActionLoading(null);
             }
@@ -120,25 +122,25 @@ export default function CustomerCasesScreen() {
   // Cancel case
   const handleCancelCase = async (caseId: string) => {
     Alert.alert(
-      'Отмяна на заявка',
-      'Сигурни ли сте, че искате да отмените тази заявка?',
+      t('cancelCase'),
+      t('cancelCaseConfirm'),
       [
-        { text: 'Не', style: 'cancel' },
+        { text: t('common:no'), style: 'cancel' },
         {
-          text: 'Да, отмени',
+          text: t('yesCancel'),
           style: 'destructive',
           onPress: async () => {
             setActionLoading(caseId);
             try {
               const response = await ApiService.getInstance().cancelCase(caseId);
               if (response.success) {
-                Alert.alert('Успех', 'Заявката е отменена.');
+                Alert.alert(t('common:success'), t('caseCanceled'));
                 fetchCases();
               } else {
-                Alert.alert('Грешка', response.error?.message || 'Възникна грешка');
+                Alert.alert(t('common:error'), response.error?.message || t('common:errorOccurred'));
               }
             } catch (error: any) {
-              Alert.alert('Грешка', error.message || 'Възникна грешка');
+              Alert.alert(t('common:error'), error.message || t('common:errorOccurred'));
             } finally {
               setActionLoading(null);
             }

@@ -1,6 +1,6 @@
 {
-  "valid": true,
-  "reason": "COOKIES_UPLOADED",
-  "checkedAt": "2026-02-22T22:33:42.837Z",
-  "cookieCount": 45
+  "valid": false,
+  "reason": "CHECK_ERROR",
+  "error": "page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"https://play.google.com/console/u/0/developers/7488780334730040495/app/4974916880619958219/tracks/4698605814004162380?tab=testers\", waiting until \"networkidle\"\n",
+  "checkedAt": "2026-03-17T00:00:02.816Z"
 }

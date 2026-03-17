@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -25,6 +26,7 @@ import ConsentRequiredOverlay from '../components/ConsentRequiredOverlay';
 type ChatScreenNavigationProp = StackNavigationProp<MainTabParamList, 'Chat'>;
 
 function ChatScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<ChatScreenNavigationProp>();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -296,7 +298,7 @@ function ChatScreen() {
     if (!currentUserId) {
       Logger.error('❌ Cannot handle press: userId is missing even after storage check and API fallback');
       // Show alert to user
-      Alert.alert('Грешка', 'Не можем да идентифицираме потребителя. Моля, излезте и влезте отново.');
+      Alert.alert(t('error'), t('userIdentificationError'));
       return;
     }
 
@@ -327,7 +329,7 @@ function ChatScreen() {
       Logger.debug('✅ Navigation command dispatched');
     } catch (navError) {
       Logger.error('❌ Navigation failed:', navError);
-      Alert.alert('Грешка', 'Не успяхме да отворим чата. Моля, опитайте отново.');
+      Alert.alert(t('error'), t('chatOpenError'));
     }
   };
 
@@ -360,13 +362,13 @@ function ChatScreen() {
     // so we fallback to showing "Chat" or try to infer. 
     // Ideally we rely on `userRole` state.
     
-    let displayName = 'Чат';
+    let displayName = t('chat:chat');
     if (userId) {
         const isMeProvider = item.providerId === userId;
-        displayName = isMeProvider ? (item.customerName || 'Клиент') : (item.providerName || 'Доставчик');
+        displayName = isMeProvider ? (item.customerName || t('common:client')) : (item.providerName || t('common:provider'));
     } else {
         // Fallback if userId not loaded yet (should be rare due to isLoading)
-        displayName = item.providerName || item.customerName || 'Чат';
+        displayName = item.providerName || item.customerName || t('chat:chat');
     }
 
     return (
@@ -403,7 +405,7 @@ function ChatScreen() {
         <Text style={styles.lastMessage} numberOfLines={2}>
           {typeof item.lastMessage === 'string' 
             ? item.lastMessage 
-            : (item.lastMessage as any)?.body || (item.lastMessage as any)?.message || 'Няма съобщения'}
+            : (item.lastMessage as any)?.body || (item.lastMessage as any)?.message || t('chat:noMessages')}
         </Text>
       </View>
     </TouchableOpacity>
@@ -415,7 +417,7 @@ function ChatScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={styles.loadingText}>Зареждане на разговори...</Text>
+          <Text style={styles.loadingText}>{t('chat:loadingConversations')}</Text>
         </View>
       </SafeAreaView>
     );
@@ -424,18 +426,18 @@ function ChatScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💬 Съобщения</Text>
+        <Text style={styles.headerTitle}>💬 {t('chat:messages')}</Text>
         <Text style={styles.headerSubtitle}>
-          {conversations.length} {conversations.length === 1 ? 'разговор' : 'разговора'}
+          {conversations.length} {conversations.length === 1 ? t('chat:conversation') : t('chat:conversationsPlural')}
         </Text>
       </View>
 
       {conversations.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>💬</Text>
-          <Text style={styles.emptyTitle}>Няма разговори</Text>
+          <Text style={styles.emptyTitle}>{t('chat:noConversations')}</Text>
           <Text style={styles.emptyText}>
-            Започнете разговор с доставчик на услуги
+            {t('chat:startConversation')}
           </Text>
         </View>
       ) : (

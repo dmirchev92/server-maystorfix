@@ -5,6 +5,7 @@
 
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -62,6 +63,7 @@ const CHARACTER_CLASSES_INFO = [
 ];
 
 const GameScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const { t } = useTranslation('common');
   const [activeTab, setActiveTab] = useState<GameTab>('lobby');
   const [player, setPlayer] = useState<Player | null>(null);
   const [opponents, setOpponents] = useState<Opponent[]>([]);

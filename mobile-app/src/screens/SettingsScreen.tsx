@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -16,10 +17,12 @@ import { MainTabParamList } from '../navigation/types';
 import { AuthBus } from '../utils/AuthBus';
 import ApiService from '../services/ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 type SettingsScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Settings'>;
 
 const SettingsScreen: React.FC = () => {
+  const { t } = useTranslation('settings');
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const [userRole, setUserRole] = useState<string>('customer');
 
@@ -53,12 +56,12 @@ const SettingsScreen: React.FC = () => {
 
   const handleLogout = async () => {
     Alert.alert(
-      'Изход',
-      'Сигурни ли сте, че искате да излезете?',
+      t('logout'),
+      t('logoutConfirm'),
       [
-        { text: 'Отказ', style: 'cancel' },
+        { text: t('common:cancel'), style: 'cancel' },
         {
-          text: 'Изход',
+          text: t('logout'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -86,39 +89,44 @@ const SettingsScreen: React.FC = () => {
       <ScrollView style={styles.scrollView}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>⚙️ Настройки</Text>
-          <Text style={styles.headerSubtitle}>Управлявайте вашия профил и настройки</Text>
+          <Text style={styles.headerTitle}>⚙️ {t('settings')}</Text>
+          <Text style={styles.headerSubtitle}>{t('accountSettings')}</Text>
         </View>
 
         {/* Settings Sections */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Профил</Text>
+          <Text style={styles.sectionTitle}>👤 {t('profile')}</Text>
           <TouchableOpacity style={styles.settingItem} onPress={handleEditProfile}>
-            <Text style={styles.settingItemText}>Редактирай профил</Text>
+            <Text style={styles.settingItemText}>{t('profile')}</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.settingItem} onPress={handleChangePassword}>
-            <Text style={styles.settingItemText}>Смени парола</Text>
+            <Text style={styles.settingItemText}>{t('changePassword')}</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
         </View>
 
         {isProvider && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>💳 Абонамент</Text>
+            <Text style={styles.sectionTitle}>💳 {t('subscription:subscription')}</Text>
             <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('Subscription')}>
-              <Text style={styles.settingItemText}>Абонаментни планове</Text>
+              <Text style={styles.settingItemText}>{t('subscription:subscription')}</Text>
               <Text style={styles.settingItemArrow}>›</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔔 Известия</Text>
+          <Text style={styles.sectionTitle}>🔔 {t('notifications')}</Text>
           <TouchableOpacity style={styles.settingItem} onPress={() => navigation.navigate('NotificationSettings')}>
-            <Text style={styles.settingItemText}>Настройки за известия</Text>
+            <Text style={styles.settingItemText}>{t('notifications')}</Text>
             <Text style={styles.settingItemArrow}>›</Text>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🌐 Език / Language</Text>
+          <LanguageSwitcher showLabel={false} />
         </View>
 
         <View style={styles.section}>

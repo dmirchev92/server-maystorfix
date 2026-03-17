@@ -2,6 +2,7 @@
 // Allows users to set a new password using a reset token
 
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -23,7 +24,8 @@ type ResetPasswordRouteParams = {
   };
 };
 
-const ResetPasswordScreen: React.FC = () => {
+function ResetPasswordScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<ResetPasswordRouteParams, 'ResetPassword'>>();
   const token = route.params?.token;
@@ -166,16 +168,24 @@ const ResetPasswordScreen: React.FC = () => {
 
           <View style={styles.inputContainer}>
             <Text style={styles.inputLabel}>Потвърдете паролата</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="••••••••"
-              placeholderTextColor="#999"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
+            <View style={styles.passwordInputContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="••••••••"
+                placeholderTextColor="#999"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                editable={!isLoading}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Password requirements */}

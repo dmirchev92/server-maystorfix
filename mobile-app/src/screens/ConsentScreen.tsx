@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -30,6 +31,7 @@ interface ConsentScreenProps {
 }
 
 const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
+  const { t } = useTranslation('common');
   const dispatch = useDispatch();
   const { currentMode, businessHours } = useSelector((state: RootState) => state.app);
   
@@ -307,7 +309,7 @@ const ConsentScreen: React.FC<ConsentScreenProps> = ({ onConsentComplete }) => {
               <Text style={styles.modalIcon}>⚠️</Text>
             </View>
             
-            <Text style={styles.modalTitle}>Внимание!</Text>
+            <Text style={styles.modalTitle}>{t('common:warning')}</Text>
             
             <Text style={styles.modalMessage}>
               Ако изключите основните услуги, следните функции няма да работят правилно:

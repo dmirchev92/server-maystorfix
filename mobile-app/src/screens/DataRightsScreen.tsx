@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -27,6 +28,7 @@ interface DataRequest {
 const DataRightsScreen: React.FC = () => {
   const dispatch = useDispatch();
   const { currentMode } = useSelector((state: RootState) => state.app);
+  const { t } = useTranslation('common');
   
   const [requests, setRequests] = useState<DataRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,21 +75,21 @@ const DataRightsScreen: React.FC = () => {
 
   const getRequestTypeLabel = (type: string): string => {
     const labels = {
-      access: 'Достъп до данни',
-      deletion: 'Изтриване на данни',
-      portability: 'Пренос на данни',
-      correction: 'Корекция на данни',
-      restriction: 'Ограничаване на обработката',
+      access: t('access'),
+      deletion: t('deletion'),
+      portability: t('portability'),
+      correction: t('correction'),
+      restriction: t('restriction'),
     };
     return labels[type as keyof typeof labels] || type;
   };
 
   const getStatusLabel = (status: string): string => {
     const labels = {
-      pending: 'Чакаща',
-      processing: 'Обработва се',
-      completed: 'Завършена',
-      rejected: 'Отхвърлена',
+      pending: t('pending'),
+      processing: t('processing'),
+      completed: t('completed'),
+      rejected: t('rejected'),
     };
     return labels[status as keyof typeof labels] || status;
   };
@@ -110,7 +112,7 @@ const DataRightsScreen: React.FC = () => {
 
   const submitDataRequest = async () => {
     if (!requestDescription.trim()) {
-      Alert.alert('Грешка', 'Моля, опишете заявката си.');
+      Alert.alert(t('error'), t('pleaseDescribeYourRequest'));
       return;
     }
 
@@ -122,12 +124,12 @@ const DataRightsScreen: React.FC = () => {
         const response = await ApiService.getInstance().getMyData();
         if (response.success) {
           Alert.alert(
-            'Данните са получени',
-            'Вашите лични данни са заредени успешно. Може да ги прегледате от раздел "Вашите заявки".',
-            [{ text: 'OK' }]
+            t('dataReceived'),
+            t('yourPersonalDataHasBeenLoadedSuccessfully'),
+            [{ text: t('ok') }]
           );
         } else {
-          throw new Error(response.error?.message || 'Неуспешна заявка');
+          throw new Error(response.error?.message || t('unsuccessfulRequest'));
         }
       } else if (selectedRequestType === 'deletion') {
         // Use account deletion endpoint
@@ -136,7 +138,7 @@ const DataRightsScreen: React.FC = () => {
           requestDescription
         );
         if (!response.success) {
-          throw new Error(response.error?.message || 'Неуспешна заявка');
+          throw new Error(response.error?.message || t('unsuccessfulRequest'));
         }
       }
 
@@ -154,17 +156,17 @@ const DataRightsScreen: React.FC = () => {
       setRequestDescription('');
 
       Alert.alert(
-        'Успешно',
-        'Вашата заявка е изпратена. Ще получите отговор в рамките на 30 дни.',
-        [{ text: 'OK' }]
+        t('success'),
+        t('yourRequestHasBeenSent'),
+        [{ text: t('ok') }]
       );
 
     } catch (error: any) {
       Logger.error('Error submitting data request:', error);
       Alert.alert(
-        'Грешка',
-        error?.message || 'Възникна проблем при изпращането на заявката. Моля, опитайте отново.',
-        [{ text: 'OK' }]
+        t('error'),
+        error?.message || t('anErrorOccurredWhileSubmittingYourRequest'),
+        [{ text: t('ok') }]
       );
     } finally {
       setIsSubmitting(false);
@@ -175,9 +177,9 @@ const DataRightsScreen: React.FC = () => {
     try {
       // TODO: Implement data download
       Alert.alert(
-        'Изтегляне на данни',
-        'Функцията за изтегляне ще бъде достъпна скоро.',
-        [{ text: 'OK' }]
+        t('downloadData'),
+        t('thisFeatureWillBeAvailableSoon'),
+        [{ text: t('ok') }]
       );
     } catch (error) {
       Logger.error('Error downloading data:', error);
@@ -201,11 +203,11 @@ const DataRightsScreen: React.FC = () => {
       
       <View style={styles.requestMeta}>
         <Text style={styles.requestDate}>
-          Създадена: {new Date(request.createdAt).toLocaleDateString('bg-BG')}
+          {t('created')}: {new Date(request.createdAt).toLocaleDateString('bg-BG')}
         </Text>
         {request.completedAt && (
           <Text style={styles.requestDate}>
-            Завършена: {new Date(request.completedAt).toLocaleDateString('bg-BG')}
+            {t('completed')}: {new Date(request.completedAt).toLocaleDateString('bg-BG')}
           </Text>
         )}
       </View>
@@ -215,7 +217,7 @@ const DataRightsScreen: React.FC = () => {
           style={styles.downloadButton}
           onPress={() => downloadData(request.id)}
         >
-          <Text style={styles.downloadButtonText}>📥 Изтегли данните</Text>
+          <Text style={styles.downloadButtonText}>{t('downloadData')}</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -224,29 +226,28 @@ const DataRightsScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Права на данните</Text>
+        <Text style={styles.title}>{t('dataRights')}</Text>
         <Text style={styles.subtitle}>
-          Упражнете вашите GDPR права за контрол върху данните
+          {t('exerciseYourGDPRRights')}
         </Text>
       </View>
 
       <View style={styles.infoBanner}>
         <Text style={styles.infoBannerText}>
-          🔒 Според GDPR имате право да контролирате как данните ви се обработват. 
-          Всички заявки се обработват в рамките на 30 дни.
+          {t('gdprInfo')}
         </Text>
       </View>
 
       <View style={styles.rightsContainer}>
-        <Text style={styles.sectionTitle}>Вашите права:</Text>
+        <Text style={styles.sectionTitle}>{t('yourRights')}</Text>
         
         <TouchableOpacity
           style={styles.rightItem}
           onPress={() => handleRequestData('access')}
         >
-          <Text style={styles.rightTitle}>👁️ Достъп до данни</Text>
+          <Text style={styles.rightTitle}>{t('access')}</Text>
           <Text style={styles.rightDescription}>
-            Получете копие от всички данни, които съхраняваме за вас
+            {t('receiveACopyOfYourData')}
           </Text>
         </TouchableOpacity>
 
@@ -254,9 +255,9 @@ const DataRightsScreen: React.FC = () => {
           style={styles.rightItem}
           onPress={() => handleRequestData('correction')}
         >
-          <Text style={styles.rightTitle}>✏️ Корекция на данни</Text>
+          <Text style={styles.rightTitle}>{t('correction')}</Text>
           <Text style={styles.rightDescription}>
-            Поправете неточни или непълни данни
+            {t('correctInaccurateData')}
           </Text>
         </TouchableOpacity>
 
@@ -264,9 +265,9 @@ const DataRightsScreen: React.FC = () => {
           style={styles.rightItem}
           onPress={() => handleRequestData('deletion')}
         >
-          <Text style={styles.rightTitle}>🗑️ Изтриване на данни</Text>
+          <Text style={styles.rightTitle}>{t('deletion')}</Text>
           <Text style={styles.rightDescription}>
-            Изтрийте данните си (право на забвене)
+            {t('deleteYourData')}
           </Text>
         </TouchableOpacity>
 
@@ -274,9 +275,9 @@ const DataRightsScreen: React.FC = () => {
           style={styles.rightItem}
           onPress={() => handleRequestData('portability')}
         >
-          <Text style={styles.rightTitle}>📤 Пренос на данни</Text>
+          <Text style={styles.rightTitle}>{t('portability')}</Text>
           <Text style={styles.rightDescription}>
-            Получете данните в структуриран, машиночетим формат
+            {t('receiveYourDataInAMachineReadableFormat')}
           </Text>
         </TouchableOpacity>
 
@@ -284,22 +285,22 @@ const DataRightsScreen: React.FC = () => {
           style={styles.rightItem}
           onPress={() => handleRequestData('restriction')}
         >
-          <Text style={styles.rightTitle}>⏸️ Ограничаване на обработката</Text>
+          <Text style={styles.rightTitle}>{t('restriction')}</Text>
           <Text style={styles.rightDescription}>
-            Ограничете как данните ви се обработват
+            {t('restrictTheProcessingOfYourData')}
           </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.requestsContainer}>
-        <Text style={styles.sectionTitle}>Вашите заявки:</Text>
+        <Text style={styles.sectionTitle}>{t('yourRequests')}</Text>
         
         {isLoading ? (
           <ActivityIndicator size="large" color="#3498db" style={styles.loader} />
         ) : requests.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>
-              Все още нямате заявки за данни
+              {t('noRequestsYet')}
             </Text>
           </View>
         ) : (
@@ -315,18 +316,18 @@ const DataRightsScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              Заявка за {getRequestTypeLabel(selectedRequestType)}
+              {t('requestFor')} {getRequestTypeLabel(selectedRequestType)}
             </Text>
             
             <Text style={styles.modalDescription}>
-              Обяснете подробно какво искате да постигнете с тази заявка:
+              {t('pleaseDescribeYourRequest')}
             </Text>
             
             <TextInput
               style={styles.modalInput}
               multiline
               numberOfLines={4}
-              placeholder="Опишете заявката си тук..."
+              placeholder={t('describeYourRequest')}
               value={requestDescription}
               onChangeText={setRequestDescription}
               textAlignVertical="top"
@@ -337,7 +338,7 @@ const DataRightsScreen: React.FC = () => {
                 style={styles.modalCancelButton}
                 onPress={() => setShowRequestModal(false)}
               >
-                <Text style={styles.modalCancelButtonText}>Отказ</Text>
+                <Text style={styles.modalCancelButtonText}>{t('cancel')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
@@ -348,7 +349,7 @@ const DataRightsScreen: React.FC = () => {
                 {isSubmitting ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={styles.modalSubmitButtonText}>Изпрати</Text>
+                  <Text style={styles.modalSubmitButtonText}>{t('submit')}</Text>
                 )}
               </TouchableOpacity>
             </View>

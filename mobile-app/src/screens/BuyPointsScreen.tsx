@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -42,7 +43,8 @@ interface PointsBalance {
   tier: string;
 }
 
-const BuyPointsScreen: React.FC = () => {
+export default function BuyPointsScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const [packages, setPackages] = useState<PackagesResponse | null>(null);
   const [balance, setBalance] = useState<PointsBalance | null>(null);
@@ -72,7 +74,7 @@ const BuyPointsScreen: React.FC = () => {
       }
     } catch (error) {
       Logger.error('Failed to load data:', error);
-      Alert.alert('Грешка', 'Неуспешно зареждане на данните');
+      Alert.alert(t('common:error'), t('common:loadError'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -105,11 +107,11 @@ const BuyPointsScreen: React.FC = () => {
                   setBalance(balanceRes.data);
                 }
               } else {
-                Alert.alert('Грешка', response.error?.message || 'Неуспешна покупка');
+                Alert.alert(t('common:error'), response.error?.message || t('purchaseError'));
               }
             } catch (error: any) {
               Logger.error('Failed to purchase:', error);
-              Alert.alert('Грешка', error.message || 'Неуспешна покупка');
+              Alert.alert(t('common:error'), error.message || t('purchaseError'));
             } finally {
               setPurchasing(null);
             }

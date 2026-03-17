@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -40,6 +41,7 @@ interface IncomeStats {
 }
 
 export default function DashboardScreen() {
+  const { t, i18n } = useTranslation('common');
   const navigation = useNavigation();
   const [user, setUser] = useState<any>(null);
   const [incomeStats, setIncomeStats] = useState<IncomeStats | null>(null);
@@ -148,11 +150,11 @@ export default function DashboardScreen() {
         setIncomeStats(response.data);
       } else {
         Logger.error('📊 Dashboard - No data or error:', response.error);
-        Alert.alert('Грешка', response.error?.message || 'Не успяхме да заредим статистиката');
+        Alert.alert(t('common:error'), response.error?.message || t('loadStatsFailed'));
       }
     } catch (error) {
       Logger.error('📊 Dashboard - Error fetching income stats:', error);
-      Alert.alert('Грешка', 'Не успяхме да заредим статистиката');
+      Alert.alert(t('common:error'), t('loadStatsFailed'));
     }
   };
 
@@ -166,18 +168,19 @@ export default function DashboardScreen() {
 
   const getPaymentMethodLabel = (method: string) => {
     const labels: { [key: string]: string } = {
-      cash: '💵 Кеш',
-      card: '💳 Карта',
-      bank_transfer: '🏦 Банков път',
-      online: '🌐 Revolut',
-      other: '📝 Друго',
+      cash: `💵 ${t('incomePayCash')}`,
+      card: `💳 ${t('incomePayCard')}`,
+      bank_transfer: `🏦 ${t('incomePayBank')}`,
+      online: `🌐 ${t('incomePayOnline')}`,
+      other: `📝 ${t('incomePayOther')}`,
     };
     return labels[method] || method;
   };
 
   const getMonthName = (monthStr: string) => {
     const date = new Date(monthStr + '-01');
-    return date.toLocaleDateString('bg-BG', { month: 'long', year: 'numeric' });
+    const locale = i18n.language === 'en' ? 'en-US' : 'bg-BG';
+    return date.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
   };
 
   const handleMonthClick = async (month: string) => {
@@ -188,11 +191,11 @@ export default function DashboardScreen() {
         setMonthTransactions(response.data);
         setShowTransactionsModal(true);
       } else {
-        Alert.alert('Грешка', 'Не могат да се заредят транзакциите');
+        Alert.alert(t('common:error'), t('loadTransactionsFailed'));
       }
     } catch (error) {
       Logger.error('Error fetching month transactions:', error);
-      Alert.alert('Грешка', 'Възникна грешка при зареждането на транзакциите');
+      Alert.alert(t('error'), t('incomeLoadError'));
     }
   };
 
@@ -200,7 +203,7 @@ export default function DashboardScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary.solid} />
-        <Text style={styles.loadingText}>Зареждане...</Text>
+        <Text style={styles.loadingText}>{t('loading')}</Text>
       </View>
     );
   }
@@ -213,8 +216,8 @@ export default function DashboardScreen() {
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>💰 Приходи</Text>
-          <Text style={styles.headerSubtitle}>Следете вашите приходи и статистики</Text>
+          <Text style={styles.headerTitle}>💰 {t('dashboard:income')}</Text>
+          <Text style={styles.headerSubtitle}>{t('trackIncomeStats')}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -230,7 +233,7 @@ export default function DashboardScreen() {
               <View style={styles.incomeHeader}>
                 <View style={styles.incomeHeaderLeft}>
                   <Text style={styles.incomeEmoji}>💰</Text>
-                  <Text style={styles.incomeTitle}>Приходи</Text>
+                  <Text style={styles.incomeTitle}>{t('incomeTitle')}</Text>
                 </View>
               </View>
 
@@ -243,7 +246,7 @@ export default function DashboardScreen() {
                     onPress={() => setShowMonthPicker(true)}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.cardLabel}>Избран месец</Text>
+                    <Text style={styles.cardLabel}>{t('incomeSelectedMonth')}</Text>
                     <TouchableOpacity 
                       style={styles.dropdownButton}
                       onPress={() => setShowMonthPicker(true)}
@@ -263,7 +266,7 @@ export default function DashboardScreen() {
                             {currentMonth.total.toFixed(2)} €
                           </Text>
                           <Text style={styles.cardDetails}>
-                            {currentMonth.count} заявки • Средно: {currentMonth.average.toFixed(2)} €
+                            {t('incomeCasesAvg', { count: currentMonth.count, avg: currentMonth.average.toFixed(2) })}
                           </Text>
                         </>
                       );
@@ -277,13 +280,13 @@ export default function DashboardScreen() {
                   onPress={() => setShowYearPicker(true)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.cardLabel}>Общо приходи</Text>
+                  <Text style={styles.cardLabel}>{t('incomeTotalIncome')}</Text>
                   {availableYears.length > 0 && (
                     <TouchableOpacity 
                       style={styles.dropdownButton}
                       onPress={() => setShowYearPicker(true)}
                     >
-                      <Text style={styles.dropdownText}>{selectedYear} г.</Text>
+                      <Text style={styles.dropdownText}>{selectedYear}{t('incomeYearSuffix')}</Text>
                       <Text style={styles.dropdownArrow}>▼</Text>
                     </TouchableOpacity>
                   )}
@@ -291,7 +294,7 @@ export default function DashboardScreen() {
                     {incomeStats.summary.totalIncome.toFixed(2)} €
                   </Text>
                   <Text style={styles.cardDetails}>
-                    {incomeStats.summary.incomeCount} заявки • Средно: {incomeStats.summary.averageIncome.toFixed(2)} €
+                    {t('incomeCasesAvg', { count: incomeStats.summary.incomeCount, avg: incomeStats.summary.averageIncome.toFixed(2) })}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -300,14 +303,14 @@ export default function DashboardScreen() {
             {/* Monthly Income */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>📅 Месечна разбивка</Text>
+                <Text style={styles.sectionTitle}>📅 {t('incomeMonthlyBreakdown')}</Text>
                 {incomeStats.monthlyIncome && incomeStats.monthlyIncome.length > 1 && (
                   <TouchableOpacity 
                     style={styles.toggleButton}
                     onPress={() => setShowAllMonths(!showAllMonths)}
                   >
                     <Text style={styles.toggleButtonText}>
-                      {showAllMonths ? 'Текущ месец' : `Всички (${incomeStats.monthlyIncome.length})`}
+                      {showAllMonths ? t('incomeCurrentMonth') : t('incomeAllMonths', { count: incomeStats.monthlyIncome.length })}
                     </Text>
                   </TouchableOpacity>
                 )}
@@ -323,7 +326,7 @@ export default function DashboardScreen() {
                     <View style={styles.monthListHeader}>
                       <View style={styles.monthListLeft}>
                         <Text style={styles.monthListName}>{getMonthName(month.month)}</Text>
-                        <Text style={styles.monthListCount}>{month.count} заявки</Text>
+                        <Text style={styles.monthListCount}>{month.count} {t('incomeCases')}</Text>
                       </View>
                       <View style={styles.monthListRight}>
                         <Text style={styles.monthListTotal}>{month.total.toFixed(2)} €</Text>
@@ -334,14 +337,14 @@ export default function DashboardScreen() {
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>Няма данни за този период</Text>
+                  <Text style={styles.emptyStateText}>{t('incomeNoDataPeriod')}</Text>
                 </View>
               )}
             </View>
 
             {/* Payment Methods - Grid Layout */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>💳 По метод на плащане</Text>
+              <Text style={styles.sectionTitle}>💳 {t('incomeByPaymentMethod')}</Text>
               {incomeStats.paymentMethods && incomeStats.paymentMethods.length > 0 ? (
                 <View style={styles.paymentGrid}>
                   {incomeStats.paymentMethods.map((pm, index) => {
@@ -350,14 +353,14 @@ export default function DashboardScreen() {
                       <View key={index} style={styles.paymentGridCard}>
                         <Text style={styles.paymentGridLabel}>{getPaymentMethodLabel(pm.method)}</Text>
                         <Text style={styles.paymentGridValue}>{pm.total.toFixed(2)} €</Text>
-                        <Text style={styles.paymentGridDetails}>{pm.count} заявки</Text>
+                        <Text style={styles.paymentGridDetails}>{pm.count} {t('incomeCases')}</Text>
                       </View>
                     );
                   })}
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>Няма данни за методи на плащане</Text>
+                  <Text style={styles.emptyStateText}>{t('incomeNoPaymentData')}</Text>
                 </View>
               )}
             </View>
@@ -365,9 +368,9 @@ export default function DashboardScreen() {
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateIcon}>📊</Text>
-            <Text style={styles.emptyStateText}>Няма данни за приходи</Text>
+            <Text style={styles.emptyStateText}>{t('incomeNoData')}</Text>
             <Text style={styles.emptyStateSubtext}>
-              Завършете заявки с добавен приход, за да видите статистика
+              {t('incomeNoDataHint')}
             </Text>
           </View>
         )}
@@ -391,7 +394,7 @@ export default function DashboardScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Изберете година</Text>
+              <Text style={styles.modalTitle}>{t('selectYear')}</Text>
               <TouchableOpacity onPress={() => setShowYearPicker(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -413,7 +416,7 @@ export default function DashboardScreen() {
                     styles.pickerItemText,
                     selectedYear === year && styles.pickerItemTextSelected
                   ]}>
-                    {year} г.
+                    {year}{t('incomeYearSuffix')}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -440,7 +443,7 @@ export default function DashboardScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Изберете месец</Text>
+              <Text style={styles.modalTitle}>{t('selectMonth')}</Text>
               <TouchableOpacity onPress={() => setShowMonthPicker(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
@@ -503,7 +506,7 @@ export default function DashboardScreen() {
                   <View key={index} style={styles.transactionCard}>
                     <View style={styles.transactionHeader}>
                       <Text style={styles.transactionTitle}>
-                        {transaction.case_description || `Заявка #${transaction.case_id?.substring(0, 8)}`}
+                        {transaction.case_description || t('incomeCase', { id: transaction.case_id?.substring(0, 8) })}
                       </Text>
                       <Text style={styles.transactionAmount}>
                         {parseFloat(transaction.amount || 0).toFixed(2)} €
@@ -514,7 +517,7 @@ export default function DashboardScreen() {
                         💳 {getPaymentMethodLabel(transaction.payment_method)}
                       </Text>
                       <Text style={styles.transactionDetail}>
-                        📅 {new Date(transaction.recorded_at).toLocaleDateString('bg-BG')}
+                        📅 {new Date(transaction.recorded_at).toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'bg-BG')}
                       </Text>
                     </View>
                     {transaction.notes && (
@@ -524,16 +527,16 @@ export default function DashboardScreen() {
                 ))
               ) : (
                 <View style={styles.emptyState}>
-                  <Text style={styles.emptyStateText}>Няма транзакции за този месец</Text>
+                  <Text style={styles.emptyStateText}>{t('incomeNoTransactions')}</Text>
                 </View>
               )}
             </ScrollView>
             <View style={styles.transactionsSummary}>
-              <Text style={styles.transactionsSummaryLabel}>Общо транзакции:</Text>
+              <Text style={styles.transactionsSummaryLabel}>{t('incomeTotalTransactions')}</Text>
               <Text style={styles.transactionsSummaryValue}>{monthTransactions.length}</Text>
             </View>
             <View style={styles.transactionsSummary}>
-              <Text style={styles.transactionsSummaryLabel}>Обща сума:</Text>
+              <Text style={styles.transactionsSummaryLabel}>{t('incomeTotalAmount')}</Text>
               <Text style={styles.transactionsSummaryValue}>
                 {monthTransactions.reduce((sum: number, t: any) => sum + parseFloat(t.amount || 0), 0).toFixed(2)} €
               </Text>

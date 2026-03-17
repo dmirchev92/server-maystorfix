@@ -582,17 +582,15 @@ export default function SignupPage() {
                     }`}
                   >
                     <div className="text-center">
-                      <div className="inline-block bg-green-500 text-white text-xs px-2 py-1 rounded mb-1">
-                        ⭐ Препоръчан
-                      </div>
                       <h3 className="text-lg font-bold text-white mb-1">NORMAL</h3>
-                      <p className="text-2xl font-bold text-white mb-2">179 €</p>
-                      <p className="text-xs text-slate-300 mb-3">на година (с ДДС)</p>
+                      <p className="text-xl font-bold text-white mb-1">1,400 €/година</p>
+                      <p className="text-sm text-green-400 mb-1">или 130 €/месец</p>
+                      <p className="text-xs text-slate-400 mb-3">10% отстъпка при първа покупка</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
-                        <li>✓ 350 точки/година</li>
-                        <li>✓ До 20 снимки</li>
-                        <li>✓ До 1000 € бюджет</li>
-                        <li>✓ Премиум значка</li>
+                        <li>✓ 1,000 точки/година</li>
+                        <li>✓ Заявки до 1,000 € бюджет</li>
+                        <li>✓ SMS известия (2 точки/SMS)</li>
+                        <li>✓ 20 снимки в галерията</li>
                       </ul>
                     </div>
                   </div>
@@ -607,18 +605,20 @@ export default function SignupPage() {
                     }`}
                   >
                     <div className="text-center">
-                      <div className="inline-block bg-purple-500 text-white text-xs px-2 py-1 rounded mb-1">
-                        👑 Професионален
+                      <div className="inline-block bg-purple-500 text-white text-xs px-2 py-1 rounded-full mb-2">
+                        ⭐ Препоръчан
                       </div>
                       <h3 className="text-lg font-bold text-white mb-1">PRO</h3>
-                      <p className="text-2xl font-bold text-white mb-2">249 €</p>
-                      <p className="text-xs text-slate-300 mb-3">на година (с ДДС)</p>
+                      <p className="text-xl font-bold text-white mb-1">1,900 €/година</p>
+                      <p className="text-sm text-purple-400 mb-1">или 230 €/месец</p>
+                      <p className="text-xs text-slate-400 mb-3">15% отстъпка при първа покупка</p>
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
-                        <li>✓ 500 точки/година</li>
+                        <li>✓ 2,000 точки/година</li>
                         <li>✓ До 100 снимки</li>
-                        <li>✓ Всички бюджети</li>
-                        <li>✓ PRO значка</li>
+                        <li>✓ Всички бюджети (до 10,000 €)</li>
+                        <li>✓ PRO значка + VIP видимост</li>
                         <li>✓ Система за наддаване</li>
+                        <li>✓ Приоритетна поддръжка</li>
                       </ul>
                     </div>
                   </div>

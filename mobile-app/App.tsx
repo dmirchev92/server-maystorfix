@@ -33,6 +33,7 @@ import { NotificationProvider } from './src/contexts/NotificationContext';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { QueryProvider } from './src/query/QueryProvider';
 import notifee from '@notifee/react-native';
+import './src/i18n/config';
 
 interface User {
   id: string;

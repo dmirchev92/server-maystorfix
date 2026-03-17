@@ -4,6 +4,7 @@
 
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -78,14 +79,14 @@ interface StatBoxConfig {
   description?: string;
 }
 
-// All available stat boxes for cases section
-const ALL_STAT_BOXES: StatBoxConfig[] = [
-  { id: 'available', icon: '📋', label: 'Налични', colorStyle: 'statsCardBlue' },
-  { id: 'ratingReviews', icon: '⭐', label: 'Оценка', colorStyle: 'statsCardYellow', description: 'Натиснете за да видите отзивите' },
-  { id: 'accepted', icon: '✅', label: 'Приети', colorStyle: 'statsCardTeal' },
-  { id: 'completed', icon: '🏁', label: 'Завършени', colorStyle: 'statsCardPurple' },
-  { id: 'smsRequests', icon: '📱', label: 'SMS Заявки', colorStyle: 'statsCardCyan', description: 'Заявки от клиенти чрез SMS линк след пропуснато обаждане.' },
-  { id: 'webRequests', icon: '🌐', label: 'Уеб Заявки', colorStyle: 'statsCardIndigo', description: 'Заявки от клиенти намерили ви чрез търсачката.' },
+// All available stat boxes for cases section - labels set inside component via getStatBoxes()
+const ALL_STAT_BOXES_TEMPLATE: Omit<StatBoxConfig, 'label' | 'description'>[] = [
+  { id: 'available', icon: '📋', colorStyle: 'statsCardBlue' },
+  { id: 'ratingReviews', icon: '⭐', colorStyle: 'statsCardYellow' },
+  { id: 'accepted', icon: '✅', colorStyle: 'statsCardTeal' },
+  { id: 'completed', icon: '🏁', colorStyle: 'statsCardPurple' },
+  { id: 'smsRequests', icon: '📱', colorStyle: 'statsCardCyan' },
+  { id: 'webRequests', icon: '🌐', colorStyle: 'statsCardIndigo' },
 ];
 
 // Default order of boxes
@@ -94,14 +95,30 @@ const DEFAULT_BOX_ORDER = ['available', 'ratingReviews', 'accepted', 'completed'
 // Storage key for box order
 const BOX_ORDER_STORAGE_KEY = 'statistics_box_order';
 
-// Month names in Bulgarian
-const MONTH_NAMES = [
-  'Януари', 'Февруари', 'Март', 'Април', 'Май', 'Юни',
-  'Юли', 'Август', 'Септември', 'Октомври', 'Ноември', 'Декември'
-];
+// Month names - resolved inside component via getMonthNames()
 
-function StatisticsScreen() {
+export default function StatisticsScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
+
+  // Localized month names
+  const MONTH_NAMES = [
+    t('monthJan'), t('monthFeb'), t('monthMar'), t('monthApr'), t('monthMay'), t('monthJun'),
+    t('monthJul'), t('monthAug'), t('monthSep'), t('monthOct'), t('monthNov'), t('monthDec')
+  ];
+
+  // Localized stat boxes
+  const ALL_STAT_BOXES: StatBoxConfig[] = ALL_STAT_BOXES_TEMPLATE.map(box => {
+    switch (box.id) {
+      case 'available': return { ...box, label: t('statsAvailable') };
+      case 'ratingReviews': return { ...box, label: t('statsRating'), description: t('statsTapToSeeReviews') };
+      case 'accepted': return { ...box, label: t('statsAccepted') };
+      case 'completed': return { ...box, label: t('statsCompleted') };
+      case 'smsRequests': return { ...box, label: t('statsSmsRequests'), description: t('statsSmsRequestsDesc') };
+      case 'webRequests': return { ...box, label: t('statsWebRequests'), description: t('statsWebRequestsDesc') };
+      default: return { ...box, label: box.id };
+    }
+  });
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     totalCalls: 0,
@@ -214,7 +231,7 @@ function StatisticsScreen() {
           id: r.id,
           rating: r.rating,
           comment: r.comment || '',
-          customerName: r.customer_name || r.customerName || 'Клиент',
+          customerName: r.customer_name || r.customerName || t('mapClient'),
           createdAt: r.created_at || r.createdAt,
           serviceQuality: r.service_quality,
           communication: r.communication,
@@ -269,7 +286,7 @@ function StatisticsScreen() {
     setBoxOrder(DEFAULT_BOX_ORDER);
     saveBoxOrder(DEFAULT_BOX_ORDER);
     setSelectedBoxIndex(null);
-    Alert.alert('Готово', 'Подредбата е нулирана по подразбиране.');
+    Alert.alert(t('common:done'), t('orderResetToDefault'));
   };
 
   const loadUserData = async () => {
@@ -556,7 +573,7 @@ function StatisticsScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Статистики</Text>
+        <Text style={styles.headerTitle}>{t('common:statistics')}</Text>
         <TouchableOpacity 
           style={styles.editButton} 
           onPress={() => {
@@ -574,10 +591,10 @@ function StatisticsScreen() {
       {isEditMode && (
         <View style={styles.editInstructions}>
           <Text style={styles.editInstructionsText}>
-            Натиснете 2 кутии за да ги разменим местата
+            {t('statsSwapInstructions')}
           </Text>
           <TouchableOpacity style={styles.resetButton} onPress={resetToDefault}>
-            <Text style={styles.resetButtonText}>Нулиране</Text>
+            <Text style={styles.resetButtonText}>{t('statsReset')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -591,7 +608,7 @@ function StatisticsScreen() {
         {/* SMS Statistics Section */}
         <View style={styles.statsSection}>
           <View style={styles.statsSectionHeader}>
-            <Text style={styles.statsSectionTitle}>📱 SMS Статистика</Text>
+            <Text style={styles.statsSectionTitle}>📱 {t('statsSmsStats')}</Text>
             <View style={styles.filterBadgeContainer}>
               {smsFilterMonth ? (
                 <TouchableOpacity style={styles.filterBadge} onPress={clearSmsFilter}>
@@ -606,7 +623,7 @@ function StatisticsScreen() {
                   onPress={() => setShowSmsMonthPicker(true)}
                 >
                   <Text style={styles.filterButtonIcon}>📅</Text>
-                  <Text style={styles.filterButtonText}>Филтър</Text>
+                  <Text style={styles.filterButtonText}>{t('statsFilter')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -617,14 +634,14 @@ function StatisticsScreen() {
               <Text style={styles.statsCardValue}>
                 {smsFilterMonth && filteredSmsStats ? filteredSmsStats.missedCalls : stats.missedCalls}
               </Text>
-              <Text style={styles.statsCardLabel}>Пропуснати обаждания</Text>
+              <Text style={styles.statsCardLabel}>{t('statsMissedCalls')}</Text>
             </View>
             <View style={[styles.statsCard, styles.statsCardGreen]}>
               <Text style={styles.statsCardIcon}>💬</Text>
               <Text style={styles.statsCardValue}>
                 {smsFilterMonth && filteredSmsStats ? filteredSmsStats.smsSent : stats.smsSent}
               </Text>
-              <Text style={styles.statsCardLabel}>Изпратени SMS</Text>
+              <Text style={styles.statsCardLabel}>{t('statsSmsSent')}</Text>
             </View>
           </View>
         </View>
@@ -642,7 +659,7 @@ function StatisticsScreen() {
             onPress={() => setShowSmsMonthPicker(false)}
           >
             <View style={styles.monthPickerModal}>
-              <Text style={styles.monthPickerTitle}>Избери месец</Text>
+              <Text style={styles.monthPickerTitle}>{t('statsSelectMonth')}</Text>
               <ScrollView style={styles.monthPickerScroll}>
                 {getAvailableMonths().map((item) => (
                   <TouchableOpacity
@@ -661,7 +678,7 @@ function StatisticsScreen() {
         {/* Cases Statistics Section - Customizable */}
         <View style={styles.statsSection}>
           <View style={styles.statsSectionHeader}>
-            <Text style={styles.statsSectionTitle}>📊 Статистика за заявки</Text>
+            <Text style={styles.statsSectionTitle}>📊 {t('statsCasesStats')}</Text>
             <View style={styles.filterBadgeContainer}>
               {casesFilterMonth ? (
                 <TouchableOpacity style={styles.filterBadge} onPress={clearCasesFilter}>
@@ -676,7 +693,7 @@ function StatisticsScreen() {
                   onPress={() => setShowCasesMonthPicker(true)}
                 >
                   <Text style={styles.filterButtonIcon}>📅</Text>
-                  <Text style={styles.filterButtonText}>Филтър</Text>
+                  <Text style={styles.filterButtonText}>{t('statsFilter')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -709,7 +726,7 @@ function StatisticsScreen() {
             onPress={() => setShowCasesMonthPicker(false)}
           >
             <View style={styles.monthPickerModal}>
-              <Text style={styles.monthPickerTitle}>Избери месец</Text>
+              <Text style={styles.monthPickerTitle}>{t('statsSelectMonth')}</Text>
               <ScrollView style={styles.monthPickerScroll}>
                 {getAvailableMonths().map((item) => (
                   <TouchableOpacity
@@ -737,7 +754,7 @@ function StatisticsScreen() {
               {/* Header */}
               <View style={styles.reviewsModalHeader}>
                 <View style={styles.reviewsModalTitleRow}>
-                  <Text style={styles.reviewsModalTitle}>⭐ Оценки и Отзиви</Text>
+                  <Text style={styles.reviewsModalTitle}>⭐ {t('ratingsAndReviews')}</Text>
                   <TouchableOpacity onPress={() => setShowReviewsModal(false)}>
                     <Text style={styles.reviewsModalClose}>✕</Text>
                   </TouchableOpacity>
@@ -750,7 +767,7 @@ function StatisticsScreen() {
                     {renderStars(providerStats?.averageRating || 0)}
                   </Text>
                   <Text style={styles.reviewsModalCount}>
-                    ({providerStats?.totalReviews || 0} отзива)
+                    ({providerStats?.totalReviews || 0} {t('mapReviews')})
                   </Text>
                 </View>
               </View>
@@ -758,11 +775,11 @@ function StatisticsScreen() {
               {/* Reviews List */}
               <ScrollView style={styles.reviewsList}>
                 {isLoadingReviews ? (
-                  <Text style={styles.reviewsLoading}>Зареждане...</Text>
+                  <Text style={styles.reviewsLoading}>{t('loading')}</Text>
                 ) : reviews.length === 0 ? (
                   <View style={styles.noReviews}>
                     <Text style={styles.noReviewsIcon}>📝</Text>
-                    <Text style={styles.noReviewsText}>Все още нямате отзиви</Text>
+                    <Text style={styles.noReviewsText}>{t('mapNoReviews')}</Text>
                   </View>
                 ) : (
                   reviews.map((review) => (
@@ -776,22 +793,22 @@ function StatisticsScreen() {
                       {/* Category Ratings */}
                       {(review.serviceQuality || review.communication || review.timeliness || review.valueForMoney) ? (
                         <View style={styles.reviewCategories}>
-                          {review.serviceQuality ? <Text style={styles.reviewCatItem}>🔧 Качество: {review.serviceQuality}/5</Text> : null}
-                          {review.communication ? <Text style={styles.reviewCatItem}>💬 Комуникация: {review.communication}/5</Text> : null}
-                          {review.timeliness ? <Text style={styles.reviewCatItem}>⏱ В срок: {review.timeliness}/5</Text> : null}
-                          {review.valueForMoney ? <Text style={styles.reviewCatItem}>💰 Цена: {review.valueForMoney}/5</Text> : null}
+                          {review.serviceQuality ? <Text style={styles.reviewCatItem}>🔧 {t('mapQuality')}: {review.serviceQuality}/5</Text> : null}
+                          {review.communication ? <Text style={styles.reviewCatItem}>💬 {t('mapCommunication')}: {review.communication}/5</Text> : null}
+                          {review.timeliness ? <Text style={styles.reviewCatItem}>⏱ {t('mapOnTime')}: {review.timeliness}/5</Text> : null}
+                          {review.valueForMoney ? <Text style={styles.reviewCatItem}>💰 {t('mapPrice')}: {review.valueForMoney}/5</Text> : null}
                         </View>
                       ) : null}
                       {review.wouldRecommend !== undefined && review.wouldRecommend !== null ? (
-                        <Text style={styles.reviewRecommend}>{review.wouldRecommend ? '👍 Препоръчва' : '👎 Не препоръчва'}</Text>
+                        <Text style={styles.reviewRecommend}>{review.wouldRecommend ? `👍 ${t('mapRecommends')}` : `👎 ${t('mapDoesNotRecommend')}`}</Text>
                       ) : null}
                       {review.comment ? (
                         <Text style={styles.reviewComment}>"{review.comment}"</Text>
                       ) : (
-                        <Text style={styles.reviewNoComment}>Без коментар</Text>
+                        <Text style={styles.reviewNoComment}>{t('mapNoComment')}</Text>
                       )}
                       <Text style={styles.reviewDate}>
-                        {new Date(review.createdAt).toLocaleDateString('bg-BG')}
+                        {new Date(review.createdAt).toLocaleDateString(t('locale'))}
                       </Text>
                     </View>
                   ))

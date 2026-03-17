@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -32,7 +33,8 @@ const FALLBACK_CITIES = [
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const SearchScreen = () => {
+export default function SearchScreen() {
+  const { t } = useTranslation('common');
   const navigation = useNavigation<any>();
   const [providers, setProviders] = useState<any[]>([]);
   const [vipProviders, setVipProviders] = useState<any[]>([]);
@@ -317,7 +319,7 @@ const SearchScreen = () => {
         
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Намерени Услуги</Text>
+          <Text style={styles.headerTitle}>{t('common:foundServices')}</Text>
           <TouchableOpacity 
             style={styles.mapButton}
             onPress={() => navigation.navigate('MapSearch')}

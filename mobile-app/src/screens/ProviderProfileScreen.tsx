@@ -1,5 +1,6 @@
 import { Logger } from '../utils/Logger';
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, Image } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import ApiService from '../services/ApiService';
@@ -19,6 +20,7 @@ const Field = React.memo(({ label, value, onChangeText, multiline=false }: any) 
 ));
 
 export default function ProviderProfileScreen() {
+  const { t } = useTranslation('common');
   const [form, setForm] = useState({
     userId: '',
     businessName: '',
@@ -65,7 +67,7 @@ export default function ProviderProfileScreen() {
 
   const handleSave = async () => {
     if (!form.userId) {
-      Alert.alert('Грешка', 'Потребителският идентификатор не е намерен');
+      Alert.alert(t('common:error'), t('common:userIdNotFound'));
       return;
     }
 
@@ -94,11 +96,11 @@ export default function ProviderProfileScreen() {
         );
       } else {
         Logger.error(' Profile update failed:', response.error);
-        Alert.alert('Грешка', response.error?.message || 'Неуспешно обновяване на профила');
+        Alert.alert(t('common:error'), response.error?.message || t('common:profileUpdateFailed'));
       }
     } catch (error) {
       Logger.error(' Error saving profile:', error);
-      Alert.alert('Грешка', 'Неуспешно запазване на профила. Проверете връзката си и опитайте отново.');
+      Alert.alert(t('common:error'), t('common:profileSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -110,8 +112,8 @@ export default function ProviderProfileScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {profileUrl ? <Image source={{ uri: profileUrl }} style={styles.avatarLarge} /> : <View style={[styles.avatarLarge, { backgroundColor: '#eaeaea' }]} />}
           <View style={{ marginLeft: 12, flex: 1 }}>
-            <Text style={styles.headerTitle}>{form.businessName || 'Име на бизнес'}</Text>
-            <Text style={styles.headerSubtitle}>{form.serviceCategory || 'Категория услуга'}</Text>
+            <Text style={styles.headerTitle}>{form.businessName || t('businessName')}</Text>
+            <Text style={styles.headerSubtitle}>{form.serviceCategory || t('serviceCategory')}</Text>
           </View>
           <TouchableOpacity style={styles.headerAction} onPress={async () => {
             try {
@@ -128,53 +130,53 @@ export default function ProviderProfileScreen() {
                   setProfileUrl(`https://snapfix.bg${json.data.url}`);
                   setForm({ ...form, profileImageUrl: `https://snapfix.bg${json.data.url}` });
                 } else {
-                  Alert.alert('Грешка', 'Качването неуспешно');
+                  Alert.alert(t('common:error'), t('common:uploadFailed'));
                 }
               });
             } catch (e) {
               Alert.alert('Грешка', 'Качването неуспешно');
             }
           }}>
-            <Text style={styles.headerActionText}>Качи снимка</Text>
+            <Text style={styles.headerActionText}>{t('uploadPhoto')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Основна информация</Text>
-        <Field label="Име на бизнес" value={form.businessName} onChangeText={(t: string) => setForm({ ...form, businessName: t })} />
-        <Text style={styles.label}>Категория бизнес</Text>
+        <Text style={styles.cardTitle}>{t('basicInfo')}</Text>
+        <Field label={t('businessName')} value={form.businessName} onChangeText={(t: string) => setForm({ ...form, businessName: t })} />
+        <Text style={styles.label}>{t('businessCategory')}</Text>
         <View style={styles.pickerWrapper}>
           <Picker
             selectedValue={form.serviceCategory}
             onValueChange={(val: string) => setForm({ ...form, serviceCategory: val })}
           >
-            <Picker.Item label="Изберете категория" value="" />
+            <Picker.Item label={t('selectCategory')} value="" />
             {categories.map(c => (
               <Picker.Item key={c.id} label={c.name} value={c.id} />
             ))}
           </Picker>
         </View>
-        <Field label="Описание" value={form.description} onChangeText={(t: string) => setForm({ ...form, description: t })} multiline />
-        <Field label="Години опит" value={form.experienceYears} onChangeText={(t: string) => setForm({ ...form, experienceYears: t })} />
+        <Field label={t('description')} value={form.description} onChangeText={(t: string) => setForm({ ...form, description: t })} multiline />
+        <Field label={t('yearsExperience')} value={form.experienceYears} onChangeText={(t: string) => setForm({ ...form, experienceYears: t })} />
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Локация</Text>
+        <Text style={styles.cardTitle}>{t('location')}</Text>
         <View style={styles.row}>
           <View style={styles.col}>
-            <Field label="Град" value={form.city} onChangeText={(t: string) => setForm({ ...form, city: t })} />
+            <Field label={t('city')} value={form.city} onChangeText={(t: string) => setForm({ ...form, city: t })} />
           </View>
           <View style={styles.col}>
-            <Field label="Квартал" value={form.neighborhood} onChangeText={(t: string) => setForm({ ...form, neighborhood: t })} />
+            <Field label={t('neighborhood')} value={form.neighborhood} onChangeText={(t: string) => setForm({ ...form, neighborhood: t })} />
           </View>
         </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Контакти</Text>
-        <Field label="Телефон" value={form.phoneNumber} onChangeText={(t: string) => setForm({ ...form, phoneNumber: t })} />
-        <Field label="Имейл" value={form.email} onChangeText={(t: string) => setForm({ ...form, email: t })} />
+        <Text style={styles.cardTitle}>{t('contacts')}</Text>
+        <Field label={t('phone')} value={form.phoneNumber} onChangeText={(t: string) => setForm({ ...form, phoneNumber: t })} />
+        <Field label={t('email')} value={form.email} onChangeText={(t: string) => setForm({ ...form, email: t })} />
       </View>
 
       <View style={styles.card}>
@@ -206,13 +208,13 @@ export default function ProviderProfileScreen() {
             Alert.alert('Грешка', 'Качването неуспешно');
           }
         }}>
-          <Text style={styles.secondaryButtonText}>Добави снимка към галерия</Text>
+          <Text style={styles.secondaryButtonText}>{t('addPhotoToGallery')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Сертификати</Text>
-        <Field label="Списък (по едно заглавие на ред)" value={certificates} onChangeText={setCertificates} multiline />
+        <Text style={styles.cardTitle}>{t('certificates')}</Text>
+        <Field label={t('certificatesList')} value={certificates} onChangeText={setCertificates} multiline />
       </View>
 
       <TouchableOpacity style={[styles.saveFab, saving && { opacity: 0.7 }]} onPress={handleSave} disabled={saving}>
