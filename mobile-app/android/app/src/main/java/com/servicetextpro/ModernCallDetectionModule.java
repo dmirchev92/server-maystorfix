@@ -347,10 +347,8 @@ public class ModernCallDetectionModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void stopCallDetection(Promise promise) {
         try {
-            if (!isListening) {
-                promise.resolve("Not listening");
-                return;
-            }
+            // Stop the foreground service (removes the notification)
+            stopForegroundCallService();
 
             // Unregister TelephonyCallback
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && callStateCallback != null) {
@@ -365,7 +363,7 @@ public class ModernCallDetectionModule extends ReactContextBaseJavaModule {
             }
 
             isListening = false;
-            Log.d(TAG, "Call detection stopped");
+            Log.d(TAG, "Call detection stopped (foreground service stopped)");
             promise.resolve("Call detection stopped");
 
         } catch (Exception e) {

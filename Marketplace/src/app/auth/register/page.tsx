@@ -30,7 +30,7 @@ interface RegistrationData {
   acceptTerms: boolean
 }
 
-const serviceCategories = SERVICE_CATEGORIES.map(cat => cat.label)
+const serviceCategories = SERVICE_CATEGORIES
 
 // Cities are now fetched dynamically from the API
 
@@ -209,11 +209,13 @@ function RegisterForm() {
         router.push('/auth/login?registered=true')
       } else {
         console.error('Registration failed:', result)
-        alert(result.error?.message || 'Грешка при регистрация')
+        const errorMessage = result.error?.message || 'Грешка при регистрация'
+        alert(errorMessage)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error)
-      alert('Възникна грешка при регистрацията')
+      const errorMessage = error.message || 'Възникна грешка при регистрацията'
+      alert(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -462,8 +464,8 @@ function RegisterForm() {
                   >
                     <option value="" className="text-white bg-slate-800">Изберете категория</option>
                     {serviceCategories.map((category) => (
-                      <option key={category} value={category} className="text-white bg-slate-800">
-                        {category}
+                      <option key={category.value} value={category.value} className="text-white bg-slate-800">
+                        {category.label}
                       </option>
                     ))}
                   </select>
@@ -662,9 +664,23 @@ function RegisterForm() {
               selectedTier={formData.subscription_tier_id}
               onSelectTier={(tier) => {
                 handleInputChange('subscription_tier_id', tier)
-                setShowTierSelection(false)
+                // Only close modal for Free tier, Normal/Pro stay open to show billing options
+                if (tier === 'free') {
+                  setShowTierSelection(false)
+                }
               }}
             />
+            
+            {/* Confirm Button - Only show when Normal or Pro is selected */}
+            {(formData.subscription_tier_id === 'normal' || formData.subscription_tier_id === 'pro') && (
+              <button
+                type="button"
+                onClick={() => setShowTierSelection(false)}
+                className="w-full mt-4 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+              >
+                Избери {formData.subscription_tier_id === 'normal' ? 'Normal' : 'Pro'} план
+              </button>
+            )}
           </div>
         </div>
       )}

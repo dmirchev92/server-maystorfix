@@ -23,7 +23,7 @@ import theme from '../styles/theme';
 import IncomeCompletionModal from '../components/IncomeCompletionModal';
 import BidButton from '../components/BidButton';
 import PointsBalanceWidget from '../components/PointsBalanceWidget';
-import { SERVICE_CATEGORIES, CATEGORY_LABELS } from '../constants/serviceCategories';
+import { SERVICE_CATEGORIES, CATEGORY_LABELS, getCategoryLabel } from '../constants/serviceCategories';
 import CategoryIcon from '../components/CategoryIcon';
 
 interface Case {
@@ -166,6 +166,10 @@ export default function CasesScreen() {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
+  // Provider's selected service categories (from profile settings)
+  const [providerCategories, setProviderCategories] = useState<string[]>([]);
+  const [showCategoryBanner, setShowCategoryBanner] = useState(true);
+  
   const toggleCategory = (value: string) => {
     setSelectedCategories(prev => 
       prev.includes(value) 
@@ -201,6 +205,7 @@ export default function CasesScreen() {
   useFocusEffect(
     useCallback(() => {
       if (user) {
+        fetchProviderCategories();
         fetchCases();
         fetchStats();
         fetchPendingReviews();
@@ -214,6 +219,13 @@ export default function CasesScreen() {
       fetchCases();
     }
   }, [statusFilter]);
+  
+  // Refetch when category filter changes
+  useEffect(() => {
+    if (user && viewMode === 'available') {
+      fetchCases();
+    }
+  }, [selectedCategories]);
 
   const fetchPendingReviews = async () => {
     if (!user?.id) return;
@@ -255,6 +267,26 @@ export default function CasesScreen() {
     }
   };
 
+  const fetchProviderCategories = async () => {
+    try {
+      const response = await fetch('https://snapfix.bg/api/v1/provider/categories', {
+        headers: {
+          'Authorization': `Bearer ${await ApiService.getInstance().getAuthToken()}`,
+        },
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.categories) {
+          setProviderCategories(result.categories);
+          Logger.debug('📂 Provider categories loaded:', result.categories);
+        }
+      }
+    } catch (error) {
+      Logger.error('Error fetching provider categories:', error);
+    }
+  };
+
   const loadUserAndCases = async () => {
     try {
       const response = await ApiService.getInstance().getCurrentUser();
@@ -263,6 +295,10 @@ export default function CasesScreen() {
         const rawData: any = response.data;
         const userData: any = rawData.user || rawData;
         setUser(userData);
+        
+        // Fetch provider's selected categories
+        await fetchProviderCategories();
+        
         await fetchCases();
         await fetchStats();
       }
@@ -330,6 +366,13 @@ export default function CasesScreen() {
         filterParams.onlyUnassigned = 'true';
         filterParams.excludeDeclinedBy = user.id;
         filterParams.excludeBiddedBy = user.id;  // Exclude cases already bid on
+        filterParams.limit = 100;  // Increase limit to show more cases
+        
+        // Apply category filter if selected
+        if (selectedCategories.length > 0) {
+          // Send first selected category (backend will filter)
+          filterParams.category = selectedCategories[0];
+        }
       }
 
       Logger.debug('📋 CasesScreen - Filter params:', filterParams);
@@ -377,6 +420,7 @@ export default function CasesScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    await fetchProviderCategories();
     await fetchCases();
     await fetchStats();
     setRefreshing(false);
@@ -696,10 +740,23 @@ export default function CasesScreen() {
   const getFilteredCases = () => {
     let filtered = cases;
     
+    // NOTE: Removed automatic filtering by provider's selected categories
+    // The web version shows ALL available cases regardless of provider category
+    // Provider categories are shown in banner for informational purposes only
+    // Users can manually filter using the category dropdown if desired
+    
+    // User's manual category filter - normalize cat_ prefix for matching
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter(c => 
-        selectedCategories.includes(c.category) || selectedCategories.includes(c.service_type)
-      );
+      filtered = filtered.filter(c => {
+        const normalizedSelected = selectedCategories.map(cat => cat.replace(/^cat_/, ''));
+        const caseCategory = c.category?.replace(/^cat_/, '') || '';
+        const caseServiceType = c.service_type?.replace(/^cat_/, '') || '';
+        
+        return selectedCategories.includes(c.category) || 
+               selectedCategories.includes(c.service_type) ||
+               normalizedSelected.includes(caseCategory) ||
+               normalizedSelected.includes(caseServiceType);
+      });
     }
     if (budgetFilter) {
       filtered = filtered.filter(c => String(c.budget) === budgetFilter);
@@ -711,7 +768,7 @@ export default function CasesScreen() {
     return filtered;
   };
   
-  const getCategoryLabel = () => {
+  const getFilterLabel = () => {
     if (selectedCategories.length === 0) return t('category');
     if (selectedCategories.length === 1) {
       const cat = SERVICE_CATEGORIES.find(c => c.value === selectedCategories[0]);
@@ -795,13 +852,32 @@ export default function CasesScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Category Filter Banner - Only for available cases */}
+      {viewMode === 'available' && providerCategories.length > 0 && showCategoryBanner && (
+        <View style={styles.categoryBanner}>
+          <View style={styles.categoryBannerContent}>
+            <Text style={styles.categoryBannerText}>
+              📂 Показвам заявки за: {providerCategories.map(catId => 
+                getCategoryLabel(catId)
+              ).join(', ')}
+            </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+              <Text style={styles.categoryBannerLink}>Промени</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={() => setShowCategoryBanner(false)}>
+            <Text style={styles.categoryBannerClose}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Filter Row - Glued to Tabs, centered */}
       <View style={styles.filterRow}>
         <TouchableOpacity 
           style={[styles.filterButton, selectedCategories.length > 0 && styles.filterButtonActive]}
           onPress={() => setShowCategoryDropdown(true)}
         >
-          <Text style={styles.filterButtonText}>{getCategoryLabel()} ▼</Text>
+          <Text style={styles.filterButtonText}>{getFilterLabel()} ▼</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -857,7 +933,9 @@ export default function CasesScreen() {
                   <Text style={styles.clearAllText}>✕ {t('clearAll')} ({selectedCategories.length})</Text>
                 </TouchableOpacity>
               )}
-              {SERVICE_CATEGORIES.map(cat => {
+              {SERVICE_CATEGORIES.filter(cat => 
+                providerCategories.length === 0 || providerCategories.includes(cat.value) || providerCategories.includes(cat.value.replace('cat_', '')) || providerCategories.includes(`cat_${cat.value}`)
+              ).map(cat => {
                 const isSelected = selectedCategories.includes(cat.value);
                 return (
                   <TouchableOpacity 
@@ -2384,6 +2462,44 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: '#94a3b8', // slate-400
     marginLeft: 'auto',
+  },
+  // Category filter banner styles
+  categoryBanner: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  categoryBannerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryBannerText: {
+    color: '#cbd5e1',
+    fontSize: 13,
+    flex: 1,
+  },
+  categoryBannerLink: {
+    color: '#6366F1',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  categoryBannerClose: {
+    color: '#94a3b8',
+    fontSize: 18,
+    fontWeight: '600',
+    paddingLeft: 12,
   },
   tabsScrollContainer: {
     maxHeight: 60,

@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios'
 
 // API client configuration - connects to your existing backend
 // Whitelist of allowed hostnames for security
-const ALLOWED_HOSTS = ['46.224.11.139', '192.168.0.129', 'localhost', '127.0.0.1']
+const ALLOWED_HOSTS = ['91.98.138.38', '192.168.0.129', 'localhost', '127.0.0.1']
 
 const getApiUrl = (): string => {
   // Always prefer environment variable (most secure)
@@ -19,7 +19,7 @@ const getApiUrl = (): string => {
   const hostname = window.location.hostname
   
   // Production domain - always HTTPS
-  if (hostname === 'snapfix.bg' || hostname === '46.224.11.139') {
+  if (hostname === 'snapfix.bg' || hostname === '91.98.138.38') {
     return 'https://snapfix.bg/api/v1'
   }
   
@@ -44,6 +44,9 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
       timeout: 10000,
+      paramsSerializer: {
+        encode: (param) => encodeURIComponent(param)
+      }
     })
 
     this.setupInterceptors()
@@ -956,14 +959,19 @@ class ApiClient {
     return this.client.get('/vip/auctions', { params })
   }
 
-  async placeVipBid(vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP', categoryId: string, pointsIncrement: number) {
-    console.log('⭐ API Client - Placing VIP bid:', { vipType, categoryId, pointsIncrement })
-    return this.client.post('/vip/bid', { vipType, categoryId, pointsIncrement })
+  async placeVipBid(vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP', categoryId: string, pointsIncrement: number, city?: string) {
+    console.log('⭐ API Client - Placing VIP bid:', { vipType, categoryId, pointsIncrement, city })
+    return this.client.post('/vip/bid', { vipType, categoryId, pointsIncrement, city })
   }
 
-  async buyoutVipSlot(vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP', categoryId: string) {
-    console.log('⭐ API Client - Buying out VIP slot:', { vipType, categoryId })
-    return this.client.post('/vip/buyout', { vipType, categoryId })
+  async buyoutVipSlot(vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP', categoryId: string, city?: string) {
+    console.log('⭐ API Client - Buying out VIP slot:', { vipType, categoryId, city })
+    return this.client.post('/vip/buyout', { vipType, categoryId, city })
+  }
+
+  async getProviderCategories() {
+    console.log('📂 API Client - Getting provider categories')
+    return this.client.get('/provider/categories')
   }
 
   async cancelVipBid(bidId: string) {

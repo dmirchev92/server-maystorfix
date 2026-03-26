@@ -151,9 +151,6 @@
   "processing": "Обработва се",
   "gdprPrivacy": "GDPR & Поверителност",
   "dataManagement": "Управление на данните",
-  "recentActivity": "Последна активност",
-  "active": "Активен",
-  "noRecentActivity": "Няма последна активност",
   "startDetectionToSeeCalls": "Стартирайте детекцията за да видите обаждания",
   "lastUpdate": "Последна актуализация"
 }

@@ -12,6 +12,47 @@ import { getIO } from '../server';
 const db = DatabaseFactory.getDatabase();
 const subscriptionService = new SubscriptionService();
 
+/**
+ * Parse budget range string and return max value for tier filtering
+ * Handles formats: "100-200", "5000+", "200" (single value)
+ */
+function getBudgetMaxValue(budget: string | null): number {
+  if (!budget) return 0;
+  
+  // Handle "5000+" format
+  if (budget.endsWith('+')) {
+    return Infinity;
+  }
+  
+  // Handle range format "100-200"
+  if (budget.includes('-')) {
+    const parts = budget.split('-');
+    const max = parseInt(parts[1], 10);
+    return isNaN(max) ? 0 : max;
+  }
+  
+  // Handle single value "200"
+  const single = parseInt(budget, 10);
+  return isNaN(single) ? 0 : single;
+}
+
+/**
+ * Build SQL condition for budget tier filtering
+ * Uses CASE expression to parse budget strings and compare numerically
+ */
+function buildBudgetTierCondition(maxBudget: number): string {
+  return `(
+    CASE 
+      WHEN c.budget IS NULL THEN true
+      WHEN c.budget LIKE '%+' THEN false
+      WHEN c.budget LIKE '%-%' THEN 
+        CAST(SPLIT_PART(c.budget, '-', 2) AS INTEGER) <= ${maxBudget}
+      ELSE 
+        CAST(c.budget AS INTEGER) <= ${maxBudget}
+    END
+  )`;
+}
+
 // Get NotificationService instance with Socket.IO
 function getNotificationService(): NotificationService {
   const notificationService = new NotificationService();
@@ -312,6 +353,17 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
 
     logger.info('✅ Service case created successfully', { caseId, serviceType, assignmentType });
 
+    // Notify customer that their case was created
+    if (customerId) {
+      try {
+        const notificationService = getNotificationService();
+        await notificationService.notifyCaseCreated(caseId, customerId, category || serviceType, budget);
+        logger.info('✅ Case created notification sent to customer', { customerId, caseId });
+      } catch (notifError) {
+        logger.error('❌ Error sending case created notification:', notifError);
+      }
+    }
+
     // Send response immediately
     res.status(201).json({
       success: true,
@@ -334,9 +386,12 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
         try {
           console.log('🔔 DEBUG: Inside async notification block');
           console.log('🔔 DEBUG: finalLat=', finalLat, 'finalLng=', finalLng, 'budget=', budget);
-          // 1. Instant Alert for Nearby PROs (Uber-like)
+          // 1. Instant Alert for Nearby PROs (Uber-like) - DISABLED to prevent duplicate notifications
           let notifiedProIds: string[] = [];
           
+          // TODO: Re-enable instant alerts when we implement proper deduplication
+          // For now, only use standard notifications to avoid sending 2 notifications per case
+          /*
           if (finalLat && finalLng && budget) {
             console.log('🔔 DEBUG: Has coordinates and budget, calling SmartMatchingService');
             try {
@@ -398,11 +453,15 @@ export const createCase = async (req: Request, res: Response): Promise<void> => 
               logger.error('❌ Error sending instant alerts:', alertError);
             }
           }
+          */
 
           // 2. Standard Notifications (Email/Push for everyone else)
-          console.log('🔔 DEBUG: About to call BidSelectionReminderJob');
-          if (DatabaseFactory.isPostgreSQL()) {
-            console.log('🔔 DEBUG: isPostgreSQL = true');
+          // SKIP if case has coordinates - LocationSearchJob will handle location-based notifications
+          if (finalLat && finalLng) {
+            console.log('🔔 DEBUG: Case has coordinates, skipping event-driven notification (LocationSearchJob will handle)');
+            logger.info('🔔 Skipping event-driven notification - LocationSearchJob will handle location-based case', { caseId });
+          } else if (DatabaseFactory.isPostgreSQL()) {
+            console.log('🔔 DEBUG: No coordinates, using city/neighborhood matching');
             const { BidSelectionReminderJob } = await import('../jobs/BidSelectionReminderJob');
             const pool = (db as any).pool;
             const bidJob = new BidSelectionReminderJob(pool);
@@ -867,9 +926,46 @@ export const getAvailableCases = async (req: Request, res: Response): Promise<vo
       logger.warn('Failed to check provider tier for case visibility', { providerId });
     }
 
+    // Get provider's selected categories (for Normal tier filtering)
+    const providerCategories = await db.query(
+      `SELECT category_id FROM provider_service_categories WHERE provider_id = $1`,
+      [providerId]
+    );
+    const categoryIds = providerCategories.map((row: any) => row.category_id);
+
     // Standard query for available cases
     // If NOT PRO, exclude cases where exclusive_until > NOW
     const exclusiveFilter = isPro ? "" : "AND (exclusive_until IS NULL OR exclusive_until <= NOW())";
+    
+    // Category filter: Normal tier sees only their selected categories
+    // Build category filter to handle both 'carpenter' and 'cat_carpenter' formats
+    let categoryFilter = "";
+    const categoryParams: string[] = [];
+    if (categoryIds.length > 0) {
+      const categoryConditions = categoryIds.flatMap((catId: string, idx: number) => {
+        const normalized = catId.replace(/^cat_/, '');
+        categoryParams.push(catId, normalized, `cat_${normalized}`);
+        // Base index starts at 3 (after $1 and $2 for providerId)
+        const paramStartIndex = 3 + (idx * 3);
+        return [
+          `c.category = $${paramStartIndex}`,
+          `c.category = $${paramStartIndex + 1}`,
+          `c.category = $${paramStartIndex + 2}`,
+          `c.service_type = $${paramStartIndex}`,
+          `c.service_type = $${paramStartIndex + 1}`,
+          `c.service_type = $${paramStartIndex + 2}`
+        ];
+      });
+      categoryFilter = `AND (${categoryConditions.join(' OR ')})`;
+    }
+    
+    logger.info('📋 getAvailableCases query params:', { 
+      providerId, 
+      categoryIds, 
+      categoryParams,
+      categoryFilter,
+      isPro 
+    });
 
     const cases = await db.query(
       `SELECT c.* FROM marketplace_service_cases c
@@ -881,8 +977,9 @@ export const getAvailableCases = async (req: Request, res: Response): Promise<vo
          SELECT case_id FROM marketplace_case_declines WHERE provider_id = $2
        )
        ${exclusiveFilter}
+       ${categoryFilter}
        ORDER BY c.created_at DESC`,
-      [providerId, providerId]
+      [providerId, providerId, ...categoryParams]
     );
 
     res.json({
@@ -949,6 +1046,35 @@ export const getCasesForMap = async (req: Request, res: Response): Promise<void>
       whereConditions += ` AND c.id NOT IN (SELECT case_id FROM marketplace_case_declines WHERE provider_id = $${paramIndex})`;
       params.push(providerId);
       paramIndex++;
+      
+      // Filter by provider's selected categories (Normal tier restriction)
+      const providerCategories = await db.query(
+        `SELECT category_id FROM provider_service_categories WHERE provider_id = $1`,
+        [providerId]
+      );
+      const categoryIds = providerCategories.map((row: any) => row.category_id);
+      
+      if (categoryIds.length > 0) {
+        // Build category filter to handle both 'carpenter' and 'cat_carpenter' formats
+        const categoryConditions: string[] = [];
+        categoryIds.forEach((catId: string) => {
+          const normalized = catId.replace(/^cat_/, '');
+          categoryConditions.push(`c.category = $${paramIndex++}`);
+          params.push(catId);
+          categoryConditions.push(`c.category = $${paramIndex++}`);
+          params.push(normalized);
+          categoryConditions.push(`c.category = $${paramIndex++}`);
+          params.push(`cat_${normalized}`);
+          categoryConditions.push(`c.service_type = $${paramIndex++}`);
+          params.push(catId);
+          categoryConditions.push(`c.service_type = $${paramIndex++}`);
+          params.push(normalized);
+          categoryConditions.push(`c.service_type = $${paramIndex++}`);
+          params.push(`cat_${normalized}`);
+        });
+        whereConditions += ` AND (${categoryConditions.join(' OR ')})`;
+        console.log('🔍 Map - Filtering by provider categories:', categoryIds);
+      }
     }
     
     // Filter by category if provided
@@ -969,11 +1095,11 @@ export const getCasesForMap = async (req: Request, res: Response): Promise<void>
     if (LAUNCH_MODE) {
       console.log('🚀 Map - LAUNCH_MODE active: skipping budget restrictions for all users');
     } else if (userTier === 'free') {
-      whereConditions += ` AND c.budget IN ('251-400')`;
-      console.log('💰 Map - Applying Free tier budget restriction: up to 400 BGN');
+      whereConditions += ` AND ${buildBudgetTierCondition(400)}`;
+      console.log('💰 Map - Applying Free tier budget restriction: up to 400 лв');
     } else if (userTier === 'normal') {
-      whereConditions += ` AND c.budget IN ('251-400', '401-500', '500-750', '750-1000', '1001-2000')`;
-      console.log('💰 Map - Applying Normal tier budget restriction: up to 2000 BGN');
+      whereConditions += ` AND ${buildBudgetTierCondition(2000)}`;
+      console.log('💰 Map - Applying Normal tier budget restriction: up to 2000 лв');
     }
     // Pro tier users can see all cases (no restriction)
     
@@ -1477,9 +1603,15 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       }
     }
 
+    // If explicit category filter is provided, use it (handles both 'cat_xxx' and 'xxx' formats)
+    let explicitCategoryFilter = false;
     if (category) {
-      conditions.push(`c.category = $${paramIndex++}`);
-      params.push(category);
+      const catId = category as string;
+      const normalized = catId.replace(/^cat_/, '');
+      conditions.push(`(c.category = $${paramIndex++} OR c.category = $${paramIndex++} OR c.category = $${paramIndex++})`);
+      params.push(catId, normalized, `cat_${normalized}`);
+      explicitCategoryFilter = true;
+      console.log('🔍 Backend - Explicit category filter:', catId);
     }
 
     if (city) {
@@ -1522,6 +1654,40 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
       conditions.push(`c.id NOT IN (SELECT case_id FROM marketplace_case_declines WHERE provider_id = $${paramIndex++})`);
       params.push(excludeDeclinedBy);
       console.log('🚫 Backend - Excluding cases declined by provider:', excludeDeclinedBy);
+      
+      // Filter by provider's selected categories (Normal tier restriction)
+      // Skip if explicit category filter is already applied
+      if (!explicitCategoryFilter) {
+        const providerCategories = await db.query(
+          `SELECT category_id FROM provider_service_categories WHERE provider_id = $1`,
+          [excludeDeclinedBy]
+        );
+        const categoryIds = providerCategories.map((row: any) => row.category_id);
+        
+        if (categoryIds.length > 0) {
+          // Build category filter to handle both 'carpenter' and 'cat_carpenter' formats
+          const categoryConditions: string[] = [];
+          categoryIds.forEach((catId: string) => {
+            const normalized = catId.replace(/^cat_/, '');
+            categoryConditions.push(`c.category = $${paramIndex++}`);
+            params.push(catId);
+            categoryConditions.push(`c.category = $${paramIndex++}`);
+            params.push(normalized);
+            categoryConditions.push(`c.category = $${paramIndex++}`);
+            params.push(`cat_${normalized}`);
+            categoryConditions.push(`c.service_type = $${paramIndex++}`);
+            params.push(catId);
+            categoryConditions.push(`c.service_type = $${paramIndex++}`);
+            params.push(normalized);
+            categoryConditions.push(`c.service_type = $${paramIndex++}`);
+            params.push(`cat_${normalized}`);
+          });
+          conditions.push(`(${categoryConditions.join(' OR ')})`);
+          console.log('🔍 Backend - Filtering by provider categories:', categoryIds);
+        }
+      } else {
+        console.log('🔍 Backend - Skipping provider categories filter (explicit category provided)');
+      }
     }
 
     // Exclude cases this provider has already bid on (for available cases view)
@@ -1573,13 +1739,13 @@ export const getCasesWithFilters = async (req: Request, res: Response): Promise<
         
         // Free tier users can only see cases up to 400 BGN
         if (userTier === 'free') {
-          conditions.push(`c.budget IN ('251-400')`);
-          console.log('💰 Backend - Applying Free tier budget restriction: up to 400 BGN');
+          conditions.push(buildBudgetTierCondition(400));
+          console.log('💰 Backend - Applying Free tier budget restriction: up to 400 лв');
         }
         // Normal tier users can see cases up to 2000 BGN
         else if (userTier === 'normal') {
-          conditions.push(`c.budget IN ('251-400', '401-500', '500-750', '750-1000', '1001-2000')`);
-          console.log('💰 Backend - Applying Normal tier budget restriction: up to 2000 BGN');
+          conditions.push(buildBudgetTierCondition(2000));
+          console.log('💰 Backend - Applying Normal tier budget restriction: up to 2000 лв');
         }
         // Pro tier users can see all cases (no restriction)
       }

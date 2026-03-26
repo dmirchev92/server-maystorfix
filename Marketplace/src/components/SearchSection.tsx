@@ -15,16 +15,25 @@ export function SearchSection() {
   const router = useRouter()
 
   const serviceTypes = [
-    { value: 'electrician', label: 'Електротехник' },
-    { value: 'plumber', label: 'Водопроводчик' },
-    { value: 'hvac', label: 'Климатик' },
-    { value: 'carpenter', label: 'Дърводелец' },
-    { value: 'painter', label: 'Бояджия' },
-    { value: 'locksmith', label: 'Ключар' },
-    { value: 'cleaner', label: 'Почистване' },
-    { value: 'gardener', label: 'Градинар' },
-    { value: 'handyman', label: 'Майстор за всичко' },
-    { value: 'appliance_repair', label: 'Ремонт на уреди' },
+    { value: 'cat_electrician', label: 'Електротехник' },
+    { value: 'cat_plumber', label: 'Водопроводчик' },
+    { value: 'cat_hvac', label: 'Климатик' },
+    { value: 'cat_carpenter', label: 'Дърводелец' },
+    { value: 'cat_painter', label: 'Бояджия' },
+    { value: 'cat_locksmith', label: 'Ключар' },
+    { value: 'cat_cleaner', label: 'Почистване' },
+    { value: 'cat_gardener', label: 'Градинар' },
+    { value: 'cat_handyman', label: 'Дребни ремонти' },
+    { value: 'cat_appliance', label: 'Ремонт на уреди' },
+    { value: 'cat_renovation', label: 'Цялостни ремонти' },
+    { value: 'cat_roofer', label: 'Ремонт на покриви' },
+    { value: 'cat_mover', label: 'Хамалски услуги' },
+    { value: 'cat_tiler', label: 'Майстор Фаянс' },
+    { value: 'cat_welder', label: 'Заварчик' },
+    { value: 'cat_flooring', label: 'Подови настилки' },
+    { value: 'cat_plasterer', label: 'Шпакловане' },
+    { value: 'cat_glasswork', label: 'Стъкларски услуги' },
+    { value: 'cat_design', label: 'Дизайн' },
   ]
 
   const cities = [
@@ -188,7 +197,11 @@ export function SearchSection() {
     e.preventDefault()
     
     // Update Redux store with search filters
-    dispatch(setFilters(searchData))
+    dispatch(setFilters({
+      serviceType: searchData.serviceType,
+      city: searchData.city,
+      neighborhood: searchData.neighborhood
+    }))
     
     // Navigate to search results
     const params = new URLSearchParams()

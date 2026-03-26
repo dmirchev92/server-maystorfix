@@ -37,6 +37,8 @@ export default function DashboardPage() {
   const [myBids, setMyBids] = useState<Map<string, any>>(new Map())
   const [pendingReviews, setPendingReviews] = useState<Case[]>([])
   const [reviewModal, setReviewModal] = useState<{ isOpen: boolean; caseData: Case | null }>({ isOpen: false, caseData: null })
+  const [providerCategories, setProviderCategories] = useState<string[]>([])
+  const [showCategoryBanner, setShowCategoryBanner] = useState(true)
   
   const fetchingRef = useRef(false)
 
@@ -53,8 +55,33 @@ export default function DashboardPage() {
     }
   }, [isAuthenticated, isLoading, user, router])
 
+  // Fetch provider's selected categories
+  const fetchProviderCategories = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1'}/provider/categories`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        }
+      )
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.categories) {
+          setProviderCategories(data.categories)
+          console.log('📂 Provider categories loaded for dashboard:', data.categories)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching provider categories:', error)
+    }
+  }
+
   useEffect(() => {
     if (isAuthenticated && user) {
+      fetchProviderCategories()
       fetchCases()
       fetchStats()
       fetchPointsBalance()
@@ -103,7 +130,13 @@ export default function DashboardPage() {
       
       const response = await apiClient.getCasesWithFilters(filterParams)
       if (response.data?.success) {
-        setCases(response.data.data.cases || [])
+        let fetchedCases = response.data.data.cases || []
+        
+        // Category filtering is now handled by the backend in getAvailableCases endpoint
+        // Backend properly normalizes both 'carpenter' and 'cat_carpenter' formats
+        // No client-side filtering needed
+        
+        setCases(fetchedCases)
       } else {
         setCases([])
       }
@@ -433,6 +466,37 @@ export default function DashboardPage() {
           stats={stats} 
           onViewChange={handleViewChange}
         />
+
+        {/* Category Filter Banner - Only for providers viewing available cases */}
+        {(user.role === 'tradesperson' || user.role === 'service_provider') && 
+         filters.viewMode === 'available' && 
+         providerCategories.length > 0 && 
+         showCategoryBanner && (
+          <div className="mb-6 bg-indigo-500/10 border border-indigo-400/30 rounded-lg p-4 flex items-center justify-between">
+            <div className="flex-1 flex items-center gap-3 flex-wrap">
+              <p className="text-sm text-slate-200">
+                📂 Показвам заявки за: <span className="font-semibold text-white">
+                  {providerCategories.map(catId => {
+                    const { getCategoryLabel } = require('@/constants/serviceCategories')
+                    return getCategoryLabel(catId)
+                  }).join(', ')}
+                </span>
+              </p>
+              <a 
+                href="/settings?section=profile" 
+                className="text-indigo-400 hover:text-indigo-300 text-sm font-semibold underline"
+              >
+                Промени
+              </a>
+            </div>
+            <button 
+              onClick={() => setShowCategoryBanner(false)}
+              className="text-slate-400 hover:text-slate-200 text-xl font-bold ml-4"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <FilterBar 

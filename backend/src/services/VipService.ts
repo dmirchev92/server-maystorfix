@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DatabaseFactory } from '../models/DatabaseFactory';
 import { PostgreSQLDatabase } from '../models/PostgreSQLDatabase';
 import logger from '../utils/logger';
+import { getVipSocketHandler } from '../socket/vipSocket';
 
 // VIP Types
 export type VipType = 'HOMEPAGE_VIP' | 'SEARCH_VIP';
@@ -143,13 +144,13 @@ export class VipService {
   // VIP Configuration Constants
   private readonly CONFIG = {
     HOMEPAGE_VIP: {
-      startBidPoints: 50,
-      buyoutPoints: 120,
+      startBidPoints: 80,
+      buyoutPoints: 150,
       slotsPerCategory: 3
     },
     SEARCH_VIP: {
-      startBidPoints: 25,
-      buyoutPoints: 100,
+      startBidPoints: 80,
+      buyoutPoints: 150,
       slotsPerCategory: 3
     },
     minBidIncrement: 5,
@@ -391,9 +392,9 @@ export class VipService {
     const client = await this.pool.connect();
     
     try {
-      // Get SP's profile to determine their category and city
+      // Get SP's profile city
       const profileQuery = `
-        SELECT service_category, city FROM service_provider_profiles WHERE user_id = $1
+        SELECT city FROM service_provider_profiles WHERE user_id = $1
       `;
       const profileResult = await client.query(profileQuery, [userId]);
       
@@ -402,10 +403,16 @@ export class VipService {
       }
       
       const profile = profileResult.rows[0];
-      const spCategory = profile.service_category;
       const spCity = profile.city;
       
-      // Get all categories for homepage VIP
+      // Get all provider's categories from provider_service_categories table
+      const providerCatsQuery = `
+        SELECT psc.category_id FROM provider_service_categories psc WHERE psc.provider_id = $1
+      `;
+      const providerCatsResult = await client.query(providerCatsQuery, [userId]);
+      const spCategoryIds = providerCatsResult.rows.map((r: any) => r.category_id);
+      
+      // Get all categories for matching
       const categoriesQuery = `SELECT id, name_bg FROM service_categories`;
       const categoriesResult = await client.query(categoriesQuery);
       
@@ -414,11 +421,14 @@ export class VipService {
       const coverageEnd = new Date(nextAuction.coverageEnd);
       
       for (const category of categoriesResult.rows) {
-        // Homepage VIP (only for SP's own category)
-        // Handle ID mismatch: service_categories has 'cat_electrician', profiles have 'electrician'
-        const categoryMatch = category.id === spCategory || 
-                              category.id === `cat_${spCategory}` || 
-                              category.id.replace('cat_', '') === spCategory;
+        // Check if this category is one of the provider's categories
+        const categoryMatch = spCategoryIds.some((spCat: string) => 
+          category.id === spCat || 
+          category.id === `cat_${spCat}` || 
+          category.id.replace('cat_', '') === spCat ||
+          spCat === `cat_${category.id}` ||
+          spCat.replace('cat_', '') === category.id.replace('cat_', '')
+        );
         if (categoryMatch) {
           if (!filters?.vipType || filters.vipType === 'HOMEPAGE_VIP') {
             if (!filters?.categoryId || filters.categoryId === category.id) {
@@ -535,12 +545,14 @@ export class VipService {
 
   /**
    * Place or increase a VIP bid
+   * @param city - Optional city for SEARCH_VIP (if not provided, uses SP's profile city)
    */
   async placeBid(
     userId: string,
     vipType: VipType,
     categoryId: string,
-    pointsIncrement: number
+    pointsIncrement: number,
+    city?: string
   ): Promise<BidResult> {
     if (!this.isVipEnabled()) {
       return {
@@ -571,9 +583,9 @@ export class VipService {
     try {
       await client.query('BEGIN');
       
-      // Get SP's profile
+      // Get SP's profile city
       const profileQuery = `
-        SELECT service_category, city FROM service_provider_profiles WHERE user_id = $1
+        SELECT city FROM service_provider_profiles WHERE user_id = $1
       `;
       const profileResult = await client.query(profileQuery, [userId]);
       
@@ -588,21 +600,32 @@ export class VipService {
       
       const profile = profileResult.rows[0];
       
-      // Validate category matches SP's category
-      // Handle ID mismatch: service_categories has 'cat_electrician', profiles have 'electrician'
-      const categoryMatch = categoryId === profile.service_category || 
-                            categoryId === `cat_${profile.service_category}` || 
-                            categoryId.replace('cat_', '') === profile.service_category;
+      // Validate category matches one of SP's categories from provider_service_categories
+      const providerCatsQuery = `
+        SELECT category_id FROM provider_service_categories WHERE provider_id = $1
+      `;
+      const providerCatsResult = await client.query(providerCatsQuery, [userId]);
+      const spCategoryIds = providerCatsResult.rows.map((r: any) => r.category_id);
+      
+      const categoryMatch = spCategoryIds.some((spCat: string) => 
+        categoryId === spCat || 
+        categoryId === `cat_${spCat}` || 
+        categoryId.replace('cat_', '') === spCat ||
+        spCat === `cat_${categoryId}` ||
+        spCat.replace('cat_', '') === categoryId.replace('cat_', '')
+      );
       if (!categoryMatch) {
         await client.query('ROLLBACK');
         return {
           success: false,
           message: 'Можете да наддавате само за вашата категория.',
-          error: { code: 'INVALID_CATEGORY', message: 'Can only bid for your own category' }
+          error: { code: 'INVALID_CATEGORY', message: 'Можете да наддавате само за вашата категория.' }
         };
       }
       
-      const city = vipType === 'HOMEPAGE_VIP' ? 'GLOBAL' : profile.city;
+      // For HOMEPAGE_VIP, city is always GLOBAL
+      // For SEARCH_VIP, use provided city or fall back to profile city
+      const targetCity = vipType === 'HOMEPAGE_VIP' ? 'GLOBAL' : (city || profile.city);
       const config = vipType === 'HOMEPAGE_VIP' ? this.CONFIG.HOMEPAGE_VIP : this.CONFIG.SEARCH_VIP;
       const nextAuction = this.getNextAuctionDates();
       const coverageEnd = new Date(nextAuction.coverageEnd);
@@ -620,7 +643,7 @@ export class VipService {
         FOR UPDATE
       `;
       const existingBidResult = await client.query(existingBidQuery, [
-        userId, categoryId, city, vipType, coverageEndStr
+        userId, categoryId, targetCity, vipType, coverageEndStr
       ]);
       
       let newBidAmount: number;
@@ -662,7 +685,7 @@ export class VipService {
             AND status IN ('open', 'buyout')
         `;
         const highestBidResult = await client.query(highestBidQuery, [
-          categoryId, city, vipType, coverageEndStr
+          categoryId, targetCity, vipType, coverageEndStr
         ]);
         const currentHighestBid = Number(highestBidResult.rows[0]?.highest_bid || 0);
         
@@ -726,7 +749,7 @@ export class VipService {
             status, priority_score, started_at, expires_at, created_at, updated_at
           ) VALUES ($1, $2, $3, $4, $5::numeric, $6, 'open', $7::integer, $8::timestamp, $9::timestamp, NOW(), NOW())
         `, [
-          bidId, userId, categoryId, city, newBidAmount, vipType,
+          bidId, userId, categoryId, targetCity, newBidAmount, vipType,
           newBidAmount, new Date(nextAuction.startsAt).toISOString(), coverageEndStr
         ]);
       }
@@ -743,13 +766,36 @@ export class VipService {
           AND bid_amount > $5::numeric
       `;
       const rankResult = await client.query(rankQuery, [
-        categoryId, city, vipType, coverageEndStr, newBidAmount
+        categoryId, targetCity, vipType, coverageEndStr, newBidAmount
       ]);
       const rank = Number(rankResult.rows[0]?.rank || 1);
       
       await client.query('COMMIT');
       
-      logger.info('VIP bid placed', { userId, vipType, categoryId, city, newBidAmount, rank });
+      logger.info('VIP bid placed', { userId, vipType, categoryId, city: targetCity, newBidAmount, rank });
+      
+      // Emit real-time update via WebSocket
+      const vipSocket = getVipSocketHandler();
+      if (vipSocket) {
+        // Get total bids count for this auction
+        const totalBidsQuery = `
+          SELECT COUNT(*) as count FROM sp_premium_bids
+          WHERE service_category = $1 AND city = $2 AND currency = $3
+          AND expires_at = $4::timestamp AND status IN ('open', 'buyout')
+        `;
+        const totalBidsResult = await this.pool.query(totalBidsQuery, [categoryId, targetCity, vipType, coverageEndStr]);
+        const totalBids = Number(totalBidsResult.rows[0]?.count || 0);
+        
+        vipSocket.emitBidUpdate(vipType, categoryId, targetCity === 'GLOBAL' ? null : targetCity, {
+          bidderId: userId,
+          newBidAmount,
+          rank,
+          totalBids
+        });
+        
+        // Notify users who were outbid (those who now have rank > 3)
+        this.notifyOutbidUsers(vipType, categoryId, targetCity, newBidAmount, coverageEndStr);
+      }
       
       return {
         success: true,
@@ -782,8 +828,9 @@ export class VipService {
 
   /**
    * Buyout a VIP slot (immediate point deduction)
+   * @param city - Optional city for SEARCH_VIP (if not provided, uses SP's profile city)
    */
-  async buyout(userId: string, vipType: VipType, categoryId: string): Promise<BuyoutResult> {
+  async buyout(userId: string, vipType: VipType, categoryId: string, city?: string): Promise<BuyoutResult> {
     if (!this.isVipEnabled()) {
       return {
         success: false,
@@ -805,9 +852,9 @@ export class VipService {
     try {
       await client.query('BEGIN');
       
-      // Get SP's profile
+      // Get SP's profile city
       const profileQuery = `
-        SELECT service_category, city FROM service_provider_profiles WHERE user_id = $1
+        SELECT city FROM service_provider_profiles WHERE user_id = $1
       `;
       const profileResult = await client.query(profileQuery, [userId]);
       
@@ -822,20 +869,32 @@ export class VipService {
       
       const profile = profileResult.rows[0];
       
-      // Handle ID mismatch: service_categories has 'cat_electrician', profiles have 'electrician'
-      const categoryMatch = categoryId === profile.service_category || 
-                            categoryId === `cat_${profile.service_category}` || 
-                            categoryId.replace('cat_', '') === profile.service_category;
+      // Validate category matches one of SP's categories from provider_service_categories
+      const providerCatsQuery = `
+        SELECT category_id FROM provider_service_categories WHERE provider_id = $1
+      `;
+      const providerCatsResult = await client.query(providerCatsQuery, [userId]);
+      const spCategoryIds = providerCatsResult.rows.map((r: any) => r.category_id);
+      
+      const categoryMatch = spCategoryIds.some((spCat: string) => 
+        categoryId === spCat || 
+        categoryId === `cat_${spCat}` || 
+        categoryId.replace('cat_', '') === spCat ||
+        spCat === `cat_${categoryId}` ||
+        spCat.replace('cat_', '') === categoryId.replace('cat_', '')
+      );
       if (!categoryMatch) {
         await client.query('ROLLBACK');
         return {
           success: false,
           message: 'Можете да закупите VIP само за вашата категория.',
-          error: { code: 'INVALID_CATEGORY', message: 'Can only buyout for your own category' }
+          error: { code: 'INVALID_CATEGORY', message: 'Можете да закупите VIP само за вашата категория.' }
         };
       }
       
-      const city = vipType === 'HOMEPAGE_VIP' ? 'GLOBAL' : profile.city;
+      // For HOMEPAGE_VIP, city is always GLOBAL
+      // For SEARCH_VIP, use provided city or fall back to profile city
+      const targetCity = vipType === 'HOMEPAGE_VIP' ? 'GLOBAL' : (city || profile.city);
       const config = vipType === 'HOMEPAGE_VIP' ? this.CONFIG.HOMEPAGE_VIP : this.CONFIG.SEARCH_VIP;
       const buyoutPoints = config.buyoutPoints;
       const nextAuction = this.getNextAuctionDates();
@@ -855,7 +914,7 @@ export class VipService {
           AND status = 'buyout'
       `;
       const buyoutsResult = await client.query(buyoutsQuery, [
-        categoryId, city, vipType, coverageEndStr
+        categoryId, targetCity, vipType, coverageEndStr
       ]);
       const buyoutsTaken = Number(buyoutsResult.rows[0]?.count || 0);
       
@@ -879,7 +938,7 @@ export class VipService {
           AND status = 'buyout'
       `;
       const existingBuyoutResult = await client.query(existingBuyoutQuery, [
-        userId, categoryId, city, vipType, coverageEndStr
+        userId, categoryId, targetCity, vipType, coverageEndStr
       ]);
       
       if (existingBuyoutResult.rows.length > 0) {
@@ -915,7 +974,7 @@ export class VipService {
           AND expires_at = $5::timestamp
       `;
       const existingBidResult = await client.query(existingBidQuery, [
-        userId, categoryId, city, vipType, coverageEndStr
+        userId, categoryId, targetCity, vipType, coverageEndStr
       ]);
       
       let bidId: string;
@@ -927,19 +986,21 @@ export class VipService {
           SET bid_amount = $1::numeric,
               status = 'buyout',
               priority_score = $2::integer,
+              started_at = NOW(),
               updated_at = NOW()
           WHERE id = $3
         `, [buyoutPoints, buyoutPoints, bidId]);
       } else {
         bidId = uuidv4();
+        // Buyouts start immediately (NOW), not at next auction start
         await client.query(`
           INSERT INTO sp_premium_bids (
             id, user_id, service_category, city, bid_amount, currency,
             status, priority_score, started_at, expires_at, created_at, updated_at
-          ) VALUES ($1, $2, $3, $4, $5::numeric, $6, 'buyout', $7::integer, $8::timestamp, $9::timestamp, NOW(), NOW())
+          ) VALUES ($1, $2, $3, $4, $5::numeric, $6, 'buyout', $7::integer, NOW(), $8::timestamp, NOW(), NOW())
         `, [
-          bidId, userId, categoryId, city, buyoutPoints, vipType,
-          buyoutPoints, new Date(nextAuction.startsAt).toISOString(), coverageEndStr
+          bidId, userId, categoryId, targetCity, buyoutPoints, vipType,
+          buyoutPoints, coverageEndStr
         ]);
       }
       
@@ -975,6 +1036,16 @@ export class VipService {
       await client.query('COMMIT');
       
       logger.info('VIP buyout completed', { userId, vipType, categoryId, city, buyoutPoints, newBalance });
+      
+      // Emit real-time update via WebSocket
+      const vipSocket = getVipSocketHandler();
+      if (vipSocket) {
+        const slotsRemaining = config.slotsPerCategory - (buyoutsTaken + 1);
+        vipSocket.emitBuyout(vipType, categoryId, city === 'GLOBAL' ? null : city, {
+          buyerId: userId,
+          slotsRemaining
+        });
+      }
       
       return {
         success: true,
@@ -1195,6 +1266,7 @@ export class VipService {
         WHERE spb.currency = 'HOMEPAGE_VIP'
           AND spb.city = 'GLOBAL'
           AND spb.status IN ('won', 'buyout')
+          AND spb.started_at <= NOW()
           AND spb.expires_at >= NOW()
           AND spp.is_active = true
       `;
@@ -1250,6 +1322,7 @@ export class VipService {
    */
   async getSearchVipProviders(categoryId: string, city: string): Promise<any[]> {
     if (!this.isVipEnabled()) {
+      logger.info('⚠️ VIP is disabled');
       return [];
     }
     
@@ -1259,6 +1332,8 @@ export class VipService {
       // Handle both 'locksmith' and 'cat_locksmith' formats
       const catWithPrefix = categoryId.startsWith('cat_') ? categoryId : `cat_${categoryId}`;
       const catWithoutPrefix = categoryId.startsWith('cat_') ? categoryId.replace('cat_', '') : categoryId;
+      
+      logger.info('🔍 getSearchVipProviders called', { categoryId, city, catWithPrefix, catWithoutPrefix });
       
       const query = `
         SELECT 
@@ -1275,7 +1350,7 @@ export class VipService {
           sc.name_bg as category_label_bg,
           u.first_name,
           u.last_name,
-          u.phone
+          u.phone_number as phone
         FROM sp_premium_bids spb
         JOIN service_provider_profiles spp ON spp.user_id = spb.user_id
         JOIN users u ON u.id = spb.user_id
@@ -1284,13 +1359,16 @@ export class VipService {
           AND (spb.service_category = $1 OR spb.service_category = $2)
           AND spb.city = $3
           AND spb.status IN ('won', 'buyout')
+          AND spb.started_at <= NOW()
           AND spb.expires_at >= NOW()
           AND spp.is_active = true
         ORDER BY spb.bid_amount DESC, spb.updated_at ASC
         LIMIT 3
       `;
       
+      console.log('🔍 getSearchVipProviders query params', { catWithPrefix, catWithoutPrefix, city });
       const result = await client.query(query, [catWithPrefix, catWithoutPrefix, city]);
+      console.log('🔍 getSearchVipProviders result', { rowCount: result.rows.length });
       
       return result.rows.map(row => ({
         userId: row.user_id,
@@ -1309,6 +1387,9 @@ export class VipService {
         isVip: true,
         vipType: 'SEARCH_VIP'
       }));
+    } catch (error) {
+      console.error('❌ getSearchVipProviders error:', error);
+      return [];
     } finally {
       client.release();
     }
@@ -1457,6 +1538,58 @@ export class VipService {
       return { processed, winners, errors };
     } finally {
       client.release();
+    }
+  }
+
+  /**
+   * Notify users who have been outbid (rank dropped below top 3)
+   */
+  private async notifyOutbidUsers(
+    vipType: VipType,
+    categoryId: string,
+    city: string,
+    newHighestBid: number,
+    coverageEndStr: string
+  ): Promise<void> {
+    try {
+      const vipSocket = getVipSocketHandler();
+      if (!vipSocket) return;
+
+      // Get all bids that are now ranked > 3 (outbid)
+      const outbidQuery = `
+        WITH ranked_bids AS (
+          SELECT 
+            spb.user_id,
+            spb.bid_amount,
+            sc.name_bg as category_label,
+            ROW_NUMBER() OVER (ORDER BY spb.bid_amount DESC, spb.updated_at ASC) as rank
+          FROM sp_premium_bids spb
+          LEFT JOIN service_categories sc ON sc.id = spb.service_category
+          WHERE spb.service_category = $1
+            AND spb.city = $2
+            AND spb.currency = $3
+            AND spb.expires_at = $4::timestamp
+            AND spb.status = 'open'
+        )
+        SELECT user_id, bid_amount, category_label, rank
+        FROM ranked_bids
+        WHERE rank > 3
+      `;
+
+      const result = await this.pool.query(outbidQuery, [categoryId, city, vipType, coverageEndStr]);
+
+      for (const row of result.rows) {
+        vipSocket.emitOutbid(row.user_id, {
+          vipType,
+          categoryId,
+          categoryLabel: row.category_label || categoryId,
+          newHighestBid,
+          yourBid: Number(row.bid_amount),
+          newRank: Number(row.rank)
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to notify outbid users', { vipType, categoryId, city, error });
     }
   }
 }

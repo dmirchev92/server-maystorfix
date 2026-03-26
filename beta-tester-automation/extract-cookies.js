@@ -10,7 +10,7 @@
  *    cd D:\newtry1\ServiceTextPro_FRESH\beta-tester-automation
  *    node extract-cookies.js
  * 5. Upload the google-session folder to the server:
- *    scp -r google-session snapfix@46.224.11.139:/var/www/servicetextpro/beta-tester-automation/
+ *    scp -r google-session snapfix@91.98.138.38:/var/www/servicetextpro/beta-tester-automation/
  */
 
 const { chromium } = require('playwright');
@@ -84,7 +84,7 @@ const SESSION_DIR = path.join(__dirname, 'google-session');
   console.log(`✅ Saved ${googleCookies.length} cookies to ${storageStatePath}`);
   console.log('');
   console.log('Now upload to the server:');
-  console.log('  scp google-session/storage-state.json snapfix@46.224.11.139:/var/www/servicetextpro/beta-tester-automation/google-session/');
+  console.log('  scp google-session/storage-state.json snapfix@91.98.138.38:/var/www/servicetextpro/beta-tester-automation/google-session/');
   
   // Don't close the browser - it's the user's Chrome!
   browser.disconnect();

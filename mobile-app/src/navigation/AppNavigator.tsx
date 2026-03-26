@@ -26,7 +26,6 @@ import CasesScreen from '../screens/CasesScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import PointsScreen from '../screens/PointsScreen';
-import BuyPointsScreen from '../screens/BuyPointsScreen';
 import PricingScreen from '../screens/PricingScreen';
 import VipVisibilityScreen from '../screens/VipVisibilityScreen';
 import MyBidsScreen from '../screens/MyBidsScreen';
@@ -534,14 +533,6 @@ export default function AppNavigator({ userRole }: { userRole?: string }) {
             component={CaseBidsScreen}
             options={{
               headerShown: false,
-            }}
-          />
-          <Stack.Screen 
-            name="BuyPoints" 
-            component={BuyPointsScreen}
-            options={{
-              headerShown: true,
-              title: 'Закупуване на точки',
             }}
           />
           <Stack.Screen 

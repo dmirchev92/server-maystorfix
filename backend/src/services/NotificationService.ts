@@ -596,6 +596,9 @@ export class NotificationService {
       await this.sendSurveyToChat(caseId, customerId, providerId);
       console.log('🔔 NotificationService - Survey chat message sent successfully');
       
+      // Schedule review reminder for 24 hours later
+      this.scheduleReviewReminder(caseId, customerId, providerId, providerName);
+      
     } catch (error) {
       console.error('🔔 NotificationService - Error in notifyCaseCompleted:', error);
       throw error;
@@ -798,6 +801,48 @@ export class NotificationService {
   }
 
   /**
+   * Notify customer when their case is created successfully
+   */
+  async notifyCaseCreated(caseId: string, customerId: string, serviceType: string, budget?: string): Promise<void> {
+    const categoryBg = CATEGORY_TRANSLATIONS[serviceType] || serviceType;
+    const budgetText = budget ? ` с бюджет ${budget} лв` : '';
+    
+    await this.createNotification(
+      customerId,
+      'case_created',
+      '✅ Заявката е създадена',
+      `Вашата заявка за ${categoryBg}${budgetText} е публикувана. Очаквайте оферти от специалисти.`,
+      { caseId, serviceType, budget, action: 'view_case' }
+    );
+  }
+
+  /**
+   * Notify SP when their bid is placed successfully
+   */
+  async notifyBidPlacedConfirmation(caseId: string, providerId: string, proposedBudget: string, bidOrder: number): Promise<void> {
+    await this.createNotification(
+      providerId,
+      'bid_placed',
+      '✅ Офертата е изпратена',
+      `Вашата оферта за ${proposedBudget} лв е изпратена успешно. Вие сте #${bidOrder} в списъка.`,
+      { caseId, proposedBudget, bidOrder, action: 'view_bids' }
+    );
+  }
+
+  /**
+   * Notify customer when they select a winner
+   */
+  async notifyWinnerSelected(caseId: string, customerId: string, providerName: string): Promise<void> {
+    await this.createNotification(
+      customerId,
+      'winner_selected',
+      '🎉 Избрахте специалист',
+      `Избрахте ${providerName} за вашата заявка. Очаквайте връзка от специалиста.`,
+      { caseId, providerName, action: 'view_case' }
+    );
+  }
+
+  /**
    * Notify user that their trial is expiring soon
    */
   async notifyTrialExpiringSoon(userId: string, casesRemaining: number, daysRemaining: number): Promise<void> {
@@ -963,6 +1008,59 @@ export class NotificationService {
         { caseId, reason, action: 'view_cases' }
       );
     }
+  }
+
+  /**
+   * Schedule a review reminder notification for 24 hours after case completion
+   */
+  private scheduleReviewReminder(caseId: string, customerId: string, providerId: string, providerName: string): void {
+    const REMINDER_DELAY_MS = 24 * 60 * 60 * 1000; // 24 hours
+    
+    setTimeout(async () => {
+      try {
+        // Check if customer already left a review
+        let reviewExists = false;
+        
+        if (this.isPostgreSQL) {
+          const result = await this.db.query(
+            `SELECT id FROM case_reviews WHERE case_id = $1 AND customer_id = $2`,
+            [caseId, customerId]
+          );
+          reviewExists = result.length > 0;
+        } else {
+          const result = await new Promise<any>((resolve, reject) => {
+            this.db.db.get(
+              `SELECT id FROM case_reviews WHERE case_id = ? AND customer_id = ?`,
+              [caseId, customerId],
+              (err: Error | null, row: any) => {
+                if (err) reject(err);
+                else resolve(row);
+              }
+            );
+          });
+          reviewExists = !!result;
+        }
+        
+        if (!reviewExists) {
+          // No review yet, send reminder
+          await this.createNotification(
+            customerId,
+            'review_request',
+            '⭐ Не забравяйте да оцените услугата!',
+            `Как беше работата с ${providerName}? Вашата оценка помага на други клиенти.`,
+            { caseId, providerId, providerName, action: 'leave_review' }
+          );
+          
+          logger.info('📧 Review reminder sent', { caseId, customerId });
+        } else {
+          logger.info('📧 Review reminder skipped - review already exists', { caseId, customerId });
+        }
+      } catch (error) {
+        logger.error('Error sending review reminder:', error);
+      }
+    }, REMINDER_DELAY_MS);
+    
+    logger.info('⏰ Review reminder scheduled for 24h', { caseId, customerId });
   }
 }
 

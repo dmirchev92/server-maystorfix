@@ -29,6 +29,23 @@
 -keep class com.google.android.gms.maps.** { *; }
 -keep class com.google.maps.android.** { *; }
 
+# Geolocation service
+-keep class com.agontuk.RNFusedLocation.** { *; }
+
+# React Native Maps
+-keep class com.rnmaps.maps.** { *; }
+-keep class com.airbnb.android.react.maps.** { *; }
+
+# React Native Linear Gradient
+-keep class com.BV.LinearGradient.** { *; }
+
+# React Native Picker
+-keep class com.reactnativecommunity.picker.** { *; }
+
+# Keep all React Native native modules
+-keep class com.facebook.react.bridge.** { *; }
+-keep class com.facebook.react.turbomodule.** { *; }
+
 # Keep annotations
 -keepattributes *Annotation*
 -keepattributes SourceFile,LineNumberTable

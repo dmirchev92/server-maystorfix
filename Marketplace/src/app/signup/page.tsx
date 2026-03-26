@@ -31,6 +31,7 @@ export default function SignupPage() {
   })
   const [detectingLocation, setDetectingLocation] = useState(false)
   const [locationDetected, setLocationDetected] = useState(false)
+  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('yearly')
 
   useEffect(() => {
     const refCode = searchParams.get('ref')
@@ -172,16 +173,76 @@ export default function SignupPage() {
     )
   }
 
+  const validatePassword = (password: string): boolean => {
+    const hasUpperCase = /[A-Z]/.test(password)
+    const hasLowerCase = /[a-z]/.test(password)
+    const hasNumbers = /\d/.test(password)
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    const hasMinLength = password.length >= 8
+    
+    return hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar && hasMinLength
+  }
+
+  const validatePhoneNumber = (phone: string): boolean => {
+    // Accept +359 format or 0 format for Bulgarian numbers
+    const plusFormat = /^\+359[0-9]{8,9}$/
+    const zeroFormat = /^0[0-9]{8,9}$/
+    return plusFormat.test(phone) || zeroFormat.test(phone)
+  }
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (formData.password !== formData.confirmPassword) {
-      alert('Паролите не съвпадат!')
+    // Required fields validation
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password || !formData.confirmPassword || !formData.phoneNumber) {
+      alert('Моля попълнете всички задължителни полета')
       return
     }
 
+    // Email validation
+    if (!validateEmail(formData.email)) {
+      alert('Моля въведете валиден имейл адрес')
+      return
+    }
+
+    // Password match validation
+    if (formData.password !== formData.confirmPassword) {
+      alert('Паролите не съвпадат')
+      return
+    }
+
+    // Password strength validation
+    if (!validatePassword(formData.password)) {
+      alert('Паролата трябва да съдържа поне 8 символа, главна буква, малка буква, цифра и специален символ')
+      return
+    }
+
+    // Service category validation
+    if (!formData.serviceCategory) {
+      alert('Моля изберете категория услуга')
+      return
+    }
+
+    // Phone number validation
+    if (!validatePhoneNumber(formData.phoneNumber)) {
+      alert('Телефонният номер трябва да започва с +359 или 0\n\nПримери:\n• 0888123456\n• +359888123456')
+      return
+    }
+
+    // Location validation
+    if (!formData.city) {
+      alert('Моля въведете град или използвайте "Открий автоматично"')
+      return
+    }
+
+    // Terms validation
     if (!formData.agreeToTerms) {
-      alert('Моля, приемете условията за ползване!')
+      alert('Трябва да приемете условията за ползване')
       return
     }
 
@@ -212,9 +273,12 @@ export default function SignupPage() {
       })
 
       if (!signupResponse.ok) {
-        const errorData = await signupResponse.text()
+        const errorData = await signupResponse.json().catch(() => ({ error: { message: 'Грешка при регистрация' } }))
         console.error('Registration error response:', errorData)
-        throw new Error(`Failed to create account: ${errorData}`)
+        const errorMessage = errorData.error?.message || errorData.message || 'Грешка при създаване на акаунт'
+        alert(errorMessage)
+        setLoading(false)
+        return
       }
 
       const userData = await signupResponse.json()
@@ -298,9 +362,10 @@ export default function SignupPage() {
       alert('Регистрацията е успешна! Моля, влезте в профила си.')
       window.location.href = '/login'
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('Signup error:', err)
-      alert('Грешка при регистрация. Моля, опитайте отново.')
+      const errorMessage = err.message || 'Грешка при регистрация. Моля, опитайте отново.'
+      alert(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -583,11 +648,51 @@ export default function SignupPage() {
                   >
                     <div className="text-center">
                       <h3 className="text-lg font-bold text-white mb-1">NORMAL</h3>
-                      <p className="text-xl font-bold text-white mb-1">1,400 €/година</p>
-                      <p className="text-sm text-green-400 mb-1">или 130 €/месец</p>
+                      <p className="text-xl font-bold text-white mb-1">
+                        {billingPeriod === 'yearly' ? '1,400 €/година' : '130 €/месец'}
+                      </p>
+                      {billingPeriod === 'yearly' && (
+                        <p className="text-sm text-green-400 mb-1">или 130 €/месец</p>
+                      )}
                       <p className="text-xs text-slate-400 mb-3">10% отстъпка при първа покупка</p>
+                      
+                      {/* Billing Period Toggle - Only shown when selected */}
+                      {formData.subscriptionTier === 'normal' && (
+                        <div className="mb-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setBillingPeriod('yearly')
+                            }}
+                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${
+                              billingPeriod === 'yearly'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                            }`}
+                          >
+                            <div>Годишно</div>
+                            <div className="text-[10px]">🎁 10% off</div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setBillingPeriod('monthly')
+                            }}
+                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${
+                              billingPeriod === 'monthly'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                            }`}
+                          >
+                            Месечно
+                          </button>
+                        </div>
+                      )}
+                      
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
-                        <li>✓ 1,000 точки/година</li>
+                        <li>✓ {billingPeriod === 'yearly' ? '1,000' : '50'} точки/{billingPeriod === 'yearly' ? 'година' : 'месец'}</li>
                         <li>✓ Заявки до 1,000 € бюджет</li>
                         <li>✓ SMS известия (2 точки/SMS)</li>
                         <li>✓ 20 снимки в галерията</li>
@@ -609,11 +714,51 @@ export default function SignupPage() {
                         ⭐ Препоръчан
                       </div>
                       <h3 className="text-lg font-bold text-white mb-1">PRO</h3>
-                      <p className="text-xl font-bold text-white mb-1">1,900 €/година</p>
-                      <p className="text-sm text-purple-400 mb-1">или 230 €/месец</p>
+                      <p className="text-xl font-bold text-white mb-1">
+                        {billingPeriod === 'yearly' ? '1,900 €/година' : '230 €/месец'}
+                      </p>
+                      {billingPeriod === 'yearly' && (
+                        <p className="text-sm text-purple-400 mb-1">или 230 €/месец</p>
+                      )}
                       <p className="text-xs text-slate-400 mb-3">15% отстъпка при първа покупка</p>
+                      
+                      {/* Billing Period Toggle - Only shown when selected */}
+                      {formData.subscriptionTier === 'pro' && (
+                        <div className="mb-3 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setBillingPeriod('yearly')
+                            }}
+                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${
+                              billingPeriod === 'yearly'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                            }`}
+                          >
+                            <div>Годишно</div>
+                            <div className="text-[10px]">🎁 15% off</div>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setBillingPeriod('monthly')
+                            }}
+                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all ${
+                              billingPeriod === 'monthly'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                            }`}
+                          >
+                            Месечно
+                          </button>
+                        </div>
+                      )}
+                      
                       <ul className="text-xs text-slate-300 space-y-1 text-left">
-                        <li>✓ 2,000 точки/година</li>
+                        <li>✓ {billingPeriod === 'yearly' ? '2,000' : '100'} точки/{billingPeriod === 'yearly' ? 'година' : 'месец'}</li>
                         <li>✓ До 100 снимки</li>
                         <li>✓ Всички бюджети (до 10,000 €)</li>
                         <li>✓ PRO значка + VIP видимост</li>

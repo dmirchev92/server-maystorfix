@@ -58,6 +58,7 @@ import SubscriptionReminderService from './services/SubscriptionReminderService'
 import * as freeInspectionController from './controllers/freeInspectionController';
 import vipController from './controllers/vipController';
 import gameController from './controllers/gameController';
+import { initializeVipSocket } from './socket/vipSocket';
 // import businessRoutes from '@/controllers/businessController';
 // import analyticsRoutes from '@/controllers/analyticsController';
 
@@ -136,7 +137,7 @@ class ServiceTextProServer {
 
     // CORS configuration with GDPR compliance
     this.app.use(cors({
-      origin: config.security.cors.enabled ? config.security.cors.origin : ['http://localhost:3000', 'http://192.168.0.129:3002', 'http://46.224.11.139'],
+      origin: config.security.cors.enabled ? config.security.cors.origin : ['http://localhost:3000', 'http://192.168.0.129:3002', 'http://91.98.138.38'],
       credentials: config.security.cors.enabled ? config.security.cors.credentials : true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: [
@@ -717,6 +718,9 @@ class ServiceTextProServer {
     const chatSocketHandler = new ChatSocketHandler(this.io, chatService);
     chatSocketHandler.initialize();
     
+    // Initialize VIP sockets for real-time auction updates
+    initializeVipSocket(this.io);
+    
     // Device token routes (for push notifications)
     logger.info('🔥 ABOUT TO REGISTER DEVICE TOKEN ROUTES');
     this.app.post('/api/v1/device-tokens/register', authenticateToken, deviceTokenController.registerDeviceToken);
@@ -832,6 +836,31 @@ class ServiceTextProServer {
     // App version check routes
     const { getAppVersion } = require('./controllers/appVersionController');
     this.app.get('/api/v1/app/version', getAppVersion);
+
+    // Admin Analytics routes
+    const adminAnalytics = require('./controllers/adminAnalyticsController');
+    this.app.get('/api/v1/admin/analytics/overview', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getOverview);
+    this.app.get('/api/v1/admin/analytics/sp-performance', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getSPPerformance);
+    this.app.get('/api/v1/admin/analytics/budget-distribution', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getBudgetDistribution);
+    this.app.get('/api/v1/admin/analytics/points-economy', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getPointsEconomy);
+    this.app.get('/api/v1/admin/analytics/recent-activity', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getRecentActivity);
+    this.app.get('/api/v1/admin/analytics/sp/:spId', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getSPDetails);
+    this.app.post('/api/v1/admin/users/:userId/adjust-points', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.adjustUserPoints);
+    this.app.get('/api/v1/admin/analytics/sms', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getSMSStats);
+    this.app.get('/api/v1/admin/analytics/sms/user/:userId', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getUserSMSStats);
+    this.app.get('/api/v1/admin/analytics/revenue', authenticateToken, adminAnalytics.requireAdmin, adminAnalytics.getRevenueStats);
+
+    // Payment routes (Stripe)
+    const paymentController = require('./controllers/paymentController');
+    this.app.get('/api/v1/payments/status', paymentController.getPaymentStatus);
+    this.app.get('/api/v1/payments/points-packages', paymentController.getPointsPackages);
+    this.app.get('/api/v1/payments/subscription-prices', paymentController.getSubscriptionPrices);
+    this.app.post('/api/v1/payments/create-payment-intent', authenticateToken, paymentController.createPaymentIntent);
+    this.app.post('/api/v1/payments/create-setup-intent', authenticateToken, paymentController.createSetupIntent);
+    this.app.post('/api/v1/payments/create-subscription', authenticateToken, paymentController.createSubscription);
+    this.app.post('/api/v1/payments/cancel-subscription', authenticateToken, paymentController.cancelSubscription);
+    this.app.post('/api/v1/payments/webhook', express.raw({ type: 'application/json' }), paymentController.handleStripeWebhook);
+    this.app.get('/api/v1/payments/history', authenticateToken, paymentController.getPaymentHistory);
 
     // Screenshot upload routes
     this.app.post('/api/v1/upload/case-screenshots', 
@@ -1503,15 +1532,15 @@ private async initializeNotificationJobs(): Promise<void> {
       }
     }, 60000); // 1 minute
 
-    // Run new case notifications every 5 minutes (backup for event-driven system)
-    // Primary notifications are now event-driven (triggered on case creation)
-    setInterval(async () => {
-      try {
-        await notificationJob.runNewCaseNotifications();
-      } catch (error) {
-        logger.error('❌ Error in new case notification job:', error);
-      }
-    }, 300000); // 5 minutes (backup only)
+    // DISABLED: Scheduled job causes duplicate notifications
+    // Notifications are now fully event-driven (triggered on case creation in caseController.ts)
+    // setInterval(async () => {
+    //   try {
+    //     await notificationJob.runNewCaseNotifications();
+    //   } catch (error) {
+    //     logger.error('❌ Error in new case notification job:', error);
+    //   }
+    // }, 300000);
 
     // Run bid selection reminders every hour
     setInterval(async () => {
@@ -1531,9 +1560,9 @@ private async initializeNotificationJobs(): Promise<void> {
       }
     }, 60 * 60 * 1000); // 1 hour
 
-    // Run initial notifications immediately
-    await notificationJob.runNewCaseNotifications();
-    logger.info('🔔 Initial new case notification check completed');
+    // DISABLED: Initial run causes duplicate notifications on server restart
+    // await notificationJob.runNewCaseNotifications();
+    logger.info('🔔 Notification system ready (event-driven only)');
 
     // Start subscription reminder cron job
     SubscriptionReminderService.startCronJob();

@@ -188,24 +188,64 @@ function AppContent() {
     };
     checkForUpdates();
     
-    // Initialize call detection service immediately (doesn't need auth)
+    // Initialize call detection service (only starts if SMS was previously enabled AND user is a service provider)
     const initCallDetection = async () => {
       try {
         const { ModernCallDetectionService } = await import('./src/services/ModernCallDetectionService');
-        ModernCallDetectionService.getInstance();
-        console.log('📱 App.tsx - Call detection service initialized on app start');
+        const { SMSService } = await import('./src/services/SMSService');
+        
+        // Initialize the service (doesn't start detection yet)
+        const callService = ModernCallDetectionService.getInstance();
+        
+        // Check user role first - only service providers should have call detection
+        const userJson = await AsyncStorage.getItem('user');
+        const user = userJson ? JSON.parse(userJson) : null;
+        const isServiceProvider = user?.role === 'tradesperson' || user?.role === 'service_provider';
+        
+        if (!isServiceProvider) {
+          console.log('📱 App.tsx - User is not a service provider, stopping any lingering call detection...');
+          // Stop any lingering foreground service from previous session
+          await callService.stopDetection();
+          return;
+        }
+        
+        // Check if SMS auto-response was enabled - only then start detection
+        const smsService = SMSService.getInstance();
+        await smsService.loadConfig();
+        const smsConfig = smsService.getConfig();
+        
+        if (smsConfig.isEnabled) {
+          console.log('📱 App.tsx - SMS was enabled, restoring call detection...');
+          const hasPermissions = await callService.checkPermissions();
+          if (hasPermissions?.hasAllPermissions) {
+            await callService.startDetection();
+            console.log('✅ App.tsx - Call detection restored (SMS was enabled)');
+          } else {
+            console.log('⚠️ App.tsx - SMS enabled but permissions missing, not starting detection');
+          }
+        } else {
+          console.log('📱 App.tsx - SMS not enabled, call detection service ready but not started');
+        }
       } catch (error) {
         console.error('❌ App.tsx - Error initializing call detection:', error);
       }
     };
     initCallDetection();
     
-    const unsubscribe = AuthBus.subscribe('logout', () => {
+    const unsubscribe = AuthBus.subscribe('logout', async () => {
       setCurrentUser(null);
       // Disconnect Socket.IO on logout
       SocketIOService.getInstance().disconnect();
       // Stop location tracking
       LocationTrackingService.getInstance().stopTracking();
+      // Stop call detection service (removes notification)
+      try {
+        const { ModernCallDetectionService } = await import('./src/services/ModernCallDetectionService');
+        await ModernCallDetectionService.getInstance().stopDetection();
+        console.log('✅ App.tsx - Call detection stopped on logout');
+      } catch (error) {
+        console.error('❌ App.tsx - Error stopping call detection on logout:', error);
+      }
     });
     
     // Listen for login events from LoginScreen
@@ -361,10 +401,10 @@ function AppContent() {
         console.error('❌ App.tsx - FCM initialization failed:', fcmError);
       }
       
-      // Also initialize call detection service (auto-initializes on getInstance)
+      // Ensure call detection service is initialized (already done in useEffect, this is a fallback)
       const { ModernCallDetectionService } = await import('./src/services/ModernCallDetectionService');
       ModernCallDetectionService.getInstance();
-      console.log('✅ App.tsx - Call detection service loaded');
+      console.log('✅ App.tsx - Call detection service ready (starts only when SMS enabled)');
     } catch (error) {
       console.error('❌ App.tsx - Error initializing services:', error);
     }

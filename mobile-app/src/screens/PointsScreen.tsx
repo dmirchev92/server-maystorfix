@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   BackHandler,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,6 +38,28 @@ interface PointsBalance {
   subscription_tier?: string;
 }
 
+interface PointsPackage {
+  points: number;
+  basePrice: number;
+  discount: number;
+  discountPercent: number;
+  finalPrice: number;
+  savings: number;
+  label: string;
+  pricePerPoint: number;
+}
+
+interface PackagesResponse {
+  canPurchase: boolean;
+  pricePerPoint: number | null;
+  currency: string;
+  tier: string;
+  packages: PointsPackage[];
+  message?: string;
+}
+
+type TabType = 'balance' | 'buy';
+
 const PointsScreen: React.FC = () => {
   const { t } = useTranslation('common');
   const navigation = useNavigation();
@@ -44,6 +68,11 @@ const PointsScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
+  
+  // Tab and purchase state
+  const [activeTab, setActiveTab] = useState<TabType>('balance');
+  const [packages, setPackages] = useState<PackagesResponse | null>(null);
+  const [purchasing, setPurchasing] = useState<number | null>(null);
 
   // Helper function to get tier display name
   const getTierDisplayName = (tier: string) => {
@@ -88,16 +117,23 @@ const PointsScreen: React.FC = () => {
     try {
       const apiService = ApiService.getInstance();
       
-      // Fetch balance
-      const balanceResponse = await apiService.getPointsBalance();
+      // Fetch balance, transactions, and packages in parallel
+      const [balanceResponse, transactionsResponse, packagesResponse] = await Promise.all([
+        apiService.getPointsBalance(),
+        apiService.getPointsTransactions(20, 0),
+        apiService.getPointsPackages(),
+      ]);
+      
       if (balanceResponse.success && balanceResponse.data) {
         setBalance(balanceResponse.data);
       }
       
-      // Fetch transactions
-      const transactionsResponse = await apiService.getPointsTransactions(20, 0);
       if (transactionsResponse.success && transactionsResponse.data) {
         setTransactions(transactionsResponse.data.transactions || transactionsResponse.data || []);
+      }
+      
+      if (packagesResponse.success && packagesResponse.data) {
+        setPackages(packagesResponse.data);
       }
     } catch (error) {
       Logger.error('Error fetching points data:', error);
@@ -105,6 +141,42 @@ const PointsScreen: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const handlePurchase = async (pkg: PointsPackage) => {
+    Alert.alert(
+      t('confirmPurchase'),
+      `${t('purchaseConfirmMessage', { points: pkg.points, price: pkg.finalPrice.toFixed(2) })}`,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('purchaseBtn'),
+          onPress: async () => {
+            try {
+              setPurchasing(pkg.points);
+              
+              const response = await ApiService.getInstance().purchasePoints(pkg.points);
+              
+              if (response.success && response.data) {
+                Alert.alert(
+                  t('success') + ' 🎉',
+                  t('purchaseSuccess', { points: response.data.pointsAdded, balance: response.data.newBalance })
+                );
+                // Reload data
+                fetchData();
+              } else {
+                Alert.alert(t('error'), response.error?.message || t('purchaseError'));
+              }
+            } catch (error: any) {
+              Logger.error('Failed to purchase:', error);
+              Alert.alert(t('error'), error.message || t('purchaseError'));
+            } finally {
+              setPurchasing(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const onRefresh = () => {
@@ -395,6 +467,43 @@ const PointsScreen: React.FC = () => {
     );
   }
 
+  const renderPackageCard = (pkg: PointsPackage) => (
+    <TouchableOpacity
+      key={pkg.points}
+      style={[
+        styles.packageCard,
+        pkg.discountPercent >= 20 && styles.packageCardBest,
+        pkg.discountPercent >= 10 && pkg.discountPercent < 20 && styles.packageCardGood,
+      ]}
+      onPress={() => handlePurchase(pkg)}
+      disabled={purchasing !== null}
+      activeOpacity={0.8}
+    >
+      {pkg.discountPercent > 0 && (
+        <View style={[
+          styles.discountBadge,
+          pkg.discountPercent >= 20 ? styles.discountBadgeBest : styles.discountBadgeGood
+        ]}>
+          <Text style={styles.discountBadgeText}>-{pkg.discountPercent}%</Text>
+        </View>
+      )}
+      <Text style={styles.packagePoints}>{pkg.points}</Text>
+      <Text style={styles.packagePointsLabel}>{t('points')}</Text>
+      {pkg.discountPercent > 0 && (
+        <Text style={styles.packageOldPrice}>{pkg.basePrice.toFixed(2)} €</Text>
+      )}
+      <Text style={styles.packagePrice}>{pkg.finalPrice.toFixed(2)} €</Text>
+      <Text style={styles.packagePricePerPoint}>{pkg.pricePerPoint.toFixed(3)} €/{t('point')}</Text>
+      <View style={[styles.packageBuyButton, purchasing === pkg.points && styles.packageBuyButtonDisabled]}>
+        {purchasing === pkg.points ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Text style={styles.packageBuyButtonText}>{t('purchaseBtn')}</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
       {/* Header with Back Button */}
@@ -402,71 +511,147 @@ const PointsScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('common:points')}</Text>
+        <Text style={styles.headerTitle}>💰 {t('points')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      {/* Balance Card */}
-      <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>{t('availablePoints')}</Text>
-        <Text style={styles.balanceAmount}>{balance?.current_balance || 0}</Text>
-        
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>{t('earned')}</Text>
-            <Text style={[styles.statValue, { color: '#10b981' }]}>
-              +{balance?.total_earned || 0}
-            </Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>{t('spent')}</Text>
-            <Text style={[styles.statValue, { color: '#ef4444' }]}>
-              -{balance?.total_spent || 0}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.subscriptionInfo}>
-          <Text style={styles.subscriptionText} numberOfLines={1}>
-            {getTierDisplayName(subscriptionTier)} {t('plan')}
-          </Text>
-          <Text style={styles.subscriptionText} numberOfLines={1}>
-            {balance?.monthly_allowance || 50} {t('pointsPerYear')}
-          </Text>
-        </View>
-
+      {/* Tab Selector */}
+      <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={styles.upgradeButton}
-          onPress={() => navigation.navigate('Subscription' as never)}
+          style={[styles.tab, activeTab === 'balance' && styles.tabActive]}
+          onPress={() => setActiveTab('balance')}
         >
-          <Text style={styles.upgradeButtonText}>{t('upgradePlan')}</Text>
+          <Text style={[styles.tabText, activeTab === 'balance' && styles.tabTextActive]}>
+            📊 {t('balanceTab')}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'buy' && styles.tabActive]}
+          onPress={() => setActiveTab('buy')}
+        >
+          <Text style={[styles.tabText, activeTab === 'buy' && styles.tabTextActive]}>
+            🛒 {t('buyPointsTab')}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Transactions List */}
-      <View style={styles.transactionsHeader}>
-        <Text style={styles.transactionsTitle}>{t('transactionHistory')}</Text>
-        <Text style={styles.transactionsCount}>
-          {transactions.length} {transactions.length === 1 ? t('transaction') : t('transactions')}
-        </Text>
-      </View>
+      {activeTab === 'balance' ? (
+        <>
+          {/* Balance Card */}
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>{t('availablePoints')}</Text>
+            <Text style={styles.balanceAmount}>{balance?.current_balance || 0}</Text>
+            
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>{t('earned')}</Text>
+                <Text style={[styles.statValue, { color: '#10b981' }]}>
+                  +{balance?.total_earned || 0}
+                </Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>{t('spent')}</Text>
+                <Text style={[styles.statValue, { color: '#ef4444' }]}>
+                  -{balance?.total_spent || 0}
+                </Text>
+              </View>
+            </View>
 
-      <FlatList
-        data={transactions}
-        renderItem={renderTransaction}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>{t('noTransactionsYet')}</Text>
+            <View style={styles.subscriptionInfo}>
+              <Text style={styles.subscriptionText} numberOfLines={1}>
+                {getTierDisplayName(subscriptionTier)} {t('plan')}
+              </Text>
+              <Text style={styles.subscriptionText} numberOfLines={1}>
+                {balance?.monthly_allowance || 50} {t('pointsPerYear')}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.upgradeButton}
+              onPress={() => navigation.navigate('Subscription' as never)}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                {t('upgradePlan') || 'Надградете плана'}
+              </Text>
+            </TouchableOpacity>
           </View>
-        }
-      />
+
+          {/* Transactions List */}
+          <View style={styles.transactionsHeader}>
+            <Text style={styles.transactionsTitle}>{t('transactionHistory')}</Text>
+            <Text style={styles.transactionsCount}>
+              {transactions.length} {transactions.length === 1 ? t('transaction') : t('transactions')}
+            </Text>
+          </View>
+
+          <FlatList
+            data={transactions}
+            renderItem={renderTransaction}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyIcon}>📭</Text>
+                <Text style={styles.emptyText}>{t('noTransactionsYet')}</Text>
+              </View>
+            }
+          />
+        </>
+      ) : (
+        <ScrollView
+          style={styles.buyScrollView}
+          contentContainerStyle={styles.buyContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          {/* Current Balance Mini */}
+          <View style={styles.balanceMini}>
+            <Text style={styles.balanceMiniLabel}>{t('currentBalance')}:</Text>
+            <Text style={styles.balanceMiniValue}>{balance?.current_balance || 0} {t('points')}</Text>
+          </View>
+
+          {packages?.canPurchase ? (
+            <>
+              <Text style={styles.tierInfo}>
+                {t('basePricePerPoint', { price: packages.pricePerPoint, tier: packages.tier.toUpperCase() })}
+              </Text>
+
+              <View style={styles.packagesGrid}>
+                {packages.packages.map(renderPackageCard)}
+              </View>
+
+              <View style={styles.infoCard}>
+                <Text style={styles.infoTitle}>{t('howPointsWork')}</Text>
+                <Text style={styles.infoText}>• {t('pointsInfo1')}</Text>
+                <Text style={styles.infoText}>• {t('pointsInfo2')}</Text>
+                <Text style={styles.infoText}>• {t('pointsInfo3')}</Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.cannotPurchase}>
+              <Text style={styles.cannotPurchaseIcon}>🔒</Text>
+              <Text style={styles.cannotPurchaseText}>
+                {packages?.message || t('purchaseNotAvailableDesc')}
+              </Text>
+              <TouchableOpacity
+                style={styles.upgradeButton}
+                onPress={() => navigation.navigate('Subscription' as never)}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                  {t('upgradePlan') || 'Надградете плана'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -568,17 +753,37 @@ const styles = StyleSheet.create({
     color: '#94a3b8', // slate-400
     fontSize: theme.fontSize.sm,
   },
-  upgradeButton: {
-    backgroundColor: '#6366f1', // indigo-500
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  buyPointsButton: {
+    flex: 1,
+    backgroundColor: '#22c55e', // green-500
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.borderRadius.md,
     alignItems: 'center',
   },
-  upgradeButtonText: {
+  buyPointsButtonText: {
     color: '#ffffff',
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.semibold,
+  },
+  upgradeButton: {
+    backgroundColor: '#6366f1',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  upgradeButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   transactionsHeader: {
     paddingHorizontal: theme.spacing.md,
@@ -660,6 +865,184 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: theme.fontSize.md,
     color: '#94a3b8', // slate-400
+  },
+  // Tab styles
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1e293b',
+    padding: 4,
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  tabActive: {
+    backgroundColor: '#6366f1',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  tabTextActive: {
+    color: '#fff',
+  },
+  // Buy tab styles
+  buyScrollView: {
+    flex: 1,
+  },
+  buyContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  balanceMini: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  balanceMiniLabel: {
+    color: '#bfdbfe',
+    fontSize: 14,
+  },
+  balanceMiniValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  tierInfo: {
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontSize: 13,
+  },
+  packagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  packageCard: {
+    width: '48%',
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    position: 'relative',
+  },
+  packageCardGood: {
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+  },
+  packageCardBest: {
+    borderColor: 'rgba(234, 179, 8, 0.5)',
+    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  discountBadgeGood: {
+    backgroundColor: '#22c55e',
+  },
+  discountBadgeBest: {
+    backgroundColor: '#eab308',
+  },
+  discountBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#000',
+  },
+  packagePoints: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  packagePointsLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginBottom: 8,
+  },
+  packageOldPrice: {
+    fontSize: 12,
+    color: '#64748b',
+    textDecorationLine: 'line-through',
+  },
+  packagePrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  packagePricePerPoint: {
+    fontSize: 10,
+    color: '#64748b',
+    marginBottom: 10,
+  },
+  packageBuyButton: {
+    backgroundColor: '#6366f1',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 40,
+  },
+  packageBuyButtonDisabled: {
+    opacity: 0.6,
+  },
+  packageBuyButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'center',
+  },
+  infoCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+  cannotPurchase: {
+    alignItems: 'center',
+    padding: 24,
+  },
+  cannotPurchaseIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  cannotPurchaseText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginBottom: 16,
   },
 });
 

@@ -94,6 +94,11 @@ export default function MapPage() {
   const [selectedCategory, setSelectedCategory] = useState('')
   const [categories, setCategories] = useState<any[]>([])
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map') // For mobile toggle
+  
+  // Track if user has panned the map (for "Search this area" button)
+  const [hasUserPanned, setHasUserPanned] = useState(false)
+  const [lastSearchCenter, setLastSearchCenter] = useState({ lat: 42.6977, lng: 23.3219 })
+  const [isLoading, setIsLoading] = useState(false)
 
   // Free Inspection filters (for customers)
   const [showOnlyFreeInspection, setShowOnlyFreeInspection] = useState(false)
@@ -152,10 +157,11 @@ export default function MapPage() {
   }, [])
 
   // Fetch providers (for customers) - using free inspection API for filtering
-  const fetchProviders = async () => {
+  const fetchProviders = async (searchCenter?: { lat: number; lng: number }) => {
+    setIsLoading(true)
     try {
-      const lat = userLocation?.lat || center.lat
-      const lng = userLocation?.lng || center.lng
+      const lat = searchCenter?.lat || userLocation?.lat || center.lat
+      const lng = searchCenter?.lng || userLocation?.lng || center.lng
 
       // Use the free inspection API which supports filtering
       const response = await apiClient.getProvidersForMap({
@@ -170,18 +176,23 @@ export default function MapPage() {
         const validProviders = response.data.data.providers.filter((p: any) => p.latitude && p.longitude)
         console.log('📍 Map - Loaded providers:', validProviders.length, 'freeInspectionOnly:', showOnlyFreeInspection)
         setProviders(validProviders)
+        setLastSearchCenter({ lat, lng })
+        setHasUserPanned(false)
       }
     } catch (error) {
       console.error('Error fetching providers:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
   // Fetch cases (for providers)
-  const fetchCases = async () => {
+  const fetchCases = async (searchCenter?: { lat: number; lng: number }) => {
+    setIsLoading(true)
     try {
       const params: any = {
-        latitude: userLocation?.lat || center.lat,
-        longitude: userLocation?.lng || center.lng,
+        latitude: searchCenter?.lat || userLocation?.lat || center.lat,
+        longitude: searchCenter?.lng || userLocation?.lng || center.lng,
         radius: radius,
       }
 
@@ -194,9 +205,15 @@ export default function MapPage() {
       if (response.data?.success) {
         console.log('📍 Map - Loaded cases:', response.data.data.cases?.length)
         setCases(response.data.data.cases || [])
+        const lat = searchCenter?.lat || userLocation?.lat || center.lat
+        const lng = searchCenter?.lng || userLocation?.lng || center.lng
+        setLastSearchCenter({ lat, lng })
+        setHasUserPanned(false)
       }
     } catch (error) {
       console.error('Error fetching cases:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -722,7 +739,22 @@ export default function MapPage() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500 truncate">{getCategoryName(provider.serviceCategory)}</p>
+                          {provider.serviceCategories && provider.serviceCategories.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {provider.serviceCategories.slice(0, 2).map((cat: string, idx: number) => (
+                                <span key={idx} className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">
+                                  {getCategoryName(cat)}
+                                </span>
+                              ))}
+                              {provider.serviceCategories.length > 2 && (
+                                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                                  +{provider.serviceCategories.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-500 truncate">{getCategoryName(provider.serviceCategory)}</p>
+                          )}
                           <div className="flex items-center gap-2 mt-1">
                             <div className="flex items-center bg-yellow-50 px-1.5 py-0.5 rounded">
                               <span className="text-yellow-500 text-xs mr-1">⭐</span>
@@ -776,6 +808,21 @@ export default function MapPage() {
             mapContainerClassName="w-full h-full"
             mapContainerStyle={{ width: '100%', height: '100%' }}
             onLoad={setMapInstance}
+            onDragEnd={() => {
+              if (mapInstance) {
+                const newCenter = mapInstance.getCenter()
+                if (newCenter) {
+                  const lat = newCenter.lat()
+                  const lng = newCenter.lng()
+                  // Check if user has panned significantly from last search location (~500m)
+                  const latDiff = Math.abs(lat - lastSearchCenter.lat)
+                  const lngDiff = Math.abs(lng - lastSearchCenter.lng)
+                  if (latDiff > 0.005 || lngDiff > 0.005) {
+                    setHasUserPanned(true)
+                  }
+                }
+              }
+            }}
             options={{
               disableDefaultUI: false,
               zoomControl: true,
@@ -833,7 +880,22 @@ export default function MapPage() {
                       {selectedProvider.freeInspectionActive && (
                         <p className="text-xs text-purple-600 font-medium mb-1">🔧 Безплатен оглед</p>
                       )}
-                      <p className="text-slate-600 text-sm mb-1 truncate">{getCategoryName(selectedProvider.serviceCategory)}</p>
+                      {selectedProvider.serviceCategories && selectedProvider.serviceCategories.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {selectedProvider.serviceCategories.slice(0, 3).map((cat: string, idx: number) => (
+                            <span key={idx} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded">
+                              {getCategoryName(cat)}
+                            </span>
+                          ))}
+                          {selectedProvider.serviceCategories.length > 3 && (
+                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                              +{selectedProvider.serviceCategories.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-slate-600 text-sm mb-1 truncate">{getCategoryName(selectedProvider.serviceCategory)}</p>
+                      )}
                       <div className="flex items-center gap-2">
                         <div className="flex items-center">
                           <span className="text-yellow-500 mr-1 text-sm">⭐</span>
@@ -954,6 +1016,35 @@ export default function MapPage() {
               </InfoWindow>
             )}
           </GoogleMap>
+
+          {/* Search This Area Button */}
+          {hasUserPanned && (
+            <button
+              onClick={() => {
+                if (mapInstance) {
+                  const newCenter = mapInstance.getCenter()
+                  if (newCenter) {
+                    const searchCenter = { lat: newCenter.lat(), lng: newCenter.lng() }
+                    if (isProvider && canViewCasesOnMap) {
+                      fetchCases(searchCenter)
+                    } else if (!isProvider) {
+                      fetchProviders(searchCenter)
+                    }
+                  }
+                }
+              }}
+              className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 bg-white px-4 py-2 rounded-full shadow-lg border border-slate-200 text-sm font-medium text-indigo-600 hover:bg-indigo-50 transition-colors"
+            >
+              🔍 Търси в този район
+            </button>
+          )}
+
+          {/* Loading Indicator */}
+          {isLoading && (
+            <div className="absolute top-4 left-4 z-20 bg-white px-3 py-2 rounded-full shadow-lg">
+              <div className="animate-spin h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+            </div>
+          )}
 
           {/* Mobile Floating Controls */}
           <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-4 md:hidden z-10">

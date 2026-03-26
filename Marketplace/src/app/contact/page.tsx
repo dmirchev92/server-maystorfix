@@ -10,7 +10,7 @@ export default function ContactPage() {
         <div className="bg-white/10 backdrop-blur-md rounded-lg p-8 text-white">
           <p className="text-lg mb-6">Свържете се с нас:</p>
           <div className="space-y-4">
-            <p><strong>Email:</strong> info@snapfix.bg</p>
+            <p><strong>Email:</strong> admin@snapfix.bg</p>
             <p><strong>Телефон:</strong> +359 XXX XXX XXX</p>
             <p><strong>Адрес:</strong> София, България</p>
           </div>

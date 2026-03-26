@@ -91,7 +91,7 @@ export class AuthService {
       // Check if user already exists
       const existingUser = await this.findUserByEmail(userData.email);
       if (existingUser) {
-        throw new ServiceTextProError('User already exists', 'USER_ALREADY_EXISTS', 409);
+        throw new ServiceTextProError('Потребител с този имейл вече съществува', 'USER_ALREADY_EXISTS', 409);
       }
 
       // Hash password
@@ -522,6 +522,13 @@ export class AuthService {
       user.lastLoginAt = new Date();
       user.updatedAt = new Date();
       await this.updateUser(user);
+
+      // Link orphaned conversations to this user (by email match)
+      try {
+        await this.linkOrphanedConversations(user);
+      } catch (linkError) {
+        logger.warn('⚠️ Failed to link orphaned conversations:', linkError);
+      }
 
       // Generate tokens
       const tokens = await this.generateTokens(user);
@@ -958,6 +965,37 @@ export class AuthService {
     }
 
     await this.sendVerificationEmail(user.id, ipAddress);
+  }
+
+  /**
+   * Link orphaned conversations to a user after login
+   * Updates conversations where customer_id is NULL but email matches
+   */
+  private async linkOrphanedConversations(user: User): Promise<void> {
+    if (!user.email) return;
+
+    try {
+      const result = await this.database.query(
+        `UPDATE marketplace_conversations 
+         SET customer_id = $1, 
+             customer_name = COALESCE(NULLIF(customer_name, 'Chat Customer'), $2)
+         WHERE customer_id IS NULL 
+           AND customer_email = $3
+         RETURNING id`,
+        [user.id, `${user.firstName} ${user.lastName}`.trim(), user.email.toLowerCase()]
+      );
+
+      const linkedCount = result?.length || 0;
+      if (linkedCount > 0) {
+        logger.info('✅ Linked orphaned conversations to user', {
+          userId: user.id,
+          email: user.email,
+          linkedCount
+        });
+      }
+    } catch (error) {
+      logger.error('❌ Error linking orphaned conversations:', error);
+    }
   }
 
   /**

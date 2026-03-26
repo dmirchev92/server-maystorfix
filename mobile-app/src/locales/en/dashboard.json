@@ -151,9 +151,6 @@
   "processing": "Processing",
   "gdprPrivacy": "GDPR & Privacy",
   "dataManagement": "Data Management",
-  "recentActivity": "Recent Activity",
-  "active": "Active",
-  "noRecentActivity": "No Recent Activity",
   "startDetectionToSeeCalls": "Start detection to see calls",
   "lastUpdate": "Last Update"
 }

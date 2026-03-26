@@ -104,7 +104,7 @@ async function loadCookies() {
   console.log(`   Storage state: ${storageStatePath}`);
   console.log('');
   console.log('Next step: Upload to server:');
-  console.log(`   scp -r google-session snapfix@46.224.11.139:/var/www/servicetextpro/beta-tester-automation/`);
+  console.log(`   scp -r google-session snapfix@91.98.138.38:/var/www/servicetextpro/beta-tester-automation/`);
 
   await browser.close();
 }

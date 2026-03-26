@@ -250,69 +250,69 @@ export default function PricingPage() {
                   </thead>
                   <tbody className="text-slate-300">
                     <tr className="border-b border-white/5">
-                      <td className="py-2">1 - 125 €</td>
-                      <td className="text-center">15 точки</td>
-                      <td className="text-center">12 точки</td>
+                      <td className="py-2">1 - 250 €</td>
+                      <td className="text-center">10 точки</td>
+                      <td className="text-center">10 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">126 - 250 €</td>
-                      <td className="text-center">25 точки</td>
+                      <td className="py-2">251 - 500 €</td>
                       <td className="text-center">20 точки</td>
+                      <td className="text-center">15 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">251 - 375 €</td>
-                      <td className="text-center">35 точки</td>
-                      <td className="text-center">28 точки</td>
+                      <td className="py-2">501 - 750 €</td>
+                      <td className="text-center">40 точки</td>
+                      <td className="text-center">30 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">376 - 500 €</td>
-                      <td className="text-center">45 точки</td>
-                      <td className="text-center">36 точки</td>
+                      <td className="py-2">751 - 1000 €</td>
+                      <td className="text-center">60 точки</td>
+                      <td className="text-center">50 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">501 - 1000 €</td>
-                      <td className="text-center">70 точки</td>
-                      <td className="text-center">56 точки</td>
-                    </tr>
-                    <tr className="border-b border-white/5">
-                      <td className="py-2">1001 - 1500 €</td>
-                      <td className="text-center text-slate-500">—</td>
+                      <td className="py-2">1001 - 2000 €</td>
                       <td className="text-center">100 точки</td>
+                      <td className="text-center">80 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">1501 - 2000 €</td>
+                      <td className="py-2">2001 - 3000 €</td>
                       <td className="text-center text-slate-500">—</td>
-                      <td className="text-center">140 точки</td>
+                      <td className="text-center">110 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">2001 - 2500 €</td>
+                      <td className="py-2">3001 - 4000 €</td>
                       <td className="text-center text-slate-500">—</td>
-                      <td className="text-center">180 точки</td>
+                      <td className="text-center">160 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">2501 - 3000 €</td>
+                      <td className="py-2">4001 - 5000 €</td>
                       <td className="text-center text-slate-500">—</td>
-                      <td className="text-center">220 точки</td>
+                      <td className="text-center">215 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">3001 - 3500 €</td>
+                      <td className="py-2">5001 - 6000 €</td>
                       <td className="text-center text-slate-500">—</td>
-                      <td className="text-center">260 точки</td>
+                      <td className="text-center">280 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">3501 - 4000 €</td>
+                      <td className="py-2">6001 - 7000 €</td>
                       <td className="text-center text-slate-500">—</td>
-                      <td className="text-center">300 точки</td>
+                      <td className="text-center">350 точки</td>
                     </tr>
                     <tr className="border-b border-white/5">
-                      <td className="py-2">4001 - 4500 €</td>
+                      <td className="py-2">7001 - 8000 €</td>
                       <td className="text-center text-slate-500">—</td>
-                      <td className="text-center">340 точки</td>
+                      <td className="text-center">430 точки</td>
+                    </tr>
+                    <tr className="border-b border-white/5">
+                      <td className="py-2">8001 - 9000 €</td>
+                      <td className="text-center text-slate-500">—</td>
+                      <td className="text-center">520 точки</td>
                     </tr>
                     <tr>
-                      <td className="py-2">4501 - 5000 €</td>
+                      <td className="py-2">9001 - 10000 €</td>
                       <td className="text-center text-slate-500">—</td>
-                      <td className="text-center">380 точки</td>
+                      <td className="text-center">640 точки</td>
                     </tr>
                   </tbody>
                 </table>

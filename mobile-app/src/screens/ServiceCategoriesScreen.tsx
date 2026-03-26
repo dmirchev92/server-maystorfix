@@ -29,15 +29,15 @@ const ServiceCategoriesScreen: React.FC = () => {
 
   const loadUserTier = async () => {
     try {
-      const userDataStr = await AsyncStorage.getItem('user_data');
+      const userDataStr = await AsyncStorage.getItem('user');
       if (userDataStr) {
         const userData = JSON.parse(userDataStr);
-        const tier = userData.subscription_tier_id || 'free';
+        const tier = userData.subscription_tier_id || userData.subscriptionTierId || 'free';
         setUserTier(tier);
         
         const limits: Record<string, number> = {
-          'free': 2,
-          'normal': 5,
+          'free': 999,
+          'normal': 2,
           'pro': 999
         };
         setMaxCategories(limits[tier] || 2);
@@ -65,8 +65,12 @@ const ServiceCategoriesScreen: React.FC = () => {
       );
 
       const data = await response.json();
-      if (data.success) {
-        setSelectedCategories(data.categories || []);
+      if (data.success && data.categories) {
+        // API returns objects {category_id, category_label_bg, ...} - extract string IDs
+        const catIds = data.categories.map((c: any) => 
+          typeof c === 'string' ? c : (c.category_id || c.id || String(c))
+        );
+        setSelectedCategories(catIds);
       }
     } catch (error) {
       Logger.error('Error loading categories:', error);

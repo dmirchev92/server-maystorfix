@@ -104,7 +104,7 @@ export default function TermsPage() {
                 <li><strong>Оттегляне на съгласие</strong> - по всяко време</li>
               </ul>
               <p className="text-gray-700">
-                За упражняване на правата си: <a href="mailto:dpo@snapfix.bg" className="text-blue-600 hover:underline">dpo@snapfix.bg</a>
+                За упражняване на правата си: <a href="mailto:admin@snapfix.bg" className="text-blue-600 hover:underline">admin@snapfix.bg</a>
               </p>
             </section>
 
@@ -129,7 +129,7 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">10. Контакт</h2>
               <p className="text-gray-700">
-                За въпроси относно тези Условия: <a href="mailto:legal@snapfix.bg" className="text-blue-600 hover:underline">legal@snapfix.bg</a>
+                За въпроси относно тези Условия: <a href="mailto:admin@snapfix.bg" className="text-blue-600 hover:underline">admin@snapfix.bg</a>
               </p>
             </section>
 

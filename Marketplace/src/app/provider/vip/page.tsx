@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { apiClient } from '@/lib/api'
+import { useVipSocket } from '@/hooks/useVipSocket'
 
 interface VipConfig {
   enabled: boolean
@@ -82,6 +84,46 @@ export default function ProviderVipPage() {
   const [selectedAuction, setSelectedAuction] = useState<VipAuction | null>(null)
   const [bidAmount, setBidAmount] = useState('')
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [timeLeft, setTimeLeft] = useState<string>('')
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false)
+  const [successMessage, setSuccessMessage] = useState('')
+  const [showOutbidAlert, setShowOutbidAlert] = useState(false)
+  const [outbidData, setOutbidData] = useState<any>(null)
+  
+  // New state for category/city selection
+  const [providerCategories, setProviderCategories] = useState<{id: string; label: string}[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [selectedVipType, setSelectedVipType] = useState<'HOMEPAGE_VIP' | 'SEARCH_VIP'>('HOMEPAGE_VIP')
+  const [selectedCity, setSelectedCity] = useState<string>('')
+  const [availableCities, setAvailableCities] = useState<string[]>([])
+
+  // Real-time VIP socket for live updates
+  const { isConnected: vipSocketConnected } = useVipSocket({
+    onBidUpdate: (data) => {
+      console.log('📢 Live bid update:', data)
+      // Refresh auction data when someone bids
+      loadVipData()
+    },
+    onBuyout: (data) => {
+      console.log('📢 Live buyout:', data)
+      // Refresh auction data when someone buys out
+      loadVipData()
+    },
+    onOutbid: (data) => {
+      console.log('⚠️ You were outbid!', data)
+      setOutbidData(data)
+      setShowOutbidAlert(true)
+      // Auto-hide after 10 seconds
+      setTimeout(() => setShowOutbidAlert(false), 10000)
+    },
+    onAuctionStatus: (data) => {
+      console.log('📢 Auction status changed:', data)
+      if (config) {
+        setConfig({ ...config, isAuctionOpen: data.isOpen })
+      }
+      loadVipData()
+    }
+  })
 
   useEffect(() => {
     if (isLoading) return
@@ -101,10 +143,12 @@ export default function ProviderVipPage() {
 
   const loadVipData = async () => {
     try {
-      const [configRes, overviewRes, auctionsRes] = await Promise.all([
+      const [configRes, overviewRes, auctionsRes, categoriesRes, citiesRes] = await Promise.all([
         apiClient.getVipConfig(),
         apiClient.getVipOverview(),
-        apiClient.getVipAuctions()
+        apiClient.getVipAuctions(),
+        apiClient.getProviderCategories(),
+        apiClient.getCities()
       ])
       
       if (configRes.data?.data) {
@@ -118,6 +162,30 @@ export default function ProviderVipPage() {
       
       if (auctionsRes.data?.data) {
         setAuctions(auctionsRes.data.data.auctions || [])
+      }
+
+      // Handle provider categories - backend returns { success: true, categories: [...] }
+      const categoriesData = categoriesRes.data?.data || categoriesRes.data?.categories
+      if (categoriesData && Array.isArray(categoriesData)) {
+        const cats = categoriesData.map((c: any) => ({
+          id: c.category_id || c.id,
+          label: c.category_label_bg || c.label || c.category_id || c.id
+        }))
+        setProviderCategories(cats)
+        // Set first category as default if not already selected
+        if (!selectedCategory && cats.length > 0) {
+          setSelectedCategory(cats[0].id)
+        }
+      }
+
+      // Handle cities - fetched from API for consistency with search page
+      if (citiesRes.data?.data?.cities && Array.isArray(citiesRes.data.data.cities)) {
+        const cityNames = citiesRes.data.data.cities.map((c: any) => c.value || c.label || c.name_bg || c.name)
+        setAvailableCities(cityNames)
+        // Set first city as default if not already selected
+        if (!selectedCity && cityNames.length > 0) {
+          setSelectedCity(cityNames[0])
+        }
       }
     } catch (error) {
       console.error('Error loading VIP data:', error)
@@ -137,9 +205,39 @@ export default function ProviderVipPage() {
     })
   }
 
+  // Countdown timer for auction
+  useEffect(() => {
+    if (!config?.isAuctionOpen || !config?.nextAuction?.endsAt) return
+    
+    const updateCountdown = () => {
+      const now = new Date().getTime()
+      const end = new Date(config.nextAuction.endsAt).getTime()
+      const diff = end - now
+      
+      if (diff <= 0) {
+        setTimeLeft('Приключва...')
+        return
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000)
+      
+      setTimeLeft(`${hours}ч ${minutes}м ${seconds}с`)
+    }
+    
+    updateCountdown()
+    const interval = setInterval(updateCountdown, 1000)
+    return () => clearInterval(interval)
+  }, [config?.isAuctionOpen, config?.nextAuction?.endsAt])
+
   const openBidModal = (auction: VipAuction) => {
     setSelectedAuction(auction)
-    setBidAmount(String(config?.minBidIncrement || 5))
+    // For new bidders, suggest start price; for existing bidders, suggest min increment
+    const suggestedAmount = auction.currentBid 
+      ? (config?.minBidIncrement || 5)
+      : auction.startBidPoints
+    setBidAmount(String(suggestedAmount))
     setBidModalOpen(true)
   }
 
@@ -176,12 +274,15 @@ export default function ProviderVipPage() {
       const res = await apiClient.placeVipBid(
         selectedAuction.vipType,
         selectedAuction.categoryId,
-        increment
+        increment,
+        selectedAuction.city || undefined
       )
 
       if (res.data?.success) {
-        alert(res.data?.data?.message || 'Офертата е успешно повишена.')
         setBidModalOpen(false)
+        setSuccessMessage(res.data?.data?.message || 'Офертата е успешно повишена!')
+        setShowSuccessAnimation(true)
+        setTimeout(() => setShowSuccessAnimation(false), 3000)
         loadVipData()
       } else {
         alert(res.data?.error?.message || 'Възникна грешка при наддаването.')
@@ -204,9 +305,11 @@ export default function ProviderVipPage() {
 
     setActionLoading(true)
     try {
-      const res = await apiClient.buyoutVipSlot(auction.vipType, auction.categoryId)
+      const res = await apiClient.buyoutVipSlot(auction.vipType, auction.categoryId, auction.city || undefined)
       if (res.data?.success) {
-        alert(res.data?.data?.message || 'VIP слотът е закупен успешно!')
+        setSuccessMessage(res.data?.data?.message || 'VIP слотът е закупен успешно! 🎉')
+        setShowSuccessAnimation(true)
+        setTimeout(() => setShowSuccessAnimation(false), 3000)
         loadVipData()
       } else {
         alert(res.data?.error?.message || 'Възникна грешка при закупуването.')
@@ -251,15 +354,64 @@ export default function ProviderVipPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900">
       <Header />
+      
+      {/* Success Animation Overlay */}
+      {showSuccessAnimation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="bg-green-500/90 text-white px-8 py-6 rounded-2xl shadow-2xl animate-bounce">
+            <div className="text-center">
+              <span className="text-5xl mb-2 block">🎉</span>
+              <p className="text-xl font-bold">{successMessage}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Outbid Alert */}
+      {showOutbidAlert && outbidData && (
+        <div className="fixed top-20 right-4 z-50 max-w-sm animate-pulse">
+          <div className="bg-red-500/95 text-white p-4 rounded-xl shadow-2xl border border-red-400">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div className="flex-1">
+                <p className="font-bold">Надвишиха ви!</p>
+                <p className="text-sm opacity-90">
+                  {outbidData.categoryLabel} - Нова най-висока оферта: {outbidData.newHighestBid} точки
+                </p>
+                <p className="text-sm opacity-90">
+                  Вашата оферта: {outbidData.yourBid} точки (Ранг #{outbidData.newRank})
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowOutbidAlert(false)}
+                className="text-white/80 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <main className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            👑 VIP Видимост
-          </h1>
-          <p className="text-gray-400 mt-2">
-            Управлявайте вашата VIP позиция за по-голяма видимост
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                👑 VIP Видимост
+              </h1>
+              <p className="text-gray-400 mt-2">
+                Управлявайте вашата VIP позиция за по-голяма видимост
+              </p>
+            </div>
+            {vipSocketConnected && (
+              <div className="flex items-center gap-2 text-green-400 text-sm">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                На живо
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Points Balance & Auction Status */}
@@ -271,9 +423,14 @@ export default function ProviderVipPage() {
             </div>
             <div className="text-right">
               {config.isAuctionOpen ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-                  <span className="text-green-400 font-semibold">Търгът е отворен</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                    <span className="text-green-400 font-semibold">Търгът е отворен</span>
+                  </div>
+                  {timeLeft && (
+                    <p className="text-sm text-yellow-400 mt-1">⏱️ Остават: {timeLeft}</p>
+                  )}
                 </div>
               ) : (
                 <div>
@@ -289,6 +446,188 @@ export default function ProviderVipPage() {
             </div>
           </div>
         </div>
+
+        {/* Low Points Warning */}
+        {pointsBalance < 50 && (
+          <div className="bg-amber-500/20 border border-amber-500/50 rounded-xl p-4 mb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <p className="text-amber-400 font-semibold">Ниски точки</p>
+                  <p className="text-gray-300 text-sm">Имате само {pointsBalance} точки. Минималната оферта е 50 точки.</p>
+                </div>
+              </div>
+              <Link 
+                href="/points" 
+                className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors whitespace-nowrap"
+              >
+                Купи точки
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Buy VIP Section */}
+        <section className="mb-8">
+          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            🎯 Купи VIP видимост
+          </h2>
+          
+          {providerCategories.length === 0 ? (
+            <div className="bg-white/5 rounded-xl p-6 text-center">
+              <p className="text-gray-400">Нямате избрани категории. Моля, изберете категории в профила си.</p>
+            </div>
+          ) : (
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+              {/* Category Picker */}
+              <div className="mb-4">
+                <label className="text-gray-300 text-sm block mb-2">Изберете категория:</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                >
+                  {providerCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id} className="bg-slate-800">{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* VIP Type Selector */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <button
+                  onClick={() => setSelectedVipType('HOMEPAGE_VIP')}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    selectedVipType === 'HOMEPAGE_VIP'
+                      ? 'border-yellow-500 bg-yellow-500/15'
+                      : 'border-white/20 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-2xl block mb-2">🏠</span>
+                  <span className={`font-semibold ${selectedVipType === 'HOMEPAGE_VIP' ? 'text-yellow-400' : 'text-gray-300'}`}>
+                    Начална страница
+                  </span>
+                  <span className="text-gray-400 text-sm block mt-1">
+                    {config?.homepageVip?.startBidPoints || 80} - {config?.homepageVip?.buyoutPoints || 150} т.
+                  </span>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setSelectedVipType('SEARCH_VIP')
+                    if (!selectedCity && availableCities.length > 0) {
+                      setSelectedCity(availableCities[0])
+                    }
+                  }}
+                  className={`p-4 rounded-xl border-2 transition-all ${
+                    selectedVipType === 'SEARCH_VIP'
+                      ? 'border-yellow-500 bg-yellow-500/15'
+                      : 'border-white/20 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-2xl block mb-2">🔍</span>
+                  <span className={`font-semibold ${selectedVipType === 'SEARCH_VIP' ? 'text-yellow-400' : 'text-gray-300'}`}>
+                    Търсене
+                  </span>
+                  <span className="text-gray-400 text-sm block mt-1">
+                    {config?.searchVip?.startBidPoints || 80} - {config?.searchVip?.buyoutPoints || 150} т.
+                  </span>
+                </button>
+              </div>
+
+              {/* City Picker - Only for Search VIP */}
+              {selectedVipType === 'SEARCH_VIP' && (
+                <div className="mb-4">
+                  <label className="text-gray-300 text-sm block mb-2">Изберете град:</label>
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    {availableCities.map((city) => (
+                      <option key={city} value={city} className="bg-slate-800">{city}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Selection Summary */}
+              {selectedCategory && (selectedVipType === 'HOMEPAGE_VIP' || selectedCity) && (
+                <div className="bg-indigo-500/20 border border-indigo-500/40 rounded-lg p-3 mb-4">
+                  <p className="text-gray-400 text-xs mb-1">📋 Избрано:</p>
+                  <p className="text-white font-semibold">
+                    {selectedVipType === 'HOMEPAGE_VIP' ? '🏠 Начална страница' : '🔍 Търсене'} • {providerCategories.find(c => c.id === selectedCategory)?.label || selectedCategory}
+                    {selectedVipType === 'SEARCH_VIP' && selectedCity ? ` • ${selectedCity}` : ''}
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              {selectedCategory && (selectedVipType === 'HOMEPAGE_VIP' || selectedCity) && (
+                <div>
+                  {config?.isAuctionOpen ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        onClick={() => {
+                          const auction: VipAuction = {
+                            vipType: selectedVipType,
+                            categoryId: selectedCategory,
+                            categoryLabelBg: providerCategories.find(c => c.id === selectedCategory)?.label || selectedCategory,
+                            city: selectedVipType === 'SEARCH_VIP' ? selectedCity : null,
+                            startBidPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.startBidPoints || 80) : (config?.searchVip?.startBidPoints || 80),
+                            buyoutPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.buyoutPoints || 150) : (config?.searchVip?.buyoutPoints || 150),
+                            currentBid: null,
+                            currentRank: null,
+                            slotsRemaining: 3,
+                            buyoutsTaken: 0
+                          }
+                          openBidModal(auction)
+                        }}
+                        disabled={actionLoading}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                      >
+                        ➕ Наддай
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          const auction: VipAuction = {
+                            vipType: selectedVipType,
+                            categoryId: selectedCategory,
+                            categoryLabelBg: providerCategories.find(c => c.id === selectedCategory)?.label || selectedCategory,
+                            city: selectedVipType === 'SEARCH_VIP' ? selectedCity : null,
+                            startBidPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.startBidPoints || 80) : (config?.searchVip?.startBidPoints || 80),
+                            buyoutPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.buyoutPoints || 150) : (config?.searchVip?.buyoutPoints || 150),
+                            currentBid: null,
+                            currentRank: null,
+                            slotsRemaining: 3,
+                            buyoutsTaken: 0
+                          }
+                          handleBuyout(auction)
+                        }}
+                        disabled={actionLoading}
+                        className="bg-yellow-600 hover:bg-yellow-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors disabled:opacity-50"
+                      >
+                        ⚡ Купи ({selectedVipType === 'HOMEPAGE_VIP' ? config?.homepageVip?.buyoutPoints : config?.searchVip?.buyoutPoints} т.)
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-red-500/15 border border-red-500/30 rounded-lg p-4 text-center">
+                      <span className="text-2xl block mb-2">🔒</span>
+                      <p className="text-red-400 font-semibold">Търгът е затворен</p>
+                      {config?.nextAuction?.startsAt && (
+                        <p className="text-gray-400 text-sm mt-1">
+                          Следващ: {formatDate(config.nextAuction.startsAt)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
 
         {/* Current Placements */}
         <section className="mb-8">
@@ -356,7 +695,7 @@ export default function ProviderVipPage() {
                     <p className="text-gray-400 text-sm">{auction.city}</p>
                   )}
 
-                  <div className="grid grid-cols-3 gap-3 mt-4">
+                  <div className={`grid gap-3 mt-4 ${auction.currentBid ? 'grid-cols-3' : 'grid-cols-2'}`}>
                     <div className="bg-white/5 rounded-lg p-3 text-center">
                       <p className="text-xs text-gray-400">Начална цена</p>
                       <p className="text-white font-semibold">{auction.startBidPoints} т.</p>
@@ -421,11 +760,15 @@ export default function ProviderVipPage() {
             </div>
             <div className="flex items-center gap-3">
               <span className="text-xl">⚡</span>
-              <p>Buyout = мигновено закупуване (точките се удържат веднага)</p>
+              <p><strong>Buyout</strong> = мигновено закупуване на слот (точките се удържат веднага, гарантирана позиция)</p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-xl">💰</span>
-              <p>При спечелване на търг, точките се удържат при settlement</p>
+              <span className="text-xl">➕</span>
+              <p><strong>Наддай</strong> = участие в търга (точките се удържат само ако спечелите)</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🏆</span>
+              <p>Топ 3 оферти печелят VIP позиция за седмицата</p>
             </div>
           </div>
         </section>

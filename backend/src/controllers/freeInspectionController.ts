@@ -307,7 +307,7 @@ export const getProvidersForMap = async (req: Request, res: Response): Promise<v
       WHERE spp.latitude IS NOT NULL 
         AND spp.longitude IS NOT NULL
         AND spp.is_active = true
-        AND u.subscription_tier_id = 'pro'
+        AND u.subscription_tier_id IN ('free', 'normal', 'pro')
         ${liveOnlyFilter ? "AND spp.updated_at >= NOW() - INTERVAL '1 minute'" : ''}
         AND (6371 * acos(cos(radians($1)) * cos(radians(spp.latitude)) * cos(radians(spp.longitude) - radians($2)) + sin(radians($1)) * sin(radians(spp.latitude)))) <= $3
     `;

@@ -46,6 +46,47 @@ export class BiddingService {
   private pointsService: PointsService;
   private notificationService: NotificationService;
 
+  // Loser fee configuration based on budget range (in points)
+  // 5 лв = 26 pts, 8 лв = 41 pts, 12 лв = 61 pts, 15 лв = 77 pts
+  private readonly LOSER_FEES = {
+    LOW: 26,      // 1-250 to 251-500: 5 лв
+    MEDIUM: 41,   // 501-750 to 751-1000: 8 лв
+    HIGH: 61,     // 1001-2000 to 3001-4000: 12 лв
+    PREMIUM: 77   // 4001+: 15 лв
+  };
+
+  /**
+   * Calculate loser fee based on case budget range
+   */
+  private calculateLoserFee(budget: string | null): number {
+    if (!budget) return this.LOSER_FEES.LOW;
+    
+    // Extract the upper bound from budget string (e.g., "251-500" -> 500, "5000+" -> 5000)
+    const cleanBudget = budget.replace(/[^\d\-+]/g, '');
+    let upperBound = 0;
+    
+    if (cleanBudget.includes('-')) {
+      const parts = cleanBudget.split('-');
+      upperBound = parseInt(parts[1]) || parseInt(parts[0]) || 0;
+    } else if (cleanBudget.includes('+')) {
+      upperBound = parseInt(cleanBudget.replace('+', '')) || 0;
+      upperBound = upperBound > 0 ? 999999 : 0; // Treat "5000+" as very high
+    } else {
+      upperBound = parseInt(cleanBudget) || 0;
+    }
+    
+    // Determine fee based on budget range
+    if (upperBound <= 500) {
+      return this.LOSER_FEES.LOW;      // 1-250, 251-500: 5 лв = 26 pts
+    } else if (upperBound <= 1000) {
+      return this.LOSER_FEES.MEDIUM;   // 501-750, 751-1000: 8 лв = 41 pts
+    } else if (upperBound <= 4000) {
+      return this.LOSER_FEES.HIGH;     // 1001-2000, 2001-3000, 3001-4000: 12 лв = 61 pts
+    } else {
+      return this.LOSER_FEES.PREMIUM;  // 4001+: 15 лв = 77 pts
+    }
+  }
+
   constructor(pool: Pool) {
     this.pool = pool;
     this.pointsService = new PointsService();
@@ -341,6 +382,18 @@ export class BiddingService {
         // Non-critical error, don't fail the bid
       }
 
+      // Send confirmation notification to provider
+      try {
+        await this.notificationService.notifyBidPlacedConfirmation(
+          caseId,
+          providerId,
+          proposedBudgetRange,
+          bidOrder
+        );
+      } catch (notificationError) {
+        console.error('Error sending bid confirmation notification:', notificationError);
+      }
+
       return {
         success: true,
         bid_id: bidId,
@@ -418,9 +471,9 @@ export class BiddingService {
     try {
       await client.query('BEGIN');
 
-      // Verify customer owns the case
+      // Verify customer owns the case and get budget for loser fee calculation
       const caseResult = await client.query(
-        'SELECT customer_id, bidding_closed FROM marketplace_service_cases WHERE id = $1 FOR UPDATE',
+        'SELECT customer_id, bidding_closed, budget FROM marketplace_service_cases WHERE id = $1 FOR UPDATE',
         [caseId]
       );
 
@@ -498,10 +551,45 @@ export class BiddingService {
         WHERE id = $1
       `, [winningBidId]);
 
-      // Process losing bids - they keep only participation fee deducted (3 points)
+      // Process losing bids - charge fixed fee based on case budget range
+      const caseBudget = caseResult.rows[0].budget;
+      const loserFee = this.calculateLoserFee(caseBudget);
+      
       for (const bid of bids) {
         if (bid.id !== winningBidId) {
-          // Losers keep only participation fee, no additional charges
+          // Charge loser the participation fee based on budget range
+          if (loserFee > 0) {
+            const loserBalanceResult = await client.query(`
+              UPDATE users
+              SET points_balance = points_balance - $1,
+                  points_total_spent = points_total_spent + $1
+              WHERE id = $2
+              RETURNING points_balance
+            `, [loserFee, bid.provider_id]);
+
+            const loserNewBalance = loserBalanceResult.rows[0]?.points_balance || 0;
+
+            // Record transaction for loser's participation fee
+            await client.query(`
+              INSERT INTO sp_points_transactions (
+                id,
+                user_id,
+                points_amount,
+                balance_after,
+                transaction_type,
+                reason,
+                case_id
+              ) VALUES ($1, $2, $3, $4, 'spent', $5, $6)
+            `, [
+              uuidv4(),
+              bid.provider_id,
+              loserFee,
+              loserNewBalance,
+              `Такса участие - офертата не е избрана (${loserFee} точки)`,
+              caseId
+            ]);
+          }
+
           // Update bid status to lost
           await client.query(`
             UPDATE sp_case_bids
@@ -509,7 +597,7 @@ export class BiddingService {
                 points_deducted = $1,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = $2
-          `, [bid.participation_points || 3, bid.id]);
+          `, [loserFee, bid.id]);
         }
       }
 
@@ -564,6 +652,23 @@ export class BiddingService {
             );
           }
         }
+
+        // Get winner's name for customer notification
+        const winnerQuery = await client.query(
+          `SELECT COALESCE(sp.business_name, u.first_name || ' ' || u.last_name) as provider_name
+           FROM users u
+           LEFT JOIN service_provider_profiles sp ON sp.user_id = u.id
+           WHERE u.id = $1`,
+          [winningBid.provider_id]
+        );
+        const winnerName = winnerQuery.rows[0]?.provider_name || 'Специалист';
+
+        // Notify customer that they selected a winner
+        await this.notificationService.notifyWinnerSelected(
+          caseId,
+          customerId,
+          winnerName
+        );
       } catch (notificationError) {
         console.error('Error sending bid result notifications:', notificationError);
         // Non-critical error
@@ -708,20 +813,49 @@ export class BiddingService {
 
   /**
    * Get midpoint of budget range for points calculation
+   * Budget ranges are in EUR, max 10000€
    */
   private getBudgetRangeMidpoint(rangeValue: string): number {
     const ranges: { [key: string]: number } = {
       '1-250': 125,
-      '250-500': 375,
-      '500-750': 625,
-      '750-1000': 875,
-      '1000-1250': 1125,
-      '1250-1500': 1375,
-      '1500-1750': 1625,
-      '1750-2000': 1875,
-      '2000+': 2500  // Estimate for 2000+
+      '251-500': 375,
+      '501-750': 625,
+      '751-1000': 875,
+      '1001-2000': 1500,
+      '2001-3000': 2500,
+      '3001-4000': 3500,
+      '4001-5000': 4500,
+      '5001-6000': 5500,
+      '6001-7000': 6500,
+      '7001-8000': 7500,
+      '8001-9000': 8500,
+      '9001-10000': 9500,
+      '10000+': 12000  // Estimate for 10000+
     };
     
-    return ranges[rangeValue] || 500; // Default to 500 if unknown
+    // Try exact match first
+    if (ranges[rangeValue]) {
+      return ranges[rangeValue];
+    }
+    
+    // Try to parse range format "X-Y" dynamically
+    if (rangeValue.includes('-')) {
+      const parts = rangeValue.split('-');
+      const min = parseInt(parts[0], 10);
+      const max = parseInt(parts[1], 10);
+      if (!isNaN(min) && !isNaN(max)) {
+        return Math.round((min + max) / 2);
+      }
+    }
+    
+    // Handle "X+" format
+    if (rangeValue.endsWith('+')) {
+      const min = parseInt(rangeValue.replace('+', ''), 10);
+      if (!isNaN(min)) {
+        return min + 1000; // Estimate
+      }
+    }
+    
+    return 500; // Default fallback
   }
 }

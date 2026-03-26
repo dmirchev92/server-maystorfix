@@ -11,9 +11,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import ApiService from '../services/ApiService';
+import { BUDGET_RANGES } from '../constants/budgetRanges';
 // import { useAuth } from '../contexts/AuthContext';
 
 interface BidModalProps {
@@ -21,31 +23,23 @@ interface BidModalProps {
   onClose: () => void;
   caseId: string;
   caseBudget: string;
+  caseDetails?: {
+    service_type?: string;
+    category?: string;
+    description?: string;
+    city?: string;
+    neighborhood?: string;
+    images?: string[];
+  };
   onBidPlaced?: () => void;
 }
-
-const BUDGET_RANGES = [
-  { value: '251-400', label: '251-400 €' },
-  { value: '500-750', label: '500-750 €' },
-  { value: '751-1000', label: '751-1000 €' },
-  { value: '1001-1500', label: '1001-1500 €' },
-  { value: '1501-2000', label: '1501-2000 €' },
-  { value: '2001-3000', label: '2001-3000 €' },
-  { value: '3001-4000', label: '3001-4000 €' },
-  { value: '4001-5000', label: '4001-5000 €' },
-  { value: '5001-6000', label: '5001-6000 €' },
-  { value: '6001-7000', label: '6001-7000 €' },
-  { value: '7001-8000', label: '7001-8000 €' },
-  { value: '8001-9000', label: '8001-9000 €' },
-  { value: '9001-10000', label: '9001-10000 €' },
-  { value: '10000+', label: '10000+ €' },
-];
 
 const BidModal: React.FC<BidModalProps> = ({
   visible,
   onClose,
   caseId,
   caseBudget,
+  caseDetails,
   onBidPlaced,
 }) => {
   const [user, setUser] = useState<any>(null);
@@ -75,27 +69,26 @@ const BidModal: React.FC<BidModalProps> = ({
   };
 
   // Calculate point cost based on proposed budget and user tier
-  // Uses new budget ranges matching backend database
-  // During launch mode (all points_cost_* = 0 in DB), cost=0 means FREE access, not restricted
+  // Updated to match new database values (March 2026)
   const calculatePointCost = (budgetRange: string): { cost: number; tierRestricted: boolean } => {
     const userTier = user?.subscription_tier_id || 'free';
     
-    // Points costs by tier (Free / Normal / PRO) - matches database budget ranges
+    // Points costs by tier (Free / Normal / PRO) - matches database
+    // Free & Pro have same costs, Normal has higher costs and max 500 лв budget
     const pointsCosts: { [key: string]: { free: number; normal: number; pro: number } } = {
-      '251-400': { free: 0, normal: 12, pro: 10 },
-      '500-750': { free: 0, normal: 25, pro: 20 },
-      '751-1000': { free: 0, normal: 35, pro: 28 },
-      '1001-1500': { free: 0, normal: 45, pro: 36 },
-      '1501-2000': { free: 0, normal: 70, pro: 56 },
-      '2001-3000': { free: 0, normal: 0, pro: 100 },
-      '3001-4000': { free: 0, normal: 0, pro: 140 },
-      '4001-5000': { free: 0, normal: 0, pro: 180 },
-      '5001-6000': { free: 0, normal: 0, pro: 220 },
-      '6001-7000': { free: 0, normal: 0, pro: 260 },
-      '7001-8000': { free: 0, normal: 0, pro: 300 },
-      '8001-9000': { free: 0, normal: 0, pro: 340 },
-      '9001-10000': { free: 0, normal: 0, pro: 380 },
-      '10000+': { free: 0, normal: 0, pro: 380 },
+      '1-250': { free: 26, normal: 51, pro: 26 },
+      '251-500': { free: 77, normal: 128, pro: 77 },
+      '501-750': { free: 179, normal: 0, pro: 179 },
+      '751-1000': { free: 383, normal: 0, pro: 383 },
+      '1001-2000': { free: 614, normal: 0, pro: 614 },
+      '2001-3000': { free: 997, normal: 0, pro: 997 },
+      '3001-4000': { free: 1278, normal: 0, pro: 1278 },
+      '4001-5000': { free: 1278, normal: 0, pro: 1278 },
+      '5001-6000': { free: 1278, normal: 0, pro: 1278 },
+      '6001-7000': { free: 1278, normal: 0, pro: 1278 },
+      '7001-8000': { free: 1278, normal: 0, pro: 1278 },
+      '8001-9000': { free: 1278, normal: 0, pro: 1278 },
+      '9001-10000': { free: 1278, normal: 0, pro: 1278 },
     };
     
     const costs = pointsCosts[budgetRange];
@@ -106,22 +99,47 @@ const BidModal: React.FC<BidModalProps> = ({
     
     if (userTier === 'free') {
       cost = costs.free;
-      // During launch mode all free tier costs are 0 = FREE access, not restricted
       tierRestricted = false;
     } else if (userTier === 'normal') {
       cost = costs.normal;
-      tierRestricted = cost === 0;
+      tierRestricted = cost === 0; // Normal tier restricted above 500 лв
     } else if (userTier === 'pro') {
       cost = costs.pro;
-      tierRestricted = false; // Pro tier has no restrictions
+      tierRestricted = false;
     }
     
     return { cost, tierRestricted };
   };
   
+  // Calculate loser fee based on budget range (same for all tiers)
+  // 5 лв = 26 pts, 8 лв = 41 pts, 12 лв = 61 pts, 15 лв = 77 pts
+  const calculateLoserFee = (budgetRange: string): number => {
+    const loserFees: { [key: string]: number } = {
+      '1-250': 26,      // 5 лв
+      '251-500': 26,    // 5 лв
+      '501-750': 41,    // 8 лв
+      '751-1000': 41,   // 8 лв
+      '1001-2000': 61,  // 12 лв
+      '2001-3000': 61,  // 12 лв
+      '3001-4000': 61,  // 12 лв
+      '4001-5000': 77,  // 15 лв
+      '5001-6000': 77,  // 15 лв
+      '6001-7000': 77,  // 15 лв
+      '7001-8000': 77,  // 15 лв
+      '8001-9000': 77,  // 15 лв
+      '9001-10000': 77, // 15 лв
+    };
+    return loserFees[budgetRange] || 26;
+  };
+  
   // Helper to get just the cost number for display
   const getPointCost = (budgetRange: string): number => {
     return calculatePointCost(budgetRange).cost;
+  };
+  
+  // Helper to get loser fee for display
+  const getLoserFee = (budgetRange: string): number => {
+    return calculateLoserFee(budgetRange);
   };
   
   // Check if budget range is restricted for current tier
@@ -156,13 +174,15 @@ const BidModal: React.FC<BidModalProps> = ({
       return;
     }
 
+    const loserFee = getLoserFee(proposedBudget);
+    
     Alert.alert(
       'Потвърждение',
-      `Сигурни ли сте, че искате да участвате?\n\n💰 Предлагана цена: ${proposedBudget} €\n⭐ Цена при спечелване: ${pointCost} точки\n\n⚠️ Точките ще бъдат удържани само ако спечелите офертата.`,
+      `Сигурни ли сте, че искате да участвате?\n\n💰 Предлагана цена: ${proposedBudget} лв\n\n✅ При спечелване: ${pointCost} точки\n❌ При загуба: ${loserFee} точки\n\n⚠️ Точките се удържат след избор на победител.`,
       [
         { text: 'Отказ', style: 'cancel' },
         {
-          text: 'Изпрати',
+          text: 'Участвай',
           onPress: async () => {
             setLoading(true);
             try {
@@ -220,8 +240,58 @@ const BidModal: React.FC<BidModalProps> = ({
           >
             <Text style={styles.title}>💰 Направете вашата оферта</Text>
             <Text style={styles.subtitle}>
-              Изберете цена за вашата оферта
+              Прегледайте детайлите и изберете цена
             </Text>
+
+            {/* Case Details Section */}
+            {caseDetails && (
+              <View style={styles.caseDetailsBox}>
+                <Text style={styles.caseDetailsTitle}>📋 Информация за заявката</Text>
+                
+                {/* Service Type */}
+                {caseDetails.service_type && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>🔧 Услуга:</Text>
+                    <Text style={styles.detailValue}>{caseDetails.service_type}</Text>
+                  </View>
+                )}
+
+                {/* Location (without street) */}
+                {(caseDetails.city || caseDetails.neighborhood) && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>📍 Локация:</Text>
+                    <Text style={styles.detailValue}>
+                      {caseDetails.city}{caseDetails.neighborhood ? `, ${caseDetails.neighborhood}` : ''}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Description */}
+                {caseDetails.description && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>📝 Описание:</Text>
+                    <Text style={styles.detailValue}>{caseDetails.description}</Text>
+                  </View>
+                )}
+
+                {/* Images */}
+                {caseDetails.images && caseDetails.images.length > 0 && (
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>📷 Снимки:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imagesScroll}>
+                      {caseDetails.images.map((imageUrl, index) => (
+                        <Image
+                          key={index}
+                          source={{ uri: imageUrl }}
+                          style={styles.caseImage}
+                          resizeMode="cover"
+                        />
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Points Balance Display */}
             {pointsBalance !== null && (
@@ -234,24 +304,27 @@ const BidModal: React.FC<BidModalProps> = ({
 
             {/* Info Box */}
             <View style={styles.infoBox}>
+              <Text style={styles.infoTitle}>💡 Как работи наддаването?</Text>
               <Text style={styles.infoText}>
-                💡 <Text style={styles.infoBold}>Участие:</Text> Безплатно (0 точки){'\n'}
-                💰 <Text style={styles.infoBold}>При печалба:</Text> Плащате според офертата{'\n'}
-                ❌ <Text style={styles.infoBold}>При загуба:</Text> Не плащате нищо
+                Участвате безплатно. Точките се удържат само след като клиентът избере победител.
               </Text>
               {proposedBudget && (
                 <View style={styles.costPreview}>
                   {isBudgetRestricted(proposedBudget) ? (
                     <Text style={styles.costText}>
-                      ⚠️ <Text style={styles.restrictedText}>Изисква ПРО план</Text>
+                      ⚠️ <Text style={styles.restrictedText}>Този бюджет изисква ПРО план</Text>
                     </Text>
                   ) : (
-                    <Text style={styles.costText}>
-                      ⭐ Цена при спечелване ({proposedBudget} €):{' '}
-                      <Text style={styles.costHighlight}>
-                        {getPointCost(proposedBudget)} точки
-                      </Text>
-                    </Text>
+                    <>
+                      <View style={styles.costRow}>
+                        <Text style={styles.costLabel}>✅ При спечелване:</Text>
+                        <Text style={styles.costValueWin}>{getPointCost(proposedBudget)} точки</Text>
+                      </View>
+                      <View style={styles.costRow}>
+                        <Text style={styles.costLabel}>❌ При загуба:</Text>
+                        <Text style={styles.costValueLose}>{getLoserFee(proposedBudget)} точки</Text>
+                      </View>
+                    </>
                   )}
                 </View>
               )}
@@ -390,13 +463,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#c7d2fe',
   },
+  infoTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#312e81',
+    marginBottom: 8,
+  },
   infoText: {
     fontSize: 13,
     color: '#4338ca',
     lineHeight: 20,
-  },
-  infoBold: {
-    fontWeight: '600',
   },
   costPreview: {
     marginTop: 12,
@@ -404,14 +480,31 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#c7d2fe',
   },
+  costRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  costLabel: {
+    fontSize: 14,
+    color: '#4338ca',
+    fontWeight: '500',
+  },
+  costValueWin: {
+    fontSize: 16,
+    color: '#059669',
+    fontWeight: '700',
+  },
+  costValueLose: {
+    fontSize: 16,
+    color: '#dc2626',
+    fontWeight: '700',
+  },
   costText: {
     fontSize: 14,
     color: '#312e81',
     fontWeight: '500',
-  },
-  costHighlight: {
-    color: '#f59e0b',
-    fontWeight: '700',
   },
   restrictedText: {
     color: '#dc2626',
@@ -479,6 +572,43 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  caseDetailsBox: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  caseDetailsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e40af',
+    marginBottom: 12,
+  },
+  detailRow: {
+    marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#1f2937',
+    lineHeight: 20,
+  },
+  imagesScroll: {
+    marginTop: 8,
+  },
+  caseImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    marginRight: 8,
   },
 });
 

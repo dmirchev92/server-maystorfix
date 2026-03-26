@@ -1,6 +1,6 @@
 {
   "valid": false,
   "reason": "CHECK_ERROR",
-  "error": "page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"https://play.google.com/console/u/0/developers/7488780334730040495/app/4974916880619958219/tracks/4698605814004162380?tab=testers\", waiting until \"networkidle\"\n",
-  "checkedAt": "2026-03-17T00:00:02.816Z"
+  "error": "browserType.launch: Executable doesn't exist at /root/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
+  "checkedAt": "2026-03-26T18:00:01.708Z"
 }

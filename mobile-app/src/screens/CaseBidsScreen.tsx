@@ -495,9 +495,24 @@ export default function CaseBidsScreen() {
                     <Text style={styles.profileName}>
                       {getProviderDisplayName(selectedBid)}
                     </Text>
-                    <Text style={styles.profileCategory}>
-                      {getCategoryLabel(providerDetails?.serviceCategory || selectedBid.provider_service_category || '')}
-                    </Text>
+                    {(providerDetails?.serviceCategories || selectedBid.provider_service_categories || []).length > 0 ? (
+                      <View style={styles.categoryChipsRow}>
+                        {(providerDetails?.serviceCategories || selectedBid.provider_service_categories || []).slice(0, 3).map((cat: string, idx: number) => (
+                          <View key={idx} style={styles.categoryChip}>
+                            <Text style={styles.categoryChipText}>{getCategoryLabel(cat)}</Text>
+                          </View>
+                        ))}
+                        {(providerDetails?.serviceCategories || selectedBid.provider_service_categories || []).length > 3 && (
+                          <View style={styles.categoryChip}>
+                            <Text style={styles.categoryChipText}>+{(providerDetails?.serviceCategories || selectedBid.provider_service_categories || []).length - 3}</Text>
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <Text style={styles.profileCategory}>
+                        {getCategoryLabel(providerDetails?.serviceCategory || selectedBid.provider_service_category || '')}
+                      </Text>
+                    )}
                     <Text style={styles.profileLocation}>
                       📍 {providerDetails?.city || selectedBid.provider_city || 'София'}
                       {(providerDetails?.neighborhood || selectedBid.provider_neighborhood) 
@@ -1174,5 +1189,25 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  categoryChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  categoryChip: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+  },
+  categoryChipText: {
+    color: '#a5b4fc',
+    fontSize: 11,
+    fontWeight: '500',
   },
 });

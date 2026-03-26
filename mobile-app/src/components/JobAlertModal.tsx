@@ -18,6 +18,7 @@ import { Picker } from '@react-native-picker/picker';
 import SocketIOService from '../services/SocketIOService';
 import ApiService from '../services/ApiService';
 import { useNavigation } from '@react-navigation/native';
+import { BUDGET_RANGES } from '../constants/budgetRanges';
 
 const { width, height } = Dimensions.get('window');
 
@@ -33,23 +34,6 @@ interface JobAlertData {
   biddingEnabled?: boolean;
   screenshots?: Array<{ url: string }>;
 }
-
-const BUDGET_RANGES = [
-  { value: '1-125', label: '1-125 €' },
-  { value: '126-250', label: '126-250 €' },
-  { value: '251-400', label: '251-400 €' },
-  { value: '401-500', label: '401-500 €' },
-  { value: '501-1000', label: '501-1000 €' },
-  { value: '1001-1500', label: '1001-1500 €' },
-  { value: '1501-2000', label: '1501-2000 €' },
-  { value: '2001-2500', label: '2001-2500 €' },
-  { value: '2501-3000', label: '2501-3000 €' },
-  { value: '3001-3500', label: '3001-3500 €' },
-  { value: '3501-4000', label: '3501-4000 €' },
-  { value: '4001-4500', label: '4001-4500 €' },
-  { value: '4501-5000', label: '4501-5000 €' },
-  { value: '5000+', label: '5000+ €' },
-];
 
 const JobAlertModal = () => {
   const [visible, setVisible] = useState(false);

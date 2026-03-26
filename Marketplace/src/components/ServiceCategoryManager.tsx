@@ -48,8 +48,8 @@ export default function ServiceCategoryManager({ onUpdate }: ServiceCategoryMana
     // Get limits based on subscription tier
     const tier = (user as any)?.subscription_tier_id || 'free'
     const limits: Record<string, number> = {
-      'free': 2,
-      'normal': 5,
+      'free': 999, // Launch mode - unlimited during launch
+      'normal': 2,
       'pro': 999
     }
     setMaxCategories(limits[tier] || 2)
@@ -135,10 +135,10 @@ export default function ServiceCategoryManager({ onUpdate }: ServiceCategoryMana
         <p className="text-sm text-slate-300">
           Изберете услугите, които предлагате ({selectedCategories.length}/{maxCategories === 999 ? '∞' : maxCategories})
         </p>
-        {(user as any)?.subscription_tier_id === 'free' && (
+        {(user as any)?.subscription_tier_id === 'normal' && (
           <div className="mt-2 p-3 bg-yellow-500/20 border border-yellow-400/30 rounded-lg">
             <p className="text-xs text-yellow-300">
-              💡 Надстройте до NORMAL (5 специализации) или PRO (неограничено) за повече възможности
+              💡 Надстройте до PRO за неограничени специализации
             </p>
           </div>
         )}

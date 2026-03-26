@@ -99,6 +99,7 @@ export class BidSelectionReminderJob {
           AND c.customer_id != u.id
           AND sp.is_active = true
           AND psc.category_id = c.category
+          AND c.location_search_status IS NULL  -- Exclude cases handled by LocationSearchJob
           AND sp.city = c.city
           -- Require exact match for both city AND neighborhood
           AND c.neighborhood IS NOT NULL
@@ -222,13 +223,12 @@ export class BidSelectionReminderJob {
           c.budget,
           c.priority,
           u.id as provider_id,
-          sp.service_category,
           sp.city as provider_city,
           sp.neighborhood as provider_neighborhood
         FROM marketplace_service_cases c
         CROSS JOIN users u
         INNER JOIN service_provider_profiles sp ON u.id = sp.user_id
-        LEFT JOIN provider_service_categories psc ON sp.user_id = psc.provider_id
+        INNER JOIN provider_service_categories psc ON sp.user_id = psc.provider_id
         WHERE c.id = $1
           AND c.status = 'pending'
           AND c.bidding_enabled = true
@@ -237,9 +237,7 @@ export class BidSelectionReminderJob {
           AND c.customer_id != u.id
           AND sp.is_active = true
           AND (
-            sp.service_category = c.category 
-            OR psc.category_id = c.category
-            OR sp.service_category = REPLACE(c.category, 'cat_', '')
+            psc.category_id = c.category
             OR psc.category_id = REPLACE(c.category, 'cat_', '')
           )
           AND sp.city = c.city

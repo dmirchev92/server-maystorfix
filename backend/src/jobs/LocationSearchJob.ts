@@ -43,7 +43,11 @@ export class LocationSearchJob {
       for (const caseRow of cases.rows) {
         logger.info(`📍 Processing initial 5km search for case ${caseRow.id}`);
         
-        // Find SPs within 5km
+        // Normalize category for matching (handle both 'carpenter' and 'cat_carpenter')
+        const caseCategory = caseRow.category || caseRow.service_type;
+        const normalizedCategory = caseCategory.replace(/^cat_/, '');
+        
+        // Find SPs within 5km who have this category selected
         // Haversine formula: 6371 * acos(...)
         const spQuery = `
           SELECT 
@@ -69,9 +73,25 @@ export class LocationSearchJob {
             WHERE n.user_id = sp.user_id 
             AND n.data->>'caseId' = $3
           )
+          AND EXISTS (
+            SELECT 1 FROM provider_service_categories psc
+            WHERE psc.provider_id = sp.user_id
+            AND (
+              psc.category_id = $4
+              OR psc.category_id = $5
+              OR psc.category_id = $6
+            )
+          )
         `;
 
-        const sps = await this.pool.query(spQuery, [caseRow.latitude, caseRow.longitude, caseRow.id]);
+        const sps = await this.pool.query(spQuery, [
+          caseRow.latitude, 
+          caseRow.longitude, 
+          caseRow.id,
+          caseCategory,
+          normalizedCategory,
+          `cat_${normalizedCategory}`
+        ]);
         
         if (sps.rows.length > 0) {
           const providerIds = sps.rows.map(row => row.user_id);
@@ -144,7 +164,11 @@ export class LocationSearchJob {
       for (const caseRow of cases.rows) {
         logger.info(`📍 Processing expanded 10km search for case ${caseRow.id}`);
         
-        // Find SPs within 10km
+        // Normalize category for matching (handle both 'carpenter' and 'cat_carpenter')
+        const caseCategory = caseRow.category || caseRow.service_type;
+        const normalizedCategory = caseCategory.replace(/^cat_/, '');
+        
+        // Find SPs within 10km who have this category selected
         // Exclude those who were already notified (assumed if they were in 5km, they got notified)
         // But simpler to just check notifications table or distance > 5
         const spQuery = `
@@ -177,9 +201,25 @@ export class LocationSearchJob {
             WHERE n.user_id = sp.user_id 
             AND n.data->>'caseId' = $3
           )
+          AND EXISTS (
+            SELECT 1 FROM provider_service_categories psc
+            WHERE psc.provider_id = sp.user_id
+            AND (
+              psc.category_id = $4
+              OR psc.category_id = $5
+              OR psc.category_id = $6
+            )
+          )
         `;
 
-        const sps = await this.pool.query(spQuery, [caseRow.latitude, caseRow.longitude, caseRow.id]);
+        const sps = await this.pool.query(spQuery, [
+          caseRow.latitude, 
+          caseRow.longitude, 
+          caseRow.id,
+          caseCategory,
+          normalizedCategory,
+          `cat_${normalizedCategory}`
+        ]);
         
         if (sps.rows.length > 0) {
           const providerIds = sps.rows.map(row => row.user_id);

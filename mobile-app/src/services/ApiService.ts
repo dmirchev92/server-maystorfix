@@ -518,7 +518,16 @@ export class ApiService {
     t?: number;
   }): Promise<APIResponse> {
     Logger.debug('🔍 ApiService - Searching providers:', params);
-    const queryString = new URLSearchParams(params as any).toString();
+    
+    // Manually build query string with proper encoding for Cyrillic characters
+    const queryParts: string[] = [];
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+      }
+    });
+    const queryString = queryParts.join('&');
+    
     // Using the endpoint from memory/web app
     return this.makeRequest(`/marketplace/providers/search?${queryString}`);
   }
@@ -1052,6 +1061,14 @@ export class ApiService {
   // ============ VIP Visibility API ============
 
   /**
+   * Get provider's selected service categories
+   */
+  public async getProviderCategories(): Promise<APIResponse> {
+    Logger.debug('📂 ApiService - Getting provider categories');
+    return this.makeRequest('/provider/categories', { method: 'GET' });
+  }
+
+  /**
    * Get VIP configuration (prices, timing, slots)
    */
   public async getVipConfig(): Promise<APIResponse> {
@@ -1081,30 +1098,34 @@ export class ApiService {
 
   /**
    * Place or increase a VIP bid
+   * @param city - Optional city for SEARCH_VIP
    */
   public async placeVipBid(
     vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP',
     categoryId: string,
-    pointsIncrement: number
+    pointsIncrement: number,
+    city?: string
   ): Promise<APIResponse> {
-    Logger.debug('⭐ ApiService - Placing VIP bid:', { vipType, categoryId, pointsIncrement });
+    Logger.debug('⭐ ApiService - Placing VIP bid:', { vipType, categoryId, pointsIncrement, city });
     return this.makeRequest('/vip/bid', {
       method: 'POST',
-      body: JSON.stringify({ vipType, categoryId, pointsIncrement }),
+      body: JSON.stringify({ vipType, categoryId, pointsIncrement, city }),
     });
   }
 
   /**
    * Buyout a VIP slot (immediate point deduction)
+   * @param city - Optional city for SEARCH_VIP
    */
   public async buyoutVipSlot(
     vipType: 'HOMEPAGE_VIP' | 'SEARCH_VIP',
-    categoryId: string
+    categoryId: string,
+    city?: string
   ): Promise<APIResponse> {
-    Logger.debug('⭐ ApiService - Buying out VIP slot:', { vipType, categoryId });
+    Logger.debug('⭐ ApiService - Buying out VIP slot:', { vipType, categoryId, city });
     return this.makeRequest('/vip/buyout', {
       method: 'POST',
-      body: JSON.stringify({ vipType, categoryId }),
+      body: JSON.stringify({ vipType, categoryId, city }),
     });
   }
 

@@ -56,16 +56,11 @@ export class ModernCallDetectionService {
       this.eventEmitter = new NativeEventEmitter(ModernCallDetectionModule);
       this.setupEventListeners();
       this.isInitialized = true;
-      Logger.debug('📱 Modern call detection service initialized');
+      Logger.debug('📱 Modern call detection service initialized (not started - waiting for explicit start)');
       
-      // Start the native call detection
-      ModernCallDetectionModule.startCallDetection()
-        .then(() => {
-          Logger.debug('✅ Native call detection started');
-        })
-        .catch((error: any) => {
-          Logger.error('❌ Failed to start native call detection:', error);
-        });
+      // DON'T auto-start the native call detection here!
+      // It should only be started when SMS auto-response is explicitly enabled by the user.
+      // The foreground service notification will only appear when startDetection() is called.
     } else {
       Logger.error('❌ ModernCallDetectionModule not found');
     }
@@ -80,9 +75,29 @@ export class ModernCallDetectionService {
     });
   }
 
+  private processedCallIds = new Set<string>();
+  
   private async handleMissedCall(event: MissedCallEvent): Promise<void> {
     try {
       Logger.debug('🚨 MISSED CALL HANDLER TRIGGERED:', event);
+      
+      // Generate call ID for deduplication
+      const callId = `call_${event.timestamp}_${event.phoneNumber}`;
+      
+      // Deduplicate: Check if we already processed this exact call
+      if (this.processedCallIds.has(callId)) {
+        Logger.debug('⚠️ Duplicate event detected, skipping:', callId);
+        return;
+      }
+      
+      // Mark as processed immediately to prevent race conditions
+      this.processedCallIds.add(callId);
+      
+      // Clean up old entries (keep last 50)
+      if (this.processedCallIds.size > 50) {
+        const idsArray = Array.from(this.processedCallIds);
+        this.processedCallIds = new Set(idsArray.slice(-50));
+      }
       
       // Store the call event locally
       await this.storeMissedCall(event);
@@ -132,11 +147,7 @@ export class ModernCallDetectionService {
       await AsyncStorage.setItem(key, JSON.stringify(calls));
       Logger.debug('💾 Missed call stored locally');
 
-      // Sync to backend immediately (don't wait for SMS)
-      const callId = `call_${event.timestamp}_${event.phoneNumber}`;
-      await this.syncMissedCallToBackend(event, callId);
-
-      // Send SMS automatically if enabled
+      // Send SMS automatically if enabled (will sync to backend after sending)
       await this.sendAutomaticSMS(event);
 
     } catch (error) {

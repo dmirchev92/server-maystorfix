@@ -12,7 +12,51 @@ interface BidButtonProps {
   maxBidders?: number;
   onBidPlaced?: () => void;
   disabled?: boolean;
+  showCostPreview?: boolean; // Show cost preview below button
 }
+
+// Calculate costs based on budget range (matches BidModal and backend)
+const getCostsForBudget = (budget: string): { winCost: number; loseCost: number } => {
+  // Winner costs (Free/Pro tier)
+  const winnerCosts: { [key: string]: number } = {
+    '1-250': 26, '251-500': 77, '501-750': 179, '751-1000': 383,
+    '1001-2000': 614, '2001-3000': 997, '3001-4000': 1278,
+    '4001-5000': 1278, '5001-6000': 1278, '6001-7000': 1278,
+    '7001-8000': 1278, '8001-9000': 1278, '9001-10000': 1278,
+  };
+  
+  // Loser fees (same for all tiers)
+  const loserFees: { [key: string]: number } = {
+    '1-250': 26, '251-500': 26, '501-750': 41, '751-1000': 41,
+    '1001-2000': 61, '2001-3000': 61, '3001-4000': 61,
+    '4001-5000': 77, '5001-6000': 77, '6001-7000': 77,
+    '7001-8000': 77, '8001-9000': 77, '9001-10000': 77,
+  };
+  
+  // Try to match budget to a range
+  const normalizedBudget = budget.replace(/\s/g, '');
+  
+  // Direct match
+  if (winnerCosts[normalizedBudget]) {
+    return { winCost: winnerCosts[normalizedBudget], loseCost: loserFees[normalizedBudget] };
+  }
+  
+  // Parse budget to find matching range
+  const match = normalizedBudget.match(/(\d+)/);
+  if (match) {
+    const value = parseInt(match[1]);
+    if (value <= 250) return { winCost: 26, loseCost: 26 };
+    if (value <= 500) return { winCost: 77, loseCost: 26 };
+    if (value <= 750) return { winCost: 179, loseCost: 41 };
+    if (value <= 1000) return { winCost: 383, loseCost: 41 };
+    if (value <= 2000) return { winCost: 614, loseCost: 61 };
+    if (value <= 3000) return { winCost: 997, loseCost: 61 };
+    if (value <= 4000) return { winCost: 1278, loseCost: 61 };
+    return { winCost: 1278, loseCost: 77 };
+  }
+  
+  return { winCost: 26, loseCost: 26 }; // Default
+};
 
 const BidButton: React.FC<BidButtonProps> = ({
   caseId,
@@ -21,9 +65,12 @@ const BidButton: React.FC<BidButtonProps> = ({
   maxBidders = 3,
   onBidPlaced,
   disabled = false,
+  showCostPreview = true,
 }) => {
   const [canBid, setCanBid] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
+  
+  const costs = getCostsForBudget(budget);
 
   useEffect(() => {
     checkCanBid();
@@ -81,6 +128,15 @@ const BidButton: React.FC<BidButtonProps> = ({
         )}
       </TouchableOpacity>
       
+      {/* Cost Preview */}
+      {showCostPreview && !isDisabled && (
+        <View style={styles.costPreview}>
+          <Text style={styles.costPreviewText}>
+            ✅ {costs.winCost} / ❌ {costs.loseCost} точки
+          </Text>
+        </View>
+      )}
+      
       <BidModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
@@ -115,6 +171,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  costPreview: {
+    marginTop: 4,
+    alignItems: 'center',
+  },
+  costPreviewText: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: '500',
   },
 });
 

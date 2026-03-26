@@ -19,7 +19,6 @@ export type RootStackParamList = {
     caseId: string;
     caseDescription?: string;
   };
-  BuyPoints: undefined;
   Pricing: undefined;
 };
 

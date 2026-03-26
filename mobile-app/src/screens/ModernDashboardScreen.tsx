@@ -24,6 +24,7 @@ import { SMSService } from '../services/SMSService';
 import { AuthBus } from '../utils/AuthBus';
 import theme from '../styles/theme';
 import DataRetentionModal from '../components/DataRetentionModal';
+import { getCategoryLabel } from '../constants/serviceCategories';
 
 // Location mode type for Option C selector
 type LocationMode = 'off' | 'always' | 'schedule';
@@ -35,12 +36,6 @@ interface ScheduleSettings {
 }
 
 const USE_NEW_DASHBOARD_UI = true;
-
-// Helper function to get translated category key
-const getCategoryTranslationKey = (category: string): string => {
-  const normalized = category.toLowerCase().replace('cat_', '');
-  return `category_${normalized}`;
-};
 
 interface User {
   id: string;
@@ -107,7 +102,7 @@ const ModernDashboardScreen: React.FC = () => {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [serviceType, setServiceType] = useState<string>('category_handyman');
+  const [serviceCategories, setServiceCategories] = useState<string[]>([]);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [providerStats, setProviderStats] = useState<ProviderStats | null>(null);
   
@@ -135,6 +130,10 @@ const ModernDashboardScreen: React.FC = () => {
   // Data Retention state
   const [showDataRetentionModal, setShowDataRetentionModal] = useState(false);
   const [dataRetentionDaysRemaining, setDataRetentionDaysRemaining] = useState(0);
+  
+  // Points balance state
+  const [pointsBalance, setPointsBalance] = useState<number>(0);
+  const [pointsLoading, setPointsLoading] = useState(false);
 
   const callDetectionService = ModernCallDetectionService.getInstance();
 
@@ -195,6 +194,10 @@ const ModernDashboardScreen: React.FC = () => {
       await checkDataRetentionStatus();
       Logger.debug('🚀 Step 6: Data retention checked');
       
+      Logger.debug('🚀 Step 7: Loading points balance...');
+      await loadPointsBalance();
+      Logger.debug('🚀 Step 7: Points balance loaded');
+      
       Logger.debug('🚀 ========== DASHBOARD INITIALIZATION COMPLETE ==========');
     } catch (error) {
       Logger.error('❌ ========== DASHBOARD INITIALIZATION ERROR ==========');
@@ -238,6 +241,20 @@ const ModernDashboardScreen: React.FC = () => {
     setShowDataRetentionModal(false);
   };
 
+  // Load points balance
+  const loadPointsBalance = async () => {
+    try {
+      setPointsLoading(true);
+      const response = await ApiService.getInstance().getPointsBalance();
+      if (response.success && response.data) {
+        setPointsBalance(response.data.current_balance || 0);
+      }
+    } catch (error) {
+      Logger.error('Error loading points balance:', error);
+    } finally {
+      setPointsLoading(false);
+    }
+  };
 
   const testBackendConnection = async () => {
     try {
@@ -417,16 +434,26 @@ const ModernDashboardScreen: React.FC = () => {
         Logger.debug('👤 User state set successfully');
         Logger.debug('👤 ========== loadUserData COMPLETE (REAL USER) ==========');
         
-        // Load service type, profile image, and provider stats
+        // Load service categories, profile image, and provider stats
         if (mappedUser.id) {
           try {
+            // Load current selected categories from provider_service_categories
+            const categoriesResponse = await ApiService.getInstance().makeRequest(`/provider/categories`);
+            if (categoriesResponse.success && categoriesResponse.data) {
+              const data = categoriesResponse.data as any;
+              if (data.categories && Array.isArray(data.categories)) {
+                // API returns objects {category_id, category_label_bg, ...} - extract string IDs
+                const categoryIds = data.categories.map((cat: any) => 
+                  typeof cat === 'string' ? cat : (cat.category_id || cat.id || String(cat))
+                );
+                setServiceCategories(categoryIds);
+              }
+            }
+            
+            // Load profile image
             const profileResponse = await ApiService.getInstance().makeRequest(`/marketplace/providers/${mappedUser.id}`);
             if (profileResponse.success && profileResponse.data) {
               const profileData: any = profileResponse.data;
-              if (profileData.serviceCategory) {
-                const categoryKey = getCategoryTranslationKey(profileData.serviceCategory);
-                setServiceType(categoryKey);
-              }
               if (profileData.profileImageUrl) {
                 setProfileImageUrl(profileData.profileImageUrl);
               }
@@ -977,37 +1004,53 @@ const ModernDashboardScreen: React.FC = () => {
               <Text style={styles.userName}>
                 {user ? `${user.firstName} ${user.lastName}` : t('loading')}
               </Text>
-              <View style={styles.serviceTypesContainer}>
-                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
-                  <Text style={styles.userRole}>
-                    {t(serviceType)}
-                  </Text>
-                  {/* Subscription Badge */}
-                  <View style={{
-                    backgroundColor: user?.subscription_tier_id === 'pro' ? 'rgba(168, 85, 247, 0.2)' :
-                                     user?.subscription_tier_id === 'normal' ? 'rgba(59, 130, 246, 0.2)' :
-                                     'rgba(148, 163, 184, 0.2)',
-                    borderWidth: 1,
-                    borderColor: user?.subscription_tier_id === 'pro' ? '#a855f7' :
-                                 user?.subscription_tier_id === 'normal' ? '#3b82f6' :
-                                 '#94a3b8',
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    borderRadius: 10,
-                  }}>
-                    <Text style={{
-                      fontSize: 10,
-                      fontWeight: '700',
-                      color: user?.subscription_tier_id === 'pro' ? '#c084fc' :
-                             user?.subscription_tier_id === 'normal' ? '#60a5fa' :
+              {/* Subscription Badge - on its own line */}
+              <View style={{
+                alignSelf: 'flex-start',
+                backgroundColor: user?.subscription_tier_id === 'pro' ? 'rgba(168, 85, 247, 0.2)' :
+                                 user?.subscription_tier_id === 'normal' ? 'rgba(59, 130, 246, 0.2)' :
+                                 'rgba(148, 163, 184, 0.2)',
+                borderWidth: 1,
+                borderColor: user?.subscription_tier_id === 'pro' ? '#a855f7' :
+                             user?.subscription_tier_id === 'normal' ? '#3b82f6' :
                              '#94a3b8',
-                    }}>
-                      {user?.subscription_tier_id === 'pro' ? 'PRO' :
-                       user?.subscription_tier_id === 'normal' ? 'NORMAL' : 'FREE'}
-                    </Text>
-                  </View>
-                </View>
+                paddingHorizontal: 10,
+                paddingVertical: 3,
+                borderRadius: 12,
+                marginBottom: 8,
+              }}>
+                <Text style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: user?.subscription_tier_id === 'pro' ? '#c084fc' :
+                         user?.subscription_tier_id === 'normal' ? '#60a5fa' :
+                         '#94a3b8',
+                }}>
+                  {user?.subscription_tier_id === 'pro' ? 'PRO' :
+                   user?.subscription_tier_id === 'normal' ? 'NORMAL' : 'FREE'}
+                </Text>
               </View>
+              {/* Categories as chips */}
+              <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 6}}>
+                {serviceCategories.length > 0 
+                  ? serviceCategories.map((cat, index) => (
+                      <View key={index} style={{
+                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                        borderRadius: 8,
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                      }}>
+                        <Text style={{
+                          fontSize: 12,
+                          color: '#a5b4fc',
+                          fontWeight: '500',
+                        }}>
+                          {getCategoryLabel(cat)}
+                        </Text>
+                      </View>
+                    ))
+                  : <Text style={styles.userRole}>{t('loading')}</Text>
+                }</View>
               <Text style={styles.profileHint}>{t('viewProfile')}</Text>
             </View>
           </TouchableOpacity>
@@ -1015,6 +1058,30 @@ const ModernDashboardScreen: React.FC = () => {
             <Text style={styles.settingsIcon}>⚙️</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ==================== POINTS BALANCE CARD ==================== */}
+        <TouchableOpacity 
+          style={styles.pointsCard}
+          onPress={() => navigation.navigate('Points')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.pointsCardContent}>
+            <View style={styles.pointsCardLeft}>
+              <Text style={styles.pointsCardIcon}>💰</Text>
+              <View>
+                <Text style={styles.pointsCardLabel}>{t('common:points')}</Text>
+                <Text style={styles.pointsCardValue}>
+                  {pointsLoading ? '...' : pointsBalance}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.pointsCardRight}>
+              <View style={styles.buyPointsButton}>
+                <Text style={styles.buyPointsButtonText}>{t('common:buyPoints')}</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
 
         {/* ==================== AUTOMATION HUB ==================== */}
         <View style={styles.automationHub}>
@@ -2231,6 +2298,54 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   
+  // ==================== POINTS CARD STYLES ====================
+  pointsCard: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    padding: 16,
+  },
+  pointsCardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pointsCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  pointsCardIcon: {
+    fontSize: 32,
+  },
+  pointsCardLabel: {
+    fontSize: 12,
+    color: '#a5b4fc',
+    marginBottom: 2,
+  },
+  pointsCardValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  pointsCardRight: {
+    alignItems: 'flex-end',
+  },
+  buyPointsButton: {
+    backgroundColor: '#6366f1',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  buyPointsButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+
   // ==================== AUTOMATION HUB STYLES ====================
   automationHub: {
     marginHorizontal: 16,

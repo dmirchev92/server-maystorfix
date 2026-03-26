@@ -1019,8 +1019,8 @@ export class ReferralService {
             async (refErr, referralRow: any) => {
               const referralId = referralRow?.id;
 
-              // Award 5 points to referrer
-              await this.addPointsToUser(referrerUserId, 5, `referred user ${referredUserId} signed up`);
+              // Award 5000 points to referrer (TESTING PERIOD - change back to 5 after testing)
+              await this.addPointsToUser(referrerUserId, 5000, `referred user ${referredUserId} signed up`);
               
               // Create reward record for referrer
               if (referralId) {
@@ -1033,12 +1033,12 @@ export class ReferralService {
                     referrerUserId,
                     referredUserId,
                     'referrer_signup_bonus',
-                    5,
+                    5000,
                     0,
                     0,
                     'applied',
                     false,
-                    5
+                    5000
                   ],
                   (rewardErr) => {
                     if (rewardErr) console.error('Error creating referrer reward record:', rewardErr);
@@ -1046,8 +1046,8 @@ export class ReferralService {
                 );
               }
 
-              // Award 5 points to referred user
-              await this.addPointsToUser(referredUserId, 5, `signed up via referral from ${referrerUserId}`);
+              // Award 5000 points to referred user (TESTING PERIOD - change back to 5 after testing)
+              await this.addPointsToUser(referredUserId, 5000, `signed up via referral from ${referrerUserId}`);
               
               // Create reward record for referred user
               if (referralId) {
@@ -1060,12 +1060,12 @@ export class ReferralService {
                     referrerUserId,
                     referredUserId,
                     'signup_bonus',
-                    5,
+                    5000,
                     0,
                     0,
                     'applied',
                     false,
-                    5
+                    5000
                   ],
                   (rewardErr) => {
                     if (rewardErr) console.error('Error creating referred reward record:', rewardErr);
@@ -1073,7 +1073,7 @@ export class ReferralService {
                 );
               }
               
-              console.log(`🎉 Signup bonus complete! Both users received 5 points`);
+              console.log(`🎉 Signup bonus complete! Both users received 5000 points (TESTING PERIOD)`);
               resolve();
             }
           );

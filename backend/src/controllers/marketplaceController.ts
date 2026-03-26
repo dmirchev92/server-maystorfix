@@ -99,7 +99,8 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
           id, user_id, business_name, service_category, description,
           experience_years, hourly_rate, city, neighborhood, address, 
           phone_number, email, website_url, profile_image_url, 
-          rating, total_reviews, is_active, offered_services, created_at, updated_at
+          rating, total_reviews, is_active, offered_services, created_at, updated_at,
+          latitude, longitude
          FROM service_provider_profiles 
          WHERE user_id = ?`,
         [actualUserId],
@@ -177,7 +178,9 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
       profileUpdatedAt: profile?.updated_at,
       certificates: certificates,
       gallery: gallery,
-      offeredServices: profile?.offered_services || []
+      offeredServices: profile?.offered_services || [],
+      latitude: profile?.latitude,
+      longitude: profile?.longitude
     };
 
     logger.info('✅ Provider info retrieved successfully', { 
@@ -217,7 +220,25 @@ export const getProvider = async (req: Request, res: Response): Promise<void> =>
  */
 export const searchProviders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { city, neighborhood, category, limit = 50, offset = 0, lat, lng, radius } = req.query;
+    let { city, neighborhood, category, limit = 50, offset = 0, lat, lng, radius } = req.query;
+
+    // Fix UTF-8 encoding issue with Cyrillic characters
+    if (city && typeof city === 'string') {
+      try {
+        // Try to decode if it's double-encoded
+        city = decodeURIComponent(city);
+      } catch (e) {
+        // If decoding fails, use as-is
+      }
+    }
+    
+    if (neighborhood && typeof neighborhood === 'string') {
+      try {
+        neighborhood = decodeURIComponent(neighborhood);
+      } catch (e) {
+        // If decoding fails, use as-is
+      }
+    }
 
     logger.info('🔍 Searching providers with filters:', { city, neighborhood, category, limit, offset, lat, lng, radius });
 
@@ -299,11 +320,12 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
     finalQuery += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     params.push(Number(limit), Number(offset));
 
-    logger.info('🔍 Executing SQL:', finalQuery);
-    logger.info('🔍 Params:', params);
+    console.log('🔍 EXECUTING SQL:', finalQuery);
+    console.log('🔍 PARAMS:', params);
 
     // Execute Query
     const result = await (db as any).query(finalQuery, params);
+    console.log('🔍 QUERY RESULT:', { isArray: Array.isArray(result), hasRows: result?.rows ? true : false, rowCount: result?.rows?.length || (Array.isArray(result) ? result.length : 0) });
     
     // Handle Result Format
     let providers: any[] = [];
@@ -315,34 +337,52 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
       logger.warn('⚠️ Unexpected database result format:', result);
       providers = [];
     }
+    
+    console.log('🔍 RAW PROVIDERS FROM DB:', providers.length, providers.map(p => ({ id: p.id, name: p.business_name })));
 
     // Transform Data
-    const transformedProviders = providers.map((provider: any) => ({
-      id: provider.id,
-      email: provider.email,
-      firstName: provider.first_name,
-      lastName: provider.last_name,
-      businessName: provider.business_name || `${provider.first_name} ${provider.last_name}`,
-      serviceCategory: provider.service_category || 'general',
-      serviceCategories: Array.isArray(provider.service_categories) ? provider.service_categories : [],
-      description: provider.description || 'Professional service provider',
-      experienceYears: provider.experience_years || 0,
-      hourlyRate: provider.hourly_rate || 0,
-      city: provider.city || 'Sofia',
-      neighborhood: provider.neighborhood,
-      address: provider.address,
-      profileEmail: provider.profile_email,
-      website: provider.website,
-      profileImageUrl: provider.profile_image_url,
-      rating: provider.rating || 0,
-      totalReviews: provider.total_reviews || 0,
-      completedProjects: parseInt(provider.completed_projects) || 0,
-      isActive: Boolean(provider.is_active),
-      latitude: provider.latitude ? parseFloat(provider.latitude) : null,
-      longitude: provider.longitude ? parseFloat(provider.longitude) : null,
-      distance: provider.distance ? parseFloat(provider.distance) : null,
-      offeredServices: provider.offered_services || []
-    }));
+    const transformedProviders = providers.map((provider: any) => {
+      // Parse service_categories - handle both JSON string and array formats
+      let serviceCategories: string[] = [];
+      if (provider.service_categories) {
+        if (typeof provider.service_categories === 'string') {
+          try {
+            serviceCategories = JSON.parse(provider.service_categories);
+          } catch (e) {
+            serviceCategories = [];
+          }
+        } else if (Array.isArray(provider.service_categories)) {
+          serviceCategories = provider.service_categories;
+        }
+      }
+      
+      return {
+        id: provider.id,
+        email: provider.email,
+        firstName: provider.first_name,
+        lastName: provider.last_name,
+        businessName: provider.business_name || `${provider.first_name} ${provider.last_name}`,
+        serviceCategory: provider.service_category || 'general',
+        serviceCategories: serviceCategories,
+        description: provider.description || 'Professional service provider',
+        experienceYears: provider.experience_years || 0,
+        hourlyRate: provider.hourly_rate || 0,
+        city: provider.city || 'Sofia',
+        neighborhood: provider.neighborhood,
+        address: provider.address,
+        profileEmail: provider.profile_email,
+        website: provider.website,
+        profileImageUrl: provider.profile_image_url,
+        rating: provider.rating || 0,
+        totalReviews: provider.total_reviews || 0,
+        completedProjects: parseInt(provider.completed_projects) || 0,
+        isActive: Boolean(provider.is_active),
+        latitude: provider.latitude ? parseFloat(provider.latitude) : null,
+        longitude: provider.longitude ? parseFloat(provider.longitude) : null,
+        distance: provider.distance ? parseFloat(provider.distance) : null,
+        offeredServices: provider.offered_services || []
+      };
+    });
 
     logger.info('✅ Provider search completed', { 
       resultsCount: transformedProviders.length,
@@ -351,12 +391,35 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
 
     // Get VIP providers for this category if VIP is enabled
     let vipProviders: any[] = [];
+    logger.info('🔍 VIP CHECK:', { isVipEnabled: vipService.isVipEnabled(), category, city });
     if (vipService.isVipEnabled()) {
       try {
-        // Get HOMEPAGE_VIP providers for this category (shown globally)
-        if (category) {
-          const homepageVipProviders = await vipService.getHomepageVipProviders(category as string);
-          for (const vp of homepageVipProviders) {
+        // Helper function to get all service categories for a provider
+        const getProviderServiceCategories = async (providerId: string): Promise<string[]> => {
+          try {
+            const result = await (db as any).query(
+              `SELECT category_id FROM provider_service_categories WHERE provider_id = $1`,
+              [providerId]
+            );
+            return result?.map((row: any) => row.category_id) || [];
+          } catch (e) {
+            logger.warn('⚠️ Failed to fetch service categories for provider:', { providerId, error: e });
+            return [];
+          }
+        };
+
+        // ONLY Get SEARCH_VIP providers for search results (HOMEPAGE_VIP is only for homepage)
+        console.log('🔍 VIP SEARCH CHECK:', { category, city, hasCategory: !!category, hasCity: !!city });
+        if (category && city) {
+          console.log('🔍 Calling getSearchVipProviders with:', { category, city });
+          const searchVipProviders = await vipService.getSearchVipProviders(
+            category as string, 
+            city as string
+          );
+          console.log('🔍 getSearchVipProviders returned:', { count: searchVipProviders.length });
+          for (const vp of searchVipProviders) {
+            // Fetch all service categories for this VIP provider
+            const allCategories = await getProviderServiceCategories(vp.userId);
             vipProviders.push({
               id: vp.userId,
               email: '',
@@ -364,13 +427,13 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
               lastName: vp.providerName?.split(' ').slice(1).join(' ') || '',
               phoneNumber: '',
               businessName: vp.businessName || vp.providerName,
-              serviceCategory: vp.categoryId || category,
-              serviceCategories: [vp.categoryId || category],
-              description: '',
-              experienceYears: 0,
+              serviceCategory: category,
+              serviceCategories: allCategories.length > 0 ? allCategories : [category],
+              description: vp.description || '',
+              experienceYears: vp.experienceYears || 0,
               hourlyRate: 0,
               city: vp.city,
-              neighborhood: '',
+              neighborhood: vp.neighborhood,
               address: '',
               profilePhone: '',
               profileEmail: '',
@@ -384,52 +447,8 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
               longitude: null,
               distance: null,
               isVip: true,
-              vipType: 'HOMEPAGE_VIP',
-              categoryLabelBg: vp.categoryLabelBg
+              vipType: 'SEARCH_VIP'
             });
-          }
-          logger.info('✅ HOMEPAGE_VIP providers found:', { count: homepageVipProviders.length, category });
-        }
-
-        // Get SEARCH_VIP providers for this category + city
-        if (category && city) {
-          const searchVipProviders = await vipService.getSearchVipProviders(
-            category as string, 
-            city as string
-          );
-          for (const vp of searchVipProviders) {
-            // Avoid duplicates if same provider has both HOMEPAGE_VIP and SEARCH_VIP
-            if (!vipProviders.find(existing => existing.id === vp.userId)) {
-              vipProviders.push({
-                id: vp.userId,
-                email: '',
-                firstName: vp.providerName?.split(' ')[0] || '',
-                lastName: vp.providerName?.split(' ').slice(1).join(' ') || '',
-                phoneNumber: '',
-                businessName: vp.businessName || vp.providerName,
-                serviceCategory: category,
-                serviceCategories: [category],
-                description: vp.description || '',
-                experienceYears: vp.experienceYears || 0,
-                hourlyRate: 0,
-                city: vp.city,
-                neighborhood: vp.neighborhood,
-                address: '',
-                profilePhone: '',
-                profileEmail: '',
-                website: '',
-                profileImageUrl: vp.profileImageUrl,
-                rating: vp.rating || 0,
-                totalReviews: vp.totalReviews || 0,
-                completedProjects: 0,
-                isActive: true,
-                latitude: null,
-                longitude: null,
-                distance: null,
-                isVip: true,
-                vipType: 'SEARCH_VIP'
-              });
-            }
           }
           logger.info('✅ SEARCH_VIP providers found:', { count: searchVipProviders.length, category, city });
         }
@@ -440,9 +459,12 @@ export const searchProviders = async (req: Request, res: Response): Promise<void
 
     // Add isVip: false to regular providers and filter out VIP users from regular list
     const vipUserIds = new Set(vipProviders.map(vp => vp.id));
+    console.log('🔍 VIP USER IDS:', Array.from(vipUserIds));
+    console.log('🔍 TRANSFORMED PROVIDERS:', transformedProviders.length, transformedProviders.map(p => ({ id: p.id, name: p.businessName })));
     const regularProviders = transformedProviders
       .filter(p => !vipUserIds.has(p.id))
       .map(p => ({ ...p, isVip: false }));
+    console.log('🔍 REGULAR PROVIDERS AFTER FILTER:', regularProviders.length, regularProviders.map(p => ({ id: p.id, name: p.businessName })));
 
     res.json({
       success: true,

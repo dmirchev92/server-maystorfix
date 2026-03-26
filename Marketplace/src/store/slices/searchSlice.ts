@@ -55,7 +55,13 @@ const initialState: SearchState = {
 export const searchProviders = createAsyncThunk(
   'search/providers',
   async (filters: SearchFilters) => {
-    const response = await apiClient.searchProviders(filters)
+    // Map serviceType to category for API compatibility
+    const apiFilters = {
+      category: filters.serviceType,
+      city: filters.city,
+      neighborhood: filters.neighborhood,
+    }
+    const response = await apiClient.searchProviders(apiFilters)
     return response.data
   }
 )

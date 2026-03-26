@@ -334,7 +334,7 @@ export default function CustomerDashboardScreen() {
                     </Text>
                   )}
                 </View>
-                <Text style={styles.vipProviderName} numberOfLines={1}>
+                <Text style={styles.vipProviderName} numberOfLines={2}>
                   {provider.businessName || provider.providerName || 'Специалист'}
                 </Text>
                 <Text style={styles.vipProviderCategory} numberOfLines={1}>
@@ -733,7 +733,7 @@ const styles = StyleSheet.create({
     marginLeft: -4,
   },
   vipProviderCard: {
-    width: 140,
+    width: 160,
     backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 12,
@@ -775,11 +775,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   vipProviderName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 2,
+    lineHeight: 16,
   },
   vipProviderCategory: {
     fontSize: 11,

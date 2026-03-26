@@ -116,6 +116,11 @@ export const CATEGORY_LABELS: Record<string, string> = {
 // Helper function to get Bulgarian label for any category format
 export const getCategoryLabel = (category: string): string => {
   if (!category) return '';
+  // Defensive: handle objects (e.g., {category_id: '...'}) passed by accident
+  if (typeof category !== 'string') {
+    const catObj = category as any;
+    category = catObj.category_id || catObj.id || catObj.name || String(category);
+  }
   const lowerCategory = category.toLowerCase();
   return CATEGORY_LABELS[lowerCategory] || CATEGORY_LABELS[`cat_${lowerCategory}`] || category;
 };

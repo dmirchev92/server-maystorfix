@@ -1,5 +1,5 @@
 import { Logger } from '../utils/Logger';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   View,
@@ -12,7 +12,10 @@ import {
   Alert,
   Modal,
   TextInput,
+  Share,
+  Vibration,
 } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import LinearGradient from 'react-native-linear-gradient';
 import ApiService from '../services/ApiService';
@@ -77,24 +80,21 @@ interface LeaderboardEntry {
   isBuyout: boolean;
 }
 
-const CITY_MAP: { [key: string]: string } = {
-  'София': 'city_sofia', 'Пловдив': 'city_plovdiv', 'Варна': 'city_varna',
-  'Бургас': 'city_burgas', 'Русе': 'city_ruse', 'Стара Загора': 'city_starazagora',
-  'Плевен': 'city_pleven', 'Сливен': 'city_sliven', 'Добрич': 'city_dobrich',
-  'Шумен': 'city_shumen', 'Перник': 'city_pernik', 'Хасково': 'city_haskovo',
-  'Ямбол': 'city_yambol', 'Пазарджик': 'city_pazardzhik', 'Благоевград': 'city_blagoevgrad',
-  'Велико Търново': 'city_velikotarnovo', 'Враца': 'city_vratsa', 'Габрово': 'city_gabrovo',
-  'Видин': 'city_vidin', 'Кюстендил': 'city_kyustendil', 'Монтана': 'city_montana',
-  'Ловеч': 'city_lovech', 'Смолян': 'city_smolyan', 'Банско': 'city_bansko',
-  'Петрич': 'city_petrich', 'Самоков': 'city_samokov', 'Троян': 'city_troyan',
-  'Казанлък': 'city_kazanlak', 'Асеновград': 'city_asenovgrad', 'Дупница': 'city_dupnitsa',
-  'Сандански': 'city_sandanski', 'Севлиево': 'city_sevlievo', 'Карлово': 'city_karlovo',
-  'Велинград': 'city_velingrad', 'Ботевград': 'city_botevgrad', 'Димитровград': 'city_dimitrovgrad',
-  'Силистра': 'city_silistra', 'Разград': 'city_razgrad', 'Търговище': 'city_targovishte',
-  'Свиленград': 'city_svilengrad', 'Харманли': 'city_harmanli', 'Лом': 'city_lom',
-  'Несебър': 'city_nesebar', 'Поморие': 'city_pomorie', 'Созопол': 'city_sozopol',
-  'Гоце Делчев': 'city_gotseDelchev', 'Айтос': 'city_aytos', 'Чирпан': 'city_chirpan',
-  'Панагюрище': 'city_panagyurishte',
+
+// Haptic feedback helper using Vibration API
+const triggerHaptic = (type: 'notificationSuccess' | 'notificationError' | 'notificationWarning' | 'impactLight' | 'impactMedium') => {
+  try {
+    const patterns: Record<string, number | number[]> = {
+      notificationSuccess: [0, 50, 50, 50],
+      notificationError: [0, 100, 50, 100],
+      notificationWarning: [0, 50],
+      impactLight: 30,
+      impactMedium: 50,
+    };
+    Vibration.vibrate(patterns[type] || 50);
+  } catch (error) {
+    // Silently fail if vibration not available
+  }
 };
 
 const VipVisibilityScreen: React.FC = () => {
@@ -115,6 +115,38 @@ const VipVisibilityScreen: React.FC = () => {
   const [bidAmount, setBidAmount] = useState('');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [actionLoading, setActionLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<string>('');
+  const [providerCategories, setProviderCategories] = useState<{id: string; label: string}[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedVipType, setSelectedVipType] = useState<'HOMEPAGE_VIP' | 'SEARCH_VIP'>('HOMEPAGE_VIP');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [availableCities, setAvailableCities] = useState<string[]>([]);
+
+  // Countdown timer for auction
+  useEffect(() => {
+    if (!config?.isAuctionOpen || !config?.nextAuction?.endsAt) return;
+    
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const end = new Date(config.nextAuction.endsAt).getTime();
+      const diff = end - now;
+      
+      if (diff <= 0) {
+        setTimeLeft(t('vipEnding'));
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setTimeLeft(`${hours}${t('hourAbbr')} ${minutes}${t('minAbbr')} ${seconds}${t('secAbbr')}`);
+    };
+    
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [config?.isAuctionOpen, config?.nextAuction?.endsAt, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -124,10 +156,42 @@ const VipVisibilityScreen: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // Fetch config
+      // Fetch config FIRST (doesn't require auth)
       const configRes = await apiService.getVipConfig();
       if (configRes.success && configRes.data) {
         setConfig(configRes.data);
+      }
+
+      // Fetch provider's selected categories
+      try {
+        const categoriesRes = await apiService.getProviderCategories();
+        const categoriesData = categoriesRes.data?.categories || categoriesRes.data || categoriesRes.categories;
+        if (categoriesRes.success && categoriesData && Array.isArray(categoriesData)) {
+          const cats = categoriesData.map((c: any) => ({
+            id: c.category_id || c.id,
+            label: c.category_label_bg || c.label || c.category_id || c.id
+          }));
+          setProviderCategories(cats);
+          if (!selectedCategory && cats.length > 0) {
+            setSelectedCategory(cats[0].id);
+          }
+        }
+      } catch (catError) {
+        Logger.warn('Failed to fetch provider categories:', catError);
+      }
+
+      // Fetch cities from API for consistency with search page
+      try {
+        const citiesRes = await apiService.getCities();
+        if (citiesRes.success && citiesRes.data?.cities && Array.isArray(citiesRes.data.cities)) {
+          const cityNames = citiesRes.data.cities.map((c: any) => c.value || c.label || c.name_bg || c.name);
+          setAvailableCities(cityNames);
+          if (!selectedCity && cityNames.length > 0) {
+            setSelectedCity(cityNames[0]);
+          }
+        }
+      } catch (cityError) {
+        Logger.warn('Failed to fetch cities:', cityError);
       }
 
       // Fetch overview
@@ -173,8 +237,7 @@ const VipVisibilityScreen: React.FC = () => {
   };
 
   const getCityLabel = (city: string) => {
-    const key = CITY_MAP[city];
-    return key ? t(key) : city;
+    return city;
   };
 
   const openBidModal = (auction: VipAuction) => {
@@ -222,17 +285,22 @@ const VipVisibilityScreen: React.FC = () => {
       const res = await apiService.placeVipBid(
         selectedAuction.vipType,
         selectedAuction.categoryId,
-        increment
+        increment,
+        selectedAuction.city || undefined
       );
 
       if (res.success) {
+        // Haptic feedback on success
+        triggerHaptic('notificationSuccess');
         Alert.alert(t('success'), res.data?.message || t('vipBidSuccess'));
         setBidModalVisible(false);
         fetchData();
       } else {
+        triggerHaptic('notificationError');
         Alert.alert(t('error'), res.error?.message || t('vipBidError'));
       }
     } catch (error) {
+      triggerHaptic('notificationError');
       Alert.alert(t('error'), t('vipBidError'));
     } finally {
       setActionLoading(false);
@@ -255,14 +323,18 @@ const VipVisibilityScreen: React.FC = () => {
           onPress: async () => {
             setActionLoading(true);
             try {
-              const res = await apiService.buyoutVipSlot(auction.vipType, auction.categoryId);
+              const res = await apiService.buyoutVipSlot(auction.vipType, auction.categoryId, auction.city || undefined);
               if (res.success) {
+                // Haptic feedback on success
+                triggerHaptic('notificationSuccess');
                 Alert.alert(t('success'), res.data?.message || t('vipBuyoutSuccess'));
                 fetchData();
               } else {
+                triggerHaptic('notificationError');
                 Alert.alert(t('error'), res.error?.message || t('vipBuyoutError'));
               }
             } catch (error) {
+              triggerHaptic('notificationError');
               Alert.alert(t('error'), t('vipBuyoutError'));
             } finally {
               setActionLoading(false);
@@ -271,6 +343,28 @@ const VipVisibilityScreen: React.FC = () => {
         },
       ]
     );
+  };
+
+  const handleShareVipStatus = async () => {
+    if (placements.length === 0) return;
+    
+    triggerHaptic('impactLight');
+    
+    const vipDetails = placements.map(p => {
+      const type = p.vipType === 'HOMEPAGE_VIP' ? '🏠 Начална страница' : '🔍 Търсене';
+      return `${type} - ${p.categoryLabelBg} (#${p.rank})`;
+    }).join('\n');
+    
+    const message = `👑 VIP Статус в SnapFix!\n\n${vipDetails}\n\n🚀 Присъединете се към SnapFix - най-добрата платформа за майстори в България!\n\nhttps://snapfix.bg`;
+    
+    try {
+      await Share.share({
+        message,
+        title: 'Моят VIP статус в SnapFix',
+      });
+    } catch (error) {
+      Logger.error('Error sharing VIP status:', error);
+    }
   };
 
   if (loading) {
@@ -327,10 +421,15 @@ const VipVisibilityScreen: React.FC = () => {
             </View>
             <View style={styles.auctionStatus}>
               {config.isAuctionOpen ? (
-                <>
-                  <View style={[styles.statusDot, { backgroundColor: theme.colors.success.solid }]} />
-                  <Text style={styles.statusText}>{t('vipAuctionOpen')}</Text>
-                </>
+                <View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={[styles.statusDot, { backgroundColor: theme.colors.success.solid }]} />
+                    <Text style={styles.statusText}>{t('vipAuctionOpen')}</Text>
+                  </View>
+                  {timeLeft ? (
+                    <Text style={styles.countdownText}>⏱️ {t('vipTimeLeft')}: {timeLeft}</Text>
+                  ) : null}
+                </View>
               ) : (
                 <>
                   <View style={[styles.statusDot, { backgroundColor: theme.colors.gray[400] }]} />
@@ -346,11 +445,42 @@ const VipVisibilityScreen: React.FC = () => {
           )}
         </View>
 
+        {/* Low Points Warning */}
+        {pointsBalance < 50 && (
+          <TouchableOpacity 
+            style={styles.lowPointsWarning}
+            onPress={() => navigation.navigate('Points' as never)}
+          >
+            <View style={styles.lowPointsContent}>
+              <Text style={{ fontSize: 24 }}>⚠️</Text>
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.lowPointsTitle}>{t('vipLowPoints')}</Text>
+                <Text style={styles.lowPointsText}>
+                  {t('vipLowPointsDesc', { points: pointsBalance })}
+                </Text>
+              </View>
+              <View style={styles.buyPointsButton}>
+                <Text style={styles.buyPointsText}>{t('buyPoints')}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* Current Placements */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            👑 {t('vipActiveSlots')}
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              👑 {t('vipActiveSlots')}
+            </Text>
+            {placements.length > 0 && (
+              <TouchableOpacity 
+                style={styles.shareButton}
+                onPress={() => handleShareVipStatus()}
+              >
+                <Text style={styles.shareButtonText}>📤 {t('share')}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           {placements.length === 0 ? (
             <View style={styles.emptySection}>
               <Text style={styles.emptySectionText}>{t('vipNoActiveSlots')}</Text>
@@ -381,6 +511,169 @@ const VipVisibilityScreen: React.FC = () => {
                 </View>
               </View>
             ))
+          )}
+        </View>
+
+        {/* Category & VIP Type Selection */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            🎯 {t('vipBuyVisibility')}
+          </Text>
+          
+          {providerCategories.length === 0 ? (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptySectionText}>{t('vipNoCategoriesSelected')}</Text>
+            </View>
+          ) : (
+            <>
+              {/* Category Picker */}
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerLabel}>{t('vipSelectCategory')}:</Text>
+                <View style={styles.pickerWrapper}>
+                  <Picker
+                    selectedValue={selectedCategory}
+                    onValueChange={(val) => setSelectedCategory(val)}
+                    style={styles.picker}
+                    dropdownIconColor="#fff"
+                  >
+                    {providerCategories.map((cat) => (
+                      <Picker.Item key={cat.id} label={cat.label} value={cat.id} color="#fff" />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              {/* VIP Type Selector */}
+              <View style={styles.vipTypeSelector}>
+                <TouchableOpacity
+                  style={[
+                    styles.vipTypeButton,
+                    selectedVipType === 'HOMEPAGE_VIP' && styles.vipTypeButtonActive
+                  ]}
+                  onPress={() => setSelectedVipType('HOMEPAGE_VIP')}
+                >
+                  <Text style={styles.vipTypeIcon}>🏠</Text>
+                  <Text style={[
+                    styles.vipTypeText,
+                    selectedVipType === 'HOMEPAGE_VIP' && styles.vipTypeTextActive
+                  ]}>{t('homepage')}</Text>
+                  <Text style={styles.vipTypePrice}>{config?.homepageVip?.startBidPoints || 80} - {config?.homepageVip?.buyoutPoints || 150} {t('pointsAbbr')}</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[
+                    styles.vipTypeButton,
+                    selectedVipType === 'SEARCH_VIP' && styles.vipTypeButtonActive
+                  ]}
+                  onPress={() => {
+                    setSelectedVipType('SEARCH_VIP');
+                    if (!selectedCity && availableCities.length > 0) {
+                      setSelectedCity(availableCities[0]);
+                    }
+                  }}
+                >
+                  <Text style={styles.vipTypeIcon}>🔍</Text>
+                  <Text style={[
+                    styles.vipTypeText,
+                    selectedVipType === 'SEARCH_VIP' && styles.vipTypeTextActive
+                  ]}>{t('search')}</Text>
+                  <Text style={styles.vipTypePrice}>{config?.searchVip?.startBidPoints || 80} - {config?.searchVip?.buyoutPoints || 150} {t('pointsAbbr')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* City Picker - Only for Search VIP */}
+              {selectedVipType === 'SEARCH_VIP' && (
+                <View style={styles.pickerContainer}>
+                  <Text style={styles.pickerLabel}>{t('vipSelectCity')}:</Text>
+                  <View style={styles.pickerWrapper}>
+                    <Picker
+                      selectedValue={selectedCity}
+                      onValueChange={(val) => setSelectedCity(val)}
+                      style={styles.picker}
+                      dropdownIconColor="#fff"
+                    >
+                      {availableCities.map((city) => (
+                        <Picker.Item key={city} label={city} value={city} color="#fff" />
+                      ))}
+                    </Picker>
+                  </View>
+                </View>
+              )}
+
+              {/* Selection Summary */}
+              {selectedCategory && (selectedVipType === 'HOMEPAGE_VIP' || selectedCity) && (
+                <View style={styles.selectionSummary}>
+                  <Text style={styles.selectionSummaryTitle}>📋 {t('vipSelected')}:</Text>
+                  <Text style={styles.selectionSummaryText}>
+                    {selectedVipType === 'HOMEPAGE_VIP' ? `🏠 ${t('homepage')}` : `🔍 ${t('search')}`} • {providerCategories.find(c => c.id === selectedCategory)?.label || selectedCategory}
+                    {selectedVipType === 'SEARCH_VIP' && selectedCity ? ` • ${selectedCity}` : ''}
+                  </Text>
+                </View>
+              )}
+
+              {/* Quick Action Buttons */}
+              {selectedCategory && (selectedVipType === 'HOMEPAGE_VIP' || selectedCity) && (
+                <View style={styles.quickActions}>
+                  {config?.isAuctionOpen ? (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.quickActionBtn, styles.bidQuickBtn]}
+                        onPress={() => {
+                          const auction: VipAuction = {
+                            vipType: selectedVipType,
+                            categoryId: selectedCategory,
+                            categoryLabelBg: providerCategories.find(c => c.id === selectedCategory)?.label || selectedCategory,
+                            city: selectedVipType === 'SEARCH_VIP' ? selectedCity : null,
+                            startBidPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.startBidPoints || 80) : (config?.searchVip?.startBidPoints || 80),
+                            buyoutPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.buyoutPoints || 150) : (config?.searchVip?.buyoutPoints || 150),
+                            currentBid: null,
+                            currentRank: null,
+                            slotsRemaining: 3,
+                            buyoutsTaken: 0
+                          };
+                          openBidModal(auction);
+                        }}
+                        disabled={actionLoading}
+                      >
+                        <Text style={styles.quickActionText}>➕ {t('vipApply')}</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={[styles.quickActionBtn, styles.buyoutQuickBtn]}
+                        onPress={() => {
+                          const auction: VipAuction = {
+                            vipType: selectedVipType,
+                            categoryId: selectedCategory,
+                            categoryLabelBg: providerCategories.find(c => c.id === selectedCategory)?.label || selectedCategory,
+                            city: selectedVipType === 'SEARCH_VIP' ? selectedCity : null,
+                            startBidPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.startBidPoints || 80) : (config?.searchVip?.startBidPoints || 80),
+                            buyoutPoints: selectedVipType === 'HOMEPAGE_VIP' ? (config?.homepageVip?.buyoutPoints || 150) : (config?.searchVip?.buyoutPoints || 150),
+                            currentBid: null,
+                            currentRank: null,
+                            slotsRemaining: 3,
+                            buyoutsTaken: 0
+                          };
+                          handleBuyout(auction);
+                        }}
+                        disabled={actionLoading}
+                      >
+                        <Text style={styles.quickActionText}>⚡ {t('vipBuyoutBtn')} ({selectedVipType === 'HOMEPAGE_VIP' ? config?.homepageVip?.buyoutPoints : config?.searchVip?.buyoutPoints} {t('pointsAbbr')})</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <View style={styles.auctionClosedNotice}>
+                      <Text style={styles.auctionClosedIcon}>🔒</Text>
+                      <Text style={styles.auctionClosedText}>{t('vipAuctionClosed')}</Text>
+                      {config?.nextAuction?.startsAt && (
+                        <Text style={styles.auctionClosedSubtext}>
+                          {t('vipNextAuction')}: {formatDate(config.nextAuction.startsAt)}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+            </>
           )}
         </View>
 
@@ -421,7 +714,7 @@ const VipVisibilityScreen: React.FC = () => {
                     <Text style={styles.infoValue}>{auction.startBidPoints} {t('pointsAbbr')}</Text>
                   </View>
                   <View style={styles.infoItem}>
-                    <Text style={styles.infoLabel}>Buyout</Text>
+                    <Text style={styles.infoLabel}>{t('vipBuyoutLabel')}</Text>
                     <Text style={styles.infoValue}>{auction.buyoutPoints} {t('pointsAbbr')}</Text>
                   </View>
                   {auction.currentBid && (
@@ -442,7 +735,7 @@ const VipVisibilityScreen: React.FC = () => {
                         onPress={() => openBidModal(auction)}
                         disabled={actionLoading}
                       >
-                        <Text style={styles.actionButtonText}>➕ {t('vipApply')}</Text>
+                        <Text style={styles.actionButtonText}>{t('vipApply')}</Text>
                       </TouchableOpacity>
                       
                       {auction.slotsRemaining > 0 && (
@@ -451,7 +744,7 @@ const VipVisibilityScreen: React.FC = () => {
                           onPress={() => handleBuyout(auction)}
                           disabled={actionLoading}
                         >
-                          <Text style={styles.actionButtonText}>⚡ Buyout</Text>
+                          <Text style={styles.actionButtonText}>⚡ {t('vipBuyoutBtn')}</Text>
                         </TouchableOpacity>
                       )}
                     </>
@@ -496,9 +789,9 @@ const VipVisibilityScreen: React.FC = () => {
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text style={{ fontSize: 18, marginRight: 10 }}>⚡</Text>
+            <Text style={{ fontSize: 18, marginRight: 10 }}></Text>
             <Text style={styles.infoText}>
-              <Text style={{ fontWeight: '600', color: '#fff' }}>Buyout</Text> - {t('vipBuyoutDesc')}
+              <Text style={{ fontWeight: '600', color: '#fff' }}>{t('vipBuyoutBtn')}</Text> - {t('vipBuyoutDesc')}
             </Text>
           </View>
           <View style={styles.infoRow}>
@@ -620,7 +913,7 @@ const VipVisibilityScreen: React.FC = () => {
                       <Text style={styles.leaderboardBidAmount}>{entry.bidAmount} {t('pointsAbbr')}</Text>
                       {entry.isBuyout && (
                         <View style={styles.buyoutBadge}>
-                          <Text style={styles.buyoutBadgeText}>Buyout</Text>
+                          <Text style={styles.buyoutBadgeText}>{t('vipBuyoutBtn')}</Text>
                         </View>
                       )}
                     </View>
@@ -700,6 +993,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#fff',
   },
+  countdownText: {
+    fontSize: 12,
+    color: '#FBBF24',
+    marginTop: 4,
+  },
+  lowPointsWarning: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.5)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  lowPointsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lowPointsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FBBF24',
+  },
+  lowPointsText: {
+    fontSize: 12,
+    color: theme.colors.gray[300],
+    marginTop: 2,
+  },
+  buyPointsButton: {
+    backgroundColor: '#D97706',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  buyPointsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
   nextAuction: {
     fontSize: 13,
     color: theme.colors.gray[300],
@@ -708,11 +1039,29 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#fff',
-    marginBottom: 12,
+  },
+  shareButton: {
+    backgroundColor: 'rgba(99, 102, 241, 0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.5)',
+  },
+  shareButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#818CF8',
   },
   emptySection: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -1043,6 +1392,125 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#000',
+  },
+  // Category & VIP Type Selection Styles
+  pickerContainer: {
+    marginBottom: 16,
+  },
+  pickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  pickerWrapper: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden',
+  },
+  picker: {
+    color: '#fff',
+    height: 50,
+  },
+  vipTypeSelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  vipTypeButton: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  vipTypeButtonActive: {
+    borderColor: '#FFD700',
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+  },
+  vipTypeIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  vipTypeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.gray[300],
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  vipTypeTextActive: {
+    color: '#FFD700',
+  },
+  vipTypePrice: {
+    fontSize: 11,
+    color: theme.colors.gray[400],
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickActionBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  bidQuickBtn: {
+    backgroundColor: theme.colors.primary.solid,
+  },
+  buyoutQuickBtn: {
+    backgroundColor: '#D97706',
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  selectionSummary: {
+    backgroundColor: 'rgba(79, 70, 229, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(79, 70, 229, 0.4)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  selectionSummaryTitle: {
+    fontSize: 12,
+    color: theme.colors.gray[400],
+    marginBottom: 4,
+  },
+  selectionSummaryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  auctionClosedNotice: {
+    flex: 1,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+  },
+  auctionClosedIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  auctionClosedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  auctionClosedSubtext: {
+    fontSize: 12,
+    color: theme.colors.gray[400],
+    marginTop: 4,
   },
 });
 

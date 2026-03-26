@@ -60,41 +60,46 @@ export default function PlaceBidPage() {
   const calculatePointCost = (budgetRange: string): number => {
     const userTier = (user as any)?.subscription_tier_id || 'free'
     
-    // Budget range to midpoint mapping
-    const budgetMidpoints: { [key: string]: number } = {
-      '1-250': 125,
-      '250-500': 375,
-      '500-750': 625,
-      '750-1000': 875,
-      '1000-1250': 1125,
-      '1250-1500': 1375,
-      '1500-1750': 1625,
-      '1750-2000': 1875,
-      '2000+': 2500
+    // Parse budget from range string (e.g., "126-250" -> 188, "5000+" -> 5500)
+    const parseBudget = (range: string): number => {
+      if (range.includes('+')) {
+        return parseInt(range.replace('+', '')) + 500
+      }
+      const parts = range.split('-').map(p => parseInt(p))
+      return parts.length === 2 ? Math.round((parts[0] + parts[1]) / 2) : parts[0] || 500
     }
     
-    const midpoint = budgetMidpoints[budgetRange] || 500
+    const midpoint = parseBudget(budgetRange)
     
-    // Point costs by tier and budget
-    if (midpoint <= 250) {
-      return userTier === 'free' ? 6 : userTier === 'normal' ? 4 : 3
-    } else if (midpoint <= 500) {
-      return userTier === 'free' ? 10 : userTier === 'normal' ? 7 : 5
-    } else if (midpoint <= 750) {
-      return userTier === 'normal' ? 12 : 8
-    } else if (midpoint <= 1000) {
-      return userTier === 'normal' ? 18 : 12
-    } else if (midpoint <= 1500) {
-      return userTier === 'normal' ? 25 : 18
-    } else if (midpoint <= 2000) {
-      return 25
-    } else if (midpoint <= 3000) {
-      return 35
-    } else if (midpoint <= 4000) {
-      return 45
-    } else {
-      return 55
+    // Point costs aligned with database subscription_tiers.limits
+    // Free tier: 0 points for all budgets
+    if (userTier === 'free') return 0
+    
+    // Normal tier: limited to 500€ max budget
+    if (userTier === 'normal') {
+      if (midpoint <= 250) return 10
+      if (midpoint <= 500) return 20
+      if (midpoint <= 750) return 40
+      if (midpoint <= 1000) return 60
+      if (midpoint <= 2000) return 100
+      return 0 // Above tier limit
     }
+    
+    // Pro tier: full access
+    if (midpoint <= 250) return 10
+    if (midpoint <= 500) return 15
+    if (midpoint <= 750) return 30
+    if (midpoint <= 1000) return 50
+    if (midpoint <= 2000) return 80
+    if (midpoint <= 3000) return 110
+    if (midpoint <= 4000) return 160
+    if (midpoint <= 5000) return 215
+    if (midpoint <= 6000) return 280
+    if (midpoint <= 7000) return 350
+    if (midpoint <= 8000) return 430
+    if (midpoint <= 9000) return 520
+    if (midpoint <= 10000) return 640
+    return 700
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

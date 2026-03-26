@@ -114,11 +114,12 @@ export class SmartMatchingService {
       try {
         // PostgreSQL implementation using Haversine formula
         const result = await this.db.query(
-          `SELECT sp.*, u.first_name, u.last_name, u.email, u.phone_number,
+          `SELECT DISTINCT sp.*, u.first_name, u.last_name, u.email, u.phone_number,
                   (6371 * acos(cos(radians($1)) * cos(radians(sp.latitude)) * cos(radians(sp.longitude) - radians($2)) + sin(radians($3)) * sin(radians(sp.latitude)))) AS distance
            FROM service_provider_profiles sp
            JOIN users u ON sp.user_id = u.id
-           WHERE (sp.service_category = $4 OR sp.service_category = REPLACE($4, 'cat_', ''))
+           JOIN provider_service_categories psc ON sp.user_id = psc.provider_id
+           WHERE (psc.category_id = $4 OR psc.category_id = REPLACE($4, 'cat_', ''))
              AND u.status = 'active'
              AND u.subscription_tier_id = 'pro'
              -- AND sp.is_verified = true -- Relaxed for testing

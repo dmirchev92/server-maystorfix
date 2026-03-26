@@ -321,16 +321,25 @@ export default function SearchPage() {
   }
 
   const serviceTypes = [
-    { value: 'electrician', label: 'Електротехник' },
-    { value: 'plumber', label: 'Водопроводчик' },
-    { value: 'hvac', label: 'Климатик' },
-    { value: 'carpenter', label: 'Дърводелец' },
-    { value: 'painter', label: 'Бояджия' },
-    { value: 'locksmith', label: 'Ключар' },
-    { value: 'cleaner', label: 'Почистване' },
-    { value: 'gardener', label: 'Градинар' },
-    { value: 'handyman', label: 'Майстор за всичко' },
-    { value: 'appliance_repair', label: 'Ремонт на уреди' },
+    { value: 'cat_electrician', label: 'Електротехник' },
+    { value: 'cat_plumber', label: 'Водопроводчик' },
+    { value: 'cat_hvac', label: 'Климатик' },
+    { value: 'cat_carpenter', label: 'Дърводелец' },
+    { value: 'cat_painter', label: 'Бояджия' },
+    { value: 'cat_locksmith', label: 'Ключар' },
+    { value: 'cat_cleaner', label: 'Почистване' },
+    { value: 'cat_gardener', label: 'Градинар' },
+    { value: 'cat_handyman', label: 'Дребни ремонти' },
+    { value: 'cat_appliance', label: 'Ремонт на уреди' },
+    { value: 'cat_renovation', label: 'Цялостни ремонти' },
+    { value: 'cat_roofer', label: 'Ремонт на покриви' },
+    { value: 'cat_mover', label: 'Хамалски услуги' },
+    { value: 'cat_tiler', label: 'Майстор Фаянс' },
+    { value: 'cat_welder', label: 'Заварчик' },
+    { value: 'cat_flooring', label: 'Подови настилки' },
+    { value: 'cat_plasterer', label: 'Шпакловане' },
+    { value: 'cat_glasswork', label: 'Стъкларски услуги' },
+    { value: 'cat_design', label: 'Дизайн' },
   ]
 
   // Cities are now fetched dynamically from the API
@@ -521,9 +530,12 @@ export default function SearchPage() {
                             <h3 className="text-lg font-bold text-white truncate">
                               {provider.businessName || provider.providerName || 'Специалист'}
                             </h3>
-                            <p className="text-sm text-indigo-300 truncate">
-                              {provider.categoryLabelBg || provider.categoryId}
-                            </p>
+                            {/* VIP Category - Show ONLY the category they purchased VIP for */}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              <span className="bg-yellow-500/20 text-yellow-300 text-xs px-2 py-0.5 rounded-full font-semibold border border-yellow-400/30">
+                                {getCategoryDisplayName(provider.serviceCategory || provider.categoryId || 'general')}
+                              </span>
+                            </div>
                           </div>
                         </div>
 

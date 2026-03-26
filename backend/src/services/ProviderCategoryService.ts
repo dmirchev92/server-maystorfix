@@ -16,14 +16,22 @@ export class ProviderCategoryService {
   }
 
   /**
-   * Get all categories for a provider
+   * Get all categories for a provider (returns full category details)
    */
-  async getProviderCategories(providerId: string): Promise<string[]> {
+  async getProviderCategories(providerId: string): Promise<Array<{category_id: string; category_label_bg: string; category_name: string}>> {
     const result = await this.db.query(
-      'SELECT category_id FROM provider_service_categories WHERE provider_id = $1 ORDER BY created_at',
+      `SELECT psc.category_id, sc.name_bg as category_label_bg, sc.name as category_name
+       FROM provider_service_categories psc
+       LEFT JOIN service_categories sc ON sc.id = psc.category_id
+       WHERE psc.provider_id = $1 
+       ORDER BY psc.created_at`,
       [providerId]
     );
-    return result.map((row: any) => row.category_id);
+    return result.map((row: any) => ({
+      category_id: row.category_id,
+      category_label_bg: row.category_label_bg || row.category_id,
+      category_name: row.category_name || row.category_id
+    }));
   }
 
   /**
@@ -56,6 +64,7 @@ export class ProviderCategoryService {
 
       // Check current category count
       const currentCategories = await this.getProviderCategories(providerId);
+      const currentCategoryIds = currentCategories.map(c => c.category_id);
 
       if (currentCategories.length >= maxCategories) {
         return {
@@ -65,7 +74,7 @@ export class ProviderCategoryService {
       }
 
       // Check if category already exists
-      if (currentCategories.includes(categoryId)) {
+      if (currentCategoryIds.includes(categoryId)) {
         return { success: false, message: 'Тази специализация вече е добавена' };
       }
 

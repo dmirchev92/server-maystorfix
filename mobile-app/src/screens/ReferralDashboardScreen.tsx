@@ -185,7 +185,7 @@ const ReferralDashboardScreen: React.FC = () => {
     >
       {/* Header with Back Button */}
       <View style={styles.backHeader}>
-        <TouchableOpacity onPress={() => navigation.navigate('ProviderDashboard' as never)} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.backHeaderTitle}>{t('dashboard:referrals')}</Text>
@@ -198,6 +198,55 @@ const ReferralDashboardScreen: React.FC = () => {
           {t('refShareAndEarn')}
         </Text>
       </View>
+
+      {/* Summary Stats Card */}
+      <View style={styles.statsCard}>
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxValue}>
+              {dashboard.totalRewards.reduce((sum, r) => sum + (r.pointsAwarded || r.rewardValue || 0), 0)}
+            </Text>
+            <Text style={styles.statBoxLabel}>{t('refTotalPointsEarned')}</Text>
+          </View>
+          <View style={styles.statBoxDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxValue}>{dashboard.referredUsers.length}</Text>
+            <Text style={styles.statBoxLabel}>{t('refActiveReferrals')}</Text>
+          </View>
+          <View style={styles.statBoxDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statBoxValue}>
+              {dashboard.referredUsers.reduce((sum, u) => sum + u.totalClicks, 0)}
+            </Text>
+            <Text style={styles.statBoxLabel}>{t('refTotalClicks')}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Progress to Next Reward */}
+      {(() => {
+        const totalReferrals = dashboard.referredUsers.length;
+        const nextMilestone = totalReferrals < 5 ? 5 : Math.ceil((totalReferrals + 1) / 5) * 5;
+        const progress = (totalReferrals / nextMilestone) * 100;
+        const remaining = nextMilestone - totalReferrals;
+        
+        return (
+          <View style={styles.progressCard}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>🏆 {t('refNextReward')}</Text>
+              <Text style={styles.progressMilestone}>{totalReferrals}/{nextMilestone}</Text>
+            </View>
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${Math.min(progress, 100)}%` }]} />
+            </View>
+            <Text style={styles.progressText}>
+              {remaining === 0 
+                ? t('refMilestoneReached') 
+                : t('refReferralsToGo', { count: remaining })}
+            </Text>
+          </View>
+        );
+      })()}
 
       {/* Referral Code & Link Section */}
       <View style={styles.card}>
@@ -249,7 +298,7 @@ const ReferralDashboardScreen: React.FC = () => {
                     {user.referredUser.businessName || 
                      `${user.referredUser.firstName} ${user.referredUser.lastName}`}
                   </Text>
-                  <Text style={styles.userStatus}>{t('refStatus')}: {user.status}</Text>
+                  <Text style={styles.userStatus}>{t('refStatus')}: {user.status === 'active' ? t('refActive') : user.status === 'pending' ? t('refPending') : user.status}</Text>
                 </View>
                 
                 <View style={styles.userStats}>
@@ -309,7 +358,7 @@ const ReferralDashboardScreen: React.FC = () => {
                 </Text>
                 
                 <Text style={styles.rewardDate}>
-                  {t('refEarnedOn')}: {new Date(reward.earnedAt).toLocaleDateString(t('locale'))}
+                  {t('refEarnedOn')}: {new Date(reward.earnedAt).toLocaleDateString('bg-BG')}
                 </Text>
               </View>
             ))}
@@ -575,6 +624,85 @@ const styles = StyleSheet.create({
   rewardDate: {
     fontSize: theme.fontSize.xs,
     color: '#64748b', // slate-500
+  },
+  // Summary Stats Card styles
+  statsCard: {
+    backgroundColor: '#1e293b',
+    margin: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statBoxValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#10B981', // emerald-500
+    marginBottom: 4,
+  },
+  statBoxLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  statBoxDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: 'rgba(71, 85, 105, 0.5)',
+  },
+  // Progress Card styles
+  progressCard: {
+    backgroundColor: '#1e293b',
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(71, 85, 105, 0.5)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#10B981', // emerald-500
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
+  },
+  progressTitle: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: '#cbd5e1',
+  },
+  progressMilestone: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+  progressBarContainer: {
+    height: 10,
+    backgroundColor: '#0f172a',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.sm,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 5,
+  },
+  progressText: {
+    fontSize: theme.fontSize.sm,
+    color: '#94a3b8',
+    textAlign: 'center',
   },
 });
 

@@ -161,7 +161,7 @@ router.post('/bid', authenticateToken, checkVipEnabled, async (req: Request, res
       });
     }
 
-    const { vipType, categoryId, pointsIncrement } = req.body;
+    const { vipType, categoryId, pointsIncrement, city } = req.body;
 
     if (!vipType || !['HOMEPAGE_VIP', 'SEARCH_VIP'].includes(vipType)) {
       return res.status(400).json({
@@ -184,7 +184,7 @@ router.post('/bid', authenticateToken, checkVipEnabled, async (req: Request, res
       });
     }
 
-    const result = await vipService.placeBid(userId, vipType as VipType, categoryId, pointsIncrement);
+    const result = await vipService.placeBid(userId, vipType as VipType, categoryId, pointsIncrement, city);
     
     if (!result.success) {
       return res.status(400).json({
@@ -230,7 +230,7 @@ router.post('/buyout', authenticateToken, checkVipEnabled, async (req: Request, 
       });
     }
 
-    const { vipType, categoryId } = req.body;
+    const { vipType, categoryId, city } = req.body;
 
     if (!vipType || !['HOMEPAGE_VIP', 'SEARCH_VIP'].includes(vipType)) {
       return res.status(400).json({
@@ -246,7 +246,7 @@ router.post('/buyout', authenticateToken, checkVipEnabled, async (req: Request, 
       });
     }
 
-    const result = await vipService.buyout(userId, vipType as VipType, categoryId);
+    const result = await vipService.buyout(userId, vipType as VipType, categoryId, city);
     
     if (!result.success) {
       return res.status(400).json({

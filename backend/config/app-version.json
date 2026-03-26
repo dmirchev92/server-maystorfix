@@ -1,14 +1,14 @@
 {
-  "latestVersion": "1.28.0",
+  "latestVersion": "1.36.0",
   "minimumVersion": "1.0.0",
   "downloadUrl": "https://snapfix.bg/downloads/ServiceTextPro-latest.apk",
   "updateRequired": false,
   "releaseNotes": {
-    "bg": "Версия 1.28.0:\n• Подобрения и оптимизации\n• Поправки на грешки",
-    "en": "Version 1.28.0:\n• Improvements and optimizations\n• Bug fixes"
+    "bg": "Версия 1.36.0:\n• Поправка на срив при отваряне на картата\n• Подобрена съвместимост с геолокация\n• Поправки на грешки",
+    "en": "Version 1.36.0:\n• Fixed crash when opening map\n• Improved geolocation compatibility\n• Bug fixes"
   },
   "features": [
-    "Performance improvements",
+    "Map stability improvements",
     "Bug fixes",
     "Stability enhancements"
   ]

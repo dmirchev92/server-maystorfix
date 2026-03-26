@@ -22,6 +22,8 @@ import { Picker } from '@react-native-picker/picker';
 import Geolocation from 'react-native-geolocation-service';
 import ApiService from '../services/ApiService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TESTING_CONFIG } from '../config/testingConfig';
+import { Linking } from 'react-native';
 
 // City name mapping (English -> Bulgarian)
 const CITY_NAME_MAP: Record<string, string> = {
@@ -258,7 +260,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         }
       );
       if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-        Alert.alert(t('common:error'), t('locationPermissionDenied'));
+        Alert.alert('Грешка', t('locationPermissionDenied'));
         return;
       }
     }
@@ -328,14 +330,14 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             Alert.alert(
               `📍 ${t('locationDetected')}`,
               t('locationDetectedMessage', { city: finalCity || t('unknown'), neighborhood: finalNeighborhood || t('unknown') }),
-              [{ text: 'OK' }]
+              [{ text: 'Добре' }]
             );
           } else {
-            Alert.alert(t('common:warning'), t('locationDetectFailed'));
+            Alert.alert('Предупреждение', t('locationDetectFailed'));
           }
         } catch (error) {
           Logger.error('Auto-detect location error:', error);
-          Alert.alert(t('common:error'), t('locationError'));
+          Alert.alert('Грешка', t('locationError'));
         } finally {
           setDetectingLocation(false);
         }
@@ -343,7 +345,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
       (error) => {
         Logger.error('Geolocation error:', error.message);
         setDetectingLocation(false);
-        Alert.alert(t('common:error'), t('gpsError'));
+        Alert.alert('Грешка', t('gpsError'));
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
@@ -355,7 +357,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
   const handleLogin = async () => {
     if (!formData.email || !formData.password) {
-      Alert.alert(t('common:error'), t('errorEmailPassword'));
+      Alert.alert('Грешка', t('errorEmailPassword'));
       return;
     }
 
@@ -388,10 +390,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         // Navigate immediately; let /auth/me verify in background
         onAuthSuccess(response.data?.user || { id: 'local', email: formData.email } as any);
       } else {
-        Alert.alert(t('common:error'), response.error?.message || t('errorLoginFailed'));
+        Alert.alert('Грешка', response.error?.message || t('errorLoginFailed'));
       }
     } catch (error) {
-      Alert.alert(t('common:error'), t('errorLoginError'));
+      Alert.alert('Грешка', t('errorLoginError'));
     } finally {
       setLoading(false);
     }
@@ -438,13 +440,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
 
   const handleForgotPassword = async () => {
     if (!forgotPasswordEmail.trim()) {
-      Alert.alert(t('common:error'), t('errorEnterEmail'));
+      Alert.alert('Грешка', t('errorEnterEmail'));
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(forgotPasswordEmail.trim())) {
-      Alert.alert(t('common:error'), t('errorValidEmail'));
+      Alert.alert('Грешка', t('errorValidEmail'));
       return;
     }
 
@@ -464,13 +466,13 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
   const handleRegister = async () => {
     // Common validation
     if (!formData.email || !formData.password || !formData.confirmPassword || !formData.firstName || !formData.lastName || !formData.phoneNumber) {
-      Alert.alert(t('common:error'), t('errorAllFieldsRequired'));
+      Alert.alert('Грешка', t('errorAllFieldsRequired'));
       return;
     }
 
     // Provider-specific validation - only serviceCategory is required, companyName is optional
     if (userType === 'provider' && !formData.serviceCategory) {
-      Alert.alert(t('common:error'), t('errorSelectCategory'));
+      Alert.alert('Грешка', t('errorSelectCategory'));
       return;
     }
 
@@ -484,17 +486,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert(t('common:error'), t('errorPasswordMismatch'));
+      Alert.alert('Грешка', t('errorPasswordMismatch'));
       return;
     }
 
     if (!validatePassword(formData.password)) {
-      Alert.alert(t('common:error'), t('errorPasswordWeak'));
+      Alert.alert('Грешка', t('errorPasswordWeak'));
       return;
     }
 
     if (!acceptTerms) {
-      Alert.alert(t('common:error'), t('errorTermsRequired'));
+      Alert.alert('Грешка', t('errorTermsRequired'));
       return;
     }
 
@@ -562,11 +564,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
         onAuthSuccess(response.data?.user || { id: 'local', email: formData.email } as any);
       } else {
         Logger.debug('Registration failed:', response.error);
-        Alert.alert(t('common:error'), response.error?.message || t('errorRegistrationFailed'));
+        Alert.alert('Грешка', response.error?.message || t('errorRegistrationFailed'));
       }
     } catch (error) {
       Logger.debug('Registration error:', error);
-      Alert.alert(t('common:error'), `${t('errorRegistrationError')}: ${error instanceof Error ? error.message : t('errorUnknown')}`);
+      Alert.alert('Грешка', `${t('errorRegistrationError')}: ${error instanceof Error ? error.message : t('errorUnknown')}`);
     } finally {
       setLoading(false);
     }
@@ -991,29 +993,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 </View>
 
                 <View style={styles.checkboxContainer}>
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setAcceptTerms(!acceptTerms)}
-                  >
-                    <View style={[styles.modernCheckbox, acceptTerms && styles.modernCheckboxChecked]}>
-                      {acceptTerms && <Text style={styles.checkmark}>✓</Text>}
-                    </View>
+                  <View style={styles.checkboxRow}>
+                    <TouchableOpacity
+                      style={styles.modernCheckbox}
+                      onPress={() => setAcceptTerms(!acceptTerms)}
+                    >
+                      <View style={[styles.modernCheckbox, acceptTerms && styles.modernCheckboxChecked]}>
+                        {acceptTerms && <Text style={styles.checkmark}>✓</Text>}
+                      </View>
+                    </TouchableOpacity>
                     <Text style={styles.checkboxText}>
-                      {t('acceptTerms')}
+                      Съгласявам се с{' '}
+                      <Text 
+                        style={styles.linkText}
+                        onPress={() => Linking.openURL('https://snapfix.bg/terms')}
+                      >
+                        условията
+                      </Text>
+                      {' '}и{' '}
+                      <Text 
+                        style={styles.linkText}
+                        onPress={() => Linking.openURL('https://snapfix.bg/privacy-policy')}
+                      >
+                        правилата
+                      </Text>
                     </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.checkboxRow}
-                    onPress={() => setReceiveUpdates(!receiveUpdates)}
-                  >
-                    <View style={[styles.modernCheckbox, receiveUpdates && styles.modernCheckboxChecked]}>
-                      {receiveUpdates && <Text style={styles.checkmark}>✓</Text>}
-                    </View>
-                    <Text style={styles.checkboxText}>
-                      {t('receiveNewsletter')}
-                    </Text>
-                  </TouchableOpacity>
+                  </View>
                 </View>
               </>
             )}
@@ -1124,9 +1129,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               <View style={styles.tierOptionContent}>
                 <Text style={styles.tierOptionName}>🆓 {t('tierFree')}</Text>
                 <Text style={styles.tierOptionPrice}>0 €</Text>
-                <Text style={styles.tierFeature}>• {t('freeTierDays')}</Text>
-                <Text style={styles.tierFeature}>• {t('freeTierCases')}</Text>
-                <Text style={styles.tierFeature}>• {t('freeTierBudget')}</Text>
+                <Text style={styles.tierFeature}>• Временен достъп до всички услуги на платформата</Text>
               </View>
             </TouchableOpacity>
 
@@ -1134,9 +1137,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
             <TouchableOpacity
               style={[styles.tierOption, selectedTier === 'normal' && styles.tierOptionSelected]}
               onPress={() => { setSelectedTier('normal'); }}
+            >
+              <View style={[styles.tierRadio, selectedTier === 'normal' && styles.tierRadioSelected]}>
+                {selectedTier === 'normal' && <View style={styles.tierRadioDot} />}
+              </View>
+              <View style={styles.tierOptionContent}>
+                <Text style={styles.tierOptionName}>⭐ {t('tierNormal')}</Text>
+                
+                {/* Billing Period Selection for Normal */}
+                {selectedTier === 'normal' && (
+                  <View style={styles.billingPeriodContainer}>
                     <TouchableOpacity
-                      style={styles.tierModalConfirmButton}
-                      onPress={() => setShowTierModal(false)}
+                      style={[styles.billingPeriodButton, billingPeriod === 'yearly' && styles.billingPeriodButtonActive]}
+                      onPress={() => setBillingPeriod('yearly')}
                     >
                       <Text style={[styles.billingPeriodText, billingPeriod === 'yearly' && styles.billingPeriodTextActive]}>
                         Годишно: 1,400 €
@@ -1157,7 +1170,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
                 <Text style={styles.tierFeature}>• {billingPeriod === 'yearly' ? '1,000' : '50'} {t('points')}/{billingPeriod === 'yearly' ? t('perYear') : t('perMonth')}</Text>
                 <Text style={styles.tierFeature}>• Заявки до 1,000 €</Text>
                 <Text style={styles.tierFeature}>• SMS: 2 точки/съобщение</Text>
-                <Text style={styles.tierFeature}>• 20 снимки в галерията</Text>
+                <Text style={styles.tierFeature}>• 3 снимки в галерията</Text>
               </View>
             </TouchableOpacity>
 
@@ -1214,7 +1227,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onAuthSuccess }) => {
               style={styles.tierModalConfirmButton}
               onPress={() => setShowTierModal(false)}
             >
-              <Text style={styles.tierModalConfirmText}>Избери {selectedTier === 'free' ? 'Безплатен' : selectedTier === 'normal' ? 'Normal' : 'Pro'} план</Text>
+              <Text style={styles.tierModalConfirmText}>Избери {selectedTier === 'free' ? 'безплатен' : selectedTier === 'normal' ? 'нормален' : 'професионален'} план</Text>
             </TouchableOpacity>
           </View>
         </View>

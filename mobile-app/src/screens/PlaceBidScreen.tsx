@@ -35,6 +35,7 @@ interface CaseDetails {
   current_bidders?: number;
   max_bidders?: number;
   square_meters?: number;
+  images?: string[];
 }
 
 export default function PlaceBidScreen() {
@@ -163,6 +164,14 @@ export default function PlaceBidScreen() {
           onClose={handleModalClose}
           caseId={caseDetails.id}
           caseBudget={budgetRange}
+          caseDetails={{
+            service_type: caseDetails.service_type,
+            category: caseDetails.category,
+            description: caseDetails.description,
+            city: caseDetails.city,
+            neighborhood: caseDetails.neighborhood,
+            images: caseDetails.images,
+          }}
           onBidPlaced={handleBidPlaced}
         />
       )}

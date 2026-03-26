@@ -75,7 +75,8 @@ export default function SimpleAdminPanel() {
       console.log('📊 Loading real admin data...');
 
       // Load enhanced security dashboard data
-      const dashboardResponse = await axios.get('http://192.168.0.129:3000/api/v1/admin/security/dashboard', {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
+      const dashboardResponse = await axios.get(`${apiBase}/admin/security/dashboard`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -94,7 +95,7 @@ export default function SimpleAdminPanel() {
         setAlerts(data.recentThreats || []);
       } else {
         // Fallback to original dashboard if security dashboard fails
-        const fallbackResponse = await axios.get('http://192.168.0.129:3000/api/v1/admin/dashboard', {
+        const fallbackResponse = await axios.get(`${apiBase}/admin/dashboard`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -154,7 +155,8 @@ export default function SimpleAdminPanel() {
       console.log('🧪 Testing SMS security with premium number...');
       
       // Test using the new enhanced security endpoint
-      const response = await axios.post('http://192.168.0.129:3000/api/v1/admin/security/test-sms', {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || 'https://snapfix.bg/api/v1';
+      const response = await axios.post(`${apiBase}/admin/security/test-sms`, {
         phoneNumber: '0900123456', // Premium number that should be blocked
         message: 'Test premium number blocking'
       }, {

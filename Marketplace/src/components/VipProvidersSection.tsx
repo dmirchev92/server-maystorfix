@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { apiClient } from '@/lib/api'
+import { getCategoryLabel } from '@/constants/serviceCategories'
 
 interface VipProvider {
   userId: string
@@ -16,6 +17,7 @@ interface VipProvider {
   profileImageUrl: string | null
   categoryId: string
   categoryLabelBg: string
+  serviceCategories?: string[]
   isVip: boolean
   vipType: string
 }
@@ -106,8 +108,11 @@ export function VipProvidersSection({ variant = 'full' }: VipProvidersSectionPro
                         <div className="text-base font-bold text-white truncate">
                           {provider.businessName || provider.providerName || 'Специалист'}
                         </div>
-                        <div className="text-indigo-200/90 text-sm truncate mt-0.5">
-                          {provider.categoryLabelBg || provider.categoryId}
+                        {/* VIP Category - Show ONLY the category they purchased VIP for */}
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          <span className="bg-yellow-500/20 text-yellow-300 text-[10px] px-1.5 py-0.5 rounded-full font-semibold border border-yellow-400/30">
+                            {getCategoryLabel(provider.categoryId) || provider.categoryLabelBg || provider.categoryId}
+                          </span>
                         </div>
                         <div className="text-slate-400 text-sm truncate mt-1">
                           📍 {provider.city || 'България'}
@@ -189,9 +194,12 @@ export function VipProvidersSection({ variant = 'full' }: VipProvidersSectionPro
                     <h3 className="text-lg font-bold text-white truncate group-hover:text-yellow-200 transition-colors">
                       {provider.businessName || provider.providerName || 'Специалист'}
                     </h3>
-                    <p className="text-indigo-200/90 text-sm truncate mt-0.5">
-                      {provider.categoryLabelBg || provider.categoryId}
-                    </p>
+                    {/* VIP Category - Show ONLY the category they purchased VIP for */}
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      <span className="bg-yellow-500/20 text-yellow-300 text-xs px-2 py-0.5 rounded-full font-semibold border border-yellow-400/30">
+                        {getCategoryLabel(provider.categoryId) || provider.categoryLabelBg || provider.categoryId}
+                      </span>
+                    </div>
                     <p className="text-slate-400 text-sm truncate mt-1">
                       📍 {provider.city || 'България'}
                     </p>

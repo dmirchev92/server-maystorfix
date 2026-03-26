@@ -23,7 +23,7 @@ import Geolocation from 'react-native-geolocation-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ApiService } from '../services/ApiService';
 import theme from '../styles/theme';
-import { SERVICE_CATEGORIES } from '../constants/serviceCategories';
+import { SERVICE_CATEGORIES, getCategoryLabel } from '../constants/serviceCategories';
 
 // Helper function to get auth token
 const getStoredToken = async (): Promise<string | null> => {
@@ -54,9 +54,9 @@ interface ProfileData {
   email: string;
   businessName?: string;
   serviceCategory?: string;
+  serviceCategories?: string[];
   description?: string;
   experienceYears?: number;
-  hourlyRate?: number;
   city?: string;
   neighborhood?: string;
   address?: string;
@@ -84,7 +84,6 @@ const EditProfileScreen: React.FC = () => {
     serviceCategory: '',
     description: '',
     experienceYears: 0,
-    hourlyRate: 0,
     city: '',
     neighborhood: '',
     address: '',
@@ -98,6 +97,9 @@ const EditProfileScreen: React.FC = () => {
   const [newService, setNewService] = useState('');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showCityPicker, setShowCityPicker] = useState(false);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [subscriptionTier, setSubscriptionTier] = useState<string>('free');
+  const [maxCategories, setMaxCategories] = useState<number>(999);
   const [showNeighborhoodPicker, setShowNeighborhoodPicker] = useState(false);
   
   // Delete account state
@@ -264,6 +266,39 @@ const EditProfileScreen: React.FC = () => {
         const role = userData.role || userData.user_role || 'customer';
         setUserRole(role);
         
+        // Get subscription tier and limits
+        const tier = userData.subscription_tier_id || 'free';
+        setSubscriptionTier(tier);
+        
+        // Set max categories based on tier
+        if (tier === 'normal') {
+          setMaxCategories(2);
+        } else if (tier === 'pro') {
+          setMaxCategories(999);
+        } else {
+          setMaxCategories(999); // free tier during launch mode
+        }
+        
+        // Fetch provider's selected categories from API
+        if (role === 'provider' || role === 'tradesperson' || role === 'service_provider') {
+          try {
+            const categoriesResponse = await fetch('https://snapfix.bg/api/v1/provider/categories', {
+              headers: {
+                'Authorization': `Bearer ${await getStoredToken()}`,
+              },
+            });
+            
+            if (categoriesResponse.ok) {
+              const categoriesResult = await categoriesResponse.json();
+              if (categoriesResult.success && categoriesResult.categories) {
+                setSelectedCategories(categoriesResult.categories);
+              }
+            }
+          } catch (error) {
+            Logger.error('Failed to load provider categories:', error);
+          }
+        }
+        
         // Try to load provider profile for additional fields
         try {
           const providerResponse = await fetch(`https://snapfix.bg/api/v1/marketplace/providers/${userData.id}`, {
@@ -285,13 +320,12 @@ const EditProfileScreen: React.FC = () => {
               serviceCategory: providerData.serviceCategory || '',
               description: providerData.description || '',
               experienceYears: providerData.experienceYears || 0,
-              hourlyRate: providerData.hourlyRate || 0,
               city: providerData.city || '',
               neighborhood: providerData.neighborhood || '',
               address: providerData.address || '',
               profileImageUrl: providerData.profileImageUrl || '',
-              latitude: providerData.latitude ? parseFloat(providerData.latitude) : undefined,
-              longitude: providerData.longitude ? parseFloat(providerData.longitude) : undefined
+              latitude: providerData.latitude !== null && providerData.latitude !== undefined ? parseFloat(String(providerData.latitude)) : undefined,
+              longitude: providerData.longitude !== null && providerData.longitude !== undefined ? parseFloat(String(providerData.longitude)) : undefined
             });
             
             if (providerData.gallery && Array.isArray(providerData.gallery)) {
@@ -300,6 +334,11 @@ const EditProfileScreen: React.FC = () => {
             
             if (providerData.offeredServices && Array.isArray(providerData.offeredServices)) {
               setOfferedServices(providerData.offeredServices);
+            }
+            
+            // Load provider's selected categories
+            if (providerData.serviceCategories && Array.isArray(providerData.serviceCategories)) {
+              setSelectedCategories(providerData.serviceCategories);
             }
           } else {
             // Fallback to basic user data
@@ -542,8 +581,13 @@ const EditProfileScreen: React.FC = () => {
     }
 
     // Location validation for providers - coordinates are mandatory
+    // Check for valid numbers (not undefined, not null, not NaN)
     const isProvider = userRole === 'tradesperson' || userRole === 'service_provider';
-    if (isProvider && (!profileData.latitude || !profileData.longitude)) {
+    const hasValidCoords = profileData.latitude !== undefined && 
+                           profileData.longitude !== undefined &&
+                           !isNaN(Number(profileData.latitude)) && 
+                           !isNaN(Number(profileData.longitude));
+    if (isProvider && !hasValidCoords) {
       setError(t('locationRequired'));
       return;
     }
@@ -567,7 +611,6 @@ const EditProfileScreen: React.FC = () => {
           serviceCategory: profileData.serviceCategory,
           description: profileData.description,
           experienceYears: profileData.experienceYears,
-          hourlyRate: profileData.hourlyRate,
           city: profileData.city,
           neighborhood: profileData.neighborhood,
           address: profileData.address,
@@ -580,8 +623,8 @@ const EditProfileScreen: React.FC = () => {
         gallery: galleryImages
       };
 
-      const updateResponse = await fetch('https://snapfix.bg/api/v1/marketplace/providers/profile', {
-        method: 'POST',
+      const updateResponse = await fetch('https://snapfix.bg/api/v1/auth/profile', {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${await getStoredToken()}`,
@@ -592,6 +635,27 @@ const EditProfileScreen: React.FC = () => {
       const result: any = await updateResponse.json();
 
       if (result.success) {
+        // Update provider categories if user is a provider
+        if (isProvider && selectedCategories.length > 0) {
+          try {
+            const categoriesResponse = await fetch('https://snapfix.bg/api/v1/provider/categories', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${await getStoredToken()}`,
+              },
+              body: JSON.stringify({ categoryIds: selectedCategories }),
+            });
+            
+            const categoriesResult = await categoriesResponse.json();
+            if (!categoriesResult.success) {
+              Logger.error('Failed to update categories:', categoriesResult.message);
+            }
+          } catch (error) {
+            Logger.error('Error updating categories:', error);
+          }
+        }
+        
         setSuccess(t('profileUpdateSuccess'));
         setTimeout(() => {
           navigation.goBack();
@@ -836,15 +900,25 @@ const EditProfileScreen: React.FC = () => {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={styles.label}>{t('serviceCategory')}</Text>
+                <Text style={styles.label}>
+                  Специализации ({selectedCategories.length}/{maxCategories === 999 ? '∞' : maxCategories})
+                </Text>
                 <TouchableOpacity 
                   style={styles.pickerContainer}
                   onPress={() => setShowCategoryPicker(true)}
                 >
                   <Text style={styles.pickerText}>
-                    {serviceCategories.find(c => c.value === profileData.serviceCategory)?.label || t('selectServiceCategory')}
+                    {selectedCategories.length === 0 
+                      ? 'Изберете специализации...'
+                      : selectedCategories.map(catId => getCategoryLabel(catId)).join(', ')
+                    }
                   </Text>
                 </TouchableOpacity>
+                {subscriptionTier === 'normal' && (
+                  <Text style={styles.helperText}>
+                    Normal план: максимум 2 специализации. Надстройте до Pro за неограничени.
+                  </Text>
+                )}
               </View>
 
               <View style={styles.formGroup}>
@@ -871,17 +945,6 @@ const EditProfileScreen: React.FC = () => {
                     placeholder="0"
                     placeholderTextColor="rgba(255,255,255,0.4)"
                     keyboardType="numeric"
-                  />
-                </View>
-                <View style={styles.formHalf}>
-                  <Text style={styles.label}>{t('hourlyRate')}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={profileData.hourlyRate?.toString() || ''}
-                    onChangeText={(text) => setProfileData({ ...profileData, hourlyRate: parseFloat(text) || 0 })}
-                    placeholder="0"
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    keyboardType="decimal-pad"
                   />
                 </View>
               </View>
@@ -1002,29 +1065,69 @@ const EditProfileScreen: React.FC = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{t('selectCategory')}</Text>
+              <Text style={styles.modalTitle}>
+                Изберете специализации ({selectedCategories.length}/{maxCategories === 999 ? '∞' : maxCategories})
+              </Text>
               <TouchableOpacity onPress={() => setShowCategoryPicker(false)}>
                 <Text style={styles.modalClose}>✕</Text>
               </TouchableOpacity>
             </View>
+            {subscriptionTier === 'normal' && (
+              <View style={styles.modalWarning}>
+                <Text style={styles.modalWarningText}>
+                  ⚠️ Normal план позволява максимум 2 специализации
+                </Text>
+              </View>
+            )}
             <FlatList
               data={serviceCategories}
               keyExtractor={(item) => item.value}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modalItem}
-                  onPress={() => {
-                    setProfileData({ ...profileData, serviceCategory: item.value });
-                    setShowCategoryPicker(false);
-                  }}
-                >
-                  <Text style={styles.modalItemText}>{item.label}</Text>
-                  {profileData.serviceCategory === item.value && (
-                    <Text style={styles.modalItemCheck}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const isSelected = selectedCategories.includes(item.value);
+                const canSelect = isSelected || selectedCategories.length < maxCategories;
+                
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.modalItem,
+                      isSelected && styles.modalItemSelected,
+                      !canSelect && styles.modalItemDisabled
+                    ]}
+                    onPress={() => {
+                      if (!canSelect) {
+                        Alert.alert(
+                          'Лимит достигнат',
+                          `Вашият ${subscriptionTier === 'normal' ? 'Normal' : ''} план позволява максимум ${maxCategories} специализации. Надстройте до Pro за неограничени специализации.`
+                        );
+                        return;
+                      }
+                      
+                      if (isSelected) {
+                        setSelectedCategories(selectedCategories.filter(c => c !== item.value));
+                      } else {
+                        setSelectedCategories([...selectedCategories, item.value]);
+                      }
+                    }}
+                  >
+                    <View style={styles.checkbox}>
+                      {isSelected && <Text style={styles.checkboxCheck}>✓</Text>}
+                    </View>
+                    <Text style={[
+                      styles.modalItemText,
+                      !canSelect && styles.modalItemTextDisabled
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              }}
             />
+            <TouchableOpacity
+              style={styles.modalDoneButton}
+              onPress={() => setShowCategoryPicker(false)}
+            >
+              <Text style={styles.modalDoneButtonText}>Готово</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1679,6 +1782,62 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteModalConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Multi-select category styles
+  helperText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  modalWarning: {
+    backgroundColor: 'rgba(251, 191, 36, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  modalWarningText: {
+    color: '#FCD34D',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderWidth: 2,
+    borderColor: '#6366F1',
+    borderRadius: 6,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxCheck: {
+    color: '#6366F1',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalItemSelected: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  },
+  modalItemDisabled: {
+    opacity: 0.4,
+  },
+  modalItemTextDisabled: {
+    color: '#64748B',
+  },
+  modalDoneButton: {
+    backgroundColor: '#6366F1',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    margin: 16,
+  },
+  modalDoneButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',

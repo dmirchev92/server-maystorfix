@@ -127,7 +127,7 @@ class NotificationService {
         importance: AndroidImportance.HIGH,
         sound: 'default',
         vibration: true,
-        vibrationPattern: [0, 500, 200, 500, 200, 500],
+        vibrationPattern: [200, 500, 200, 500, 200, 500],
         lights: true,
         lightColor: '#FF0000',
         badge: true,

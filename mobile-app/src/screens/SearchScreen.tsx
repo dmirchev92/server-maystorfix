@@ -127,8 +127,8 @@ export default function SearchScreen() {
           
         setProviders(validProviders);
         
-        // Get VIP providers from response
-        const vipData = (response as any).vipProviders || [];
+        // Get VIP providers from response (check both response.data.vipProviders and response.vipProviders)
+        const vipData = (response.data as any)?.vipProviders || (response as any).vipProviders || [];
         setVipProviders(vipData);
       } else {
         setProviders([]);
@@ -144,7 +144,11 @@ export default function SearchScreen() {
 
   const getCategoryLabel = (value: string) => {
     if (!value) return '';
-    const type = serviceTypes.find(t => t.value.toLowerCase() === value.toLowerCase());
+    const type = serviceTypes.find(t => 
+      t.value?.toLowerCase() === value.toLowerCase() ||
+      t.id?.toLowerCase() === value.toLowerCase() ||
+      t.id?.toLowerCase() === value.replace('cat_', '').toLowerCase()
+    );
     return type ? type.label : value;
   };
 
@@ -205,23 +209,74 @@ export default function SearchScreen() {
     return stars.join('');
   };
 
+  // Helper to render category chips
+  // For VIP cards: show ONLY the VIP category (the one they purchased VIP for)
+  // For regular cards: show all categories
+  const renderCategoryChips = (item: any, isVip: boolean = false) => {
+    const categories = item.serviceCategories || item.service_categories || [];
+    const singleCategory = item.serviceCategory || item.service_category;
+    
+    // For VIP cards, show only the VIP category (serviceCategory field)
+    if (isVip && singleCategory) {
+      return (
+        <View style={styles.categoryChipsContainer}>
+          <View style={[styles.categoryChip, styles.vipCategoryChip]}>
+            <Text style={[styles.categoryChipText, styles.vipCategoryChipText]} numberOfLines={1}>
+              {getCategoryLabel(singleCategory)}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+    
+    // For regular cards, show all categories
+    if (categories.length > 0) {
+      return (
+        <View style={styles.categoryChipsContainer}>
+          {categories.slice(0, 3).map((cat: string, idx: number) => (
+            <View key={idx} style={[styles.categoryChip, isVip && styles.vipCategoryChip]}>
+              <Text style={[styles.categoryChipText, isVip && styles.vipCategoryChipText]} numberOfLines={1}>
+                {getCategoryLabel(cat)}
+              </Text>
+            </View>
+          ))}
+          {categories.length > 3 && (
+            <View style={[styles.categoryChip, isVip && styles.vipCategoryChip]}>
+              <Text style={[styles.categoryChipText, isVip && styles.vipCategoryChipText]}>+{categories.length - 3}</Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+    
+    // Fallback to single category
+    return (
+      <Text style={styles.providerCategory}>{getCategoryLabel(singleCategory)}</Text>
+    );
+  };
+
   // Render VIP provider card (with gold badge)
   const renderVipProvider = (item: any, index: number) => {
     const displayName = item.businessName || item.business_name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Specialist';
-    const category = item.serviceCategory || item.service_category;
     const rating = item.rating || 0;
     const reviewCount = item.totalReviews || item.total_reviews || 0;
+    const description = item.description || item.bio || '';
 
     return (
-      <View key={item.id || index} style={[styles.card, styles.vipCard]}>
+      <TouchableOpacity 
+        key={item.id || index} 
+        style={[styles.card, styles.vipCard]}
+        onPress={() => handleViewProfile(item)}
+        activeOpacity={0.8}
+      >
         {/* VIP Badge */}
         <View style={styles.vipBadge}>
-          <Text style={styles.vipBadgeText}>👑 VIP • Платена видимост</Text>
+          <Text style={styles.vipBadgeText}>👑 VIP • {t('vipPaidVisibility')}</Text>
         </View>
         
         <View style={styles.cardHeader}>
-          {item.profileImageUrl ? (
-            <Image source={{ uri: item.profileImageUrl }} style={styles.avatar} />
+          {item.profileImageUrl || item.profile_image_url ? (
+            <Image source={{ uri: item.profileImageUrl || item.profile_image_url }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatarPlaceholder, styles.vipAvatarPlaceholder]}>
               <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
@@ -229,7 +284,7 @@ export default function SearchScreen() {
           )}
           <View style={styles.headerInfo}>
             <Text style={styles.providerName} numberOfLines={1}>{displayName}</Text>
-            <Text style={styles.providerCategory}>{getCategoryLabel(category)}</Text>
+            {renderCategoryChips(item, true)}
           </View>
           <View style={[styles.ratingBadge, styles.vipRatingBadge]}>
             <Text style={styles.star}>⭐</Text>
@@ -239,36 +294,42 @@ export default function SearchScreen() {
 
         <View style={styles.statsRow}>
           <Text style={styles.statText} numberOfLines={1}>📍 {item.city || 'София'}{item.neighborhood ? `, ${item.neighborhood}` : ''}</Text>
-          <Text style={styles.statText}>⭐ {rating} ({reviewCount})</Text>
+          <Text style={styles.statText}>⭐ {rating} ({reviewCount} {t('reviews')})</Text>
         </View>
 
-        <Text style={styles.description} numberOfLines={2}>
-          {item.description || 'Професионални услуги с качество и гаранция.'}
-        </Text>
+        {description ? (
+          <Text style={styles.description} numberOfLines={2}>
+            {description}
+          </Text>
+        ) : null}
 
         <View style={styles.actionRow}>
           <TouchableOpacity style={[styles.profileBtn, styles.vipProfileBtn]} onPress={() => handleViewProfile(item)}>
-            <Text style={styles.btnText}>Виж профил</Text>
+            <Text style={styles.btnText}>{t('viewProfile')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.chatBtn, styles.vipChatBtn]} onPress={() => handleInquiry(item)}>
-            <Text style={styles.btnText}>Запитване</Text>
+            <Text style={styles.btnText}>{t('inquiry')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   const renderProvider = ({ item }: { item: any }) => {
     const displayName = item.businessName || item.business_name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Specialist';
-    const category = item.serviceCategory || item.service_category;
     const rating = item.rating || 0;
     const reviewCount = item.totalReviews || item.total_reviews || 0;
+    const description = item.description || item.bio || '';
 
     return (
-      <View style={styles.card}>
+      <TouchableOpacity 
+        style={styles.card}
+        onPress={() => handleViewProfile(item)}
+        activeOpacity={0.8}
+      >
         <View style={styles.cardHeader}>
-          {item.profileImageUrl ? (
-            <Image source={{ uri: item.profileImageUrl }} style={styles.avatar} />
+          {item.profileImageUrl || item.profile_image_url ? (
+            <Image source={{ uri: item.profileImageUrl || item.profile_image_url }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarPlaceholder}>
               <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
@@ -276,7 +337,7 @@ export default function SearchScreen() {
           )}
           <View style={styles.headerInfo}>
             <Text style={styles.providerName} numberOfLines={1}>{displayName}</Text>
-            <Text style={styles.providerCategory}>{getCategoryLabel(category)}</Text>
+            {renderCategoryChips(item, false)}
           </View>
           <View style={styles.ratingBadge}>
             <Text style={styles.star}>⭐</Text>
@@ -284,31 +345,26 @@ export default function SearchScreen() {
           </View>
         </View>
 
-        {/* Categories Tags */}
-        <View style={styles.tagsContainer}>
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{getCategoryLabel(category)}</Text>
-          </View>
-        </View>
-
         <View style={styles.statsRow}>
            <Text style={styles.statText} numberOfLines={1}>📍 {item.city || 'София'}{item.neighborhood ? `, ${item.neighborhood}` : ''}</Text>
-           <Text style={styles.statText}>⭐ {rating} ({reviewCount})</Text>
+           <Text style={styles.statText}>⭐ {rating} ({reviewCount} {t('reviews')})</Text>
         </View>
 
-        <Text style={styles.description} numberOfLines={3}>
-          {item.description || 'Професионални услуги с качество и гаранция.'}
-        </Text>
+        {description ? (
+          <Text style={styles.description} numberOfLines={3}>
+            {description}
+          </Text>
+        ) : null}
 
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.profileBtn} onPress={() => handleViewProfile(item)}>
-             <Text style={styles.btnText}>Виж профил</Text>
+             <Text style={styles.btnText}>{t('viewProfile')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.chatBtn} onPress={() => handleInquiry(item)}>
-             <Text style={styles.btnText}>Запитване</Text>
+             <Text style={styles.btnText}>{t('inquiry')}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -339,7 +395,7 @@ export default function SearchScreen() {
               mode="dialog"
             >
               <Picker.Item label="Всички услуги" value="" color="#ffffff" />
-              {serviceTypes.map((t: Category) => <Picker.Item key={t.value || t.id} label={t.label} value={t.id} color="#ffffff" />)}
+              {serviceTypes.map((t: Category) => <Picker.Item key={t.value || t.id} label={t.label} value={t.value || `cat_${t.id}`} color="#ffffff" />)}
             </Picker>
           </View>
 
@@ -395,13 +451,13 @@ export default function SearchScreen() {
               vipProviders.length > 0 ? (
                 <View style={styles.vipSection}>
                   <View style={styles.vipSectionHeader}>
-                    <Text style={styles.vipSectionTitle}>👑 VIP Специалисти</Text>
-                    <Text style={styles.vipSectionSubtitle}>Платена видимост</Text>
+                    <Text style={styles.vipSectionTitle}>👑 {t('vipSpecialists')}</Text>
+                    <Text style={styles.vipSectionSubtitle}>{t('vipPaidVisibility')}</Text>
                   </View>
                   {vipProviders.map((item, index) => renderVipProvider(item, index))}
                   {providers.length > 0 && (
                     <View style={styles.sectionDivider}>
-                      <Text style={styles.sectionDividerText}>Всички резултати</Text>
+                      <Text style={styles.sectionDividerText}>{t('allResults')}</Text>
                     </View>
                   )}
                 </View>
@@ -410,8 +466,8 @@ export default function SearchScreen() {
             ListEmptyComponent={
               vipProviders.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>Няма намерени услуги.</Text>
-                  <Text style={styles.emptySubText}>Опитайте с други критерии.</Text>
+                  <Text style={styles.emptyText}>{t('noServicesFound')}</Text>
+                  <Text style={styles.emptySubText}>{t('tryOtherCriteria')}</Text>
                 </View>
               ) : null
             }
@@ -1138,6 +1194,32 @@ const styles = StyleSheet.create({
   },
   vipChatBtn: {
     backgroundColor: '#DAA520',
+  },
+  categoryChipsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  categoryChip: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+  },
+  categoryChipText: {
+    color: '#a5b4fc',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  vipCategoryChip: {
+    backgroundColor: 'rgba(255, 215, 0, 0.15)',
+    borderColor: 'rgba(255, 215, 0, 0.3)',
+  },
+  vipCategoryChipText: {
+    color: '#FFD700',
   },
 });
 

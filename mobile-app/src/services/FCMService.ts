@@ -239,7 +239,8 @@ class FCMService {
         name: 'Case Assignments',
         importance: AndroidImportance.HIGH,
         sound: 'default',
-        vibration: false,
+        vibration: true,
+        vibrationPattern: [300, 500, 300, 500],
       });
 
       // 3. Urgent Cases (Max Importance for Full Screen Intent)
@@ -539,12 +540,18 @@ class FCMService {
     try {
       const { notification, data } = remoteMessage;
 
+      Logger.debug('📱 FCM displayNotification called with:', { notification, data });
+
       // Support both data-only messages (new) and legacy notification+data messages
       const title = notification?.title || data?.title;
       const body = notification?.body || data?.body;
 
+      Logger.debug('📱 FCM extracted title:', title);
+      Logger.debug('📱 FCM extracted body:', body);
+
       if (!title && !body) {
         Logger.warn('⚠️ No notification content in FCM message (neither notification nor data payload has title/body)');
+        Logger.warn('⚠️ Raw data:', JSON.stringify(data));
         return;
       }
 
@@ -584,6 +591,8 @@ class FCMService {
           autoCancel: true,
         },
       };
+
+      Logger.debug('📱 FCM notification config prepared:', JSON.stringify(notificationConfig));
 
       // Add action buttons for new_case_available notifications
       if (data?.type === 'new_case_available') {

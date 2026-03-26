@@ -6,7 +6,7 @@ const nextConfig = {
     NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL || 'https://maystorfix.com',
   },
   images: {
-    domains: ['localhost', 'servicetextpro.bg', 'maystorfix.com', '46.224.11.139'],
+    domains: ['localhost', 'servicetextpro.bg', 'maystorfix.com', '91.98.138.38', 'snapfix.bg'],
   },
   typescript: {
     ignoreBuildErrors: false,

@@ -63,26 +63,26 @@ const SUBSCRIPTION_TIERS: SubscriptionTier[] = [
 
 const POINTS_COSTS = {
   normal: [
-    { range: '1-125 €', points: 15, price: '2.25 €' },
-    { range: '126-250 €', points: 25, price: '3.75 €' },
-    { range: '251-400 €', points: 35, price: '5.25 €' },
-    { range: '401-500 €', points: 45, price: '6.75 €' },
-    { range: '501-1000 €', points: 70, price: '10.50 €' },
+    { range: '1-250 €', points: 10, price: '1.50 €' },
+    { range: '251-500 €', points: 20, price: '3.00 €' },
+    { range: '501-750 €', points: 40, price: '6.00 €' },
+    { range: '751-1000 €', points: 60, price: '9.00 €' },
+    { range: '1001-2000 €', points: 100, price: '15.00 €' },
   ],
   pro: [
-    { range: '1-125 €', points: 12, price: '1.50 €' },
-    { range: '126-250 €', points: 20, price: '2.50 €' },
-    { range: '251-400 €', points: 28, price: '3.50 €' },
-    { range: '401-500 €', points: 36, price: '4.50 €' },
-    { range: '501-1000 €', points: 56, price: '7.00 €' },
-    { range: '1001-1500 €', points: 100, price: '12.50 €' },
-    { range: '1501-2000 €', points: 140, price: '17.50 €' },
-    { range: '2001-2500 €', points: 180, price: '22.50 €' },
-    { range: '2501-3000 €', points: 220, price: '27.50 €' },
-    { range: '3001-3500 €', points: 260, price: '32.50 €' },
-    { range: '3501-4000 €', points: 300, price: '37.50 €' },
-    { range: '4001-4500 €', points: 340, price: '42.50 €' },
-    { range: '4501-5000 €', points: 380, price: '47.50 €' },
+    { range: '1-250 €', points: 10, price: '1.30 €' },
+    { range: '251-500 €', points: 15, price: '1.95 €' },
+    { range: '501-750 €', points: 30, price: '3.90 €' },
+    { range: '751-1000 €', points: 50, price: '6.50 €' },
+    { range: '1001-2000 €', points: 80, price: '10.40 €' },
+    { range: '2001-3000 €', points: 110, price: '14.30 €' },
+    { range: '3001-4000 €', points: 160, price: '20.80 €' },
+    { range: '4001-5000 €', points: 215, price: '27.95 €' },
+    { range: '5001-6000 €', points: 280, price: '36.40 €' },
+    { range: '6001-7000 €', points: 350, price: '45.50 €' },
+    { range: '7001-8000 €', points: 430, price: '55.90 €' },
+    { range: '8001-9000 €', points: 520, price: '67.60 €' },
+    { range: '9001-10000 €', points: 640, price: '83.20 €' },
   ],
 };
 
@@ -219,7 +219,7 @@ export default function PricingScreen() {
           {/* Buy Points Button */}
           <TouchableOpacity
             style={styles.buyPointsButton}
-            onPress={() => navigation.navigate('BuyPoints')}
+            onPress={() => navigation.navigate('Points')}
           >
             <Text style={styles.buyPointsIcon}>💎</Text>
             <View style={styles.buyPointsTextContainer}>

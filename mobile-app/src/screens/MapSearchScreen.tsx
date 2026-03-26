@@ -1,5 +1,5 @@
 import { Logger } from '../utils/Logger';
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   View,
@@ -19,9 +19,8 @@ import {
 import { Picker } from '@react-native-picker/picker';
 import LinearGradient from 'react-native-linear-gradient';
 import MapView, { Marker, Callout, PROVIDER_GOOGLE, MapMarker, Region } from 'react-native-maps';
-import ClusteredMapView from 'react-native-map-clustering';
 import Geolocation from 'react-native-geolocation-service';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../services/ApiService';
 import CategoryService, { Category } from '../services/CategoryService';
@@ -75,6 +74,10 @@ const MapSearchScreen: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
   const [serviceCategories, setServiceCategories] = useState<Category[]>([]);
+  
+  // Provider's selected service categories (from profile settings)
+  const [providerCategories, setProviderCategories] = useState<string[]>([]);
+  const [showCategoryBanner, setShowCategoryBanner] = useState(true);
 
   // Helper to get Bulgarian label for a service category
   const getServiceCategoryLabel = (category: string): string => {
@@ -95,6 +98,12 @@ const MapSearchScreen: React.FC = () => {
 
   // Profile modal state
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  
+  // Track if user has panned the map (for "Search this area" button)
+  const [hasUserPanned, setHasUserPanned] = useState(false);
+  const [currentMapRegion, setCurrentMapRegion] = useState(INITIAL_REGION);
+  const [initialFetchDone, setInitialFetchDone] = useState(false);
+  const isProgrammaticMove = useRef(false);
   const [profileProvider, setProfileProvider] = useState<any>(null);
   const [providerReviews, setProviderReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -144,6 +153,40 @@ const MapSearchScreen: React.FC = () => {
     loadCategories();
   }, []);
 
+  // Fetch provider's selected categories
+  const fetchProviderCategories = async () => {
+    try {
+      const token = await AsyncStorage.getItem('auth_token');
+      const response = await fetch('https://snapfix.bg/api/v1/provider/categories', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.categories) {
+          // Backend returns objects {category_id, category_label_bg, category_name}
+          // Extract just the category_id strings for state
+          const categoryIds = result.categories.map((c: any) => 
+            typeof c === 'string' ? c : (c.category_id || c.id || String(c))
+          );
+          setProviderCategories(categoryIds);
+          Logger.debug('📂 Provider categories loaded for map:', categoryIds);
+        }
+      }
+    } catch (error) {
+      Logger.error('Error fetching provider categories:', error);
+    }
+  };
+
+  // Load provider categories when user is loaded as provider
+  useEffect(() => {
+    if (userLoaded && isProvider) {
+      fetchProviderCategories();
+    }
+  }, [userLoaded, isProvider]);
+
   // Load free inspection preferences for customers
   useEffect(() => {
     const loadFreeInspectionPrefs = async () => {
@@ -177,55 +220,86 @@ const MapSearchScreen: React.FC = () => {
   useEffect(() => {
     if (!userLoaded) return;
     
-    // Try to get user's location first
-    Geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const userLocation = {
-          latitude,
-          longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        };
-        Logger.debug('📍 Got user location:', latitude, longitude, 'isProvider:', isProvider);
-        setRegion(userLocation);
-        
-        // Animate to user location after map is ready
-        setTimeout(() => {
-          mapRef.current?.animateToRegion(userLocation, 1000);
-        }, 500);
-        
-        // Fetch data based on user role and tier
-        // Only PRO providers can view cases on map
-        if (isProvider && canViewCasesOnMap) {
-          fetchCases(userLocation);
-        } else if (!isProvider) {
-          fetchProviders(userLocation);
-        }
-        // Free/Normal providers: don't fetch cases, just show map for location sharing
-      },
-      (error) => {
-        Logger.debug('📍 Location error, using Sofia default:', error.message);
-        // Fallback to Sofia if location fails
-        if (isProvider && canViewCasesOnMap) {
-          fetchCases(INITIAL_REGION);
-        } else if (!isProvider) {
-          fetchProviders(INITIAL_REGION);
-        }
-        
-        if (Platform.OS === 'android') {
-          setTimeout(() => {
-            mapRef.current?.animateToRegion(INITIAL_REGION, 1000);
-          }, 500);
-        }
-      },
-      { 
-        enableHighAccuracy: true, 
-        timeout: 10000, 
-        maximumAge: 60000
+    // Fallback function if geolocation is unavailable or fails
+    const fallbackToDefault = () => {
+      if (isProvider && canViewCasesOnMap) {
+        fetchCases(INITIAL_REGION);
+      } else if (!isProvider) {
+        fetchProviders(INITIAL_REGION);
       }
-    );
+      if (Platform.OS === 'android') {
+        setTimeout(() => {
+          mapRef.current?.animateToRegion(INITIAL_REGION, 1000);
+        }, 500);
+      }
+    };
+    
+    // Guard: check if Geolocation module and getCurrentPosition are available
+    if (!Geolocation || typeof Geolocation.getCurrentPosition !== 'function') {
+      Logger.warn('📍 Geolocation module not available, using Sofia default');
+      fallbackToDefault();
+      return;
+    }
+    
+    try {
+      // Try to get user's location first
+      Geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const userLocation = {
+            latitude,
+            longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          };
+          Logger.debug('📍 Got user location:', latitude, longitude, 'isProvider:', isProvider);
+          setRegion(userLocation);
+          
+          // Animate to user location after map is ready
+          setTimeout(() => {
+            mapRef.current?.animateToRegion(userLocation, 1000);
+          }, 500);
+          
+          // Fetch data based on user role and tier
+          if (isProvider && canViewCasesOnMap) {
+            fetchCases(userLocation);
+          } else if (!isProvider) {
+            fetchProviders(userLocation);
+          }
+        },
+        (error) => {
+          Logger.debug('📍 Location error, using Sofia default:', error.message);
+          fallbackToDefault();
+        },
+        { 
+          enableHighAccuracy: true, 
+          timeout: 10000, 
+          maximumAge: 60000
+        }
+      );
+    } catch (geoError) {
+      Logger.error('📍 Geolocation.getCurrentPosition threw:', geoError);
+      fallbackToDefault();
+    }
   }, [userLoaded, isProvider, canViewCasesOnMap]);
+
+  // Auto-refresh polling (15 seconds like web version)
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!userLoaded) return;
+      
+      const intervalId = setInterval(() => {
+        Logger.debug('🔄 MapSearchScreen - Auto-refresh polling');
+        if (isProvider && canViewCasesOnMap) {
+          fetchCases(lastSearchLocation);
+        } else if (!isProvider) {
+          fetchProviders(lastSearchLocation);
+        }
+      }, 15000);
+      
+      return () => clearInterval(intervalId);
+    }, [userLoaded, isProvider, canViewCasesOnMap, lastSearchLocation, selectedRadius, selectedCategory, showOnlyFreeInspection])
+  );
 
   const onMapLayout = () => {
     if (!mapReady) {
@@ -288,6 +362,9 @@ const MapSearchScreen: React.FC = () => {
         
         setProviders(validProviders);
         setLastSearchLocation(searchRegion);
+        setHasUserPanned(false);
+        setInitialFetchDone(true);
+        setCurrentMapRegion(searchRegion);
 
         // Fit map to show all markers
         if (validProviders.length > 0 && mapRef.current) {
@@ -296,11 +373,14 @@ const MapSearchScreen: React.FC = () => {
             longitude: parseCoord(p.longitude),
           }));
           
+          isProgrammaticMove.current = true;
           setTimeout(() => {
             mapRef.current?.fitToCoordinates(coordinates, {
               edgePadding: { top: 100, right: 50, bottom: 100, left: 50 },
               animated: true,
             });
+            // Reset flag after animation completes
+            setTimeout(() => { isProgrammaticMove.current = false; }, 600);
           }, 500);
         }
       } else {
@@ -336,15 +416,37 @@ const MapSearchScreen: React.FC = () => {
       Logger.debug('📡 MapSearchScreen - Cases API Response:', response);
 
       if (response.success && response.data?.cases) {
-        const validCases = response.data.cases.filter((c: any) => {
+        let validCases = response.data.cases.filter((c: any) => {
           const lat = parseCoord(c.latitude);
           const lng = parseCoord(c.longitude);
           return lat !== 0 && lng !== 0;
         });
         
+        // PHASE 2: Filter by provider's selected categories - normalize cat_ prefix
+        if (providerCategories.length > 0) {
+          validCases = validCases.filter((c: any) => {
+            const normalizedProvider = providerCategories.map((cat: string) => cat.replace(/^cat_/, ''));
+            const caseCategory = c.category?.replace(/^cat_/, '') || '';
+            const caseServiceType = c.service_type?.replace(/^cat_/, '') || '';
+            
+            return providerCategories.includes(c.category) || 
+                   providerCategories.includes(c.service_type) ||
+                   normalizedProvider.includes(caseCategory) ||
+                   normalizedProvider.includes(caseServiceType);
+          });
+          Logger.debug('🔍 Map filtered by provider categories:', {
+            providerCategories,
+            totalCases: response.data.cases.length,
+            filteredCases: validCases.length
+          });
+        }
+        
         Logger.debug('✅ MapSearchScreen - Valid cases count:', validCases.length);
         setCases(validCases);
         setLastSearchLocation(searchRegion);
+        setHasUserPanned(false);
+        setInitialFetchDone(true);
+        setCurrentMapRegion(searchRegion);
 
         // Fit map to show all markers
         if (validCases.length > 0 && mapRef.current) {
@@ -353,11 +455,14 @@ const MapSearchScreen: React.FC = () => {
             longitude: parseCoord(c.longitude),
           }));
           
+          isProgrammaticMove.current = true;
           setTimeout(() => {
             mapRef.current?.fitToCoordinates(coordinates, {
               edgePadding: { top: 100, right: 50, bottom: 100, left: 50 },
               animated: true,
             });
+            // Reset flag after animation completes
+            setTimeout(() => { isProgrammaticMove.current = false; }, 600);
           }, 500);
         }
       } else {
@@ -409,36 +514,76 @@ const MapSearchScreen: React.FC = () => {
     }
   };
 
-  const getCategoryLabel = (categoryId: string) => {
+  const getCategoryLabel = (categoryId: any) => {
     if (!categoryId) return '';
+    // Safety: ensure we have a string (backend may return objects)
+    if (typeof categoryId !== 'string') {
+      categoryId = categoryId?.category_id || categoryId?.id || String(categoryId);
+    }
     // Use the constant helper that handles both 'cat_' prefix and without
     return getServiceCategoryLabel(categoryId);
   };
 
+  // Helper to render category chips for providers with multiple categories
+  const renderProviderCategories = (provider: any) => {
+    const categories = provider?.serviceCategories || provider?.service_categories || [];
+    const singleCategory = provider?.serviceCategory || provider?.service_category;
+    
+    if (Array.isArray(categories) && categories.length > 0) {
+      return (
+        <View style={styles.categoryChipsRow}>
+          {categories.slice(0, 2).map((cat: string, idx: number) => (
+            <View key={idx} style={styles.categoryChipSmall}>
+              <Text style={styles.categoryChipTextSmall} numberOfLines={1}>
+                {getCategoryLabel(cat)}
+              </Text>
+            </View>
+          ))}
+          {categories.length > 2 && (
+            <View style={styles.categoryChipSmall}>
+              <Text style={styles.categoryChipTextSmall}>+{categories.length - 2}</Text>
+            </View>
+          )}
+        </View>
+      );
+    }
+    
+    return <Text style={styles.providerCategory}>{getCategoryLabel(singleCategory)}</Text>;
+  };
+
   const getCurrentLocation = () => {
-    Geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const newLocation = {
-          latitude,
-          longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        };
-        setRegion(newLocation);
-        mapRef.current?.animateToRegion(newLocation, 1000);
-        if (isProvider && canViewCasesOnMap) {
-          fetchCases(newLocation);
-        } else if (!isProvider) {
-          fetchProviders(newLocation);
-        }
-      },
-      (error) => {
-        Logger.error(error);
-        Alert.alert(t('locationError'), t('locationDetermineError'));
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-    );
+    if (!Geolocation || typeof Geolocation.getCurrentPosition !== 'function') {
+      Alert.alert(t('locationError'), t('locationDetermineError'));
+      return;
+    }
+    try {
+      Geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const newLocation = {
+            latitude,
+            longitude,
+            latitudeDelta: 0.02,
+            longitudeDelta: 0.02,
+          };
+          setRegion(newLocation);
+          mapRef.current?.animateToRegion(newLocation, 1000);
+          if (isProvider && canViewCasesOnMap) {
+            fetchCases(newLocation);
+          } else if (!isProvider) {
+            fetchProviders(newLocation);
+          }
+        },
+        (error) => {
+          Logger.error(error);
+          Alert.alert(t('locationError'), t('locationDetermineError'));
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      );
+    } catch (geoError) {
+      Logger.error('getCurrentLocation threw:', geoError);
+      Alert.alert(t('locationError'), t('locationDetermineError'));
+    }
   };
 
   const handleViewProfile = async (provider: any) => {
@@ -532,7 +677,7 @@ const MapSearchScreen: React.FC = () => {
         </View>
         <View style={styles.providerInfo}>
           <Text style={styles.providerName}>{item.businessName || item.name}</Text>
-          <Text style={styles.providerCategory}>{getServiceCategoryLabel(item.serviceCategory)}</Text>
+          {renderProviderCategories(item)}
           <View style={styles.ratingContainer}>
             <Text style={styles.starIcon}>⭐</Text>
             <Text style={styles.ratingText}>{item.rating || '0.0'}</Text>
@@ -615,7 +760,7 @@ const MapSearchScreen: React.FC = () => {
       </View>
 
       {/* Screenshots */}
-      {item.screenshots && item.screenshots.length > 0 && (
+      {Array.isArray(item?.screenshots) && item.screenshots.length > 0 && (
         <View style={styles.screenshotsSection}>
           <Text style={styles.screenshotsLabel}>📷 {t('photos')}:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotsScroll}>
@@ -659,9 +804,9 @@ const MapSearchScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Map View with Clustering */}
+      {/* Map View */}
       <View style={[styles.mapContainer, viewMode === 'list' ? styles.hidden : null]}>
-        <ClusteredMapView
+        <MapView
           ref={mapRef}
           provider={PROVIDER_GOOGLE}
           style={styles.map}
@@ -676,7 +821,7 @@ const MapSearchScreen: React.FC = () => {
           pitchEnabled={false}
           rotateEnabled={false}
           toolbarEnabled={false}
-          loadingEnabled={true}
+          loadingEnabled={false}
           moveOnMarkerPress={false}
           onPress={() => {
             setSelectedProvider(null);
@@ -686,72 +831,21 @@ const MapSearchScreen: React.FC = () => {
             Logger.debug('🗺️ MAP IS READY');
             setMapReady(true);
           }}
-          // Clustering options - red for cases (SP view), red for providers (customer view)
-          clusterColor="#E53E3E"
-          clusterTextColor="#FFFFFF"
-          clusterFontFamily="System"
-          radius={80}
-          extent={512}
-          minPoints={2}
-          maxZoom={15}
-          animationEnabled={true}
-          preserveClusterPressBehavior={true}
-          spiderLineColor="#E53E3E"
-          onClusterPress={(cluster, markers) => {
-            // Zoom into the cluster
-            const { geometry } = cluster;
-            const coords = markers?.map((m: any) => ({
-              latitude: m.geometry?.coordinates?.[1] || m.properties?.coordinate?.latitude,
-              longitude: m.geometry?.coordinates?.[0] || m.properties?.coordinate?.longitude,
-            })).filter((c: any) => c.latitude && c.longitude);
-            
-            if (coords && coords.length > 0 && mapRef.current) {
-              mapRef.current.fitToCoordinates(coords, {
-                edgePadding: { top: 100, right: 100, bottom: 100, left: 100 },
-                animated: true,
-              });
-            } else if (mapRef.current) {
-              // Fallback: zoom to cluster center
-              mapRef.current.animateToRegion({
-                latitude: geometry.coordinates[1],
-                longitude: geometry.coordinates[0],
-                latitudeDelta: region.latitudeDelta / 2,
-                longitudeDelta: region.longitudeDelta / 2,
-              }, 500);
+          onRegionChangeComplete={(newRegion) => {
+            setCurrentMapRegion(newRegion);
+            // Ignore programmatic moves (fitToCoordinates, animateToRegion)
+            if (isProgrammaticMove.current) return;
+            // Check if user has panned significantly from last search location
+            const latDiff = Math.abs(newRegion.latitude - lastSearchLocation.latitude);
+            const lngDiff = Math.abs(newRegion.longitude - lastSearchLocation.longitude);
+            // Show "Search this area" if moved more than ~500m
+            if (latDiff > 0.005 || lngDiff > 0.005) {
+              setHasUserPanned(true);
             }
-          }}
-          renderCluster={(cluster) => {
-            const { id, geometry, onPress, properties } = cluster;
-            const points = properties.point_count;
-            const size = points < 10 ? 36 : points < 50 ? 44 : 52;
-            
-            return (
-              <Marker
-                key={`cluster-${id}`}
-                coordinate={{
-                  longitude: geometry.coordinates[0],
-                  latitude: geometry.coordinates[1],
-                }}
-                onPress={onPress}
-                tracksViewChanges={false}
-              >
-                <View style={[
-                  styles.clusterContainer, 
-                  { 
-                    width: size, 
-                    height: size, 
-                    borderRadius: size / 2,
-                    backgroundColor: '#E53E3E',
-                  }
-                ]}>
-                  <Text style={styles.clusterText}>{points}</Text>
-                </View>
-              </Marker>
-            );
           }}
         >
           {/* Render cases for PRO providers only */}
-          {isProvider && canViewCasesOnMap && cases.map((caseItem) => {
+          {isProvider && canViewCasesOnMap && Array.isArray(cases) && cases.map((caseItem) => {
             const lat = parseCoord(caseItem.latitude);
             const lng = parseCoord(caseItem.longitude);
             if (lat === 0 || lng === 0) return null;
@@ -771,7 +865,7 @@ const MapSearchScreen: React.FC = () => {
           })}
 
           {/* Render providers for customers - different colors for free inspection */}
-          {!isProvider && providers.map((provider) => {
+          {!isProvider && Array.isArray(providers) && providers.map((provider) => {
             const lat = parseCoord(provider.latitude);
             const lng = parseCoord(provider.longitude);
             if (lat === 0 || lng === 0) return null;
@@ -793,7 +887,7 @@ const MapSearchScreen: React.FC = () => {
               />
             );
           })}
-        </ClusteredMapView>
+        </MapView>
 
 
         {/* Provider Preview Card (for customers) */}
@@ -824,7 +918,7 @@ const MapSearchScreen: React.FC = () => {
                   {selectedProvider.freeInspectionActive && (
                     <Text style={styles.freeInspectionIndicator}>€ {t('mapFreeInspection')} €</Text>
                   )}
-                  <Text style={styles.providerCategory}>{getServiceCategoryLabel(selectedProvider.serviceCategory)}</Text>
+                  {renderProviderCategories(selectedProvider)}
                   <View style={styles.ratingContainer}>
                     <Text style={styles.starIcon}>⭐</Text>
                     <Text style={styles.ratingText}>{selectedProvider.rating || '0.0'}</Text>
@@ -895,7 +989,7 @@ const MapSearchScreen: React.FC = () => {
               </View>
 
               {/* Screenshots */}
-              {selectedCase.screenshots && selectedCase.screenshots.length > 0 && (
+              {Array.isArray(selectedCase?.screenshots) && selectedCase.screenshots.length > 0 && (
                 <View style={styles.screenshotsSection}>
                   <Text style={styles.screenshotsLabel}>📷 {t('photos')}:</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.screenshotsScroll}>
@@ -945,6 +1039,51 @@ const MapSearchScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
             </View>
+          </View>
+        )}
+
+        {/* Search This Area Button - shows when user pans the map */}
+        {hasUserPanned && viewMode === 'map' && (
+          <TouchableOpacity
+            style={styles.searchAreaBtn}
+            onPress={() => {
+              setHasUserPanned(false);
+              if (isProvider && canViewCasesOnMap) {
+                fetchCases(currentMapRegion);
+              } else if (!isProvider) {
+                fetchProviders(currentMapRegion);
+              }
+            }}
+          >
+            <Text style={styles.searchAreaBtnText}>🔍 {t('mapSearchThisArea')}</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Loading indicator overlay */}
+        {isLoading && viewMode === 'map' && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="small" color="#1e40af" />
+          </View>
+        )}
+
+        {/* Empty state overlay */}
+        {!isLoading && viewMode === 'map' && initialFetchDone && ((isProvider && cases.length === 0) || (!isProvider && providers.length === 0)) && mapReady && (
+          <View style={styles.emptyOverlay}>
+            <Text style={styles.emptyOverlayText}>
+              {isProvider ? t('mapNoCasesInArea') : t('mapNoProvidersInArea')}
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyOverlayBtn}
+              onPress={() => {
+                if (isProvider && canViewCasesOnMap) {
+                  fetchCases(currentMapRegion);
+                } else if (!isProvider) {
+                  fetchProviders(currentMapRegion);
+                }
+              }}
+            >
+              <Text style={styles.emptyOverlayBtnText}>{t('mapRetry')}</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -997,7 +1136,12 @@ const MapSearchScreen: React.FC = () => {
                     dropdownIconColor="#374151"
                   >
                     <Picker.Item key="all" label={t('mapAllCategories')} value="" />
-                    {serviceCategories.map((cat: Category) => (
+                    {Array.isArray(serviceCategories) && serviceCategories.filter((cat: Category) => 
+                      !isProvider || !Array.isArray(providerCategories) || providerCategories.length === 0 || 
+                      providerCategories.includes(cat.value || cat.id || '') || 
+                      providerCategories.includes((cat.value || cat.id || '').replace('cat_', '')) || 
+                      providerCategories.includes(`cat_${(cat.value || cat.id || '').replace('cat_', '')}`)
+                    ).map((cat: Category) => (
                       <Picker.Item key={cat.value || cat.id} label={cat.label} value={cat.id} />
                     ))}
                   </Picker>
@@ -1047,7 +1191,12 @@ const MapSearchScreen: React.FC = () => {
                             dropdownIconColor="#7C3AED"
                           >
                             <Picker.Item key="all" label={t('mapAllCategories')} value="" />
-                            {serviceCategories.map((cat: Category) => (
+                            {Array.isArray(serviceCategories) && serviceCategories.filter((cat: Category) => 
+                              !isProvider || !Array.isArray(providerCategories) || providerCategories.length === 0 || 
+                              providerCategories.includes(cat.value || cat.id || '') || 
+                              providerCategories.includes((cat.value || cat.id || '').replace('cat_', '')) || 
+                              providerCategories.includes(`cat_${(cat.value || cat.id || '').replace('cat_', '')}`)
+                            ).map((cat: Category) => (
                               <Picker.Item key={cat.value || cat.id} label={cat.label} value={cat.id} />
                             ))}
                           </Picker>
@@ -1175,9 +1324,10 @@ const MapSearchScreen: React.FC = () => {
             onPress={() => {
               if (isProvider) {
                 // Find nearest case
+                if (!Array.isArray(cases) || cases.length === 0) return;
                 const nearest = cases.reduce((prev, curr) => {
-                  const prevDist = parseFloat(prev.distanceKm) || Infinity;
-                  const currDist = parseFloat(curr.distanceKm) || Infinity;
+                  const prevDist = parseFloat(prev?.distanceKm) || Infinity;
+                  const currDist = parseFloat(curr?.distanceKm) || Infinity;
                   return currDist < prevDist ? curr : prev;
                 }, cases[0]);
                 
@@ -1194,9 +1344,10 @@ const MapSearchScreen: React.FC = () => {
                 }
               } else {
                 // Find nearest provider
+                if (!Array.isArray(providers) || providers.length === 0) return;
                 const nearest = providers.reduce((prev, curr) => {
-                  const prevDist = prev.distance || Infinity;
-                  const currDist = curr.distance || Infinity;
+                  const prevDist = prev?.distance || Infinity;
+                  const currDist = curr?.distance || Infinity;
                   return currDist < prevDist ? curr : prev;
                 }, providers[0]);
                 
@@ -1340,7 +1491,7 @@ const MapSearchScreen: React.FC = () => {
                 </View>
 
                 {/* Gallery */}
-                {profileProvider.gallery && profileProvider.gallery.length > 0 && (
+                {Array.isArray(profileProvider?.gallery) && profileProvider.gallery.length > 0 && (
                   <View style={modalStyles.gallerySection}>
                     <Text style={modalStyles.sectionTitle}>📸 {t('mapGallery')}</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -1358,7 +1509,7 @@ const MapSearchScreen: React.FC = () => {
                   <Text style={modalStyles.sectionTitle}>🌟 {t('mapReviews')}</Text>
                   {reviewsLoading ? (
                     <ActivityIndicator color="#818cf8" style={{ marginVertical: 20 }} />
-                  ) : providerReviews.length > 0 ? (
+                  ) : Array.isArray(providerReviews) && providerReviews.length > 0 ? (
                     providerReviews.slice(0, 5).map((review: any, idx: number) => (
                       <View key={idx} style={modalStyles.reviewCard}>
                         <View style={modalStyles.reviewHeader}>
@@ -1425,6 +1576,72 @@ const styles = StyleSheet.create({
   map: {
     width: '100%',
     height: '100%',
+  },
+  searchAreaBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    alignSelf: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  searchAreaBtnText: {
+    color: '#1e40af',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 20,
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  emptyOverlay: {
+    position: 'absolute',
+    top: '40%',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  emptyOverlayText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  emptyOverlayBtn: {
+    backgroundColor: '#1e40af',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  emptyOverlayBtnText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
   },
   listContainer: {
     flex: 1,
@@ -2413,6 +2630,45 @@ const modalStyles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
   },
+  // Category filter banner styles
+  categoryBanner: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderRadius: 8,
+    padding: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 1000,
+  },
+  categoryBannerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryBannerText: {
+    color: '#4b5563',
+    fontSize: 13,
+    flex: 1,
+  },
+  categoryBannerLink: {
+    color: '#6366F1',
+    fontSize: 13,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
+  },
+  categoryBannerClose: {
+    color: '#6366F1',
+    fontSize: 18,
+    fontWeight: '600',
+    paddingLeft: 12,
+  },
   chatButtonLarge: {
     flex: 1,
     backgroundColor: '#4f46e5',
@@ -2476,6 +2732,25 @@ const modalStyles = StyleSheet.create({
     color: '#4f46e5',
     fontSize: 15,
     fontWeight: '700',
+  },
+  categoryChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  categoryChipSmall: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+  },
+  categoryChipTextSmall: {
+    color: '#6366F1',
+    fontSize: 10,
+    fontWeight: '500',
   },
 });
 

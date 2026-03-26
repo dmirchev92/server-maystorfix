@@ -859,11 +859,17 @@ export class PostgreSQLDatabase {
       const userEmail = userResult.rows[0]?.email;
       
       // Get conversations with message counts and provider names
+      // Unread count: for providers, count unread from customers; for customers, count unread from providers
       const result = await this.pool.query(
         `SELECT 
            c.*,
            COUNT(m.id) as message_count,
-           COUNT(CASE WHEN m.is_read = false THEN 1 END) as unread_count,
+           COUNT(CASE 
+             WHEN m.is_read = false AND (
+               (c.provider_id = $1 AND m.sender_type = 'customer') OR
+               (c.customer_id = $2 AND m.sender_type = 'provider')
+             ) THEN 1 
+           END) as unread_count,
            COALESCE(sp.business_name, u.first_name || ' ' || u.last_name) as service_provider_name,
            sp.service_category
          FROM marketplace_conversations c
